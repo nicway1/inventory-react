@@ -1,0 +1,473 @@
+from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for
+from datetime import datetime
+from utils.auth_decorators import login_required, admin_required
+from utils.store_instances import inventory_store, db_manager
+from models.inventory_item import InventoryItem
+import os
+from werkzeug.utils import secure_filename
+import pandas as pd
+from database import SessionLocal
+from models.asset import Asset
+from models.accessory import Accessory
+from sqlalchemy import func, case, or_
+
+inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
+
+# Configure upload settings
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'csv'}
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@inventory_bp.route('/')
+@login_required
+def view_inventory():
+    db = SessionLocal()
+    try:
+        # Get counts
+        tech_assets_count = db.query(Asset).count()
+        accessories_count = db.query(Accessory).count()
+
+        # Get unique values for filters from assets only
+        companies = db.query(Asset.customer).distinct().all()
+        companies = sorted(list(set([c[0] for c in companies if c[0]])))
+
+        models = db.query(Asset.model).distinct().all()
+        models = sorted(list(set([m[0] for m in models if m[0]])))
+
+        countries = db.query(Asset.country).distinct().all()
+        countries = sorted(list(set([c[0] for c in countries if c[0]])))
+
+        # Get accessories with counts
+        accessories = db.query(
+            Accessory.name,
+            Accessory.category,
+            func.count(Accessory.id).label('total_count'),
+            func.sum(case([(Accessory.status == 'Available', 1)], else_=0)).label('available_count')
+        ).group_by(Accessory.name, Accessory.category).all()
+
+        accessories_list = [
+            {
+                'name': acc.name,
+                'category': acc.category,
+                'total_count': acc.total_count,
+                'available_count': acc.available_count
+            }
+            for acc in accessories
+        ]
+
+        return render_template(
+            'inventory/view.html',
+            tech_assets_count=tech_assets_count,
+            accessories_count=accessories_count,
+            companies=companies,
+            models=models,
+            countries=countries,
+            accessories=accessories_list
+        )
+
+    finally:
+        db.close()
+
+@inventory_bp.route('/tech-assets')
+@login_required
+def view_tech_assets():
+    db = SessionLocal()
+    try:
+        assets = db.query(Asset).all()
+        return jsonify({
+            'assets': [
+                {
+                    'id': asset.id,
+                    'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'model': asset.model,
+                    'inventory': asset.inventory,
+                    'customer': asset.customer,
+                    'country': asset.country
+                }
+                for asset in assets
+            ]
+        })
+    finally:
+        db.close()
+
+@inventory_bp.route('/accessories')
+@login_required
+def view_accessories():
+    db = SessionLocal()
+    try:
+        accessories = db.query(Accessory).all()
+        return render_template('inventory/accessories.html', accessories=accessories)
+    finally:
+        db.close()
+
+@inventory_bp.route('/filter', methods=['POST'])
+@login_required
+def filter_inventory():
+    data = request.json
+    db = SessionLocal()
+    try:
+        # Build query based on filters
+        assets_query = db.query(Asset)
+        accessories_query = db.query(Accessory)
+
+        if data.get('search'):
+            search = f"%{data['search']}%"
+            assets_query = assets_query.filter(
+                or_(
+                    Asset.serial_num.ilike(search),
+                    Asset.asset_tag.ilike(search),
+                    Asset.product.ilike(search),
+                    Asset.model.ilike(search),
+                    Asset.country.ilike(search)
+                )
+            )
+            accessories_query = accessories_query.filter(
+                or_(
+                    Accessory.serial_num.ilike(search),
+                    Accessory.asset_tag.ilike(search),
+                    Accessory.name.ilike(search),
+                    Accessory.model.ilike(search),
+                    Accessory.country.ilike(search)
+                )
+            )
+
+        if data.get('status'):
+            assets_query = assets_query.filter(Asset.status == data['status'])
+            accessories_query = accessories_query.filter(Accessory.status == data['status'])
+
+        if data.get('company'):
+            assets_query = assets_query.filter(Asset.customer == data['company'])
+            accessories_query = accessories_query.filter(Accessory.customer == data['company'])
+
+        if data.get('model'):
+            assets_query = assets_query.filter(Asset.model == data['model'])
+            accessories_query = accessories_query.filter(Accessory.model == data['model'])
+
+        if data.get('country'):
+            assets_query = assets_query.filter(Asset.country == data['country'])
+            accessories_query = accessories_query.filter(Accessory.country == data['country'])
+
+        # Get results
+        assets = assets_query.all()
+        accessories = accessories_query.all()
+
+        return jsonify({
+            'tech_assets_count': len(assets),
+            'accessories_count': len(accessories),
+            'accessories': [acc.to_dict() for acc in accessories]
+        })
+
+    finally:
+        db.close()
+
+@inventory_bp.route('/checkout/<int:id>', methods=['POST'])
+@login_required
+def checkout_accessory(id):
+    db = SessionLocal()
+    try:
+        accessory = db.query(Accessory).get(id)
+        if not accessory:
+            flash('Accessory not found')
+            return redirect(url_for('inventory.view_inventory'))
+
+        if accessory.status != 'Available':
+            flash('This accessory is not available for checkout')
+            return redirect(url_for('inventory.view_inventory'))
+
+        # Update accessory status
+        accessory.status = 'Checked Out'
+        accessory.customer = session.get('user_id')  # Or however you track the current user
+        db.commit()
+
+        flash('Accessory checked out successfully')
+        return redirect(url_for('inventory.view_inventory'))
+
+    finally:
+        db.close()
+
+@inventory_bp.route('/item/<int:item_id>')
+@login_required
+def view_item(item_id):
+    item = inventory_store.get_item(item_id)
+    if not item:
+        flash('Item not found')
+        return redirect(url_for('inventory.view_inventory'))
+    
+    return render_template(
+        'inventory/item_details.html',
+        item=item
+    )
+
+@inventory_bp.route('/item/add', methods=['GET', 'POST'])
+@login_required
+def add_item():
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name')
+            category = request.form.get('category')
+            status = request.form.get('status', 'Available')
+            
+            if not name or not category:
+                flash('Name and category are required')
+                return redirect(url_for('inventory.add_item'))
+            
+            item = inventory_store.create_item(name, category, status)
+            flash('Item added successfully')
+            return redirect(url_for('inventory.view_inventory'))
+            
+        except Exception as e:
+            flash(f'Error adding item: {str(e)}')
+            return redirect(url_for('inventory.add_item'))
+
+    return render_template('inventory/add_item.html')
+
+@inventory_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_item(item_id):
+    item = inventory_store.get_item(item_id)
+    if not item:
+        flash('Item not found')
+        return redirect(url_for('inventory.view_inventory'))
+    
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name')
+            category = request.form.get('category')
+            status = request.form.get('status')
+            
+            if not name or not category:
+                flash('Name and category are required')
+                return redirect(url_for('inventory.edit_item', item_id=item_id))
+            
+            inventory_store.update_item(
+                item_id,
+                name=name,
+                category=category,
+                status=status
+            )
+            flash('Item updated successfully')
+            return redirect(url_for('inventory.view_inventory'))
+            
+        except Exception as e:
+            flash(f'Error updating item: {str(e)}')
+            return redirect(url_for('inventory.edit_item', item_id=item_id))
+
+    return render_template('inventory/edit_item.html', item=item)
+
+@inventory_bp.route('/item/<int:item_id>/delete', methods=['POST'])
+@login_required
+def delete_item(item_id):
+    if inventory_store.delete_item(item_id):
+        flash('Item deleted successfully')
+    else:
+        flash('Error deleting item')
+    return redirect(url_for('inventory.view_inventory'))
+
+@inventory_bp.route('/item/<int:item_id>/assign', methods=['POST'])
+@login_required
+def assign_item(item_id):
+    user_id = request.form.get('user_id')
+    if not user_id:
+        flash('User ID is required')
+        return redirect(url_for('inventory.view_item', item_id=item_id))
+    
+    if inventory_store.assign_item(item_id, int(user_id)):
+        flash('Item assigned successfully')
+    else:
+        flash('Error assigning item')
+    return redirect(url_for('inventory.view_item', item_id=item_id))
+
+@inventory_bp.route('/item/<int:item_id>/unassign', methods=['POST'])
+@login_required
+def unassign_item(item_id):
+    if inventory_store.unassign_item(item_id):
+        flash('Item unassigned successfully')
+    else:
+        flash('Error unassigning item')
+    return redirect(url_for('inventory.view_item', item_id=item_id))
+
+@inventory_bp.route('/import', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def import_inventory():
+    if request.method == 'POST':
+        if 'file' in request.files:
+            file = request.files['file']
+            import_type = request.form.get('import_type', 'assets')
+            dry_run = request.form.get('dry_run') == 'on'
+            
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(filepath)
+                
+                try:
+                    df = pd.read_csv(filepath)
+                    
+                    # Store preview data in session
+                    preview_data = {
+                        'columns': df.columns.tolist(),
+                        'rows': df.head().values.tolist(),
+                        'total_rows': len(df)
+                    }
+                    session['preview_data'] = preview_data
+                    session['import_filepath'] = filepath
+                    session['import_type'] = import_type
+                    
+                    if dry_run:
+                        flash('Dry run completed successfully. No data was imported.', 'success')
+                        os.remove(filepath)
+                        return redirect(url_for('inventory.import_inventory'))
+                    
+                    return render_template('inventory/import.html', 
+                                         preview_data=preview_data,
+                                         filename=filename,
+                                         import_type=import_type)
+                
+                except Exception as e:
+                    flash(f'Error reading CSV file: {str(e)}', 'error')
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+            else:
+                flash('Invalid file type. Please upload a CSV file.', 'error')
+        
+        elif 'action' in request.form:
+            action = request.form['action']
+            filepath = session.get('import_filepath')
+            import_type = session.get('import_type', 'assets')
+            
+            if action == 'confirm' and filepath and os.path.exists(filepath):
+                try:
+                    df = pd.read_csv(filepath)
+                    db = SessionLocal()
+                    
+                    try:
+                        if import_type == 'assets':
+                            # Import assets
+                            for _, row in df.iterrows():
+                                # Convert erased value to boolean
+                                erased_value = str(row.get('ERASED', '')).upper()
+                                erased = erased_value in ['YES', 'TRUE', 'COMPLETED', '1']
+                                
+                                asset = Asset(
+                                    product=str(row.get('PRODUCT', '')),
+                                    asset_tag=str(row.get('ASSET TAG', '')),
+                                    receiving_date=pd.to_datetime(row.get('RECEIVING DATE')).date() if pd.notna(row.get('RECEIVING DATE')) else None,
+                                    keyboard=str(row.get('KEYBOARD', '')),
+                                    serial_num=str(row.get('SERIAL NUMBER', '')),
+                                    po=str(row.get('PO', '')) if pd.notna(row.get('PO')) else '',
+                                    model=str(row.get('MODEL', '')),
+                                    erased=erased,  # Use converted boolean value
+                                    customer=str(row.get('CUSTOMER', '')),
+                                    condition=str(row.get('CONDITION', '')),
+                                    diag=str(row.get('DIAG', '')),
+                                    hardware_type=str(row.get('HARDWARE TYPE', '')),
+                                    cpu_type=str(row.get('CPU TYPE', '')),
+                                    cpu_cores=str(row.get('CPU CORES', '')),
+                                    gpu_cores=str(row.get('GPU CORES', '')),
+                                    memory=str(row.get('MEMORY', '')),
+                                    harddrive=str(row.get('HARDDRIVE', '')),
+                                    charger=str(row.get('CHARGER', '')),
+                                    inventory=str(row.get('INVENTORY', '')),
+                                    country=str(row.get('COUNTRY', '')),
+                                    status='Ready to Deploy'  # Set default status
+                                )
+                                db.add(asset)
+                        
+                        else:  # import_type == 'accessories'
+                            # Group accessories by name and category
+                            grouped = df.groupby(['NAME', 'CATEGORY']).size().reset_index(name='count')
+                            
+                            for _, row in grouped.iterrows():
+                                # Check if accessory already exists
+                                existing = db.query(Accessory).filter(
+                                    Accessory.name == row['NAME'],
+                                    Accessory.category == row['CATEGORY']
+                                ).first()
+                                
+                                if existing:
+                                    # Update quantities
+                                    existing.total_quantity += row['count']
+                                    existing.available_quantity += row['count']
+                                else:
+                                    # Create new accessory
+                                    accessory = Accessory(
+                                        name=row['NAME'],
+                                        category=row['CATEGORY'],
+                                        total_quantity=row['count'],
+                                        available_quantity=row['count']
+                                    )
+                                    db.add(accessory)
+                        
+                        db.commit()
+                        flash('Data imported successfully!', 'success')
+                    
+                    except Exception as e:
+                        db.rollback()
+                        flash(f'Error importing data: {str(e)}', 'error')
+                    
+                    finally:
+                        db.close()
+                
+                except Exception as e:
+                    flash(f'Error processing file: {str(e)}', 'error')
+                
+                # Clean up
+                os.remove(filepath)
+                session.pop('preview_data', None)
+                session.pop('import_filepath', None)
+                session.pop('import_type', None)
+            
+            elif action == 'cancel' and filepath and os.path.exists(filepath):
+                os.remove(filepath)
+                session.pop('preview_data', None)
+                session.pop('import_filepath', None)
+                session.pop('import_type', None)
+                flash('Import cancelled.', 'info')
+            
+            return redirect(url_for('inventory.view_inventory'))
+    
+    return render_template('inventory/import.html')
+
+@inventory_bp.route('/asset/<int:asset_id>')
+@login_required
+def view_asset(asset_id):
+    db = SessionLocal()
+    try:
+        asset = db.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+        
+        return render_template('inventory/asset_details.html', asset=asset)
+    finally:
+        db.close()
+
+@inventory_bp.route('/asset/<int:asset_id>/update-status', methods=['POST'])
+@login_required
+def update_asset_status(asset_id):
+    new_status = request.form.get('status')
+    if not new_status:
+        flash('No status provided', 'error')
+        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+    
+    db = SessionLocal()
+    try:
+        asset = db.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+        
+        asset.inventory = new_status
+        db.commit()
+        flash(f'Status updated to {new_status}', 'success')
+        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+    finally:
+        db.close() 

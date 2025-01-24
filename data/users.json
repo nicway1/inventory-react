@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password_hash": "admin123",
+    "user_type": "admin",
+    "company": "LunaComputer",
+    "role": "Super Administrator"
+  },
+  {
+    "id": 2,
+    "username": "user",
+    "password_hash": "user123",
+    "user_type": "user",
+    "company": "Sales Department",
+    "role": "Sales Representative"
+  },
+  {
+    "id": 4446,
+    "username": "tomtan",
+    "password_hash": "123456",
+    "user_type": "user",
+    "company": "Digital.ai",
+    "role": "System Administrator"
+  }
+]

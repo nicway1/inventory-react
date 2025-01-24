@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Shipments</h1>
+        {% if session.get('user_type') == 'admin' %}
+        <a href="{{ url_for('shipments.create_shipment') }}" 
+           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Create New Shipment
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking Number</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for shipment in shipments %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ shipment.id }}</td>
+                    <td class="px-6 py-4">{{ shipment.tracking_number }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded-full text-xs
+                            {% if shipment.status == 'Delivered' %}
+                                bg-green-100 text-green-800
+                            {% elif shipment.status == 'In Transit' %}
+                                bg-blue-100 text-blue-800
+                            {% else %}
+                                bg-gray-100 text-gray-800
+                            {% endif %}">
+                            {{ shipment.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {{ shipment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap space-x-2">
+                        <a href="{{ url_for('shipments.view_shipment', shipment_id=shipment.id) }}"
+                           class="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="{{ url_for('shipments.track_shipment', shipment_id=shipment.id) }}"
+                           class="text-green-600 hover:text-green-900">Track</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

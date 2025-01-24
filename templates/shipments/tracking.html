@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-4">
+        <a href="{{ url_for('shipments.list_shipments') }}" class="text-blue-500 hover:text-blue-700">
+            &larr; Back to Shipments
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="p-6 border-b">
+            <h1 class="text-2xl font-bold mb-4">Tracking Information</h1>
+            <p class="text-gray-600 mb-2">Tracking Number: {{ shipment.tracking_number }}</p>
+        </div>
+
+        <!-- 17TRACK Embedded Widget -->
+        <div class="p-6">
+            <div id="YQContainer"></div>
+            <script type="text/javascript" src="//www.17track.net/externalcall.js"></script>
+            <script type="text/javascript">
+                YQV5.trackSingle({
+                    YQ_ContainerId: "YQContainer",
+                    YQ_Height: 560,
+                    YQ_Fc: "0",
+                    YQ_Lang: "en",
+                    YQ_Num: "{{ shipment.tracking_number }}"
+                });
+            </script>
+        </div>
+
+        <!-- Shipment Details -->
+        <div class="p-6 bg-gray-50 border-t">
+            <h2 class="text-lg font-semibold mb-4">Shipment Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-gray-600 text-sm">Created Date</p>
+                    <p class="font-medium">{{ shipment.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+                {% if shipment.description %}
+                <div>
+                    <p class="text-gray-600 text-sm">Description</p>
+                    <p class="font-medium">{{ shipment.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

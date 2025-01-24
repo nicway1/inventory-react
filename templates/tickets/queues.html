@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Support Queues</h1>
+        {% if session.get('user_type') == 'admin' %}
+        <button onclick="toggleCreateQueueForm()" 
+                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Create New Queue
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Queue List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for queue in queues %}
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="p-6">
+                <h2 class="text-xl font-semibold mb-2">{{ queue.name }}</h2>
+                {% if queue.description %}
+                <p class="text-gray-600 mb-4">{{ queue.description }}</p>
+                {% endif %}
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-500">
+                        {{ queue.tickets|length }} tickets
+                    </span>
+                    <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}" 
+                       class="text-blue-500 hover:text-blue-700">
+                        View Queue &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

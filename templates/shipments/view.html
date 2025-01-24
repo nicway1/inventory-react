@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-4">
+        <a href="{{ url_for('shipments.list_shipments') }}" class="text-blue-500 hover:text-blue-700">
+            &larr; Back to Shipments
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="p-6 border-b">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold mb-2">Shipment Details</h1>
+                    <div class="flex space-x-4">
+                        <span class="px-2 py-1 rounded-full text-sm
+                            {% if shipment.status == 'Delivered' %}
+                                bg-green-100 text-green-800
+                            {% elif shipment.status == 'In Transit' %}
+                                bg-blue-100 text-blue-800
+                            {% else %}
+                                bg-gray-100 text-gray-800
+                            {% endif %}">
+                            {{ shipment.status }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('shipments.track_shipment', shipment_id=shipment.id) }}" 
+                       class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Track Shipment
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 grid grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-lg font-semibold mb-4">Shipment Information</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Tracking Number</label>
+                        <div class="mt-1">{{ shipment.tracking_number }}</div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Carrier</label>
+                        <div class="mt-1">{{ shipment.carrier }}</div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Created At</label>
+                        <div class="mt-1">{{ shipment.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-lg font-semibold mb-4">Additional Details</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">User ID</label>
+                        <div class="mt-1">{{ shipment.user_id }}</div>
+                    </div>
+                    {% if shipment.description %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Description</label>
+                        <div class="mt-1">{{ shipment.description }}</div>
+                    </div>
+                    {% endif %}
+                    {% if shipment.last_tracked %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Last Tracked</label>
+                        <div class="mt-1">{{ shipment.last_tracked.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if shipment.tracking_history %}
+        <div class="p-6 border-t">
+            <h2 class="text-lg font-semibold mb-4">Tracking History</h2>
+            <div class="space-y-4">
+                {% for entry in shipment.tracking_history %}
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <div class="font-medium">{{ entry.status }}</div>
+                        <div class="text-sm text-gray-500">
+                            {{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                    {% if entry.details %}
+                    <div class="mt-2 text-gray-600">
+                        {% for detail in entry.details %}
+                        <p>{{ detail }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

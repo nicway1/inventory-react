@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-4">
+            <a href="{{ url_for('inventory.view_inventory') }}" class="text-blue-500 hover:text-blue-700">
+                &larr; Back to Inventory
+            </a>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6">
+            <h1 class="text-2xl font-bold mb-6">Add New Asset</h1>
+
+            <form method="POST" class="space-y-6">
+                <!-- Basic Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Asset Tag</label>
+                        <input type="text" name="asset_tag" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Serial Number</label>
+                        <input type="text" name="serial" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Model</label>
+                        <select name="model_id" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                        <select name="status_id" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            {% for status in statuses %}
+                            <option value="{{ status.id }}">{{ status.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Company</label>
+                        <select name="company_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="">None</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Purchase Date</label>
+                        <input type="date" name="purchase_date"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                </div>
+
+                <!-- Specifications -->
+                <div class="border-t pt-6">
+                    <h2 class="text-lg font-medium mb-4">Specifications</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">CPU Type</label>
+                            <input type="text" name="cpu_type"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">CPU Cores</label>
+                            <input type="number" name="cpu_cores"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">GPU Cores</label>
+                            <input type="number" name="gpu_cores"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Memory (GB)</label>
+                            <input type="number" name="memory"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Storage (GB)</label>
+                            <input type="number" name="storage"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Condition</label>
+                            <select name="condition"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="NEW">New</option>
+                                <option value="USED">Used</option>
+                                <option value="REFURBISHED">Refurbished</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Notes</label>
+                    <textarea name="notes" rows="3"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Add Asset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

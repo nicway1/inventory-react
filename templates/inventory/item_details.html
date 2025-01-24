@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <!-- Header Section -->
+        <div class="px-6 py-4">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ item.product }}</h1>
+                    <div class="mt-2 flex items-center space-x-6 text-sm text-gray-600">
+                        <div>
+                            <span class="font-medium">Asset Tag:</span> {{ item.asset_tag }}
+                        </div>
+                        <div>
+                            <span class="font-medium">Serial:</span> {{ item.serial_num }}
+                        </div>
+                        <div>
+                            <span class="font-medium">Status:</span>
+                            <span class="ml-1 px-2 py-1 text-xs font-semibold rounded-full
+                                {% if item.status == 'Ready to Deploy' %}bg-green-100 text-green-800
+                                {% elif item.status == 'In Use' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ item.status if item.status else 'Ready to Deploy' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('inventory.view_inventory') }}" 
+                       class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                        Back to Inventory
+                    </a>
+                    {% if is_admin %}
+                    <button class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Mark as Shipped
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="px-6 py-4">
+            <h2 class="text-lg font-semibold mb-4">Asset Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Model Details -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-900 mb-3">Model Details</h3>
+                    <dl class="space-y-2">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Model</dt>
+                            <dd class="text-sm text-gray-900">{{ item.model }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Manufacturer</dt>
+                            <dd class="text-sm text-gray-900">{{ item.hardware_type }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Category</dt>
+                            <dd class="text-sm text-gray-900">{{ item.asset_type }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Location & Assignment -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-900 mb-3">Location & Assignment</h3>
+                    <dl class="space-y-2">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Location</dt>
+                            <dd class="text-sm text-gray-900">{{ item.customer if item.customer else 'Not Assigned' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Company</dt>
+                            <dd class="text-sm text-gray-900">{{ item.customer }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Country</dt>
+                            <dd class="text-sm text-gray-900">{{ item.country }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Specifications -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-900 mb-3">Specifications</h3>
+                    <dl class="space-y-2">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">CPU Type</dt>
+                            <dd class="text-sm text-gray-900">{{ item.cpu_type }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Memory</dt>
+                            <dd class="text-sm text-gray-900">{{ item.memory }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Hard Drive</dt>
+                            <dd class="text-sm text-gray-900">{{ item.harddrive }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Charger</dt>
+                            <dd class="text-sm text-gray-900">{{ item.charger }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">ERASED</dt>
+                            <dd class="text-sm text-gray-900">{{ item.erased }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">DIAG</dt>
+                            <dd class="text-sm text-gray-900">{{ item.diag }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Keyboard</dt>
+                            <dd class="text-sm text-gray-900">{{ item.keyboard }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Receiving date</dt>
+                            <dd class="text-sm text-gray-900">{{ item.receiving_date.strftime('%d-%b-%y') if item.receiving_date else 'N/A' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">INVENTORY</dt>
+                            <dd class="text-sm text-gray-900">{{ item.inventory }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <!-- Admin Actions -->
+        <div class="px-6 py-4 bg-gray-50 border-t">
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('inventory.edit_item', item_id=item.id) }}" 
+                   class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Edit Item
+                </a>
+                <form action="{{ url_for('inventory.delete_item', item_id=item.id) }}" 
+                      method="POST"
+                      onsubmit="return confirm('Are you sure you want to delete this item?');">
+                    <button type="submit" 
+                            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                        Delete Item
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

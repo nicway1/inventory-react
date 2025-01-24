@@ -1,0 +1,922 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-4">
+        <a href="{{ url_for('tickets.list_tickets') }}" class="text-blue-500 hover:text-blue-700">
+            &larr; Back to Tickets
+        </a>
+    </div>
+
+    <!-- Main content grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left column (2/3 width) - Ticket Details -->
+        <div class="lg:col-span-2">
+            <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                <!-- Ticket Header -->
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center space-x-4 mb-2">
+                                <h1 class="text-2xl font-bold">{{ ticket.subject }}</h1>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-mono">
+                                    {{ ticket.display_id }}
+                                </span>
+                            </div>
+                            <div class="flex space-x-4 text-sm text-gray-600">
+                                <div>
+                                    <span class="font-medium">Created:</span> 
+                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                                <div>
+                                    <span class="font-medium">Last Updated:</span> 
+                                    {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="mb-2">
+                                <span class="font-medium">Status:</span>
+                                <span class="ml-2 px-2 py-1 rounded-full text-sm
+                                    {% if ticket.status == 'New' %}
+                                        bg-green-100 text-green-800
+                                    {% elif ticket.status == 'In Progress' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif ticket.status == 'On Hold' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% elif ticket.status == 'Resolved' %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ ticket.status }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="font-medium">Priority:</span>
+                                <span class="ml-2 px-2 py-1 rounded-full text-sm
+                                    {% if ticket.priority == 'Critical' %}
+                                        bg-red-100 text-red-800
+                                    {% elif ticket.priority == 'High' %}
+                                        bg-orange-100 text-orange-800
+                                    {% elif ticket.priority == 'Medium' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-green-100 text-green-800
+                                    {% endif %}">
+                                    {{ ticket.priority }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Case Owner Information -->
+                    <div class="mt-4 pt-4 border-t">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="font-medium">Case Owner:</span>
+                                {% if owner %}
+                                    <span class="ml-2">{{ owner.username }}</span>
+                                {% else %}
+                                    <span class="ml-2 text-gray-500">Unassigned</span>
+                                {% endif %}
+                            </div>
+                            {% if session.get('user_type') == 'admin' %}
+                            <button onclick="toggleAssignForm()" 
+                                    class="text-blue-500 hover:text-blue-700">
+                                Change Owner
+                            </button>
+                            {% endif %}
+                        </div>
+                        
+                        {% if session.get('user_type') == 'admin' %}
+                        <form id="assignForm" 
+                              action="{{ url_for('tickets.assign_case_owner', ticket_id=ticket.id) }}" 
+                              method="POST" 
+                              class="mt-4 hidden">
+                            <div class="flex space-x-4">
+                                <select name="owner_id" 
+                                        class="flex-1 rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- Select Case Owner --</option>
+                                    {% for user in users.values() %}
+                                    <option value="{{ user.id }}" 
+                                            {% if owner and owner.id == user.id %}selected{% endif %}>
+                                        {{ user.username }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    Assign
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Update Form (Admin Only) -->
+                {% if session.get('user_type') == 'admin' %}
+                <div id="updateForm" class="hidden p-6 bg-gray-50 border-b">
+                    <form action="{{ url_for('tickets.update_ticket', ticket_id=ticket.id) }}" method="POST">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Status</label>
+                                <select name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="New" {% if ticket.status == 'New' %}selected{% endif %}>New</option>
+                                    <option value="In Progress" {% if ticket.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="On Hold" {% if ticket.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                    <option value="Resolved" {% if ticket.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                    <option value="Closed" {% if ticket.status == 'Closed' %}selected{% endif %}>Closed</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Priority</label>
+                                <select name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="Low" {% if ticket.priority == 'Low' %}selected{% endif %}>Low</option>
+                                    <option value="Medium" {% if ticket.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                                    <option value="High" {% if ticket.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Critical" {% if ticket.priority == 'Critical' %}selected{% endif %}>Critical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button type="submit" 
+                                        class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- Ticket Description -->
+                <div class="p-6 border-b">
+                    <h2 class="text-lg font-semibold mb-4">Description</h2>
+                    <p class="whitespace-pre-wrap">{{ ticket.description }}</p>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="p-6">
+                    <h2 class="text-lg font-semibold mb-4">Comments</h2>
+                    
+                    <!-- Add Comment Form -->
+                    <div class="p-4 border-b border-gray-200 relative">
+                        <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
+                            <div class="relative">
+                                <label for="content" class="sr-only">Comment</label>
+                                <textarea id="content" name="content" rows="3"
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    placeholder="Write a comment... Use @ to mention someone"></textarea>
+                                <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Post
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Comments List -->
+                    <div class="space-y-4">
+                        {% for comment in comments %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <div class="font-medium">{{ comment.user_id }}</div>
+                                <div class="text-sm text-gray-500">
+                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                            </div>
+                            <div class="mt-2">{{ comment.content }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Add this inside the ticket details section -->
+                {% if session.get('user_type') == 'admin' %}
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Assign Ticket</h3>
+                    <form action="{{ url_for('tickets.assign_ticket', ticket_id=ticket.id) }}" method="POST">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Assign to Queue</label>
+                                <select name="queue_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- Select Queue --</option>
+                                    {% for queue in queues.values() %}
+                                    <option value="{{ queue.id }}" {% if ticket.queue_id == queue.id %}selected{% endif %}>
+                                        {{ queue.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Assign to User</label>
+                                <select name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- Select User --</option>
+                                    {% for user in users.values() %}
+                                    <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
+                                        {{ user.username }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                Update Assignment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- Add assignment history section -->
+                {% if ticket.assignment_history %}
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold mb-4">Assignment History</h3>
+                    <div class="space-y-4">
+                        {% for assignment in ticket.assignment_history|reverse %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600">{{ assignment.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p class="mt-1">
+                                {% if assignment.new_queue and assignment.new_queue in queues %}
+                                    Moved to queue: {{ queues[assignment.new_queue].name }}
+                                {% endif %}
+                                {% if assignment.new_assigned_to and assignment.new_assigned_to in users %}
+                                    Assigned to: {{ users[assignment.new_assigned_to].username }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Add this section after ticket details -->
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Shipment Information</h3>
+                    {% if ticket.shipment %}
+                        <div class="bg-white p-4 rounded-lg shadow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium">Tracking Number: {{ ticket.shipment.tracking_number }}</p>
+                                    <p class="text-sm text-gray-600">Status: {{ ticket.shipment.status }}</p>
+                                    {% if ticket.shipment.description %}
+                                    <p class="text-sm text-gray-600 mt-2">{{ ticket.shipment.description }}</p>
+                                    {% endif %}
+                                </div>
+                                <span class="text-sm text-gray-500">
+                                    {{ ticket.shipment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </span>
+                            </div>
+
+                            <!-- Replace the 17TRACK widget section -->
+                            <div class="mt-4 border-t pt-4">
+                                <h4 class="text-sm font-medium mb-2">Track Shipment</h4>
+                                <div style="width: 100%; height: 600px;">
+                                    <div id="YQContainer_{{ ticket.id }}"></div>
+                                    <script>
+                                        window.addEventListener('load', function() {
+                                            YQV5.trackSingle({
+                                                YQ_ContainerId: "YQContainer_{{ ticket.id }}",
+                                                YQ_Height: 600,
+                                                YQ_Fc: "0",
+                                                YQ_Lang: "en",
+                                                YQ_Num: "{{ ticket.shipment.tracking_number }}"
+                                            });
+                                        });
+                                    </script>
+                                </div>
+                            </div>
+
+                            <!-- Rest of the tracking history section... -->
+                        </div>
+                    {% else %}
+                        {% if session.get('user_type') == 'admin' %}
+                        <form action="{{ url_for('tickets.add_shipment', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Tracking Number</label>
+                                <input type="text" name="tracking_number" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Description (Optional)</label>
+                                <textarea name="description" rows="2"
+                                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                            </div>
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                Add Shipment
+                            </button>
+                        </form>
+                        {% else %}
+                        <p class="text-gray-600">No shipment information available.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Replace the asset information section -->
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Asset Information</h3>
+                    {% if ticket.asset_id and asset_details %}
+                        <div class="bg-white p-4 rounded-lg shadow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium">Asset Tag: {{ asset_details.asset_tag }}</p>
+                                    <p class="text-sm text-gray-600">Name: {{ asset_details.name }}</p>
+                                    <p class="text-sm text-gray-600">Model: {{ asset_details.model.name }}</p>
+                                    <p class="text-sm text-gray-600">Status: {{ asset_details.status_label.name }}</p>
+                                    {% if asset_details.location %}
+                                    <p class="text-sm text-gray-600">Location: {{ asset_details.location.name }}</p>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ asset_details.url }}" 
+                                   target="_blank"
+                                   class="text-blue-500 hover:text-blue-700">
+                                    View in Snipe-IT
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        {% if session.get('user_type') == 'admin' %}
+                        <div class="space-y-6">
+                            <!-- Asset Type Selection Buttons -->
+                            <div class="flex space-x-4">
+                                <button type="button" 
+                                        onclick="showAssetForm('tech')"
+                                        class="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                    Tech Assets
+                                </button>
+                                <button type="button" 
+                                        onclick="showAssetForm('accessories')"
+                                        class="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                    Accessories
+                                </button>
+                            </div>
+
+                            <!-- Tech Assets Form -->
+                            <form id="techAssetForm" 
+                                  action="{{ url_for('tickets.assign_asset', ticket_id=ticket.id) }}" 
+                                  method="POST" 
+                                  class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Select Tech Asset</label>
+                                    <select name="asset_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">-- Select Tech Asset --</option>
+                                        {% for asset in snipeit_assets %}
+                                        <option value="{{ asset.id }}">
+                                            {{ asset.asset_tag }} - {{ asset.name }} ({{ asset.model.name }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    Assign Tech Asset
+                                </button>
+                            </form>
+
+                            <!-- Accessories Form -->
+                            <form id="accessoriesForm" 
+                                  action="{{ url_for('tickets.assign_accessory', ticket_id=ticket.id) }}" 
+                                  method="POST" 
+                                  class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Select Accessory</label>
+                                    <select name="accessory_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">-- Select Accessory --</option>
+                                        {% for accessory in snipeit_accessories %}
+                                        <option value="{{ accessory.id }}">
+                                            {{ accessory.name }} (Available: {{ accessory.remaining }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                                    Assign Accessory
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-gray-600">No asset assigned to this ticket.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Add this where you show ticket details -->
+                <div class="mb-4">
+                    <span class="text-sm font-medium text-gray-500">Category:</span>
+                    <span class="ml-2 px-2 py-1 text-xs rounded-full
+                        {% if ticket.category == 'Hardware Request' %}
+                            bg-blue-100 text-blue-800
+                        {% elif ticket.category == 'Software Request' %}
+                            bg-green-100 text-green-800
+                        {% elif ticket.category == 'Access Request' %}
+                            bg-purple-100 text-purple-800
+                        {% elif ticket.category == 'Maintenance' %}
+                            bg-yellow-100 text-yellow-800
+                        {% elif ticket.category == 'Incident' %}
+                            bg-red-100 text-red-800
+                        {% elif ticket.category == 'Service Request' %}
+                            bg-indigo-100 text-indigo-800
+                        {% else %}
+                            bg-gray-100 text-gray-800
+                        {% endif %}">
+                        {{ ticket.category }}
+                    </span>
+                </div>
+
+                <!-- RMA Details Section -->
+                {% if ticket.is_rma %}
+                <div class="bg-white shadow rounded-lg mt-6">
+                    <div class="px-4 py-5 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">RMA Details</h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="mb-4">
+                            <span class="font-medium">RMA Status:</span>
+                            <span class="ml-2 px-2 py-1 rounded-full text-sm
+                                {% if ticket.rma_status == 'Pending Approval' %}bg-yellow-100 text-yellow-800
+                                {% elif ticket.rma_status == 'Approved' %}bg-blue-100 text-blue-800
+                                {% elif ticket.rma_status == 'Completed' %}bg-green-100 text-green-800
+                                {% elif ticket.rma_status == 'Denied' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ ticket.rma_status }}
+                            </span>
+                        </div>
+
+                        <!-- Pickup Shipment Section -->
+                        <div class="mb-6">
+                            <h4 class="font-medium mb-2">Pickup Shipment</h4>
+                            {% if ticket.return_tracking %}
+                                <div class="bg-gray-50 p-3 rounded mb-4">
+                                    <div class="mb-2">
+                                        <span class="font-medium">Tracking Number:</span>
+                                        <span class="ml-2">{{ ticket.return_tracking.tracking_number }}</span>
+                                    </div>
+                                    {% if ticket.return_tracking.description %}
+                                    <div class="text-sm text-gray-600 mb-2">
+                                        {{ ticket.return_tracking.description }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <!-- 17Track Container for Return -->
+                                <div id="YQContainer-rma_return" class="border rounded-lg overflow-hidden h-[400px]"></div>
+                            {% elif session.get('user_type') == 'admin' %}
+                                <form action="{{ url_for('tickets.add_rma_pickup', ticket_id=ticket.id) }}" 
+                                      method="POST" 
+                                      class="space-y-4">
+                                    <div>
+                                        <label for="pickup_tracking" class="block text-sm font-medium text-gray-700">
+                                            Pickup Tracking Number
+                                        </label>
+                                        <input type="text" 
+                                               id="pickup_tracking" 
+                                               name="pickup_tracking" 
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="pickup_description" class="block text-sm font-medium text-gray-700">
+                                            Description
+                                        </label>
+                                        <textarea id="pickup_description" 
+                                                  name="pickup_description" 
+                                                  rows="2"
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button type="submit" 
+                                                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Add Pickup Tracking
+                                        </button>
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <!-- Replacement Shipment Section -->
+                        <div class="mb-6">
+                            <h4 class="font-medium mb-2">Replacement Shipment</h4>
+                            {% if ticket.replacement_tracking %}
+                                <div class="bg-gray-50 p-3 rounded mb-4">
+                                    <div class="mb-2">
+                                        <span class="font-medium">Tracking Number:</span>
+                                        <span class="ml-2">{{ ticket.replacement_tracking.tracking_number }}</span>
+                                    </div>
+                                    {% if ticket.replacement_tracking.description %}
+                                    <div class="text-sm text-gray-600 mb-2">
+                                        {{ ticket.replacement_tracking.description }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <!-- 17Track Container for Replacement -->
+                                <div id="YQContainer-rma_replacement" class="border rounded-lg overflow-hidden h-[400px]"></div>
+                            {% elif session.get('user_type') == 'admin' %}
+                                <form action="{{ url_for('tickets.add_rma_replacement', ticket_id=ticket.id) }}" 
+                                      method="POST" 
+                                      class="space-y-4">
+                                    <div>
+                                        <label for="replacement_tracking" class="block text-sm font-medium text-gray-700">
+                                            Replacement Tracking Number
+                                        </label>
+                                        <input type="text" 
+                                               id="replacement_tracking" 
+                                               name="replacement_tracking" 
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="replacement_description" class="block text-sm font-medium text-gray-700">
+                                            Description
+                                        </label>
+                                        <textarea id="replacement_description" 
+                                                  name="replacement_description" 
+                                                  rows="2"
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button type="submit" 
+                                                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Add Replacement Tracking
+                                        </button>
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right column (1/3 width) - Status and Chatter Feed -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Status Section -->
+            {% if session.get('user_type') == 'admin' %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Update Status</h3>
+                </div>
+                <div class="p-4">
+                    <form action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                            <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                {% for status in ticket.STATUS_OPTIONS %}
+                                <option value="{{ status }}" {% if ticket.status == status %}selected{% endif %}>
+                                    {{ status }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="status_comment" class="block text-sm font-medium text-gray-700">Comment</label>
+                            <textarea id="status_comment" name="status_comment" rows="3"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Add a comment about this status change..."></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Update Status
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Chatter Feed -->
+            <div class="bg-white shadow rounded-lg sticky top-4">
+                <div class="px-4 py-5 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Chatter Feed</h3>
+                </div>
+                
+                <!-- Comment Form -->
+                <div class="p-4 border-b border-gray-200">
+                    <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
+                        <div>
+                            <label for="content" class="sr-only">Comment</label>
+                            <textarea id="content" name="content" rows="3"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Write a comment..."></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Post
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Comments Feed -->
+                <div class="divide-y divide-gray-200 max-h-[800px] overflow-y-auto">
+                    {% for comment in comments %}
+                    <div class="p-4">
+                        <div class="flex space-x-3">
+                            <div class="flex-shrink-0">
+                                <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                    <span class="text-white font-bold">
+                                        {{ comment.user.username[0].upper() }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-900">{{ comment.user.username }}</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-700">
+                                    {{ comment.content|safe }}
+                                </div>
+                                <div class="mt-2 text-sm text-gray-500">
+                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Keep the JavaScript for @mentions -->
+<script>
+function toggleUpdateForm() {
+    const form = document.getElementById('updateForm');
+    form.classList.toggle('hidden');
+}
+
+function toggleAssignForm() {
+    const form = document.getElementById('assignForm');
+    form.classList.toggle('hidden');
+}
+
+function toggleStatusForm() {
+    const form = document.getElementById('statusForm');
+    form.classList.toggle('hidden');
+}
+
+function showAssetForm(type) {
+    const techForm = document.getElementById('techAssetForm');
+    const accessoryForm = document.getElementById('accessoriesForm');
+    
+    if (type === 'tech') {
+        techForm.classList.remove('hidden');
+        accessoryForm.classList.add('hidden');
+    } else {
+        techForm.classList.add('hidden');
+        accessoryForm.classList.remove('hidden');
+    }
+}
+
+const textarea = document.getElementById('content');
+const suggestions = document.getElementById('mentionSuggestions');
+const users = {{ users|tojson|safe }};
+let currentMentionStart = -1;
+let selectedIndex = -1;
+
+textarea.addEventListener('input', handleInput);
+textarea.addEventListener('keydown', handleKeydown);
+
+function handleInput(e) {
+    const pos = textarea.selectionStart;
+    const text = textarea.value;
+    
+    // Find @ symbol before cursor
+    let i = pos;
+    while (i > 0 && text[i-1] !== ' ' && text[i-1] !== '\n') i--;
+    const word = text.slice(i, pos);
+    
+    if (word.startsWith('@')) {
+        currentMentionStart = i;
+        const search = word.slice(1).toLowerCase();
+        showSuggestions(search);
+    } else {
+        hideSuggestions();
+    }
+}
+
+function handleKeydown(e) {
+    if (!suggestions.classList.contains('hidden')) {
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectNext();
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                selectPrevious();
+                break;
+            case 'Enter':
+            case 'Tab':
+                if (selectedIndex >= 0) {
+                    e.preventDefault();
+                    insertMention();
+                }
+                break;
+            case 'Escape':
+                hideSuggestions();
+                break;
+        }
+    }
+}
+
+function showSuggestions(search) {
+    const matches = Object.values(users).filter(user => 
+        user.username.toLowerCase().includes(search)
+    );
+    
+    if (matches.length > 0) {
+        suggestions.innerHTML = matches.map((user, index) => `
+            <div class="mention-suggestion" data-username="${user.username}" data-index="${index}">
+                ${user.username}
+            </div>
+        `).join('');
+        
+        suggestions.querySelectorAll('.mention-suggestion').forEach(el => {
+            el.addEventListener('click', () => {
+                selectedIndex = parseInt(el.dataset.index);
+                insertMention();
+            });
+            el.addEventListener('mouseover', () => {
+                selectedIndex = parseInt(el.dataset.index);
+                updateSelection();
+            });
+        });
+        
+        selectedIndex = 0;
+        updateSelection();
+        
+        // Position suggestions below cursor
+        const coords = getCaretCoordinates(textarea, textarea.selectionStart);
+        suggestions.style.top = `${coords.top + 20}px`;
+        suggestions.style.left = `${coords.left}px`;
+        suggestions.classList.remove('hidden');
+    } else {
+        hideSuggestions();
+    }
+}
+
+function hideSuggestions() {
+    suggestions.classList.add('hidden');
+    currentMentionStart = -1;
+    selectedIndex = -1;
+}
+
+function selectNext() {
+    const items = suggestions.querySelectorAll('.mention-suggestion');
+    selectedIndex = (selectedIndex + 1) % items.length;
+    updateSelection();
+}
+
+function selectPrevious() {
+    const items = suggestions.querySelectorAll('.mention-suggestion');
+    selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+    updateSelection();
+}
+
+function updateSelection() {
+    suggestions.querySelectorAll('.mention-suggestion').forEach((el, i) => {
+        el.classList.toggle('selected', i === selectedIndex);
+    });
+}
+
+function insertMention() {
+    const selected = suggestions.querySelector('.mention-suggestion.selected');
+    if (selected && currentMentionStart >= 0) {
+        const username = selected.dataset.username;
+        const text = textarea.value;
+        const before = text.slice(0, currentMentionStart);
+        const after = text.slice(textarea.selectionStart);
+        textarea.value = before + '@' + username + ' ' + after;
+        const cursorPos = currentMentionStart + username.length + 2;
+        textarea.setSelectionRange(cursorPos, cursorPos);
+        textarea.focus();
+    }
+    hideSuggestions();
+}
+
+// Helper function to get caret coordinates
+function getCaretCoordinates(element, position) {
+    const div = document.createElement('div');
+    const styles = getComputedStyle(element);
+    const properties = [
+        'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+        'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform',
+        'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing'
+    ];
+
+    div.style.position = 'absolute';
+    div.style.visibility = 'hidden';
+    properties.forEach(prop => div.style[prop] = styles[prop]);
+    
+    div.textContent = element.value.substring(0, position);
+    const span = document.createElement('span');
+    span.textContent = element.value.substring(position) || '.';
+    div.appendChild(span);
+    
+    document.body.appendChild(div);
+    const coordinates = {
+        top: span.offsetTop + parseInt(styles.borderTopWidth) + parseInt(styles.paddingTop),
+        left: span.offsetLeft + parseInt(styles.borderLeftWidth) + parseInt(styles.paddingLeft)
+    };
+    document.body.removeChild(div);
+    
+    return coordinates;
+}
+
+function initializeTracking(trackingNumber, type) {
+    YQV5.trackSingle({
+        container: `YQContainer-${type}`,
+        number: trackingNumber,
+        lang: 'en',
+        crossBorder: true,
+        width: '100%',
+        height: '300px',
+        showCarrier: true,
+        showCarrierLogo: true,
+        showStatus: true,
+        showDetail: true,
+        showTimeline: true,
+        onUpdate: function(result) {
+            console.log('17track update:', result);  // Debug log
+            updateTrackingStatus(result, type);
+        }
+    });
+}
+
+function updateTrackingStatus(result, type) {
+    const ticketId = {{ ticket.id }};
+    
+    fetch(`/tickets/${ticketId}/track/${type}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(result)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Update response:', data);  // Debug log
+        if (data.error) {
+            console.error('Error updating tracking:', data.error);
+        } else if (data.success) {
+            // Refresh the page if status changed
+            if (data.ticket_status !== '{{ ticket.status }}' || 
+                (data.rma_status && data.rma_status !== '{{ ticket.rma_status }}')) {
+                location.reload();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// Initialize tracking for regular shipment
+{% if ticket.shipment %}
+    initializeTracking('{{ ticket.shipment.tracking_number }}', 'regular');
+{% endif %}
+
+// Initialize tracking for RMA shipments
+{% if ticket.is_rma %}
+    {% if ticket.return_tracking %}
+        initializeTracking('{{ ticket.return_tracking.tracking_number }}', 'rma_return');
+    {% endif %}
+    {% if ticket.replacement_tracking %}
+        initializeTracking('{{ ticket.replacement_tracking.tracking_number }}', 'rma_replacement');
+    {% endif %}
+{% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% if ticket.is_rma %}
+        {% if ticket.return_tracking %}
+            console.log('Initializing return tracking...');
+            initializeTracking('{{ ticket.return_tracking.tracking_number }}', 'rma_return');
+        {% endif %}
+        {% if ticket.replacement_tracking %}
+            console.log('Initializing replacement tracking...');
+            initializeTracking('{{ ticket.replacement_tracking.tracking_number }}', 'rma_replacement');
+        {% endif %}
+    {% endif %}
+});
+</script>
+
+<!-- Add these divs where you want to show the tracking info -->
+{% if ticket.shipment %}
+<div id="YQContainer-regular"></div>
+{% endif %}
+
+{% if ticket.is_rma %}
+    {% if ticket.return_tracking %}
+    <div id="YQContainer-rma_return"></div>
+    {% endif %}
+    {% if ticket.replacement_tracking %}
+    <div id="YQContainer-rma_replacement"></div>
+    {% endif %}
+{% endif %}
+{% endblock %} 

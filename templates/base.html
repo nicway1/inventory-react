@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="{{ url_for('main.index') }}" class="text-xl font-bold">AssetMS</a>
+                    </div>
+                    {% if session.get('user_id') %}
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        {% if user and user.is_admin %}
+                        <a href="{{ url_for('main.index') }}#data-management" 
+                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
+                            Data Management
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('inventory.view_inventory') }}" 
+                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
+                            Inventory
+                        </a>
+                        <a href="{{ url_for('tickets.list_tickets') }}"
+                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
+                            Tickets
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if session.get('user_id') %}
+                    <span class="text-gray-600 mr-4">{{ session.get('username', '') }}</span>
+                    <a href="{{ url_for('auth.logout') }}" 
+                       class="text-gray-900 hover:text-gray-700">Logout</a>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" 
+                       class="text-gray-900 hover:text-gray-700">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="max-w-7xl mx-auto px-4 py-2">
+                <div class="bg-{{ category }}-100 border border-{{ category }}-400 text-{{ category }}-700 px-4 py-3 rounded">
+                    {{ message }}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html> 

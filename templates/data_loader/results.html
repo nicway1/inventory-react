@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Import Results</h1>
+            <a href="{{ url_for('data_loader.import_data') }}" 
+               class="text-blue-600 hover:text-blue-800">
+                &larr; Back to Import
+            </a>
+        </div>
+
+        {% if dry_run %}
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        This was a dry run. Review the data below and confirm to proceed with the actual import.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Button -->
+        <form method="POST" action="{{ url_for('data_loader.confirm_import') }}" class="mb-6">
+            <input type="hidden" name="file_path" value="{{ file_path }}">
+            <input type="hidden" name="import_type" value="{{ import_type }}">
+            <button type="submit" 
+                    class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                Confirm and Process Import
+            </button>
+        </form>
+        {% endif %}
+
+        <!-- Summary -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-medium mb-4">Summary</h2>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-700">{{ results.total }}</div>
+                    <div class="text-sm text-gray-500">Total Records</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600">{{ results.successful }}</div>
+                    <div class="text-sm text-gray-500">Successful</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-red-600">{{ results.failed }}</div>
+                    <div class="text-sm text-gray-500">Failed</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errors -->
+        {% if results.errors %}
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-medium mb-4 text-red-600">Errors</h2>
+            <div class="space-y-4">
+                {% for error in results.errors %}
+                <div class="bg-red-50 p-4 rounded">
+                    <div class="font-medium">Row {{ error.row }}</div>
+                    <div class="text-sm text-red-700">{{ error.error }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Successful Imports -->
+        {% if results.success %}
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-medium mb-4 text-green-600">Successful Records</h2>
+            <div class="space-y-6">
+                {% for success in results.success %}
+                <div class="bg-green-50 p-6 rounded">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="font-medium text-lg">Row {{ success.row }}</div>
+                        <div class="text-sm text-green-700">{{ success.message }}</div>
+                    </div>
+
+                    {% if dry_run %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Basic Information -->
+                        <div>
+                            <h3 class="font-medium text-gray-700 mb-2">Basic Information</h3>
+                            <div class="space-y-2 text-sm">
+                                <p><span class="font-medium">Asset Tag:</span> {{ success.asset_tag }}</p>
+                                <p><span class="font-medium">Serial:</span> {{ success.serial }}</p>
+                                <p><span class="font-medium">Model:</span> {{ success.model }}</p>
+                                <p><span class="font-medium">Customer:</span> {{ success.customer }}</p>
+                                <p><span class="font-medium">Hardware Type:</span> {{ success.hardware_type }}</p>
+                                <p><span class="font-medium">Status:</span> {{ success.status }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Specifications -->
+                        <div>
+                            <h3 class="font-medium text-gray-700 mb-2">Specifications</h3>
+                            <div class="space-y-2 text-sm">
+                                {% for key, value in success.specs.items() %}
+                                {% if value %}
+                                <p><span class="font-medium">{{ key }}:</span> {{ value }}</p>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transformed Data (collapsible) -->
+                    <div class="mt-4">
+                        <button onclick="toggleTransformed('transformed-{{ success.row }}')"
+                                class="text-sm text-blue-600 hover:text-blue-800">
+                            Show API Data ▼
+                        </button>
+                        <div id="transformed-{{ success.row }}" class="hidden mt-2">
+                            <pre class="text-xs bg-gray-100 p-2 rounded overflow-auto">{{ success.transformed_data | tojson(indent=2) }}</pre>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-sm text-green-700">
+                        Asset Tag: {{ success.asset_tag }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add this JavaScript at the bottom of the template -->
+<script>
+function toggleTransformed(id) {
+    const element = document.getElementById(id);
+    if (element.classList.contains('hidden')) {
+        element.classList.remove('hidden');
+    } else {
+        element.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %} 

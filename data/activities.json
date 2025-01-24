@@ -1,0 +1,29 @@
+[
+  {
+    "id": 4370,
+    "user_id": 4446,
+    "type": "mention",
+    "content": "admin mentioned you in ticket TICK-07325: <span class=\"mention\">@tomtan</span> please help...",
+    "reference_id": 7325,
+    "created_at": "2025-01-12T03:06:09.549263",
+    "is_read": false
+  },
+  {
+    "id": 4002,
+    "user_id": 2,
+    "type": "mention",
+    "content": "admin mentioned you in ticket TICK-04648: <span class=\"mention\">@user</span> please do this case ...",
+    "reference_id": 4648,
+    "created_at": "2025-01-12T15:36:07.021477",
+    "is_read": false
+  },
+  {
+    "id": 7406,
+    "user_id": 4446,
+    "type": "case_assigned",
+    "content": "You were assigned as owner of ticket TICK-9101: shiping",
+    "reference_id": 9101,
+    "created_at": "2025-01-12T15:57:40.270434",
+    "is_read": false
+  }
+]

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6 flex justify-between items-center">
+        <a href="{{ url_for('inventory.view_inventory') }}" 
+           class="text-blue-600 hover:text-blue-800">
+            &larr; Back to Inventory
+        </a>
+        {% if is_admin %}
+        <div class="flex space-x-4">
+            <a href="{{ url_for('inventory.import_inventory') }}" 
+               class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Import Data
+            </a>
+            <a href="{{ url_for('inventory.add_accessory') }}" 
+               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add New Accessory
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Accessories</h2>
+            <p class="mt-1 text-sm text-gray-600">Keyboards, Mice, Cables, etc.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for accessory in accessories %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ accessory.name }}</div>
+                            <div class="text-sm text-gray-500">{{ accessory.manufacturer }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ accessory.category }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ accessory.model }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ accessory.serial_num }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if accessory.status == 'Available' %}bg-green-100 text-green-800
+                                {% elif accessory.status == 'Checked Out' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ accessory.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ accessory.customer }}</div>
+                            <div class="text-sm text-gray-500">{{ accessory.country }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-3">
+                                {% if accessory.status == 'Available' %}
+                                <form action="{{ url_for('inventory.checkout_accessory', id=accessory.id) }}" 
+                                      method="POST">
+                                    <button type="submit" class="text-blue-600 hover:text-blue-900">Checkout</button>
+                                </form>
+                                {% endif %}
+                                {% if is_admin %}
+                                <a href="{{ url_for('inventory.edit_accessory', id=accessory.id) }}" 
+                                   class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                <form action="{{ url_for('inventory.delete_accessory', id=accessory.id) }}" 
+                                      method="POST"
+                                      class="inline"
+                                      onsubmit="return confirm('Are you sure you want to delete this accessory?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

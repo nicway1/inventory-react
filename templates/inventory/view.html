@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">IT Asset Inventory</h1>
+
+    <!-- Search Bar -->
+    <div class="mb-6">
+        <input type="text" 
+               id="searchInput"
+               placeholder="Search by serial number, asset tag, name, model, country, or received"
+               class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    <!-- Filters -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select id="statusFilter" class="w-full border rounded-lg p-2">
+                <option value="">All Statuses</option>
+                {% for status in ['IN STOCK', 'DEPLOYED', 'REPAIR', 'RETIRED'] %}
+                <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            <select id="companyFilter" class="w-full border rounded-lg p-2">
+                <option value="">All Companies</option>
+                {% for company in companies %}
+                <option value="{{ company }}">{{ company }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+            <select id="modelFilter" class="w-full border rounded-lg p-2">
+                <option value="">All Models</option>
+                {% for model in models %}
+                <option value="{{ model }}">{{ model }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+            <select id="countryFilter" class="w-full border rounded-lg p-2">
+                <option value="">All Countries</option>
+                {% for country in countries %}
+                <option value="{{ country }}">{{ country }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Tech Assets Card -->
+        <div id="techAssetsCard" 
+             class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors"
+             onclick="showTable('techAssets')">
+            <h2 class="text-xl font-semibold mb-2">Tech Assets</h2>
+            <p class="text-sm opacity-80 mb-4">Laptops, Desktops, Monitors, etc.</p>
+            <p class="text-3xl font-bold">{{ tech_assets_count }}</p>
+        </div>
+
+        <!-- Accessories Card -->
+        <div id="accessoriesCard"
+             class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors"
+             onclick="showTable('accessories')">
+            <h2 class="text-xl font-semibold mb-2">Accessories</h2>
+            <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
+            <p class="text-3xl font-bold">{{ accessories_count }}</p>
+        </div>
+    </div>
+
+    <!-- Tech Assets Table -->
+    <div id="techAssetsTable" class="mb-8">
+        <h2 class="text-xl font-semibold mb-4">Tech Assets</h2>
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Asset ID
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Serial Number
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Model
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Company
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Country
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                            <span class="text-blue-500 ml-1">ⓘ</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="techAssetsBody">
+                    <!-- Tech assets will be loaded here via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Accessories Table -->
+    <div id="accessoriesTable" class="mb-8 hidden">
+        <h2 class="text-xl font-semibold mb-4">Accessories</h2>
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for accessory in accessories %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.available_count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.total_count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if accessory.available_count > 0 %}
+                            <button class="text-blue-600 hover:text-blue-800">Checkout</button>
+                            {% else %}
+                            <span class="text-gray-400">None Available</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for handling tech assets display and filtering -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const techAssetsTable = document.getElementById('techAssetsTable');
+    const accessoriesTable = document.getElementById('accessoriesTable');
+    const techAssetsBody = document.getElementById('techAssetsBody');
+    
+    // Function to show selected table and hide the other
+    window.showTable = function(tableType) {
+        if (tableType === 'techAssets') {
+            techAssetsTable.classList.remove('hidden');
+            accessoriesTable.classList.add('hidden');
+            loadTechAssets();
+        } else {
+            techAssetsTable.classList.add('hidden');
+            accessoriesTable.classList.remove('hidden');
+        }
+    }
+
+    // Show tech assets by default
+    showTable('techAssets');
+
+    // Function to load tech assets
+    async function loadTechAssets() {
+        try {
+            const response = await fetch('/inventory/tech-assets');
+            const data = await response.json();
+            
+            techAssetsBody.innerHTML = data.assets.map(asset => `
+                <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/inventory/asset/${asset.id}'">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">Asset ID: ${asset.asset_tag || ''}</div>
+                        <div class="text-xs text-gray-500">${asset.id || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
+                    <td class="px-6 py-4 whitespace-normal">
+                        <div class="text-sm text-gray-900" title="${asset.product}">
+                            ${asset.product.split(' ').slice(0,8).join(' ')}${asset.product.split(' ').length > 8 ? '...' : ''}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.customer || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.country || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                            asset.inventory === 'IN STOCK' ? 'bg-blue-100 text-blue-800' :
+                            asset.inventory === 'DEPLOYED' ? 'bg-green-100 text-green-800' :
+                            asset.inventory === 'REPAIR' ? 'bg-yellow-100 text-yellow-800' :
+                            asset.inventory === 'RETIRED' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                        }">
+                            ${asset.inventory || 'Unknown'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading tech assets:', error);
+        }
+    }
+
+    // Handle filtering
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const companyFilter = document.getElementById('companyFilter');
+    const modelFilter = document.getElementById('modelFilter');
+    const countryFilter = document.getElementById('countryFilter');
+
+    async function applyFilters() {
+        const filters = {
+            search: searchInput.value,
+            inventory_status: statusFilter.value,
+            company: companyFilter.value,
+            model: modelFilter.value,
+            country: countryFilter.value
+        };
+
+        try {
+            const response = await fetch('/inventory/filter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(filters)
+            });
+            const data = await response.json();
+            
+            // Update counts
+            document.querySelector('#techAssetsCard .text-3xl').textContent = data.tech_assets_count;
+            document.querySelector('#accessoriesCard .text-3xl').textContent = data.accessories_count;
+            
+            // If tech assets table is visible, update it
+            if (!techAssetsTable.classList.contains('hidden')) {
+                loadTechAssets();
+            }
+        } catch (error) {
+            console.error('Error applying filters:', error);
+        }
+    }
+
+    // Add event listeners for filters
+    searchInput.addEventListener('input', applyFilters);
+    statusFilter.addEventListener('change', applyFilters);
+    companyFilter.addEventListener('change', applyFilters);
+    modelFilter.addEventListener('change', applyFilters);
+    countryFilter.addEventListener('change', applyFilters);
+});
+</script>
+{% endblock %} 

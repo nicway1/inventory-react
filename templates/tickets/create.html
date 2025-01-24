@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Create New Ticket</h1>
+        
+        <form method="POST" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Subject</label>
+                <input type="text" name="subject" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Category</label>
+                <select name="category" id="category" required 
+                        onchange="toggleAssetRequestFields()"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="">-- Select Category --</option>
+                    {% for category in categories %}
+                    <option value="{{ category }}">{{ category }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Asset Request Fields (initially hidden) -->
+            <div id="assetRequestFields" class="hidden space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Asset Type</label>
+                    <select name="asset_type" id="assetType"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Select Asset Type --</option>
+                        {% for type in asset_types %}
+                        <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Business Justification</label>
+                    <textarea name="business_justification" rows="3"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                              placeholder="Please explain why this asset is needed..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Preferred Specifications</label>
+                    <textarea name="specifications" rows="3"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                              placeholder="Any specific requirements or preferences..."></textarea>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Priority</label>
+                <select name="priority" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" rows="4" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+            </div>
+
+            <div>
+                <button type="submit" 
+                        class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Create Ticket
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleAssetRequestFields() {
+    const category = document.getElementById('category').value;
+    const assetFields = document.getElementById('assetRequestFields');
+    
+    if (category === 'New Asset Request') {
+        assetFields.classList.remove('hidden');
+    } else {
+        assetFields.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %} 

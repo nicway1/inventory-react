@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('inventory.view_inventory') }}" 
+           class="text-blue-600 hover:text-blue-800 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Inventory
+        </a>
+    </div>
+
+    <!-- Asset Header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {{ asset.hardware_type or asset.model or "Unnamed Asset" }}
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">Asset ID: {{ asset.asset_tag }}</p>
+            </div>
+            <span class="px-3 py-1 text-sm font-medium rounded-full
+                {% if asset.inventory == 'IN STOCK' %}
+                    bg-blue-100 text-blue-800
+                {% elif asset.inventory == 'DEPLOYED' %}
+                    bg-green-100 text-green-800
+                {% elif asset.inventory == 'REPAIR' %}
+                    bg-yellow-100 text-yellow-800
+                {% elif asset.inventory == 'RETIRED' %}
+                    bg-red-100 text-red-800
+                {% else %}
+                    bg-gray-100 text-gray-800
+                {% endif %}">
+                {{ asset.inventory or 'Unknown' }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Asset Details -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Basic Information -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Serial Number</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.serial_num or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Model</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.model or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Hardware Type</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.hardware_type or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">PO Number</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.po or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Receiving Date</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else 'N/A' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Hardware Specifications -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Hardware Specifications</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">CPU Type</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.cpu_type or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">CPU Cores</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.cpu_cores or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">GPU Cores</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.gpu_cores or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Memory</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.memory or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Hard Drive</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.harddrive or 'N/A' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Status and Condition -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Status and Condition</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Condition</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.condition or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Erased</dt>
+                    <dd class="text-sm text-gray-900">{{ 'Yes' if asset.erased else 'No' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Keyboard</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.keyboard or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Charger</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.charger or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Diagnostics</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.diag or 'N/A' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Location and Assignment -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Location and Assignment</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Customer</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.customer or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Country</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.country or 'N/A' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Inventory Status</dt>
+                    <dd class="flex items-center space-x-3 mt-1">
+                        <span class="text-sm text-gray-900">{{ asset.inventory or 'N/A' }}</span>
+                        {% if asset.inventory == 'IN STOCK' %}
+                        <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
+                            <input type="hidden" name="status" value="DEPLOYED">
+                            <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 hover:bg-green-200">
+                                Mark as Deployed
+                            </button>
+                        </form>
+                        {% elif asset.inventory == 'DEPLOYED' %}
+                        <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
+                            <input type="hidden" name="status" value="IN STOCK">
+                            <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200">
+                                Return to Stock
+                            </button>
+                        </form>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %} 
