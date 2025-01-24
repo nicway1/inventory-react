@@ -3,26 +3,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Get database URL from environment variable or use SQLite as fallback
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./inventory.db')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Fix for Render's postgres:// vs postgresql:// issue
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if not DATABASE_URL:
+    raise ValueError("No DATABASE_URL environment variable set")
 
-# Create engine
-if DATABASE_URL.startswith('sqlite'):
+try:
+    # Create engine with PostgreSQL-specific settings
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False}
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={
+            "connect_timeout": 30,
+            "application_name": "inventory_app"  # Helps identify your app in database logs
+        }
     )
-else:
-    engine = create_engine(DATABASE_URL)
+except Exception as e:
+    print(f"Failed to initialize database connection: {str(e)}")
+    raise
 
-# Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create Base class
 Base = declarative_base()
 
 # Import models here after Base is defined
@@ -30,7 +31,6 @@ from models.asset import Asset
 from models.accessory import Accessory
 
 def get_db():
-    """Get a database session."""
     db = SessionLocal()
     try:
         yield db
@@ -38,5 +38,9 @@ def get_db():
         db.close()
 
 def init_db():
-    """Initialize the database, creating all tables."""
-    Base.metadata.create_all(bind=engine) 
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize database tables: {str(e)}")
+        raise 
