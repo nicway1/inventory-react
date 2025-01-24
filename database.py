@@ -9,14 +9,15 @@ if not DATABASE_URL:
     raise ValueError("No DATABASE_URL environment variable set")
 
 try:
-    # Create engine with PostgreSQL-specific settings
+    # Create engine with SSL settings for PostgreSQL
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=300,
         connect_args={
             "connect_timeout": 30,
-            "application_name": "inventory_app"  # Helps identify your app in database logs
+            "application_name": "inventory_app",
+            "sslmode": "require"  # Enable SSL mode
         }
     )
 except Exception as e:
