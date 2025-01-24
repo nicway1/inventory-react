@@ -9,16 +9,17 @@ if not DATABASE_URL:
     raise ValueError("No DATABASE_URL environment variable set")
 
 try:
-    # Create engine with SSL settings for PostgreSQL
+    # Modify the DATABASE_URL to explicitly include SSL mode
+    if 'postgresql://' in DATABASE_URL and '?' not in DATABASE_URL:
+        DATABASE_URL += '?sslmode=verify-full'
+
+    # Create engine with minimal connection settings
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
-        pool_recycle=300,
-        connect_args={
-            "connect_timeout": 30,
-            "application_name": "inventory_app",
-            "sslmode": "require"  # Enable SSL mode
-        }
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30
     )
 except Exception as e:
     print(f"Failed to initialize database connection: {str(e)}")
@@ -40,6 +41,9 @@ def get_db():
 
 def init_db():
     try:
+        # Test the connection before creating tables
+        with engine.connect() as connection:
+            print("Successfully connected to database")
         Base.metadata.create_all(bind=engine)
         print("Database initialized successfully")
     except Exception as e:
