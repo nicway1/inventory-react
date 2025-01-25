@@ -1,12 +1,10 @@
 from models.inventory_item import InventoryItem
-import pandas as pd
-from datetime import datetime
 import json
 import os
 
 class InventoryStore:
     def __init__(self):
-        self.items = {}
+        self.items = []
         self.load_items()
 
     def load_items(self):
@@ -27,7 +25,7 @@ class InventoryStore:
                                 item_data['receiving_date'] = None
                         
                         item = InventoryItem.create(**item_data)
-                        self.items[item.id] = item
+                        self.items.append(item)
             print(f"Loaded {len(self.items)} items from storage")
         except Exception as e:
             print(f"Error loading inventory data: {str(e)}")
@@ -39,7 +37,7 @@ class InventoryStore:
             
             # Convert items to serializable format
             items_data = []
-            for item in self.items.values():
+            for item in self.items:
                 item_dict = {
                     'asset_type': item.asset_type,
                     'product': item.product,
@@ -74,55 +72,55 @@ class InventoryStore:
     def import_from_excel(self, file_path):
         try:
             # Read CSV file
-            df = pd.read_csv(file_path)
+            # df = pd.read_csv(file_path)
             
             # Debug: Print column names
-            print("CSV columns:", df.columns.tolist())
+            # print("CSV columns:", df.columns.tolist())
             
             # Clear existing items
             self.items.clear()
             
             # Convert DataFrame to inventory items
-            for _, row in df.iterrows():
-                # Get serial number from the correct column name
-                serial_num = str(row.get('SERIAL NUMBER', ''))
-                if pd.isna(serial_num):
-                    serial_num = ''
-                
-                print(f"Found serial number: {serial_num}")
-                
-                # Convert date if it exists
-                receiving_date = None
-                if 'Receiving date' in row and pd.notna(row['Receiving date']):
-                    try:
-                        receiving_date = pd.to_datetime(row['Receiving date']).to_pydatetime()
-                    except:
-                        receiving_date = None
+            # for _, row in df.iterrows():
+            #     # Get serial number from the correct column name
+            #     serial_num = str(row.get('SERIAL NUMBER', ''))
+            #     if pd.isna(serial_num):
+            #         serial_num = ''
+            
+            #     print(f"Found serial number: {serial_num}")
+            
+            #     # Convert date if it exists
+            #     receiving_date = None
+            #     if 'Receiving date' in row and pd.notna(row['Receiving date']):
+            #         try:
+            #             receiving_date = pd.to_datetime(row['Receiving date']).to_pydatetime()
+            #         except:
+            #             receiving_date = None
 
-                item = InventoryItem.create(
-                    asset_type=str(row.get('Asset Type', '')),
-                    product=str(row.get('Product', '')),
-                    asset_tag=str(row.get('ASSET TAG', '')),
-                    receiving_date=receiving_date,
-                    keyboard=str(row.get('Keyboard', '')),
-                    serial_num=serial_num,  # This should now contain the correct serial number
-                    po=str(row.get('PO', '')),
-                    model=str(row.get('MODEL', '')),
-                    erased=str(row.get('ERASED', '')),
-                    customer=str(row.get('CUSTOMER', '')),
-                    condition=str(row.get('CONDITION', '')),
-                    diag=str(row.get('DIAG', '')),
-                    hardware_type=str(row.get('HARDWARE TYPE', '')),
-                    cpu_type=str(row.get('CPU TYPE', '')),
-                    cpu_cores=str(row.get('CPU CORES', '')),
-                    gpu_cores=str(row.get('GPU CORES', '')),
-                    memory=str(row.get('MEMORY', '')),
-                    harddrive=str(row.get('HARDDRIVE', '')),
-                    charger=str(row.get('CHARGER', '')),
-                    inventory=str(row.get('INVENTORY', '')),
-                    country=str(row.get('COUNTRY', ''))
-                )
-                self.items[item.id] = item
+            #     item = InventoryItem.create(
+            #         asset_type=str(row.get('Asset Type', '')),
+            #         product=str(row.get('Product', '')),
+            #         asset_tag=str(row.get('ASSET TAG', '')),
+            #         receiving_date=receiving_date,
+            #         keyboard=str(row.get('Keyboard', '')),
+            #         serial_num=serial_num,  # This should now contain the correct serial number
+            #         po=str(row.get('PO', '')),
+            #         model=str(row.get('MODEL', '')),
+            #         erased=str(row.get('ERASED', '')),
+            #         customer=str(row.get('CUSTOMER', '')),
+            #         condition=str(row.get('CONDITION', '')),
+            #         diag=str(row.get('DIAG', '')),
+            #         hardware_type=str(row.get('HARDWARE TYPE', '')),
+            #         cpu_type=str(row.get('CPU TYPE', '')),
+            #         cpu_cores=str(row.get('CPU CORES', '')),
+            #         gpu_cores=str(row.get('GPU CORES', '')),
+            #         memory=str(row.get('MEMORY', '')),
+            #         harddrive=str(row.get('HARDDRIVE', '')),
+            #         charger=str(row.get('CHARGER', '')),
+            #         inventory=str(row.get('INVENTORY', '')),
+            #         country=str(row.get('COUNTRY', ''))
+            #     )
+            #     self.items.append(item)
             
             # Save the imported data
             self.save_items()
@@ -134,36 +132,39 @@ class InventoryStore:
             return False
 
     def add_item(self, item):
-        self.items[item.id] = item
+        self.items.append(item)
         self.save_items()
         return item
 
     def get_item(self, item_id):
-        return self.items.get(item_id)
+        for item in self.items:
+            if item.id == item_id:
+                return item
+        return None
 
     def get_all_items(self):
-        return list(self.items.values())
+        return self.items
 
-    def update_item(self, item_id, **kwargs):
+    def update_item(self, item_id, updated_data):
         item = self.get_item(item_id)
         if item:
-            for key, value in kwargs.items():
-                if hasattr(item, key):
-                    setattr(item, key, value)
+            for key, value in updated_data.items():
+                setattr(item, key, value)
             item.updated_at = datetime.now()
             self.save_items()
-            return True
-        return False
+            return item
+        return None
 
     def delete_item(self, item_id):
-        if item_id in self.items:
-            del self.items[item_id]
+        item = self.get_item(item_id)
+        if item:
+            self.items.remove(item)
             self.save_items()
             return True
         return False
 
     def assign_item(self, item_id, user_id):
-        item = self.items.get(item_id)
+        item = self.get_item(item_id)
         if item:
             item.assigned_to = user_id
             item.status = 'Assigned'
@@ -172,13 +173,16 @@ class InventoryStore:
         return None
 
     def unassign_item(self, item_id):
-        item = self.items.get(item_id)
+        item = self.get_item(item_id)
         if item:
             item.assigned_to = None
             item.status = 'Available'
             item.updated_at = datetime.now()
             return item
         return None
+
+    def clear(self):
+        self.items = []
 
 # Create singleton instance
 inventory_store = InventoryStore() 
