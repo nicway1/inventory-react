@@ -60,7 +60,7 @@
              onclick="showTable('techAssets')">
             <h2 class="text-xl font-semibold mb-2">Tech Assets</h2>
             <p class="text-sm opacity-80 mb-4">Laptops, Desktops, Monitors, etc.</p>
-            <p class="text-3xl font-bold">{{ tech_assets_count }}</p>
+            <p class="text-3xl font-bold" id="techAssetsCount">{{ tech_assets_count }}</p>
         </div>
 
         <!-- Accessories Card -->
@@ -69,7 +69,7 @@
              onclick="showTable('accessories')">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
-            <p class="text-3xl font-bold">{{ accessories_count }}</p>
+            <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
         </div>
     </div>
 
@@ -159,6 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const techAssetsTable = document.getElementById('techAssetsTable');
     const accessoriesTable = document.getElementById('accessoriesTable');
     const techAssetsBody = document.getElementById('techAssetsBody');
+    const techAssetsCount = document.getElementById('techAssetsCount');
+    const accessoriesCount = document.getElementById('accessoriesCount');
     
     // Function to show selected table and hide the other
     window.showTable = function(tableType) {
@@ -172,14 +174,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Show tech assets by default
+    // Show tech assets by default and load initial data
     showTable('techAssets');
+    loadTechAssets();
 
     // Function to load tech assets
     async function loadTechAssets() {
         try {
             const response = await fetch('/inventory/tech-assets');
             const data = await response.json();
+            
+            // Update the count
+            techAssetsCount.textContent = data.total_count;
             
             techAssetsBody.innerHTML = data.assets.map(asset => `
                 <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/inventory/asset/${asset.id}'">
@@ -189,8 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
                     <td class="px-6 py-4 whitespace-normal">
-                        <div class="text-sm text-gray-900" title="${asset.product}">
-                            ${asset.product.split(' ').slice(0,8).join(' ')}${asset.product.split(' ').length > 8 ? '...' : ''}
+                        <div class="text-sm text-gray-900" title="${asset.product || ''}">
+                            ${asset.product ? (asset.product.split(' ').slice(0,8).join(' ') + (asset.product.split(' ').length > 8 ? '...' : '')) : ''}
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
@@ -241,8 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             // Update counts
-            document.querySelector('#techAssetsCard .text-3xl').textContent = data.tech_assets_count;
-            document.querySelector('#accessoriesCard .text-3xl').textContent = data.accessories_count;
+            techAssetsCount.textContent = data.tech_assets_count;
+            accessoriesCount.textContent = data.accessories_count;
             
             // If tech assets table is visible, update it
             if (!techAssetsTable.classList.contains('hidden')) {

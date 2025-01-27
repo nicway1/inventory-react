@@ -1,7 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# exit on error
 set -o errexit
 
-# Install Python dependencies
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install gunicorn 
+# Install dependencies
+pip install -r requirements.txt
+
+# Create data directory
+mkdir -p data
+
+# Initialize the database
+python recreate_db.py 

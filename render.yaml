@@ -2,12 +2,19 @@ services:
   - type: web
     name: inventory-system
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: FLASK_ENV
         value: production
     healthCheckPath: /
-    autoDeploy: true 
+    autoDeploy: true
+
+databases:
+  - name: inventory_db
+    plan: free
+    databaseName: inventory
+    ipAllowList: [] # allow all IPs 

@@ -2,28 +2,25 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Get database URL from environment variable, use SQLite as fallback for development
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-if not DATABASE_URL:
-    raise ValueError("No DATABASE_URL environment variable set")
+# Handle special case for Render.com PostgreSQL URLs
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+elif not DATABASE_URL:
+    DATABASE_URL = 'sqlite:///./inventory.db'
 
-try:
-    # Modify the DATABASE_URL to explicitly include SSL mode
-    if 'postgresql://' in DATABASE_URL and '?' not in DATABASE_URL:
-        DATABASE_URL += '?sslmode=verify-full'
-
-    # Create engine with minimal connection settings
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_timeout=30
-    )
-except Exception as e:
-    print(f"Failed to initialize database connection: {str(e)}")
-    raise
+# Create engine with appropriate settings
+if DATABASE_URL.startswith('sqlite'):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -32,20 +29,17 @@ Base = declarative_base()
 from models.asset import Asset
 from models.accessory import Accessory
 
+def init_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
+        raise
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
-        db.close()
-
-def init_db():
-    try:
-        # Test the connection before creating tables
-        with engine.connect() as connection:
-            print("Successfully connected to database")
-        Base.metadata.create_all(bind=engine)
-        print("Database initialized successfully")
-    except Exception as e:
-        print(f"Failed to initialize database tables: {str(e)}")
-        raise 
+        db.close() 

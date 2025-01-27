@@ -60,6 +60,9 @@ def view_inventory():
             for acc in accessories
         ]
 
+        print(f"Tech Assets Count: {tech_assets_count}")  # Debug print
+        print(f"Accessories Count: {accessories_count}")  # Debug print
+
         return render_template(
             'inventory/view.html',
             tech_assets_count=tech_assets_count,
@@ -79,7 +82,9 @@ def view_tech_assets():
     db = SessionLocal()
     try:
         assets = db.query(Asset).all()
+        total_count = len(assets)
         return jsonify({
+            'total_count': total_count,
             'assets': [
                 {
                     'id': asset.id,
@@ -155,12 +160,16 @@ def filter_inventory():
             accessories_query = accessories_query.filter(Accessory.country == data['country'])
 
         # Get results
-        assets = assets_query.all()
+        tech_assets_count = assets_query.count()
+        accessories_count = accessories_query.count()
         accessories = accessories_query.all()
 
+        print(f"Filtered Tech Assets Count: {tech_assets_count}")  # Debug print
+        print(f"Filtered Accessories Count: {accessories_count}")  # Debug print
+
         return jsonify({
-            'tech_assets_count': len(assets),
-            'accessories_count': len(accessories),
+            'tech_assets_count': tech_assets_count,
+            'accessories_count': accessories_count,
             'accessories': [acc.to_dict() for acc in accessories]
         })
 
