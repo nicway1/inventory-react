@@ -1,7 +1,7 @@
 from database import Base, engine
 from models.inventory_item import InventoryItem
 from models.accessory import Accessory
-from models.user import User
+from models.user import User, UserType
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ def recreate_database():
             username='admin',
             email='admin@example.com',
             password_hash=generate_password_hash('admin123'),
-            role='admin'
+            user_type=UserType.ADMIN
         )
         session.add(admin_user)
         session.commit()
