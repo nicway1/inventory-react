@@ -26,8 +26,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Import models here after Base is defined
-from models.asset import Asset
+from models.inventory_item import InventoryItem
 from models.accessory import Accessory
+from models.user import User
+from models.ticket import Ticket
+from models.activity import Activity
+from models.comment import Comment
+from models.queue import Queue
+from models.shipment import Shipment
 
 def init_db():
     try:
