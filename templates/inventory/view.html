@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Add CSRF token -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold mb-6">IT Asset Inventory</h1>
 
@@ -18,9 +21,12 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select id="statusFilter" class="w-full border rounded-lg p-2">
                 <option value="">All Statuses</option>
-                {% for status in ['IN STOCK', 'DEPLOYED', 'REPAIR', 'RETIRED'] %}
-                <option value="{{ status }}">{{ status }}</option>
-                {% endfor %}
+                <option value="IN STOCK">IN STOCK</option>
+                <option value="Ready to Deploy">Ready to Deploy</option>
+                <option value="SHIPPED">SHIPPED</option>
+                <option value="DEPLOYED">DEPLOYED</option>
+                <option value="REPAIR">REPAIR</option>
+                <option value="ARCHIVED">ARCHIVED</option>
             </select>
         </div>
         <div>
@@ -52,6 +58,30 @@
         </div>
     </div>
 
+    <!-- Filter Button -->
+    <div class="flex justify-end mb-6">
+        <button id="applyFiltersBtn" 
+                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+            Apply Filters
+        </button>
+        <button id="clearFiltersBtn" 
+                class="ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+            Clear Filters
+        </button>
+    </div>
+
+    <!-- Error Alert -->
+    <div id="errorAlert" class="hidden mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong class="font-bold">Error!</strong>
+        <span id="errorMessage" class="block sm:inline"></span>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="hidden mb-4 text-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <span class="ml-2">Loading...</span>
+    </div>
+
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <!-- Tech Assets Card -->
@@ -80,38 +110,17 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Asset ID
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Serial Number
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Name
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Model
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Company
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Country
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                            <span class="text-blue-500 ml-1">ⓘ</span>
-                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="techAssetsBody">
-                    <!-- Tech assets will be loaded here via JavaScript -->
+                <tbody id="techAssetsBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Table rows will be inserted here by JavaScript -->
                 </tbody>
             </table>
         </div>
@@ -161,73 +170,152 @@ document.addEventListener('DOMContentLoaded', function() {
     const techAssetsBody = document.getElementById('techAssetsBody');
     const techAssetsCount = document.getElementById('techAssetsCount');
     const accessoriesCount = document.getElementById('accessoriesCount');
-    
-    // Function to show selected table and hide the other
-    window.showTable = function(tableType) {
-        if (tableType === 'techAssets') {
-            techAssetsTable.classList.remove('hidden');
-            accessoriesTable.classList.add('hidden');
-            loadTechAssets();
-        } else {
-            techAssetsTable.classList.add('hidden');
-            accessoriesTable.classList.remove('hidden');
-        }
-    }
-
-    // Show tech assets by default and load initial data
-    showTable('techAssets');
-    loadTechAssets();
-
-    // Function to load tech assets
-    async function loadTechAssets() {
-        try {
-            const response = await fetch('/inventory/tech-assets');
-            const data = await response.json();
-            
-            // Update the count
-            techAssetsCount.textContent = data.total_count;
-            
-            techAssetsBody.innerHTML = data.assets.map(asset => `
-                <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/inventory/asset/${asset.id}'">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">Asset ID: ${asset.asset_tag || ''}</div>
-                        <div class="text-xs text-gray-500">${asset.id || ''}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
-                    <td class="px-6 py-4 whitespace-normal">
-                        <div class="text-sm text-gray-900" title="${asset.product || ''}">
-                            ${asset.product ? (asset.product.split(' ').slice(0,8).join(' ') + (asset.product.split(' ').length > 8 ? '...' : '')) : ''}
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.customer || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.country || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 py-1 text-xs font-medium rounded-full ${
-                            asset.inventory === 'IN STOCK' ? 'bg-blue-100 text-blue-800' :
-                            asset.inventory === 'DEPLOYED' ? 'bg-green-100 text-green-800' :
-                            asset.inventory === 'REPAIR' ? 'bg-yellow-100 text-yellow-800' :
-                            asset.inventory === 'RETIRED' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                        }">
-                            ${asset.inventory || 'Unknown'}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
-        } catch (error) {
-            console.error('Error loading tech assets:', error);
-        }
-    }
-
-    // Handle filtering
+    const errorAlert = document.getElementById('errorAlert');
+    const errorMessage = document.getElementById('errorMessage');
+    const loadingIndicator = document.getElementById('loadingIndicator');
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const companyFilter = document.getElementById('companyFilter');
     const modelFilter = document.getElementById('modelFilter');
     const countryFilter = document.getElementById('countryFilter');
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    async function applyFilters() {
+    // Function to show error
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorAlert.classList.remove('hidden');
+        setTimeout(() => {
+            errorAlert.classList.add('hidden');
+        }, 5000);
+    }
+
+    // Function to show/hide loading indicator
+    function setLoading(isLoading) {
+        if (isLoading) {
+            loadingIndicator.classList.remove('hidden');
+        } else {
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+
+    // Function to handle fetch with session check
+    async function fetchWithSession(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                ...options.headers,
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        });
+
+        if (response.redirected && response.url.includes('/auth/login')) {
+            window.location.href = '/auth/login';
+            throw new Error('Session expired. Please log in again.');
+        }
+
+        return response;
+    }
+
+    // Function to load tech assets with filters
+    async function loadTechAssets(filters = {}) {
+        try {
+            setLoading(true);
+            
+            let url = '/inventory/tech-assets';
+            if (Object.keys(filters).length > 0) {
+                const response = await fetchWithSession('/inventory/filter', {
+                    method: 'POST',
+                    body: JSON.stringify(filters)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updateTable(data);
+            } else {
+                const response = await fetchWithSession(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                updateTable(data);
+            }
+        } catch (error) {
+            console.error('Error loading tech assets:', error);
+            showError(error.message || 'Error loading tech assets');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Function to update the table with data
+    function updateTable(data) {
+        // Update both the table count and the card count
+        techAssetsCount.textContent = data.total_count;
+        
+        if (data.assets && data.assets.length > 0) {
+            techAssetsBody.innerHTML = data.assets.map(asset => `
+                <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/inventory/asset/${asset.id}'">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${asset.asset_tag || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
+                    <td class="px-6 py-4 whitespace-normal">
+                        <div class="text-sm text-gray-900">${asset.product || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.customer || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.country || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(asset.inventory)}">
+                            ${asset.inventory || 'Unknown'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            techAssetsBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                        No assets found
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // Function to get status badge class
+    function getStatusClass(status) {
+        switch (status) {
+            case 'IN STOCK':
+                return 'bg-blue-100 text-blue-800';
+            case 'Ready to Deploy':
+                return 'bg-green-100 text-green-800';
+            case 'SHIPPED':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'DEPLOYED':
+                return 'bg-purple-100 text-purple-800';
+            case 'REPAIR':
+                return 'bg-red-100 text-red-800';
+            case 'ARCHIVED':
+                return 'bg-gray-100 text-gray-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    // Event listeners for filters
+    applyFiltersBtn.addEventListener('click', () => {
         const filters = {
             search: searchInput.value,
             inventory_status: statusFilter.value,
@@ -235,36 +323,20 @@ document.addEventListener('DOMContentLoaded', function() {
             model: modelFilter.value,
             country: countryFilter.value
         };
+        loadTechAssets(filters);
+    });
 
-        try {
-            const response = await fetch('/inventory/filter', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(filters)
-            });
-            const data = await response.json();
-            
-            // Update counts
-            techAssetsCount.textContent = data.tech_assets_count;
-            accessoriesCount.textContent = data.accessories_count;
-            
-            // If tech assets table is visible, update it
-            if (!techAssetsTable.classList.contains('hidden')) {
-                loadTechAssets();
-            }
-        } catch (error) {
-            console.error('Error applying filters:', error);
-        }
-    }
+    clearFiltersBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        statusFilter.value = '';
+        companyFilter.value = '';
+        modelFilter.value = '';
+        countryFilter.value = '';
+        loadTechAssets();
+    });
 
-    // Add event listeners for filters
-    searchInput.addEventListener('input', applyFilters);
-    statusFilter.addEventListener('change', applyFilters);
-    companyFilter.addEventListener('change', applyFilters);
-    modelFilter.addEventListener('change', applyFilters);
-    countryFilter.addEventListener('change', applyFilters);
+    // Load initial data
+    loadTechAssets();
 });
 </script>
 {% endblock %} 

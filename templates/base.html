@@ -53,7 +53,13 @@
                 </div>
                 <div class="flex items-center">
                     {% if session.get('user_id') %}
-                    <span class="text-gray-600 mr-4">{{ session.get('username', '') }}</span>
+                    <a href="{{ url_for('auth.profile') }}" 
+                       class="text-gray-600 hover:text-gray-900 mr-4 flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span>{{ session.get('username', '') }}</span>
+                    </a>
                     <a href="{{ url_for('auth.logout') }}" 
                        class="text-gray-900 hover:text-gray-700">Logout</a>
                     {% else %}

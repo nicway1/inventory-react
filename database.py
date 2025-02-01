@@ -32,6 +32,14 @@ from models.accessory import Accessory
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
+        
+        # Create a session and commit any pending changes
+        db = SessionLocal()
+        try:
+            db.commit()
+        finally:
+            db.close()
+            
         print("Database initialized successfully")
     except Exception as e:
         print(f"Failed to initialize database: {str(e)}")

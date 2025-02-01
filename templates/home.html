@@ -2,10 +2,21 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
+    <!-- Welcome Card -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h1 class="text-2xl font-bold mb-2">Welcome, {{ user.username }}!</h1>
+        <p class="text-gray-600">Here's an overview of your system</p>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <!-- Inventory Summary -->
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Inventory</h2>
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <h2 class="text-xl font-semibold">Inventory</h2>
+            </div>
             <div class="text-3xl font-bold text-blue-600">{{ stats.total_inventory }}</div>
             <p class="text-gray-600">Total Assets</p>
             <a href="{{ url_for('inventory.view_inventory') }}" class="mt-4 inline-block text-blue-600 hover:text-blue-800">View Inventory →</a>
@@ -13,7 +24,12 @@
 
         <!-- Shipments Summary -->
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Shipments</h2>
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                <h2 class="text-xl font-semibold">Shipments</h2>
+            </div>
             <div class="text-3xl font-bold text-green-600">{{ stats.total_shipments }}</div>
             <p class="text-gray-600">Active Shipments</p>
             <a href="{{ url_for('shipments.list_shipments') }}" class="mt-4 inline-block text-green-600 hover:text-green-800">View Shipments →</a>
@@ -22,7 +38,12 @@
         <!-- Data Loader Card (for admins) -->
         {% if user.is_admin %}
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Data Loader</h2>
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                <h2 class="text-xl font-semibold">Data Loader</h2>
+            </div>
             <div class="text-3xl font-bold text-yellow-600">
                 <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
@@ -31,10 +52,39 @@
             <p class="text-gray-600">Import Inventory Data</p>
             <a href="{{ url_for('inventory.import_inventory') }}" class="mt-4 inline-block text-yellow-600 hover:text-yellow-800">Open Data Loader →</a>
         </div>
+        <!-- Administration Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h2 class="text-xl font-semibold">System Management</h2>
+            </div>
+            <div class="space-y-4">
+                <a href="{{ url_for('admin.manage_users') }}" 
+                   class="block w-full py-2 px-4 bg-purple-100 text-purple-700 rounded-lg text-center hover:bg-purple-200 transition-colors">
+                    Manage Users
+                </a>
+                <a href="{{ url_for('admin.manage_companies') }}" 
+                   class="block w-full py-2 px-4 bg-blue-100 text-blue-700 rounded-lg text-center hover:bg-blue-200 transition-colors">
+                    Manage Companies
+                </a>
+                <a href="{{ url_for('admin.create_user') }}" 
+                   class="block w-full py-2 px-4 bg-gray-100 text-gray-700 rounded-lg text-center hover:bg-gray-200 transition-colors">
+                    Create New User
+                </a>
+            </div>
+        </div>
         {% else %}
         <!-- Support Queues (for non-admins) -->
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Support</h2>
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+                <h2 class="text-xl font-semibold">Support</h2>
+            </div>
             <div class="text-3xl font-bold text-purple-600">{{ stats.total_queues }}</div>
             <p class="text-gray-600">Open Queues</p>
             <a href="{{ url_for('tickets.list_queues') }}" class="mt-4 inline-block text-purple-600 hover:text-purple-800">View Queues →</a>
@@ -45,7 +95,12 @@
     <!-- Recent Activity -->
     <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold">Recent Activity</h2>
+            <div class="flex items-center">
+                <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h2 class="text-xl font-semibold">Recent Activity</h2>
+            </div>
         </div>
         <div class="p-6">
             {% if activities %}

@@ -2,16 +2,16 @@ from flask import Blueprint, render_template, request, jsonify, session, flash, 
 from datetime import datetime
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
-from models.inventory_item import InventoryItem
+from models.database import Asset, Accessory, Base, AssetStatus
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
-from database import SessionLocal
-from models.asset import Asset
-from models.accessory import Accessory
 from sqlalchemy import func, case, or_
+from utils.db_manager import DatabaseManager
+from flask_wtf.csrf import generate_csrf
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
+db_manager = DatabaseManager()
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
@@ -26,24 +26,26 @@ def allowed_file(filename):
 @inventory_bp.route('/')
 @login_required
 def view_inventory():
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        # Get counts
-        tech_assets_count = db.query(Asset).count()
-        accessories_count = db.query(Accessory).count()
+        # Get counts using a simpler query
+        tech_assets_count = db_session.query(Asset).count()
+        accessories_count = db_session.query(Accessory).count()
+
+        print(f"Initial Tech Assets Count: {tech_assets_count}")  # Debug print
 
         # Get unique values for filters from assets only
-        companies = db.query(Asset.customer).distinct().all()
+        companies = db_session.query(Asset.customer).distinct().all()
         companies = sorted(list(set([c[0] for c in companies if c[0]])))
 
-        models = db.query(Asset.model).distinct().all()
+        models = db_session.query(Asset.model).distinct().all()
         models = sorted(list(set([m[0] for m in models if m[0]])))
 
-        countries = db.query(Asset.country).distinct().all()
+        countries = db_session.query(Asset.country).distinct().all()
         countries = sorted(list(set([c[0] for c in countries if c[0]])))
 
         # Get accessories with counts
-        accessories = db.query(
+        accessories = db_session.query(
             Accessory.name,
             Accessory.category,
             func.count(Accessory.id).label('total_count'),
@@ -74,15 +76,23 @@ def view_inventory():
         )
 
     finally:
-        db.close()
+        db_session.close()
 
 @inventory_bp.route('/tech-assets')
 @login_required
 def view_tech_assets():
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        assets = db.query(Asset).all()
+        assets = db_session.query(Asset).all()
         total_count = len(assets)
+        
+        # Debug print to check asset data
+        for asset in assets:
+            print(f"Asset {asset.id}:")
+            print(f"  - Hardware Type: '{asset.hardware_type}'")
+            print(f"  - Model: '{asset.model}'")
+            print(f"  - Status: '{asset.status.value if asset.status else 'Unknown'}'")
+            
         return jsonify({
             'total_count': total_count,
             'assets': [
@@ -92,7 +102,7 @@ def view_tech_assets():
                     'asset_tag': asset.asset_tag,
                     'serial_num': asset.serial_num,
                     'model': asset.model,
-                    'inventory': asset.inventory,
+                    'inventory': asset.status.value if asset.status else 'Unknown',
                     'customer': asset.customer,
                     'country': asset.country
                 }
@@ -100,88 +110,119 @@ def view_tech_assets():
             ]
         })
     finally:
-        db.close()
+        db_session.close()
 
 @inventory_bp.route('/accessories')
 @login_required
 def view_accessories():
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        accessories = db.query(Accessory).all()
+        accessories = db_session.query(Accessory).all()
         return render_template('inventory/accessories.html', accessories=accessories)
     finally:
-        db.close()
+        db_session.close()
 
 @inventory_bp.route('/filter', methods=['POST'])
 @login_required
 def filter_inventory():
-    data = request.json
-    db = SessionLocal()
     try:
-        # Build query based on filters
-        assets_query = db.query(Asset)
-        accessories_query = db.query(Accessory)
+        data = request.json
+        print("Received filter data:", data)  # Debug log
+        
+        if not data:
+            return jsonify({
+                'error': 'No filter data received',
+                'total_count': 0,
+                'assets': []
+            }), 400
+        
+        db_session = db_manager.get_session()
+        try:
+            # Build query based on filters
+            assets_query = db_session.query(Asset)
 
-        if data.get('search'):
-            search = f"%{data['search']}%"
-            assets_query = assets_query.filter(
-                or_(
-                    Asset.serial_num.ilike(search),
-                    Asset.asset_tag.ilike(search),
-                    Asset.product.ilike(search),
-                    Asset.model.ilike(search),
-                    Asset.country.ilike(search)
+            if data.get('search'):
+                search = f"%{data['search']}%"
+                print(f"Applying search filter: {search}")  # Debug log
+                assets_query = assets_query.filter(
+                    or_(
+                        Asset.serial_num.ilike(search),
+                        Asset.asset_tag.ilike(search),
+                        Asset.model.ilike(search),
+                        Asset.country.ilike(search)
+                    )
                 )
-            )
-            accessories_query = accessories_query.filter(
-                or_(
-                    Accessory.serial_num.ilike(search),
-                    Accessory.asset_tag.ilike(search),
-                    Accessory.name.ilike(search),
-                    Accessory.model.ilike(search),
-                    Accessory.country.ilike(search)
-                )
-            )
 
-        if data.get('status'):
-            assets_query = assets_query.filter(Asset.status == data['status'])
-            accessories_query = accessories_query.filter(Accessory.status == data['status'])
+            if data.get('inventory_status'):
+                print(f"Applying status filter: {data['inventory_status']}")  # Debug log
+                assets_query = assets_query.filter(Asset.status == data['inventory_status'])
 
-        if data.get('company'):
-            assets_query = assets_query.filter(Asset.customer == data['company'])
-            accessories_query = accessories_query.filter(Accessory.customer == data['company'])
+            if data.get('company'):
+                print(f"Applying company filter: {data['company']}")  # Debug log
+                assets_query = assets_query.filter(Asset.customer == data['company'])
 
-        if data.get('model'):
-            assets_query = assets_query.filter(Asset.model == data['model'])
-            accessories_query = accessories_query.filter(Accessory.model == data['model'])
+            if data.get('model'):
+                print(f"Applying model filter: {data['model']}")  # Debug log
+                assets_query = assets_query.filter(Asset.model == data['model'])
 
-        if data.get('country'):
-            assets_query = assets_query.filter(Asset.country == data['country'])
-            accessories_query = accessories_query.filter(Accessory.country == data['country'])
+            if data.get('country'):
+                print(f"Applying country filter: {data['country']}")  # Debug log
+                assets_query = assets_query.filter(Asset.country == data['country'])
 
-        # Get results
-        tech_assets_count = assets_query.count()
-        accessories_count = accessories_query.count()
-        accessories = accessories_query.all()
+            # Get results
+            try:
+                assets = assets_query.all()
+                tech_assets_count = len(assets)
 
-        print(f"Filtered Tech Assets Count: {tech_assets_count}")  # Debug print
-        print(f"Filtered Accessories Count: {accessories_count}")  # Debug print
+                print(f"Filtered Tech Assets Count: {tech_assets_count}")
 
+                response_data = {
+                    'total_count': tech_assets_count,  # Use consistent key name
+                    'assets': [
+                        {
+                            'id': asset.id,
+                            'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
+                            'asset_tag': asset.asset_tag,
+                            'serial_num': asset.serial_num,
+                            'model': asset.model,
+                            'inventory': asset.status.value if asset.status else 'Unknown',
+                            'customer': asset.customer,
+                            'country': asset.country
+                        }
+                        for asset in assets
+                    ]
+                }
+                
+                print("Sending response data:", response_data)  # Debug log
+                return jsonify(response_data)
+            
+            except Exception as e:
+                print(f"Error processing query results: {str(e)}")
+                return jsonify({
+                    'error': 'Error processing query results',
+                    'message': str(e),
+                    'total_count': 0,
+                    'assets': []
+                }), 500
+
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        print(f"Error in filter_inventory: {str(e)}")
         return jsonify({
-            'tech_assets_count': tech_assets_count,
-            'accessories_count': accessories_count,
-            'accessories': [acc.to_dict() for acc in accessories]
-        })
-
-    finally:
-        db.close()
+            'error': 'Server error',
+            'message': str(e),
+            'total_count': 0,
+            'assets': []
+        }), 500
 
 @inventory_bp.route('/checkout/<int:id>', methods=['POST'])
 @login_required
 def checkout_accessory(id):
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        accessory = db.query(Accessory).get(id)
+        accessory = db_session.query(Accessory).get(id)
         if not accessory:
             flash('Accessory not found')
             return redirect(url_for('inventory.view_inventory'))
@@ -193,13 +234,13 @@ def checkout_accessory(id):
         # Update accessory status
         accessory.status = 'Checked Out'
         accessory.customer = session.get('user_id')  # Or however you track the current user
-        db.commit()
+        db_session.commit()
 
         flash('Accessory checked out successfully')
         return redirect(url_for('inventory.view_inventory'))
 
     finally:
-        db.close()
+        db_session.close()
 
 @inventory_bp.route('/item/<int:item_id>')
 @login_required
@@ -355,7 +396,7 @@ def import_inventory():
             if action == 'confirm' and filepath and os.path.exists(filepath):
                 try:
                     df = pd.read_csv(filepath)
-                    db = SessionLocal()
+                    db_session = db_manager.get_session()
                     
                     try:
                         if import_type == 'assets':
@@ -365,8 +406,24 @@ def import_inventory():
                                 erased_value = str(row.get('ERASED', '')).upper()
                                 erased = erased_value in ['YES', 'TRUE', 'COMPLETED', '1']
                                 
+                                # Map inventory status to AssetStatus enum
+                                inventory_status = str(row.get('INVENTORY', '')).upper()
+                                if inventory_status == 'READY TO DEPLOY':
+                                    status = AssetStatus.READY_TO_DEPLOY
+                                elif inventory_status == 'IN STOCK':
+                                    status = AssetStatus.IN_STOCK
+                                elif inventory_status == 'SHIPPED':
+                                    status = AssetStatus.SHIPPED
+                                elif inventory_status == 'DEPLOYED':
+                                    status = AssetStatus.DEPLOYED
+                                elif inventory_status == 'REPAIR':
+                                    status = AssetStatus.REPAIR
+                                elif inventory_status == 'ARCHIVED':
+                                    status = AssetStatus.ARCHIVED
+                                else:
+                                    status = AssetStatus.IN_STOCK  # Default status
+                                
                                 asset = Asset(
-                                    product=str(row.get('PRODUCT', '')),
                                     asset_tag=str(row.get('ASSET TAG', '')),
                                     receiving_date=pd.to_datetime(row.get('RECEIVING DATE')).date() if pd.notna(row.get('RECEIVING DATE')) else None,
                                     keyboard=str(row.get('KEYBOARD', '')),
@@ -384,11 +441,10 @@ def import_inventory():
                                     memory=str(row.get('MEMORY', '')),
                                     harddrive=str(row.get('HARDDRIVE', '')),
                                     charger=str(row.get('CHARGER', '')),
-                                    inventory=str(row.get('INVENTORY', '')),
                                     country=str(row.get('COUNTRY', '')),
-                                    status='Ready to Deploy'  # Set default status
+                                    status=status  # Use mapped status
                                 )
-                                db.add(asset)
+                                db_session.add(asset)
                         
                         else:  # import_type == 'accessories'
                             # Group accessories by name and category
@@ -396,7 +452,7 @@ def import_inventory():
                             
                             for _, row in grouped.iterrows():
                                 # Check if accessory already exists
-                                existing = db.query(Accessory).filter(
+                                existing = db_session.query(Accessory).filter(
                                     Accessory.name == row['NAME'],
                                     Accessory.category == row['CATEGORY']
                                 ).first()
@@ -413,17 +469,17 @@ def import_inventory():
                                         total_quantity=row['count'],
                                         available_quantity=row['count']
                                     )
-                                    db.add(accessory)
+                                    db_session.add(accessory)
                         
-                        db.commit()
+                        db_session.commit()
                         flash('Data imported successfully!', 'success')
                     
                     except Exception as e:
-                        db.rollback()
+                        db_session.rollback()
                         flash(f'Error importing data: {str(e)}', 'error')
                     
                     finally:
-                        db.close()
+                        db_session.close()
                 
                 except Exception as e:
                     flash(f'Error processing file: {str(e)}', 'error')
@@ -448,16 +504,16 @@ def import_inventory():
 @inventory_bp.route('/asset/<int:asset_id>')
 @login_required
 def view_asset(asset_id):
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        asset = db.query(Asset).get(asset_id)
+        asset = db_session.query(Asset).get(asset_id)
         if not asset:
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory'))
         
         return render_template('inventory/asset_details.html', asset=asset)
     finally:
-        db.close()
+        db_session.close()
 
 @inventory_bp.route('/asset/<int:asset_id>/update-status', methods=['POST'])
 @login_required
@@ -467,16 +523,22 @@ def update_asset_status(asset_id):
         flash('No status provided', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     
-    db = SessionLocal()
+    db_session = db_manager.get_session()
     try:
-        asset = db.query(Asset).get(asset_id)
+        asset = db_session.query(Asset).get(asset_id)
         if not asset:
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory'))
         
-        asset.inventory = new_status
-        db.commit()
+        asset.status = new_status
+        db_session.commit()
         flash(f'Status updated to {new_status}', 'success')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     finally:
-        db.close() 
+        db_session.close()
+
+@inventory_bp.after_request
+def add_csrf_token_to_response(response):
+    if 'text/html' in response.headers.get('Content-Type', ''):
+        response.set_cookie('csrf_token', generate_csrf())
+    return response 

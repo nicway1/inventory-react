@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from models.database import Base, Asset, Location, Company, Ticket, AssetStatus
 from datetime import datetime
 from models.user import User, UserType
@@ -66,6 +66,13 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get_company(self, company_id):
+        session = self.get_session()
+        try:
+            return session.query(Company).filter(Company.id == company_id).first()
+        finally:
+            session.close()
+
     def create_company(self, company_data):
         session = self.get_session()
         try:
@@ -73,6 +80,40 @@ class DatabaseManager:
             session.add(company)
             session.commit()
             return company
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def update_company(self, company_id, company_data):
+        session = self.get_session()
+        try:
+            company = session.query(Company).filter(Company.id == company_id).first()
+            if company:
+                for key, value in company_data.items():
+                    setattr(company, key, value)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def delete_company(self, company_id):
+        session = self.get_session()
+        try:
+            company = session.query(Company).filter(Company.id == company_id).first()
+            if company:
+                session.delete(company)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            raise e
         finally:
             session.close()
 
@@ -126,6 +167,13 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get_all_users(self):
+        session = self.get_session()
+        try:
+            return session.query(User).all()
+        finally:
+            session.close()
+
     def create_user(self, user_data):
         session = self.get_session()
         try:
@@ -137,6 +185,30 @@ class DatabaseManager:
             session.add(user)
             session.commit()
             return user
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def get_user_by_id(self, user_id):
+        session = self.get_session()
+        try:
+            # Use joinedload to eagerly load the company relationship
+            return session.query(User).options(joinedload(User.company)).filter(User.id == user_id).first()
+        finally:
+            session.close()
+
+    def update_user(self, user_id, user_data):
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if user:
+                for key, value in user_data.items():
+                    setattr(user, key, value)
+                session.commit()
+                return True
+            return False
         except Exception as e:
             session.rollback()
             raise e

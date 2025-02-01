@@ -1,188 +1,134 @@
-from models.inventory_item import InventoryItem
-import json
+from models.database import Asset, Accessory, AssetStatus
+from utils.db_manager import DatabaseManager
+import pandas as pd
+from datetime import datetime
 import os
 
 class InventoryStore:
     def __init__(self):
-        self.items = []
-        self.load_items()
-
-    def load_items(self):
-        try:
-            # Check if data file exists
-            if os.path.exists('data/inventory.json'):
-                with open('data/inventory.json', 'r') as f:
-                    items_data = json.load(f)
-                    for item_data in items_data:
-                        # Convert string dates back to datetime if they exist
-                        if 'receiving_date' in item_data and item_data['receiving_date']:
-                            try:
-                                item_data['receiving_date'] = datetime.strptime(
-                                    item_data['receiving_date'], 
-                                    '%Y-%m-%d'
-                                )
-                            except ValueError:
-                                item_data['receiving_date'] = None
-                        
-                        item = InventoryItem.create(**item_data)
-                        self.items.append(item)
-            print(f"Loaded {len(self.items)} items from storage")
-        except Exception as e:
-            print(f"Error loading inventory data: {str(e)}")
-
-    def save_items(self):
-        try:
-            # Ensure data directory exists
-            os.makedirs('data', exist_ok=True)
-            
-            # Convert items to serializable format
-            items_data = []
-            for item in self.items:
-                item_dict = {
-                    'asset_type': item.asset_type,
-                    'product': item.product,
-                    'asset_tag': item.asset_tag,
-                    'receiving_date': item.receiving_date.strftime('%Y-%m-%d') if item.receiving_date else None,
-                    'keyboard': item.keyboard,
-                    'serial_num': item.serial_num,
-                    'po': item.po,
-                    'model': item.model,
-                    'erased': item.erased,
-                    'customer': item.customer,
-                    'condition': item.condition,
-                    'diag': item.diag,
-                    'hardware_type': item.hardware_type,
-                    'cpu_type': item.cpu_type,
-                    'cpu_cores': item.cpu_cores,
-                    'gpu_cores': item.gpu_cores,
-                    'memory': item.memory,
-                    'harddrive': item.harddrive,
-                    'charger': item.charger,
-                    'inventory': item.inventory,
-                    'country': item.country
-                }
-                items_data.append(item_dict)
-            
-            with open('data/inventory.json', 'w') as f:
-                json.dump(items_data, f, indent=2)
-            print(f"Saved {len(self.items)} items to storage")
-        except Exception as e:
-            print(f"Error saving inventory data: {str(e)}")
+        self.db_manager = DatabaseManager()
 
     def import_from_excel(self, file_path):
         try:
             # Read CSV file
-            # df = pd.read_csv(file_path)
+            df = pd.read_csv(file_path)
             
             # Debug: Print column names
-            # print("CSV columns:", df.columns.tolist())
+            print("CSV columns:", df.columns.tolist())
             
-            # Clear existing items
-            self.items.clear()
-            
-            # Convert DataFrame to inventory items
-            # for _, row in df.iterrows():
-            #     # Get serial number from the correct column name
-            #     serial_num = str(row.get('SERIAL NUMBER', ''))
-            #     if pd.isna(serial_num):
-            #         serial_num = ''
-            
-            #     print(f"Found serial number: {serial_num}")
-            
-            #     # Convert date if it exists
-            #     receiving_date = None
-            #     if 'Receiving date' in row and pd.notna(row['Receiving date']):
-            #         try:
-            #             receiving_date = pd.to_datetime(row['Receiving date']).to_pydatetime()
-            #         except:
-            #             receiving_date = None
+            db_session = self.db_manager.get_session()
+            try:
+                # Convert DataFrame to inventory items
+                for _, row in df.iterrows():
+                    # Get serial number from the correct column name
+                    serial_num = str(row.get('SERIAL NUMBER', ''))
+                    if pd.isna(serial_num):
+                        serial_num = ''
+                    
+                    print(f"Found serial number: {serial_num}")
+                    
+                    # Convert date if it exists
+                    receiving_date = None
+                    if 'Receiving date' in row and pd.notna(row['Receiving date']):
+                        try:
+                            receiving_date = pd.to_datetime(row['Receiving date']).to_pydatetime()
+                        except:
+                            receiving_date = None
 
-            #     item = InventoryItem.create(
-            #         asset_type=str(row.get('Asset Type', '')),
-            #         product=str(row.get('Product', '')),
-            #         asset_tag=str(row.get('ASSET TAG', '')),
-            #         receiving_date=receiving_date,
-            #         keyboard=str(row.get('Keyboard', '')),
-            #         serial_num=serial_num,  # This should now contain the correct serial number
-            #         po=str(row.get('PO', '')),
-            #         model=str(row.get('MODEL', '')),
-            #         erased=str(row.get('ERASED', '')),
-            #         customer=str(row.get('CUSTOMER', '')),
-            #         condition=str(row.get('CONDITION', '')),
-            #         diag=str(row.get('DIAG', '')),
-            #         hardware_type=str(row.get('HARDWARE TYPE', '')),
-            #         cpu_type=str(row.get('CPU TYPE', '')),
-            #         cpu_cores=str(row.get('CPU CORES', '')),
-            #         gpu_cores=str(row.get('GPU CORES', '')),
-            #         memory=str(row.get('MEMORY', '')),
-            #         harddrive=str(row.get('HARDDRIVE', '')),
-            #         charger=str(row.get('CHARGER', '')),
-            #         inventory=str(row.get('INVENTORY', '')),
-            #         country=str(row.get('COUNTRY', ''))
-            #     )
-            #     self.items.append(item)
-            
-            # Save the imported data
-            self.save_items()
-            return True
+                    # Create new Asset
+                    asset = Asset(
+                        asset_tag=str(row.get('ASSET TAG', '')),
+                        serial_num=serial_num,
+                        name=str(row.get('Product', '')),
+                        model=str(row.get('MODEL', '')),
+                        manufacturer='',  # Add if available in CSV
+                        category=str(row.get('Asset Type', '')),
+                        status=AssetStatus.IN_STOCK,  # Default status
+                        specifications={
+                            'cpu_type': str(row.get('CPU TYPE', '')),
+                            'cpu_cores': str(row.get('CPU CORES', '')),
+                            'gpu_cores': str(row.get('GPU CORES', '')),
+                            'memory': str(row.get('MEMORY', '')),
+                            'harddrive': str(row.get('HARDDRIVE', '')),
+                            'charger': str(row.get('CHARGER', '')),
+                            'keyboard': str(row.get('Keyboard', '')),
+                            'erased': str(row.get('ERASED', '')),
+                            'condition': str(row.get('CONDITION', '')),
+                            'diag': str(row.get('DIAG', '')),
+                        },
+                        notes='',
+                        hardware_type=str(row.get('HARDWARE TYPE', '')),
+                        inventory=str(row.get('INVENTORY', '')),
+                        customer=str(row.get('CUSTOMER', '')),
+                        country=str(row.get('COUNTRY', '')),
+                        receiving_date=receiving_date,
+                        keyboard=str(row.get('Keyboard', '')),
+                        po=str(row.get('PO', '')),
+                        erased=str(row.get('ERASED', '')),
+                        condition=str(row.get('CONDITION', '')),
+                        diag=str(row.get('DIAG', '')),
+                        cpu_type=str(row.get('CPU TYPE', '')),
+                        cpu_cores=str(row.get('CPU CORES', '')),
+                        gpu_cores=str(row.get('GPU CORES', '')),
+                        memory=str(row.get('MEMORY', '')),
+                        harddrive=str(row.get('HARDDRIVE', '')),
+                        charger=str(row.get('CHARGER', ''))
+                    )
+                    db_session.add(asset)
+                
+                db_session.commit()
+                return True
+            except Exception as e:
+                db_session.rollback()
+                raise e
+            finally:
+                db_session.close()
+                
         except Exception as e:
             print(f"Error importing CSV file: {str(e)}")
             import traceback
             traceback.print_exc()
             return False
 
-    def add_item(self, item):
-        self.items.append(item)
-        self.save_items()
-        return item
-
     def get_item(self, item_id):
-        for item in self.items:
-            if item.id == item_id:
-                return item
-        return None
+        db_session = self.db_manager.get_session()
+        try:
+            return db_session.query(Asset).get(item_id)
+        finally:
+            db_session.close()
 
     def get_all_items(self):
-        return self.items
+        db_session = self.db_manager.get_session()
+        try:
+            return db_session.query(Asset).all()
+        finally:
+            db_session.close()
 
     def update_item(self, item_id, updated_data):
-        item = self.get_item(item_id)
-        if item:
-            for key, value in updated_data.items():
-                setattr(item, key, value)
-            item.updated_at = datetime.now()
-            self.save_items()
-            return item
-        return None
+        db_session = self.db_manager.get_session()
+        try:
+            item = db_session.query(Asset).get(item_id)
+            if item:
+                for key, value in updated_data.items():
+                    setattr(item, key, value)
+                item.updated_at = datetime.now()
+                db_session.commit()
+                return item
+            return None
+        finally:
+            db_session.close()
 
     def delete_item(self, item_id):
-        item = self.get_item(item_id)
-        if item:
-            self.items.remove(item)
-            self.save_items()
-            return True
-        return False
-
-    def assign_item(self, item_id, user_id):
-        item = self.get_item(item_id)
-        if item:
-            item.assigned_to = user_id
-            item.status = 'Assigned'
-            item.updated_at = datetime.now()
-            return item
-        return None
-
-    def unassign_item(self, item_id):
-        item = self.get_item(item_id)
-        if item:
-            item.assigned_to = None
-            item.status = 'Available'
-            item.updated_at = datetime.now()
-            return item
-        return None
-
-    def clear(self):
-        self.items = []
+        db_session = self.db_manager.get_session()
+        try:
+            item = db_session.query(Asset).get(item_id)
+            if item:
+                db_session.delete(item)
+                db_session.commit()
+                return True
+            return False
+        finally:
+            db_session.close()
 
 # Create singleton instance
 inventory_store = InventoryStore() 

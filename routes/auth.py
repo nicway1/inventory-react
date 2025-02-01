@@ -3,6 +3,7 @@ from utils.user_store import UserStore
 from utils.auth_decorators import admin_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
+from flask_login import login_required, current_user, login_user, logout_user
 
 auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
@@ -29,6 +30,7 @@ def login():
             
             if user.check_password(password):
                 print("\nPassword check passed")
+                login_user(user)
                 session['user_id'] = user.id
                 session['user_type'] = user.user_type.value
                 session['username'] = user.username
@@ -45,6 +47,7 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    logout_user()
     session.clear()
     return redirect(url_for('auth.login'))
 
@@ -120,4 +123,61 @@ def register():
         return redirect(url_for('auth.login'))
     else:
         flash('Username already exists')
-        return redirect(url_for('auth.register')) 
+        return redirect(url_for('auth.register'))
+
+@auth_bp.route('/profile')
+@login_required
+def profile():
+    # Get a fresh user object from the database with company relationship loaded
+    user = db_manager.get_user_by_id(current_user.id)
+    return render_template('profile.html', user=user)
+
+@auth_bp.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    """Edit user profile"""
+    # Get a fresh user object from the database with company relationship loaded
+    user = db_manager.get_user_by_id(current_user.id)
+    
+    if request.method == 'POST':
+        # Get form data
+        user_data = {
+            'username': request.form.get('username'),
+            'email': request.form.get('email'),
+            'role': request.form.get('role')
+        }
+        
+        try:
+            db_manager.update_user(current_user.id, user_data)
+            flash('Profile updated successfully', 'success')
+            return redirect(url_for('auth.profile'))
+        except Exception as e:
+            flash(f'Error updating profile: {str(e)}', 'error')
+            
+    return render_template('edit_profile.html', user=user)
+
+@auth_bp.route('/profile/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change user password"""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'error')
+            return redirect(url_for('auth.change_password'))
+            
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'error')
+            return redirect(url_for('auth.change_password'))
+            
+        try:
+            db_manager.update_user_password(current_user.id, new_password)
+            flash('Password changed successfully', 'success')
+            return redirect(url_for('auth.profile'))
+        except Exception as e:
+            flash(f'Error changing password: {str(e)}', 'error')
+            
+    return render_template('change_password.html') 

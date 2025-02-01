@@ -3,13 +3,14 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 from models.database import Base
+from flask_login import UserMixin
 
 class UserType(enum.Enum):
     USER = "user"
     ADMIN = "admin"
     SUPER_ADMIN = "super_admin"
 
-class User(Base):
+class User(UserMixin, Base):
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
