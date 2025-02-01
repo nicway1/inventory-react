@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from database import Base
+from models.base import Base
 
 class Company(Base):
     __tablename__ = 'companies'

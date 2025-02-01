@@ -1,8 +1,8 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from models.base import Base
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,30 +25,21 @@ else:
     engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Import models here after Base is defined
-from models.inventory_item import InventoryItem
-from models.accessory import Accessory
-from models.user import User
-from models.ticket import Ticket
-from models.activity import Activity
-from models.comment import Comment
-from models.queue import Queue
-from models.shipment import Shipment
-from models.company import Company
 
 def init_db():
+    # Import all models here to ensure they are registered with Base
+    import models.user
+    import models.inventory_item
+    import models.accessory
+    import models.ticket
+    import models.activity
+    import models.comment
+    import models.queue
+    import models.shipment
+    import models.company
+    
     try:
         Base.metadata.create_all(bind=engine)
-        
-        # Create a session and commit any pending changes
-        db = SessionLocal()
-        try:
-            db.commit()
-        finally:
-            db.close()
-            
         print("Database initialized successfully")
     except Exception as e:
         print(f"Failed to initialize database: {str(e)}")
