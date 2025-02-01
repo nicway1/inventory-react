@@ -19,12 +19,14 @@ from utils.store_instances import (
     shipment_store
 )
 from flask_sqlalchemy import SQLAlchemy
-from models.database import Base, Company
+from models.base import Base
+from models.company import Company
 from utils.db_manager import DatabaseManager
 import os
 from models.user import UserType
 from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect
+from database import init_db, engine, SessionLocal
 
 # Create data directory if it doesn't exist
 os.makedirs('data', exist_ok=True)
@@ -101,25 +103,23 @@ def health_check():
 if __name__ == '__main__':
     print("Starting application...")
     
-    # Create all database tables
+    # Initialize database and create tables
     with app.app_context():
-        print("Creating database tables...")
-        Base.metadata.create_all(db_manager.engine)
-        print("Database tables created")
+        print("Initializing database...")
+        init_db()
         
         # Create default company if it doesn't exist
-        session = db_manager.get_session()
+        db = SessionLocal()
         try:
-            default_company = session.query(Company).filter_by(name="LunaComputer").first()
+            default_company = db.query(Company).filter_by(name="LunaComputer").first()
             if not default_company:
                 print("\nCreating default company...")
                 default_company = Company(
                     name="LunaComputer",
-                    contact_name="System Admin",
-                    contact_email="admin@lunacomputer.com"
+                    address="Default Address"
                 )
-                session.add(default_company)
-                session.commit()
+                db.add(default_company)
+                db.commit()
                 print("Default company created")
             
             # Create default admin user if it doesn't exist
@@ -142,6 +142,6 @@ if __name__ == '__main__':
             else:
                 print(f"Admin user already exists: {admin_user.username}")
         finally:
-            session.close()
+            db.close()
 
     app.run(debug=True, host='0.0.0.0', port=5001) 

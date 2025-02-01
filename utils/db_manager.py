@@ -1,8 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
-from models.database import Base, Asset, Location, Company, Ticket, AssetStatus
-from datetime import datetime
+from models.base import Base
+from models.company import Company
 from models.user import User, UserType
+from datetime import datetime
 
 class DatabaseManager:
     def __init__(self, db_url="sqlite:///inventory.db"):
