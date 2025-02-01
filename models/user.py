@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
-from models.database import Base
+from database import Base
 from flask_login import UserMixin
 
 class UserType(enum.Enum):
