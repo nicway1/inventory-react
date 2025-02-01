@@ -14,7 +14,9 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 elif not DATABASE_URL:
-    DATABASE_URL = 'sqlite:///./inventory.db'
+    # Use absolute path for SQLite database
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'inventory.db')
+    DATABASE_URL = f'sqlite:///{db_path}'
 
 # Create engine with appropriate settings
 if DATABASE_URL.startswith('sqlite'):
@@ -34,6 +36,7 @@ from models.activity import Activity
 from models.comment import Comment
 from models.queue import Queue
 from models.shipment import Shipment
+from models.company import Company
 
 def init_db():
     try:
