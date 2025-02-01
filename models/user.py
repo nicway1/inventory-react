@@ -4,6 +4,7 @@ from datetime import datetime
 import enum
 from models.base import Base
 from flask_login import UserMixin
+from werkzeug.security import check_password_hash
 
 class UserType(enum.Enum):
     USER = "user"
@@ -27,12 +28,7 @@ class User(UserMixin, Base):
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
-        print(f"Checking password:")
-        print(f"- Stored hash: {self.password_hash}")
-        print(f"- Provided password: {password}")
-        result = self.password_hash == password
-        print(f"- Match result: {result}")
-        return result
+        return check_password_hash(self.password_hash, password)
 
     @staticmethod
     def create(username, password, user_type='user', company=None, fixed_id=None):

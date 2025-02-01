@@ -27,6 +27,7 @@ from models.user import UserType
 from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect
 from database import init_db, engine, SessionLocal
+from werkzeug.security import generate_password_hash
 
 # Create data directory if it doesn't exist
 os.makedirs('data', exist_ok=True)
@@ -129,7 +130,7 @@ if __name__ == '__main__':
                 print("Creating admin user...")
                 admin_data = {
                     'username': 'admin',
-                    'password_hash': 'admin123',
+                    'password_hash': generate_password_hash('admin123'),
                     'email': 'admin@lunacomputer.com',
                     'user_type': UserType.SUPER_ADMIN,
                     'company_id': default_company.id
