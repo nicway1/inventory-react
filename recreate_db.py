@@ -5,6 +5,7 @@ from models.user import User
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import Session
 
+# Function to recreate the database and create initial admin user
 def recreate_database():
     print("Dropping all tables...")
     Base.metadata.drop_all(engine)
