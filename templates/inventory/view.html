@@ -59,16 +59,22 @@
             </div>
 
     <!-- Filter Button -->
-    <div class="flex justify-end mb-6">
+    <div class="flex justify-end mb-6 space-x-2">
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('inventory.add_asset') }}" 
+           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
+            Add Asset
+        </a>
+        {% endif %}
         <button id="applyFiltersBtn" 
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
             Apply Filters
         </button>
         <button id="clearFiltersBtn" 
-                class="ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+                class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
             Clear Filters
         </button>
-        </div>
+    </div>
 
     <!-- Error Alert -->
     <div id="errorAlert" class="hidden mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -96,14 +102,14 @@
         <!-- Accessories Card -->
         <div id="accessoriesCard"
              class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors"
-             onclick="showTable('accessories')">
+             onclick="window.location.href='{{ url_for('inventory.view_accessories') }}'">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
         </div>
-        </div>
+    </div>
 
-        <!-- Tech Assets Table -->
+    <!-- Tech Assets Table -->
     <div id="techAssetsTable" class="mb-8">
         <h2 class="text-xl font-semibold mb-4">Tech Assets</h2>
         <div class="bg-white shadow-md rounded-lg overflow-hidden">

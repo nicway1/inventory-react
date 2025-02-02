@@ -36,14 +36,14 @@ def recreate_database():
             username='admin',
             email='admin@example.com',
             password_hash=generate_password_hash('admin123'),
-            user_type=UserType.ADMIN,
+            user_type=UserType.SUPER_ADMIN,
             company_id=default_company.id  # Optional: link to default company
         )
         session.add(admin_user)
         session.commit()
     
     print("Database tables recreated successfully!")
-    print("Initial admin user created with username: 'admin' and password: 'admin123'")
+    print("Initial super admin user created with username: 'admin' and password: 'admin123'")
 
 if __name__ == "__main__":
     recreate_database() 

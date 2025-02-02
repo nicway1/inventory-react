@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('inventory.view_accessories') }}" 
+           class="text-blue-600 hover:text-blue-800">
+            &larr; Back to Accessories
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Add New Accessory</h2>
+            <p class="mt-1 text-sm text-gray-600">Enter the details for the new accessory.</p>
+        </div>
+
+        <div class="p-6">
+            <form method="POST" class="space-y-6">
+                <!-- Name -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" 
+                           id="name" 
+                           name="name" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                    <select id="category" 
+                            name="category" 
+                            required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">Select a category...</option>
+                        <option value="Keyboard">Keyboard</option>
+                        <option value="Mouse">Mouse</option>
+                        <option value="Monitor">Monitor</option>
+                        <option value="Docking Station">Docking Station</option>
+                        <option value="Cable">Cable</option>
+                        <option value="Power Adapter">Power Adapter</option>
+                        <option value="Headset">Headset</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Manufacturer -->
+                <div>
+                    <label for="manufacturer" class="block text-sm font-medium text-gray-700">Manufacturer</label>
+                    <input type="text" 
+                           id="manufacturer" 
+                           name="manufacturer" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+
+                <!-- Model Number -->
+                <div>
+                    <label for="model_no" class="block text-sm font-medium text-gray-700">Model Number</label>
+                    <input type="text" 
+                           id="model_no" 
+                           name="model_no" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+
+                <!-- Total Quantity -->
+                <div>
+                    <label for="total_quantity" class="block text-sm font-medium text-gray-700">Total Quantity</label>
+                    <input type="number" 
+                           id="total_quantity" 
+                           name="total_quantity" 
+                           required
+                           min="1"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                    <textarea id="notes" 
+                             name="notes" 
+                             rows="3"
+                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <div>
+                    <button type="submit"
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Add Accessory
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

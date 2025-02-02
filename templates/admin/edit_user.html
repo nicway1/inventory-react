@@ -12,75 +12,77 @@
 
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h1 class="text-2xl font-bold">Create New User</h1>
+                <h1 class="text-2xl font-bold">Edit User</h1>
             </div>
 
             <form method="POST" class="px-6 py-4 space-y-6">
+                <!-- Username -->
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
                     <input type="text" 
                            id="username" 
                            name="username" 
+                           value="{{ user.username }}"
                            required
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
+                <!-- Email -->
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
                     <input type="email" 
                            id="email" 
                            name="email" 
+                           value="{{ user.email }}"
                            required
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
+                <!-- Company -->
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <input type="password" 
-                           id="password" 
-                           name="password" 
-                           required
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                    <label for="company_id" class="block text-sm font-medium text-gray-700">Company</label>
-                    <select id="company_id" 
+                    <label for="company" class="block text-sm font-medium text-gray-700">Company</label>
+                    <select id="company" 
                             name="company_id" 
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <option value="">-- Select Company --</option>
                         {% for company in companies %}
-                        <option value="{{ company.id }}">{{ company.name }}</option>
+                        <option value="{{ company.id }}" {% if user.company_id == company.id %}selected{% endif %}>
+                            {{ company.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div>
-                    <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
-                    <input type="text" 
-                           id="role" 
-                           name="role" 
-                           placeholder="e.g., Developer, Manager, Support"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
+                <!-- User Type -->
                 <div>
                     <label for="user_type" class="block text-sm font-medium text-gray-700">User Type</label>
                     <select id="user_type" 
                             name="user_type" 
                             required
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="user">Regular User</option>
-                        {% if current_user and current_user.is_authenticated and current_user.is_admin %}
-                        <option value="admin">Admin</option>
+                        <option value="user" {% if user.user_type.value == 'user' %}selected{% endif %}>Regular User</option>
+                        {% if current_user.is_super_admin %}
+                        <option value="admin" {% if user.user_type.value == 'admin' %}selected{% endif %}>Admin</option>
                         {% endif %}
                     </select>
                 </div>
 
+                <!-- New Password (Optional) -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">
+                        New Password (leave blank to keep current)
+                    </label>
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" 
                             class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        Create User
+                        Save Changes
                     </button>
                 </div>
             </form>

@@ -2,127 +2,202 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="max-w-3xl mx-auto">
-        <!-- Back Button -->
-        <div class="mb-4">
-            <a href="{{ url_for('inventory.view_inventory') }}" class="text-blue-500 hover:text-blue-700">
-                &larr; Back to Inventory
-            </a>
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('inventory.view_inventory') }}" 
+           class="text-blue-600 hover:text-blue-800">
+            &larr; Back to Inventory
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Add New Asset</h2>
+            <p class="mt-1 text-sm text-gray-600">Enter the details for the new asset.</p>
         </div>
 
-        <div class="bg-white shadow rounded-lg p-6">
-            <h1 class="text-2xl font-bold mb-6">Add New Asset</h1>
-
+        <div class="p-6">
             <form method="POST" class="space-y-6">
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Asset Tag</label>
-                        <input type="text" name="asset_tag" required
+                        <label for="asset_tag" class="block text-sm font-medium text-gray-700">Asset Tag</label>
+                        <input type="text" 
+                               id="asset_tag" 
+                               name="asset_tag" 
+                               required
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Serial Number</label>
-                        <input type="text" name="serial" required
+                        <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                        <input type="text" 
+                               id="serial_num" 
+                               name="serial_num" 
+                               required
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Model</label>
-                        <select name="model_id" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                            {% for model in models %}
-                            <option value="{{ model.id }}">{{ model.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label for="receiving_date" class="block text-sm font-medium text-gray-700">Receiving Date</label>
+                        <input type="date" 
+                               id="receiving_date" 
+                               name="receiving_date" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Status</label>
-                        <select name="status_id" required
+                        <label for="po" class="block text-sm font-medium text-gray-700">PO Number</label>
+                        <input type="text" 
+                               id="po" 
+                               name="po" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                </div>
+
+                <!-- Hardware Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="hardware_type" class="block text-sm font-medium text-gray-700">Hardware Type</label>
+                        <input type="text" 
+                               id="hardware_type" 
+                               name="hardware_type" 
+                               required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
+                        <input type="text" 
+                               id="model" 
+                               name="model" 
+                               required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="cpu_type" class="block text-sm font-medium text-gray-700">CPU Type</label>
+                        <input type="text" 
+                               id="cpu_type" 
+                               name="cpu_type" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="cpu_cores" class="block text-sm font-medium text-gray-700">CPU Cores</label>
+                        <input type="text" 
+                               id="cpu_cores" 
+                               name="cpu_cores" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="gpu_cores" class="block text-sm font-medium text-gray-700">GPU Cores</label>
+                        <input type="text" 
+                               id="gpu_cores" 
+                               name="gpu_cores" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="memory" class="block text-sm font-medium text-gray-700">Memory</label>
+                        <input type="text" 
+                               id="memory" 
+                               name="memory" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="harddrive" class="block text-sm font-medium text-gray-700">Hard Drive</label>
+                        <input type="text" 
+                               id="harddrive" 
+                               name="harddrive" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="keyboard" class="block text-sm font-medium text-gray-700">Keyboard</label>
+                        <input type="text" 
+                               id="keyboard" 
+                               name="keyboard" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="charger" class="block text-sm font-medium text-gray-700">Charger</label>
+                        <input type="text" 
+                               id="charger" 
+                               name="charger" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                </div>
+
+                <!-- Status and Location -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="status" 
+                                name="status" 
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="">Select a status...</option>
                             {% for status in statuses %}
-                            <option value="{{ status.id }}">{{ status.name }}</option>
+                            <option value="{{ status.name }}">{{ status.value }}</option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Company</label>
-                        <select name="company_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                            <option value="">None</option>
-                            {% for company in companies %}
-                            <option value="{{ company.id }}">{{ company.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label for="customer" class="block text-sm font-medium text-gray-700">Customer</label>
+                        <input type="text" 
+                               id="customer" 
+                               name="customer" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Purchase Date</label>
-                        <input type="date" name="purchase_date"
+                        <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
+                        <input type="text" 
+                               id="country" 
+                               name="country" 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
                 </div>
 
-                <!-- Specifications -->
-                <div class="border-t pt-6">
-                    <h2 class="text-lg font-medium mb-4">Specifications</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">CPU Type</label>
-                            <input type="text" name="cpu_type"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">CPU Cores</label>
-                            <input type="number" name="cpu_cores"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">GPU Cores</label>
-                            <input type="number" name="gpu_cores"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Memory (GB)</label>
-                            <input type="number" name="memory"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Storage (GB)</label>
-                            <input type="number" name="storage"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Condition</label>
-                            <select name="condition"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                <option value="NEW">New</option>
-                                <option value="USED">Used</option>
-                                <option value="REFURBISHED">Refurbished</option>
-                            </select>
-                        </div>
+                <!-- Additional Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
+                        <input type="text" 
+                               id="condition" 
+                               name="condition" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
-                </div>
 
-                <!-- Notes -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Notes</label>
-                    <textarea name="notes" rows="3"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                    <div>
+                        <label for="diag" class="block text-sm font-medium text-gray-700">Diagnostics</label>
+                        <input type="text" 
+                               id="diag" 
+                               name="diag" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div class="col-span-2">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" 
+                                   id="erased" 
+                                   name="erased" 
+                                   value="true"
+                                   class="rounded border-gray-300 text-blue-600 shadow-sm">
+                            <span class="text-sm text-gray-700">Data Erased</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Submit Button -->
-                <div class="flex justify-end">
+                <div>
                     <button type="submit"
-                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         Add Asset
                     </button>
                 </div>

@@ -1,13 +1,30 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from utils.auth_decorators import admin_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from models.user import UserType
 from datetime import datetime
+from models.company import Company
+import os
+from werkzeug.utils import secure_filename
+import uuid
+from werkzeug.security import generate_password_hash
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_company_logo(file):
+    if file and allowed_file(file.filename):
+        # Generate a unique filename
+        filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1]
+        file.save(os.path.join('static/company_logos', filename))
+        return filename
+    return None
 
 @admin_bp.route('/settings')
 @admin_required
@@ -27,13 +44,28 @@ def manage_companies():
 def create_company():
     """Create a new company"""
     if request.method == 'POST':
-        company_data = {
-            'name': request.form.get('name'),
-            'contact_name': request.form.get('contact_name'),
-            'contact_email': request.form.get('contact_email')
-        }
+        name = request.form.get('name')
+        contact_name = request.form.get('contact_name')
+        contact_email = request.form.get('contact_email')
+        address = request.form.get('address')
+        
+        # Handle logo upload
+        logo_path = None
+        if 'logo' in request.files:
+            logo_file = request.files['logo']
+            logo_path = save_company_logo(logo_file)
+
         try:
-            company = db_manager.create_company(company_data)
+            company = Company(
+                name=name,
+                contact_name=contact_name,
+                contact_email=contact_email,
+                address=address,
+                logo_path=logo_path
+            )
+            db_session = db_manager.get_session()
+            db_session.add(company)
+            db_session.commit()
             flash('Company created successfully', 'success')
             return redirect(url_for('admin.manage_companies'))
         except Exception as e:
@@ -46,24 +78,42 @@ def create_company():
 @admin_required
 def edit_company(company_id):
     """Edit an existing company"""
-    company = db_manager.get_company(company_id)
+    db_session = db_manager.get_session()
+    company = db_session.query(Company).get(company_id)
+    
     if not company:
         flash('Company not found', 'error')
         return redirect(url_for('admin.manage_companies'))
 
     if request.method == 'POST':
-        company_data = {
-            'name': request.form.get('name'),
-            'contact_name': request.form.get('contact_name'),
-            'contact_email': request.form.get('contact_email')
-        }
+        company.name = request.form.get('name')
+        company.contact_name = request.form.get('contact_name')
+        company.contact_email = request.form.get('contact_email')
+        company.address = request.form.get('address')
+        
+        # Handle logo upload
+        if 'logo' in request.files:
+            logo_file = request.files['logo']
+            if logo_file.filename:
+                # Delete old logo if it exists
+                if company.logo_path:
+                    old_logo_path = os.path.join('static/company_logos', company.logo_path)
+                    if os.path.exists(old_logo_path):
+                        os.remove(old_logo_path)
+                
+                # Save new logo
+                logo_path = save_company_logo(logo_file)
+                if logo_path:
+                    company.logo_path = logo_path
+
         try:
-            db_manager.update_company(company_id, company_data)
+            db_session.commit()
             flash('Company updated successfully', 'success')
             return redirect(url_for('admin.manage_companies'))
         except Exception as e:
+            db_session.rollback()
             flash(f'Error updating company: {str(e)}', 'error')
-
+    
     return render_template('admin/create_company.html', company=company)
 
 @admin_bp.route('/companies/<int:company_id>/delete', methods=['POST'])
@@ -92,43 +142,37 @@ def manage_users():
 @admin_bp.route('/users/create', methods=['GET', 'POST'])
 @admin_required
 def create_user():
+    """Create a new user"""
+    db_session = db_manager.get_session()
+    companies = db_session.query(Company).all()
+
     if request.method == 'POST':
         username = request.form.get('username')
+        email = request.form.get('email')
         password = request.form.get('password')
-        company = request.form.get('company')
-        role = request.form.get('role')
-        user_type = request.form.get('user_type')
+        company_id = request.form.get('company_id')
+        user_type = request.form.get('user_type', 'user')
 
-        # Validate input
-        if not username or not password:
-            flash('Username and password are required', 'error')
-            return redirect(url_for('admin.create_user'))
-
-        # Check if username already exists
-        if db_manager.get_user_by_username(username):
-            flash('Username already exists', 'error')
-            return redirect(url_for('admin.create_user'))
-
-        # Create user
         try:
-            user_data = {
-                'username': username,
-                'password_hash': password,  # Will be hashed by db_manager
-                'company': company,
-                'role': role,
-                'user_type': UserType.ADMIN if user_type == 'admin' else UserType.USER,
-                'created_at': datetime.utcnow()
-            }
-            db_manager.create_user(user_data)
+            from werkzeug.security import generate_password_hash
+            from models.user import User
+            user = User(
+                username=username,
+                email=email,
+                password_hash=generate_password_hash(password),
+                company_id=company_id if company_id else None,
+                user_type=UserType[user_type.upper()]
+            )
+            db_session.add(user)
+            db_session.commit()
             flash('User created successfully', 'success')
             return redirect(url_for('admin.manage_users'))
         except Exception as e:
+            db_session.rollback()
             flash(f'Error creating user: {str(e)}', 'error')
-            return redirect(url_for('admin.create_user'))
+        finally:
+            db_session.close()
 
-    # GET request - show form
-    # Get list of companies for the dropdown
-    companies = db_manager.get_all_companies()
     return render_template('admin/create_user.html', companies=companies)
 
 @admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])

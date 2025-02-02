@@ -10,6 +10,7 @@ import pandas as pd
 from sqlalchemy import func, case, or_
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
+from flask_login import current_user
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -118,8 +119,20 @@ def view_tech_assets():
 def view_accessories():
     db_session = db_manager.get_session()
     try:
-        accessories = db_session.query(Accessory).all()
-        return render_template('inventory/accessories.html', accessories=accessories)
+        # Get all accessories with their full details
+        accessories = db_session.query(Accessory).order_by(Accessory.name).all()
+        
+        # Get current user's admin status
+        is_admin = current_user.is_admin if current_user.is_authenticated else False
+        
+        return render_template(
+            'inventory/accessories.html',
+            accessories=accessories,
+            is_admin=is_admin
+        )
+    except Exception as e:
+        flash(f'Error loading accessories: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_inventory'))
     finally:
         db_session.close()
 
@@ -450,27 +463,35 @@ def import_inventory():
                                     db_session.add(asset)
                             
                             else:  # import_type == 'accessories'
-                                # Group accessories by name and category
-                                grouped = df.groupby(['NAME', 'CATEGORY']).size().reset_index(name='count')
-                                
-                                for _, row in grouped.iterrows():
-                                    # Check if accessory already exists
+                                # Import accessories with new headers
+                                for _, row in df.iterrows():
+                                    # Create new accessory or update existing
                                     existing = db_session.query(Accessory).filter(
-                                        Accessory.name == row['NAME'],
-                                        Accessory.category == row['CATEGORY']
+                                        Accessory.name == row['Item Name'],
+                                        Accessory.manufacturer == row['Manufacturer'],
+                                        Accessory.model_no == row['Model No']
                                     ).first()
                                     
+                                    quantity = int(row['Quantity']) if pd.notna(row['Quantity']) else 0
+                                    
                                     if existing:
-                                        # Update quantities
-                                        existing.total_quantity += row['count']
-                                        existing.available_quantity += row['count']
+                                        # Update existing accessory
+                                        existing.total_quantity += quantity
+                                        existing.available_quantity += quantity
+                                        existing.category = row['Category']
+                                        existing.status = row['Status'] if pd.notna(row['Status']) else 'Available'
+                                        existing.notes = row['Notes'] if pd.notna(row['Notes']) else None
                                     else:
                                         # Create new accessory
                                         accessory = Accessory(
-                                            name=row['NAME'],
-                                            category=row['CATEGORY'],
-                                            total_quantity=row['count'],
-                                            available_quantity=row['count']
+                                            name=row['Item Name'],
+                                            category=row['Category'],
+                                            manufacturer=row['Manufacturer'],
+                                            model_no=row['Model No'],
+                                            total_quantity=quantity,
+                                            available_quantity=quantity,
+                                            status=row['Status'] if pd.notna(row['Status']) else 'Available',
+                                            notes=row['Notes'] if pd.notna(row['Notes']) else None
                                         )
                                         db_session.add(accessory)
                             
@@ -544,6 +565,166 @@ def update_asset_status(asset_id):
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     finally:
         db_session.close()
+
+@inventory_bp.route('/accessories/add', methods=['GET', 'POST'])
+@login_required
+def add_accessory():
+    if request.method == 'POST':
+        db_session = db_manager.get_session()
+        try:
+            # Create new accessory from form data
+            new_accessory = Accessory(
+                name=request.form['name'],
+                category=request.form['category'],
+                manufacturer=request.form['manufacturer'],
+                model_no=request.form['model_no'],
+                total_quantity=int(request.form['total_quantity']),
+                available_quantity=int(request.form['total_quantity']),  # Initially all are available
+                status='Available',
+                notes=request.form.get('notes', '')
+            )
+            
+            db_session.add(new_accessory)
+            db_session.commit()
+            flash('Accessory added successfully!', 'success')
+            return redirect(url_for('inventory.view_accessories'))
+            
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error adding accessory: {str(e)}', 'error')
+            return redirect(url_for('inventory.add_accessory'))
+        finally:
+            db_session.close()
+            
+    return render_template('inventory/add_accessory.html')
+
+@inventory_bp.route('/accessories/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_accessory(id):
+    db_session = db_manager.get_session()
+    try:
+        accessory = db_session.query(Accessory).get(id)
+        if not accessory:
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_accessories'))
+
+        if request.method == 'POST':
+            try:
+                # Update accessory with form data
+                accessory.name = request.form['name']
+                accessory.category = request.form['category']
+                accessory.manufacturer = request.form['manufacturer']
+                accessory.model_no = request.form['model_no']
+                new_total = int(request.form['total_quantity'])
+                
+                # Update available quantity proportionally
+                if accessory.total_quantity > 0:
+                    ratio = accessory.available_quantity / accessory.total_quantity
+                    accessory.available_quantity = int(new_total * ratio)
+                else:
+                    accessory.available_quantity = new_total
+                
+                accessory.total_quantity = new_total
+                accessory.notes = request.form.get('notes', '')
+                
+                db_session.commit()
+                flash('Accessory updated successfully!', 'success')
+                return redirect(url_for('inventory.view_accessories'))
+                
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error updating accessory: {str(e)}', 'error')
+                return redirect(url_for('inventory.edit_accessory', id=id))
+            
+        return render_template('inventory/edit_accessory.html', accessory=accessory)
+        
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/accessories/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_accessory(id):
+    db_session = db_manager.get_session()
+    try:
+        accessory = db_session.query(Accessory).get(id)
+        if not accessory:
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_accessories'))
+
+        try:
+            db_session.delete(accessory)
+            db_session.commit()
+            flash('Accessory deleted successfully!', 'success')
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error deleting accessory: {str(e)}', 'error')
+            
+        return redirect(url_for('inventory.view_accessories'))
+        
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/assets/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_asset():
+    if request.method == 'POST':
+        db_session = db_manager.get_session()
+        try:
+            # Map inventory status to AssetStatus enum
+            inventory_status = request.form.get('status', '').upper()
+            if inventory_status == 'READY TO DEPLOY':
+                status = AssetStatus.READY_TO_DEPLOY
+            elif inventory_status == 'IN STOCK':
+                status = AssetStatus.IN_STOCK
+            elif inventory_status == 'SHIPPED':
+                status = AssetStatus.SHIPPED
+            elif inventory_status == 'DEPLOYED':
+                status = AssetStatus.DEPLOYED
+            elif inventory_status == 'REPAIR':
+                status = AssetStatus.REPAIR
+            elif inventory_status == 'ARCHIVED':
+                status = AssetStatus.ARCHIVED
+            else:
+                status = AssetStatus.IN_STOCK  # Default status
+
+            # Create new asset from form data
+            new_asset = Asset(
+                asset_tag=request.form.get('asset_tag', ''),
+                receiving_date=datetime.strptime(request.form.get('receiving_date', ''), '%Y-%m-%d').date() if request.form.get('receiving_date') else None,
+                keyboard=request.form.get('keyboard', ''),
+                serial_num=request.form.get('serial_num', ''),
+                po=request.form.get('po', ''),
+                model=request.form.get('model', ''),
+                erased=request.form.get('erased') == 'true',
+                customer=request.form.get('customer', ''),
+                condition=request.form.get('condition', ''),
+                diag=request.form.get('diag', ''),
+                hardware_type=request.form.get('hardware_type', ''),
+                cpu_type=request.form.get('cpu_type', ''),
+                cpu_cores=request.form.get('cpu_cores', ''),
+                gpu_cores=request.form.get('gpu_cores', ''),
+                memory=request.form.get('memory', ''),
+                harddrive=request.form.get('harddrive', ''),
+                charger=request.form.get('charger', ''),
+                country=request.form.get('country', ''),
+                status=status
+            )
+            
+            db_session.add(new_asset)
+            db_session.commit()
+            flash('Asset added successfully!', 'success')
+            return redirect(url_for('inventory.view_inventory'))
+            
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error adding asset: {str(e)}', 'error')
+            return redirect(url_for('inventory.add_asset'))
+        finally:
+            db_session.close()
+            
+    return render_template('inventory/add_asset.html', statuses=AssetStatus)
 
 @inventory_bp.after_request
 def add_csrf_token_to_response(response):
