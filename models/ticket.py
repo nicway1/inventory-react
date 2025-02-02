@@ -55,11 +55,11 @@ class Ticket(Base):
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
     # Relationships
-    requester = relationship("User", foreign_keys=[requester_id], back_populates="tickets_requested", lazy="dynamic")
-    assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned", lazy="dynamic")
-    asset = relationship("Asset", back_populates="tickets", lazy="dynamic")
-    queue = relationship("Queue", back_populates="tickets", lazy="dynamic")
-    accessory = relationship("Accessory", back_populates="tickets", lazy="dynamic")
+    requester = relationship("User", foreign_keys=[requester_id], back_populates="tickets_requested")
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned")
+    asset = relationship("Asset", back_populates="tickets")
+    queue = relationship("Queue", back_populates="tickets")
+    accessory = relationship("Accessory", back_populates="tickets")
 
     @property
     def display_id(self):
