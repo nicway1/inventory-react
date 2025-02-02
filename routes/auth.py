@@ -140,6 +140,8 @@ def edit_profile():
         
         try:
             db_manager.update_user(current_user.id, user_data)
+            # Update session with new username
+            session['username'] = user_data['username']
             flash('Profile updated successfully', 'success')
             return redirect(url_for('auth.profile'))
         except Exception as e:

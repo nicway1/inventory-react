@@ -274,8 +274,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="text-sm text-gray-900">${asset.asset_tag || ''}</div>
                     </td>
                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${asset.product || ''}</div>
+                    <td class="px-4 py-2">
+                        <div class="text-sm text-gray-900 mb-1">${asset.product || ''}</div>
+                        <div class="text-xs text-gray-500">
+                            CPU: ${asset.product ? asset.product.split('CPU')[1]?.split('GPU')[0]?.trim() || 'N/A' : 'N/A'}<br>
+                            GPU: ${asset.product ? asset.product.split('GPU')[1]?.split('RAM')[0]?.trim() || 'N/A' : 'N/A'}<br>
+                            RAM: ${asset.product ? asset.product.split('RAM')[1]?.split('SSD')[0]?.trim() || 'N/A' : 'N/A'}<br>
+                            SSD: ${asset.product ? asset.product.split('SSD')[1]?.split('A2442')[0]?.trim() || 'N/A' : 'N/A'}
+                        </div>
                     </td>
                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.customer || ''}</td>
