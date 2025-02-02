@@ -4,6 +4,7 @@ from utils.auth_decorators import admin_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from flask_login import login_required, current_user, login_user, logout_user
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
@@ -16,30 +17,21 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        print("\nLogin attempt:")
-        print(f"- Username: {username}")
-        print(f"- Password: {password}")
+        if not username or not password:
+            flash('Please provide both username and password')
+            return render_template('auth/login.html')
         
         user = db_manager.get_user_by_username(username)
-        if user:
-            print("\nUser found:")
-            print(f"- ID: {user.id}")
-            print(f"- Username: {user.username}")
-            print(f"- Password Hash: {user.password_hash}")
-            print(f"- User Type: {user.user_type}")
+        if user and user.check_password(password):
+            login_user(user)
+            session['user_id'] = user.id
+            session['user_type'] = user.user_type.value
+            session['username'] = user.username
             
-            if user.check_password(password):
-                print("\nPassword check passed")
-                login_user(user)
-                session['user_id'] = user.id
-                session['user_type'] = user.user_type.value
-                session['username'] = user.username
-                print(f"Session data set: {session}")
-                return redirect(url_for('main.index'))
-            else:
-                print("\nPassword check failed")
-        else:
-            print(f"\nNo user found with username: {username}")
+            # Update last login time
+            db_manager.update_user(user.id, {'last_login': datetime.now().isoformat()})
+            
+            return redirect(url_for('main.index'))
             
         flash('Invalid username or password')
     
@@ -143,8 +135,7 @@ def edit_profile():
         # Get form data
         user_data = {
             'username': request.form.get('username'),
-            'email': request.form.get('email'),
-            'role': request.form.get('role')
+            'email': request.form.get('email')
         }
         
         try:
