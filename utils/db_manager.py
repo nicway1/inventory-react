@@ -209,6 +209,12 @@ class DatabaseManager:
             user = session.query(User).filter(User.id == user_id).first()
             if user:
                 for key, value in user_data.items():
+                    # Ensure datetime fields are datetime objects
+                    if key in ['created_at', 'last_login'] and isinstance(value, str):
+                        try:
+                            value = datetime.fromisoformat(value)
+                        except ValueError:
+                            continue
                     setattr(user, key, value)
                 session.commit()
                 return True

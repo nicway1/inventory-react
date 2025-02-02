@@ -28,8 +28,8 @@ def login():
             session['user_type'] = user.user_type.value
             session['username'] = user.username
             
-            # Update last login time
-            db_manager.update_user(user.id, {'last_login': datetime.now().isoformat()})
+            # Update last login time with datetime object
+            db_manager.update_user(user.id, {'last_login': datetime.utcnow()})
             
             return redirect(url_for('main.index'))
             

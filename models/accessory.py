@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
-from database import Base
+from sqlalchemy.orm import relationship
+from models.base import Base
 
 class Accessory(Base):
     __tablename__ = 'accessories'
@@ -16,6 +17,9 @@ class Accessory(Base):
     return_date = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    tickets = relationship("Ticket", back_populates="accessory", lazy="dynamic")
 
     def to_dict(self):
         return {
