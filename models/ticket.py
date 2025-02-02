@@ -115,15 +115,17 @@ class Ticket(Base):
 
     def update_rma_status(self, new_status):
         """Update RMA status"""
-        if new_status in self.RMA_STATUSES:
+        if isinstance(new_status, RMAStatus):
             self.rma_status = new_status
-            self.updated_at = datetime.now()
+            self.updated_at = datetime.utcnow()
 
-    def change_status(self, new_status, comment=None):
-        if new_status in self.STATUS_OPTIONS:
+    def change_status(self, new_status):
+        """Change ticket status"""
+        if isinstance(new_status, TicketStatus):
             self.status = new_status
-            self.updated_at = datetime.now()
+            self.updated_at = datetime.utcnow()
 
     def assign_case_owner(self, user_id):
+        """Assign ticket to a user"""
         self.assigned_to_id = user_id
-        self.updated_at = datetime.now() 
+        self.updated_at = datetime.utcnow() 
