@@ -1,48 +1,65 @@
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from datetime import datetime
+import enum
+from models.base import Base
 
-class Ticket:
-    STATUS_OPTIONS = ['New', 'In Progress', 'On Hold', 'Resolved']
-    PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Critical']
-    CATEGORIES = [
-        'Hardware Issue', 
-        'Software Issue', 
-        'Access Request', 
-        'New Asset Request',
-        'RMA Request'
-    ]
-    NEW_ASSET_TYPES = ['Laptop', 'Desktop', 'Monitor', 'Phone', 'Tablet', 'Other']
-    
-    RMA_STATUSES = [
-        'Pending Approval',
-        'Approved',
-        'Item Shipped',
-        'Item Received',
-        'Replacement Shipped',
-        'Completed',
-        'Denied'
-    ]
+class TicketStatus(enum.Enum):
+    NEW = "New"
+    IN_PROGRESS = "In Progress"
+    ON_HOLD = "On Hold"
+    RESOLVED = "Resolved"
 
-    def __init__(self, id, subject, description, requester_id, status='New', 
-                 priority='Medium', category=None, asset_id=None, created_at=None, updated_at=None):
-        self.id = id
-        self.subject = subject
-        self.description = description
-        self.requester_id = requester_id
-        self.status = status
-        self.priority = priority
-        self.category = category
-        self.asset_id = asset_id
-        self.created_at = created_at or datetime.now()
-        self.updated_at = updated_at or datetime.now()
-        self.assigned_to_id = None
-        self.queue_id = None
-        self.accessory_id = None
-        self.shipment = None
-        self.rma_status = None
-        self.return_tracking = None
-        self.replacement_tracking = None
-        self.warranty_number = None
-        self.serial_number = None
+class TicketPriority(enum.Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
+
+class TicketCategory(enum.Enum):
+    HARDWARE_ISSUE = "Hardware Issue"
+    SOFTWARE_ISSUE = "Software Issue"
+    ACCESS_REQUEST = "Access Request"
+    NEW_ASSET_REQUEST = "New Asset Request"
+    RMA_REQUEST = "RMA Request"
+
+class RMAStatus(enum.Enum):
+    PENDING_APPROVAL = "Pending Approval"
+    APPROVED = "Approved"
+    ITEM_SHIPPED = "Item Shipped"
+    ITEM_RECEIVED = "Item Received"
+    REPLACEMENT_SHIPPED = "Replacement Shipped"
+    COMPLETED = "Completed"
+    DENIED = "Denied"
+
+class Ticket(Base):
+    __tablename__ = 'tickets'
+
+    id = Column(Integer, primary_key=True)
+    subject = Column(String(200), nullable=False)
+    description = Column(String(2000))
+    requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    status = Column(SQLEnum(TicketStatus), default=TicketStatus.NEW)
+    priority = Column(SQLEnum(TicketPriority), default=TicketPriority.MEDIUM)
+    category = Column(SQLEnum(TicketCategory))
+    asset_id = Column(Integer, ForeignKey('assets.id'))
+    assigned_to_id = Column(Integer, ForeignKey('users.id'))
+    queue_id = Column(Integer, ForeignKey('queues.id'))
+    accessory_id = Column(Integer, ForeignKey('accessories.id'))
+    rma_status = Column(SQLEnum(RMAStatus))
+    return_tracking = Column(String(100))
+    replacement_tracking = Column(String(100))
+    warranty_number = Column(String(100))
+    serial_number = Column(String(100))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    requester = relationship("User", foreign_keys=[requester_id], back_populates="tickets_requested", lazy="dynamic")
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned", lazy="dynamic")
+    asset = relationship("Asset", back_populates="tickets", lazy="dynamic")
+    queue = relationship("Queue", back_populates="tickets", lazy="dynamic")
+    accessory = relationship("Accessory", back_populates="tickets", lazy="dynamic")
 
     @property
     def display_id(self):
@@ -52,7 +69,7 @@ class Ticket:
     @property
     def is_rma(self):
         """Check if this is an RMA ticket"""
-        return self.category == 'RMA Request'
+        return self.category == TicketCategory.RMA_REQUEST
 
     @staticmethod
     def create(subject, description, requester_id, asset_id=None, category=None, priority='Medium'):

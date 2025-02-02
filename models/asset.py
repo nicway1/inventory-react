@@ -50,7 +50,7 @@ class Asset(Base):
     harddrive = Column(String(100))
     charger = Column(String(100))
     
-    # Relationships with string references
-    location = relationship("Location", back_populates="assets")
-    company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset") 
+    # Relationships with string references and lazy loading
+    location = relationship("Location", back_populates="assets", lazy="dynamic")
+    company = relationship("Company", back_populates="assets", lazy="dynamic")
+    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic") 
