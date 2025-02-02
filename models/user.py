@@ -24,7 +24,7 @@ class User(UserMixin, Base):
     last_login = Column(DateTime, nullable=True)
     
     # Relationships
-    company = relationship("Company", back_populates="users", foreign_keys=[company_id], lazy="dynamic")
+    company = relationship("Company", back_populates="users", foreign_keys=[company_id])
     tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester", lazy="dynamic")
     tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to", lazy="dynamic")
     
