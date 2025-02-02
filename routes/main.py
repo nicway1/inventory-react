@@ -5,7 +5,7 @@ from utils.store_instances import (
     inventory_store, queue_store, shipment_store
 )
 from utils.db_manager import DatabaseManager
-from models.database import Asset, Accessory, Company
+from models.company import Company
 import os
 from werkzeug.utils import secure_filename
 
@@ -62,14 +62,10 @@ def index():
     # Get queues
     queues = queue_store.get_all_queues()
 
-    # Get inventory counts using DatabaseManager session
-    db_session = db_manager.get_session()
-    try:
-        tech_assets_count = db_session.query(Asset).count()
-        accessories_count = db_session.query(Accessory).count()
-        total_inventory = tech_assets_count + accessories_count
-    finally:
-        db_session.close()
+    # For now, use placeholder counts until we set up Asset model
+    tech_assets_count = 0
+    accessories_count = 0
+    total_inventory = tech_assets_count + accessories_count
 
     # Calculate summary statistics
     stats = {
@@ -81,8 +77,6 @@ def index():
     # Get activities
     activities = activity_store.get_user_activities(user_id)
 
-    print(f"Rendering home template for user: {user.username} (type: {user.user_type})")
-    print(f"Dashboard Stats - Tech Assets: {tech_assets_count}, Accessories: {accessories_count}, Total: {total_inventory}")
     return render_template('home.html',
         shipments=shipments,
         queues=queues,
