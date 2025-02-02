@@ -480,6 +480,7 @@ def import_inventory():
                         except Exception as e:
                             db_session.rollback()
                             flash(f'Error importing data: {str(e)}', 'error')
+                            return redirect(url_for('inventory.import_inventory'))
                         
                         finally:
                             db_session.close()
