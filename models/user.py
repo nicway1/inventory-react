@@ -23,8 +23,8 @@ class User(UserMixin, Base):
     created_at = Column(String(100), default=lambda: datetime.now().isoformat())
     last_login = Column(String(100), nullable=True)
     
-    # Relationship
-    company = relationship("Company", back_populates="users")
+    # Relationship - use string to avoid circular import
+    company = relationship("Company", back_populates="users", foreign_keys=[company_id])
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
