@@ -13,5 +13,5 @@ class Company(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships - use string to avoid circular import
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
-    assets = relationship("Asset", back_populates="company", cascade="all, delete-orphan") 
+    users = relationship("User", back_populates="company", lazy="dynamic")
+    assets = relationship("Asset", back_populates="company", lazy="dynamic") 

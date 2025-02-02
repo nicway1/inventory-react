@@ -7,7 +7,9 @@ from models.activity import Activity
 from models.comment import Comment
 from models.queue import Queue
 from models.shipment import Shipment
-from models.company import Company  # Make sure this exists
+from models.company import Company
+from models.asset import Asset
+from models.location import Location
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import Session
 
