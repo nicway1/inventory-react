@@ -3,6 +3,9 @@ from sqlalchemy.orm import sessionmaker, joinedload
 from models.base import Base
 from models.company import Company
 from models.user import User, UserType
+from models.asset import Asset
+from models.location import Location
+from models.accessory import Accessory
 from datetime import datetime
 
 class DatabaseManager:
