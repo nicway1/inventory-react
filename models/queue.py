@@ -13,10 +13,4 @@ class Queue(Base):
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
     # Relationships
-    tickets = relationship("Ticket", back_populates="queue", lazy="dynamic")
-
-    @staticmethod
-    def create(name, description=None):
-        import random
-        queue_id = random.randint(1, 10000)
-        return Queue(queue_id, name, description) 
+    tickets = relationship("Ticket", back_populates="queue", lazy="dynamic") 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -20,11 +20,13 @@ class User(UserMixin, Base):
     email = Column(String(100), unique=True, nullable=False)
     company_id = Column(Integer, ForeignKey('companies.id'), nullable=True)
     user_type = Column(Enum(UserType), default=UserType.USER)
-    created_at = Column(String(100), default=lambda: datetime.now().isoformat())
-    last_login = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
     
-    # Relationship - use string to avoid circular import
-    company = relationship("Company", back_populates="users", foreign_keys=[company_id])
+    # Relationships
+    company = relationship("Company", back_populates="users", foreign_keys=[company_id], lazy="dynamic")
+    tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester", lazy="dynamic")
+    tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to", lazy="dynamic")
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
@@ -69,3 +71,7 @@ class User(UserMixin, Base):
             'created_at': self.created_at,
             'last_login': self.last_login
         }
+
+    def update_last_login(self):
+        """Update the last login timestamp"""
+        self.last_login = datetime.utcnow()

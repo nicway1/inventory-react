@@ -86,33 +86,6 @@ class Ticket(Base):
             priority=priority
         )
 
-    def add_shipment(self, tracking_number, description=None):
-        """Add a shipment to the ticket"""
-        from models.shipment import Shipment
-        self.shipment = Shipment(
-            tracking_number=tracking_number,
-            description=description,
-            status='Pending'
-        )
-        self.updated_at = datetime.now()
-
-    def add_rma_shipment(self, tracking_number, is_return=True, description=None):
-        """Add an RMA-specific shipment"""
-        from models.shipment import Shipment
-        if is_return:
-            self.return_tracking = Shipment(
-                tracking_number=tracking_number,
-                description=f"RMA Return: {description}" if description else "RMA Return",
-                status='Pending'
-            )
-        else:
-            self.replacement_tracking = Shipment(
-                tracking_number=tracking_number,
-                description=f"RMA Replacement: {description}" if description else "RMA Replacement",
-                status='Pending'
-            )
-        self.updated_at = datetime.now()
-
     def update_rma_status(self, new_status):
         """Update RMA status"""
         if isinstance(new_status, RMAStatus):
