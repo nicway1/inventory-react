@@ -251,7 +251,7 @@ def view_item(item_id):
         flash('Item not found')
         return redirect(url_for('inventory.view_inventory'))
     
-        return render_template(
+    return render_template(
         'inventory/item_details.html',
         item=item
     )
@@ -271,8 +271,7 @@ def add_item():
             
             item = inventory_store.create_item(name, category, status)
             flash('Item added successfully')
-        return redirect(url_for('inventory.view_inventory')) 
-
+            return redirect(url_for('inventory.view_inventory'))
         except Exception as e:
             flash(f'Error adding item: {str(e)}')
             return redirect(url_for('inventory.add_item'))
@@ -304,7 +303,7 @@ def edit_item(item_id):
                 status=status
             )
             flash('Item updated successfully')
-                return redirect(url_for('inventory.view_inventory'))
+            return redirect(url_for('inventory.view_inventory'))
                 
         except Exception as e:
             flash(f'Error updating item: {str(e)}')
@@ -349,157 +348,164 @@ def unassign_item(item_id):
 @admin_required
 def import_inventory():
     if request.method == 'POST':
-        if 'file' in request.files:
-            file = request.files['file']
-            import_type = request.form.get('import_type', 'assets')
-            dry_run = request.form.get('dry_run') == 'on'
-            
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(filepath)
+        try:
+            if 'file' in request.files:
+                file = request.files['file']
+                import_type = request.form.get('import_type', 'assets')
+                dry_run = request.form.get('dry_run') == 'on'
                 
-                try:
-                    df = pd.read_csv(filepath)
-                    
-                    # Store preview data in session
-                    preview_data = {
-                        'columns': df.columns.tolist(),
-                        'rows': df.head().values.tolist(),
-                        'total_rows': len(df)
-                    }
-                    session['preview_data'] = preview_data
-                    session['import_filepath'] = filepath
-                    session['import_type'] = import_type
-                    
-                    if dry_run:
-                        flash('Dry run completed successfully. No data was imported.', 'success')
-                        os.remove(filepath)
-                        return redirect(url_for('inventory.import_inventory'))
-                    
-                    return render_template('inventory/import.html', 
-                                         preview_data=preview_data,
-                                         filename=filename,
-                                         import_type=import_type)
-                
-                except Exception as e:
-                    flash(f'Error reading CSV file: {str(e)}', 'error')
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-            else:
-                flash('Invalid file type. Please upload a CSV file.', 'error')
-        
-        elif 'action' in request.form:
-            action = request.form['action']
-            filepath = session.get('import_filepath')
-            import_type = session.get('import_type', 'assets')
-            
-            if action == 'confirm' and filepath and os.path.exists(filepath):
-                try:
-                    df = pd.read_csv(filepath)
-                    db_session = db_manager.get_session()
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(UPLOAD_FOLDER, filename)
+                    file.save(filepath)
                     
                     try:
-                        if import_type == 'assets':
-                            # Import assets
-                            for _, row in df.iterrows():
-                                # Convert erased value to boolean
-                                erased_value = str(row.get('ERASED', '')).upper()
-                                erased = erased_value in ['YES', 'TRUE', 'COMPLETED', '1']
-                                
-                                # Map inventory status to AssetStatus enum
-                                inventory_status = str(row.get('INVENTORY', '')).upper()
-                                if inventory_status == 'READY TO DEPLOY':
-                                    status = AssetStatus.READY_TO_DEPLOY
-                                elif inventory_status == 'IN STOCK':
-                                    status = AssetStatus.IN_STOCK
-                                elif inventory_status == 'SHIPPED':
-                                    status = AssetStatus.SHIPPED
-                                elif inventory_status == 'DEPLOYED':
-                                    status = AssetStatus.DEPLOYED
-                                elif inventory_status == 'REPAIR':
-                                    status = AssetStatus.REPAIR
-                                elif inventory_status == 'ARCHIVED':
-                                    status = AssetStatus.ARCHIVED
-                                else:
-                                    status = AssetStatus.IN_STOCK  # Default status
-                                
-                                asset = Asset(
-                                    asset_tag=str(row.get('ASSET TAG', '')),
-                                    receiving_date=pd.to_datetime(row.get('RECEIVING DATE')).date() if pd.notna(row.get('RECEIVING DATE')) else None,
-                                    keyboard=str(row.get('KEYBOARD', '')),
-                                    serial_num=str(row.get('SERIAL NUMBER', '')),
-                                    po=str(row.get('PO', '')) if pd.notna(row.get('PO')) else '',
-                                    model=str(row.get('MODEL', '')),
-                                    erased=erased,  # Use converted boolean value
-                                    customer=str(row.get('CUSTOMER', '')),
-                                    condition=str(row.get('CONDITION', '')),
-                                    diag=str(row.get('DIAG', '')),
-                                    hardware_type=str(row.get('HARDWARE TYPE', '')),
-                                    cpu_type=str(row.get('CPU TYPE', '')),
-                                    cpu_cores=str(row.get('CPU CORES', '')),
-                                    gpu_cores=str(row.get('GPU CORES', '')),
-                                    memory=str(row.get('MEMORY', '')),
-                                    harddrive=str(row.get('HARDDRIVE', '')),
-                                    charger=str(row.get('CHARGER', '')),
-                                    country=str(row.get('COUNTRY', '')),
-                                    status=status  # Use mapped status
-                                )
-                                db_session.add(asset)
+                        df = pd.read_csv(filepath)
                         
-                        else:  # import_type == 'accessories'
-                            # Group accessories by name and category
-                            grouped = df.groupby(['NAME', 'CATEGORY']).size().reset_index(name='count')
-                            
-                            for _, row in grouped.iterrows():
-                                # Check if accessory already exists
-                                existing = db_session.query(Accessory).filter(
-                                    Accessory.name == row['NAME'],
-                                    Accessory.category == row['CATEGORY']
-                                ).first()
-                                
-                                if existing:
-                                    # Update quantities
-                                    existing.total_quantity += row['count']
-                                    existing.available_quantity += row['count']
-                                else:
-                                    # Create new accessory
-                                    accessory = Accessory(
-                                        name=row['NAME'],
-                                        category=row['CATEGORY'],
-                                        total_quantity=row['count'],
-                                        available_quantity=row['count']
-                                    )
-                                    db_session.add(accessory)
+                        # Store preview data in session
+                        preview_data = {
+                            'columns': df.columns.tolist(),
+                            'rows': df.head().values.tolist(),
+                            'total_rows': len(df)
+                        }
+                        session['preview_data'] = preview_data
+                        session['import_filepath'] = filepath
+                        session['import_type'] = import_type
                         
-                        db_session.commit()
-                        flash('Data imported successfully!', 'success')
+                        if dry_run:
+                            flash('Dry run completed successfully. No data was imported.', 'success')
+                            os.remove(filepath)
+                            return redirect(url_for('inventory.import_inventory'))
+                        
+                        return render_template('inventory/import.html', 
+                                             preview_data=preview_data,
+                                             filename=filename,
+                                             import_type=import_type)
                     
                     except Exception as e:
-                        db_session.rollback()
-                        flash(f'Error importing data: {str(e)}', 'error')
-                    
-                    finally:
-                        db_session.close()
-        
-    except Exception as e:
-                    flash(f'Error processing file: {str(e)}', 'error')
+                        flash(f'Error reading CSV file: {str(e)}', 'error')
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                        return redirect(url_for('inventory.import_inventory'))
+                else:
+                    flash('Invalid file type. Please upload a CSV file.', 'error')
+                    return redirect(url_for('inventory.import_inventory'))
+            
+            elif 'action' in request.form:
+                action = request.form['action']
+                filepath = session.get('import_filepath')
+                import_type = session.get('import_type', 'assets')
                 
-                # Clean up
-                os.remove(filepath)
-                session.pop('preview_data', None)
-                session.pop('import_filepath', None)
-                session.pop('import_type', None)
-            
-            elif action == 'cancel' and filepath and os.path.exists(filepath):
-                os.remove(filepath)
-                session.pop('preview_data', None)
-                session.pop('import_filepath', None)
-                session.pop('import_type', None)
-                flash('Import cancelled.', 'info')
-            
-        return redirect(url_for('inventory.view_inventory')) 
-
+                if action == 'confirm' and filepath and os.path.exists(filepath):
+                    try:
+                        df = pd.read_csv(filepath)
+                        db_session = db_manager.get_session()
+                        
+                        try:
+                            if import_type == 'assets':
+                                # Import assets
+                                for _, row in df.iterrows():
+                                    # Convert erased value to boolean
+                                    erased_value = str(row.get('ERASED', '')).upper()
+                                    erased = erased_value in ['YES', 'TRUE', 'COMPLETED', '1']
+                                    
+                                    # Map inventory status to AssetStatus enum
+                                    inventory_status = str(row.get('INVENTORY', '')).upper()
+                                    if inventory_status == 'READY TO DEPLOY':
+                                        status = AssetStatus.READY_TO_DEPLOY
+                                    elif inventory_status == 'IN STOCK':
+                                        status = AssetStatus.IN_STOCK
+                                    elif inventory_status == 'SHIPPED':
+                                        status = AssetStatus.SHIPPED
+                                    elif inventory_status == 'DEPLOYED':
+                                        status = AssetStatus.DEPLOYED
+                                    elif inventory_status == 'REPAIR':
+                                        status = AssetStatus.REPAIR
+                                    elif inventory_status == 'ARCHIVED':
+                                        status = AssetStatus.ARCHIVED
+                                    else:
+                                        status = AssetStatus.IN_STOCK  # Default status
+                                    
+                                    asset = Asset(
+                                        asset_tag=str(row.get('ASSET TAG', '')),
+                                        receiving_date=pd.to_datetime(row.get('RECEIVING DATE')).date() if pd.notna(row.get('RECEIVING DATE')) else None,
+                                        keyboard=str(row.get('KEYBOARD', '')),
+                                        serial_num=str(row.get('SERIAL NUMBER', '')),
+                                        po=str(row.get('PO', '')) if pd.notna(row.get('PO')) else '',
+                                        model=str(row.get('MODEL', '')),
+                                        erased=erased,  # Use converted boolean value
+                                        customer=str(row.get('CUSTOMER', '')),
+                                        condition=str(row.get('CONDITION', '')),
+                                        diag=str(row.get('DIAG', '')),
+                                        hardware_type=str(row.get('HARDWARE TYPE', '')),
+                                        cpu_type=str(row.get('CPU TYPE', '')),
+                                        cpu_cores=str(row.get('CPU CORES', '')),
+                                        gpu_cores=str(row.get('GPU CORES', '')),
+                                        memory=str(row.get('MEMORY', '')),
+                                        harddrive=str(row.get('HARDDRIVE', '')),
+                                        charger=str(row.get('CHARGER', '')),
+                                        country=str(row.get('COUNTRY', '')),
+                                        status=status  # Use mapped status
+                                    )
+                                    db_session.add(asset)
+                            
+                            else:  # import_type == 'accessories'
+                                # Group accessories by name and category
+                                grouped = df.groupby(['NAME', 'CATEGORY']).size().reset_index(name='count')
+                                
+                                for _, row in grouped.iterrows():
+                                    # Check if accessory already exists
+                                    existing = db_session.query(Accessory).filter(
+                                        Accessory.name == row['NAME'],
+                                        Accessory.category == row['CATEGORY']
+                                    ).first()
+                                    
+                                    if existing:
+                                        # Update quantities
+                                        existing.total_quantity += row['count']
+                                        existing.available_quantity += row['count']
+                                    else:
+                                        # Create new accessory
+                                        accessory = Accessory(
+                                            name=row['NAME'],
+                                            category=row['CATEGORY'],
+                                            total_quantity=row['count'],
+                                            available_quantity=row['count']
+                                        )
+                                        db_session.add(accessory)
+                            
+                            db_session.commit()
+                            flash('Data imported successfully!', 'success')
+                        
+                        except Exception as e:
+                            db_session.rollback()
+                            flash(f'Error importing data: {str(e)}', 'error')
+                        
+                        finally:
+                            db_session.close()
+                            # Clean up
+                            os.remove(filepath)
+                            session.pop('preview_data', None)
+                            session.pop('import_filepath', None)
+                            session.pop('import_type', None)
+                            return redirect(url_for('inventory.import_inventory'))
+                    
+                    except Exception as e:
+                        flash(f'Error processing file: {str(e)}', 'error')
+                        return redirect(url_for('inventory.import_inventory'))
+                
+                elif action == 'cancel' and filepath and os.path.exists(filepath):
+                    os.remove(filepath)
+                    session.pop('preview_data', None)
+                    session.pop('import_filepath', None)
+                    session.pop('import_type', None)
+                    flash('Import cancelled.', 'info')
+                    return redirect(url_for('inventory.import_inventory'))
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+    
     return render_template('inventory/import.html')
 
 @inventory_bp.route('/asset/<int:asset_id>')
