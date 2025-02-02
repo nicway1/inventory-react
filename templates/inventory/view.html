@@ -8,55 +8,55 @@
     <h1 class="text-2xl font-bold mb-6">IT Asset Inventory</h1>
 
     <!-- Search Bar -->
-    <div class="mb-6">
-        <input type="text" 
-               id="searchInput"
+        <div class="mb-6">
+                    <input type="text" 
+                           id="searchInput" 
                placeholder="Search by serial number, asset tag, name, model, country, or received"
                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-    </div>
+        </div>
 
     <!-- Filters -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select id="statusFilter" class="w-full border rounded-lg p-2">
-                <option value="">All Statuses</option>
+                        <option value="">All Statuses</option>
                 <option value="IN STOCK">IN STOCK</option>
-                <option value="Ready to Deploy">Ready to Deploy</option>
+                        <option value="Ready to Deploy">Ready to Deploy</option>
                 <option value="SHIPPED">SHIPPED</option>
                 <option value="DEPLOYED">DEPLOYED</option>
                 <option value="REPAIR">REPAIR</option>
                 <option value="ARCHIVED">ARCHIVED</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
             <select id="companyFilter" class="w-full border rounded-lg p-2">
-                <option value="">All Companies</option>
-                {% for company in companies %}
+                        <option value="">All Companies</option>
+                        {% for company in companies %}
                 <option value="{{ company }}">{{ company }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
             <select id="modelFilter" class="w-full border rounded-lg p-2">
-                <option value="">All Models</option>
-                {% for model in models %}
+                        <option value="">All Models</option>
+                        {% for model in models %}
                 <option value="{{ model }}">{{ model }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
             <select id="countryFilter" class="w-full border rounded-lg p-2">
-                <option value="">All Countries</option>
+                        <option value="">All Countries</option>
                 {% for country in countries %}
-                <option value="{{ country }}">{{ country }}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
+                            <option value="{{ country }}">{{ country }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
 
     <!-- Filter Button -->
     <div class="flex justify-end mb-6">
@@ -68,19 +68,19 @@
                 class="ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
             Clear Filters
         </button>
-    </div>
+        </div>
 
     <!-- Error Alert -->
     <div id="errorAlert" class="hidden mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
         <strong class="font-bold">Error!</strong>
         <span id="errorMessage" class="block sm:inline"></span>
-    </div>
+                    </div>
 
     <!-- Loading Indicator -->
     <div id="loadingIndicator" class="hidden mb-4 text-center">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         <span class="ml-2">Loading...</span>
-    </div>
+                    </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -101,15 +101,15 @@
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
         </div>
-    </div>
+        </div>
 
-    <!-- Tech Assets Table -->
+        <!-- Tech Assets Table -->
     <div id="techAssetsTable" class="mb-8">
         <h2 class="text-xl font-semibold mb-4">Tech Assets</h2>
         <div class="bg-white shadow-md rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
@@ -117,32 +117,32 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    </tr>
-                </thead>
+                        </tr>
+                    </thead>
                 <tbody id="techAssetsBody" class="bg-white divide-y divide-gray-200">
                     <!-- Table rows will be inserted here by JavaScript -->
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
-    <!-- Accessories Table -->
+        <!-- Accessories Table -->
     <div id="accessoriesTable" class="mb-8 hidden">
         <h2 class="text-xl font-semibold mb-4">Accessories</h2>
         <div class="bg-white shadow-md rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for accessory in accessories %}
-                    <tr>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for accessory in accessories %}
+                        <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.available_count }}</td>
@@ -153,11 +153,11 @@
                             {% else %}
                             <span class="text-gray-400">None Available</span>
                             {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
         </div>
     </div>
 </div>
@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <tr>
                     <td colspan="7" class="px-6 py-4 text-center text-gray-500">
                         No assets found
-                    </td>
+                </td>
                 </tr>
             `;
         }

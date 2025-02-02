@@ -2,7 +2,8 @@ from flask import Blueprint, render_template, request, jsonify, session, flash, 
 from datetime import datetime
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
-from models.database import Asset, Accessory, Base, AssetStatus
+from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -250,7 +251,7 @@ def view_item(item_id):
         flash('Item not found')
         return redirect(url_for('inventory.view_inventory'))
     
-    return render_template(
+        return render_template(
         'inventory/item_details.html',
         item=item
     )
@@ -270,8 +271,8 @@ def add_item():
             
             item = inventory_store.create_item(name, category, status)
             flash('Item added successfully')
-            return redirect(url_for('inventory.view_inventory'))
-            
+        return redirect(url_for('inventory.view_inventory')) 
+
         except Exception as e:
             flash(f'Error adding item: {str(e)}')
             return redirect(url_for('inventory.add_item'))
@@ -303,8 +304,8 @@ def edit_item(item_id):
                 status=status
             )
             flash('Item updated successfully')
-            return redirect(url_for('inventory.view_inventory'))
-            
+                return redirect(url_for('inventory.view_inventory'))
+                
         except Exception as e:
             flash(f'Error updating item: {str(e)}')
             return redirect(url_for('inventory.edit_item', item_id=item_id))
@@ -480,8 +481,8 @@ def import_inventory():
                     
                     finally:
                         db_session.close()
-                
-                except Exception as e:
+        
+    except Exception as e:
                     flash(f'Error processing file: {str(e)}', 'error')
                 
                 # Clean up
@@ -497,8 +498,8 @@ def import_inventory():
                 session.pop('import_type', None)
                 flash('Import cancelled.', 'info')
             
-            return redirect(url_for('inventory.view_inventory'))
-    
+        return redirect(url_for('inventory.view_inventory')) 
+
     return render_template('inventory/import.html')
 
 @inventory_bp.route('/asset/<int:asset_id>')

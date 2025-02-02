@@ -91,7 +91,7 @@ class Company(Base):
     
     # Relationships
     assets = relationship("Asset", back_populates="company")
-    users = relationship("User", back_populates="company")
+    users = relationship("User", back_populates="company", lazy='dynamic')  # Use string reference and lazy loading
 
 class Ticket(Base):
     __tablename__ = 'tickets'

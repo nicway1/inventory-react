@@ -36,12 +36,12 @@ app = Flask(__name__)
 
 # Configure Flask app
 app.config.update(
-    SECRET_KEY=os.urandom(24),
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-please-change'),
     SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
-    SQLALCHEMY_DATABASE_URI='sqlite:///inventory.db',
+    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///inventory.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
     WTF_CSRF_CHECK_DEFAULT=False,  # Disable CSRF check by default

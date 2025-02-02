@@ -28,15 +28,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     # Import all models here to ensure they are registered with Base
-    import models.user
-    import models.inventory_item
-    import models.accessory
-    import models.ticket
-    import models.activity
-    import models.comment
-    import models.queue
-    import models.shipment
-    import models.company
+    from models.user import User
+    from models.asset import Asset
+    from models.accessory import Accessory
+    from models.ticket import Ticket
+    from models.activity import Activity
+    from models.comment import Comment
+    from models.queue import Queue
+    from models.shipment import Shipment
+    from models.company import Company
     
     try:
         Base.metadata.create_all(bind=engine)
