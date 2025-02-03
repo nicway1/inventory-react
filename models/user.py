@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -7,26 +7,28 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash
 
 class UserType(enum.Enum):
-    USER = "user"
-    ADMIN = "admin"
-    SUPER_ADMIN = "super_admin"
+    SUPER_ADMIN = "Super Admin"
+    ADMIN = "Admin"
+    SALES = "Sales"
+    USER = "User"
 
 class User(UserMixin, Base):
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
-    password_hash = Column(String(200), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
-    company_id = Column(Integer, ForeignKey('companies.id'), nullable=True)
+    password_hash = Column(String(200), nullable=False)
     user_type = Column(Enum(UserType), default=UserType.USER)
+    company_id = Column(Integer, ForeignKey('companies.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
-    last_login = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
     # Relationships
-    company = relationship("Company", back_populates="users", foreign_keys=[company_id])
-    tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester", lazy="dynamic")
-    tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to", lazy="dynamic")
+    company = relationship("Company", back_populates="users")
+    sales = relationship("Sale", back_populates="user", lazy="dynamic", viewonly=True)
+    tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
+    tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to")
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
@@ -60,6 +62,29 @@ class User(UserMixin, Base):
     def is_admin(self):
         return self.user_type in [UserType.ADMIN, UserType.SUPER_ADMIN]
 
+    @property
+    def total_sales(self):
+        """Calculate total sales amount"""
+        return sum(sale.selling_price for sale in self.sales)
+
+    @property
+    def total_profit(self):
+        """Calculate total profit"""
+        return sum(sale.profit for sale in self.sales if sale.profit is not None)
+
+    def get_sales_by_period(self, start_date, end_date):
+        """Get sales within a specific date range"""
+        from models.sale import Sale
+        return self.sales.filter(
+            Sale.sale_date >= start_date,
+            Sale.sale_date <= end_date
+        ).all()
+
+    def get_recent_sales(self, limit=5):
+        """Get recent sales with a limit"""
+        from models.sale import Sale
+        return self.sales.order_by(Sale.sale_date.desc()).limit(limit).all()
+
     def to_dict(self):
         """Convert user object to dictionary with serializable values"""
         return {
@@ -69,7 +94,7 @@ class User(UserMixin, Base):
             'company_id': self.company_id,
             'user_type': self.user_type.value,  # Convert enum to string
             'created_at': self.created_at,
-            'last_login': self.last_login
+            'updated_at': self.updated_at
         }
 
     def update_last_login(self):

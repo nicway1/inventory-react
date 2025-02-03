@@ -1,5 +1,6 @@
 from functools import wraps
 from flask import session, redirect, url_for, flash
+from models.user import UserType
 
 def login_required(f):
     @wraps(f)
@@ -15,7 +16,8 @@ def admin_required(f):
         if not session.get('user_id'):
             return redirect(url_for('auth.login'))
         user_type = session.get('user_type')
-        if user_type not in ['admin', 'super_admin', 'ADMIN', 'SUPER_ADMIN']:
+        admin_types = [UserType.ADMIN.value, UserType.SUPER_ADMIN.value, 'Admin', 'Super Admin']
+        if not user_type or user_type not in admin_types:
             flash('You do not have permission to access this page')
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)

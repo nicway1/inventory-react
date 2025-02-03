@@ -35,6 +35,14 @@ class InventoryStore:
                         except:
                             receiving_date = None
 
+                    # Get cost price if it exists
+                    cost_price = None
+                    if 'COST PRICE' in row and pd.notna(row['COST PRICE']):
+                        try:
+                            cost_price = float(row['COST PRICE'])
+                        except:
+                            cost_price = None
+
                     # Create new Asset
                     asset = Asset(
                         asset_tag=str(row.get('ASSET TAG', '')),
@@ -44,6 +52,7 @@ class InventoryStore:
                         manufacturer='',  # Add if available in CSV
                         category=str(row.get('Asset Type', '')),
                         status=AssetStatus.IN_STOCK,  # Default status
+                        cost_price=cost_price,  # Add cost price
                         specifications={
                             'cpu_type': str(row.get('CPU TYPE', '')),
                             'cpu_cores': str(row.get('CPU CORES', '')),

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -23,6 +23,7 @@ class Asset(Base):
     manufacturer = Column(String(100))
     category = Column(String(50))
     status = Column(Enum(AssetStatus), default=AssetStatus.IN_STOCK)
+    cost_price = Column(Float)  # New column for cost price
     location_id = Column(Integer, ForeignKey('locations.id'))
     company_id = Column(Integer, ForeignKey('companies.id'))
     specifications = Column(JSON)  # Store specs as JSON
@@ -53,4 +54,5 @@ class Asset(Base):
     # Relationships with string references
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic") 
+    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
+    sales = relationship("Sale", back_populates="product", lazy="dynamic") 

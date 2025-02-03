@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash, redirect, url_for, session
 from utils.data_loader import SnipeITDataLoader
 from utils.auth_decorators import admin_required
 import os
 import time
 from werkzeug.utils import secure_filename
+import pandas as pd
 
 data_loader_bp = Blueprint('data_loader', __name__, url_prefix='/data-loader')
 
@@ -26,7 +27,6 @@ def import_data():
             
         file = request.files['file']
         import_type = request.form.get('import_type')
-        dry_run = request.form.get('dry_run') == 'true'
         
         if file.filename == '':
             flash('No file selected')
@@ -39,42 +39,61 @@ def import_data():
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
                 file.save(filepath)
                 
-                # Process the file
-                loader = SnipeITDataLoader()
+                # Read the CSV file for preview
+                df = pd.read_csv(filepath)
+                preview_data = []
                 
-                # Validate CSV
-                is_valid, message = loader.validate_csv(filepath, import_type)
-                if not is_valid:
-                    os.remove(filepath)
-                    flash(f'CSV Validation Error: {message}')
-                    return redirect(request.url)
+                # Process each row for preview
+                for index, row in df.iterrows():
+                    # Clean NaN values
+                    row_data = {k: ('' if pd.isna(v) else str(v).strip()) for k, v in row.items()}
+                    
+                    # Format product information
+                    product_parts = []
+                    if row_data.get('MODEL'):
+                        product_parts.append(row_data['MODEL'])
+                    if row_data.get('CPU TYPE'):
+                        product_parts.append(row_data['CPU TYPE'])
+                    if row_data.get('MEMORY'):
+                        product_parts.append(f"{row_data['MEMORY']} RAM")
+                    if row_data.get('HARDDRIVE'):
+                        product_parts.append(row_data['HARDDRIVE'])
+                    
+                    # Create a clean product string
+                    product_string = ' '.join([part for part in product_parts if part])
+                    
+                    preview_data.append({
+                        'row_number': index + 2,
+                        'basic_info': {
+                            'Hardware Type': row_data.get('HARDWARE TYPE', '').upper() or 'APPLE',
+                            'Product': product_string
+                        }
+                    })
                 
-                # Import data
-                if import_type == 'assets':
-                    results = loader.import_assets(filepath, dry_run=True)
-                else:
-                    results = loader.import_accessories(filepath, dry_run=True)
-                
-                if not dry_run:
-                    os.remove(filepath)
+                # Store preview data and file info in session
+                session['preview_data'] = preview_data
+                session['import_filepath'] = filepath
+                session['import_type'] = import_type
                 
                 return render_template(
-                    'data_loader/results.html',
-                    results=results,
-                    dry_run=dry_run,
-                    file_path=filepath,
-                    import_type=import_type
+                    'data_loader/preview.html',
+                    preview_data=preview_data,
+                    filename=filename,
+                    import_type=import_type,
+                    total_rows=len(preview_data)
                 )
                 
             except Exception as e:
                 flash(f'Error processing file: {str(e)}')
+                if os.path.exists(filepath):
+                    os.remove(filepath)
                 return redirect(request.url)
                 
         else:
             flash('Invalid file type. Please upload a CSV file.')
             return redirect(request.url)
             
-    return render_template('data_loader/import.html') 
+    return render_template('data_loader/import.html')
 
 @data_loader_bp.route('/confirm-import', methods=['POST'])
 @admin_required

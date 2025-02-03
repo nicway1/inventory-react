@@ -8,6 +8,7 @@ from routes.shipments import shipments_bp
 from routes.users import users_bp
 from routes.data_loader import data_loader_bp
 from routes.admin import admin_bp
+from routes.sales import sales_bp
 from utils.auth_decorators import login_required
 from utils.store_instances import (
     user_store,
@@ -85,6 +86,7 @@ app.register_blueprint(shipments_bp, url_prefix='/shipments')
 app.register_blueprint(users_bp, url_prefix='/users')
 app.register_blueprint(data_loader_bp, url_prefix='/data-loader')
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(sales_bp, url_prefix='/sales')
 
 @app.context_processor
 def utility_processor():

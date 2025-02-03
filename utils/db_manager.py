@@ -16,6 +16,11 @@ class DatabaseManager:
         
     def get_session(self):
         return self.Session()
+
+    @staticmethod
+    def joinedload(relationship):
+        """Helper method to provide joinedload functionality"""
+        return joinedload(relationship)
         
     def get_all_assets(self):
         session = self.get_session()
@@ -160,21 +165,27 @@ class DatabaseManager:
     def get_user(self, user_id):
         session = self.get_session()
         try:
-            return session.query(User).filter(User.id == user_id).first()
+            return session.query(User).options(
+                joinedload(User.company)
+            ).filter(User.id == user_id).first()
         finally:
             session.close()
 
     def get_user_by_username(self, username):
         session = self.get_session()
         try:
-            return session.query(User).filter(User.username == username).first()
+            return session.query(User).options(
+                joinedload(User.company)
+            ).filter(User.username == username).first()
         finally:
             session.close()
 
     def get_all_users(self):
         session = self.get_session()
         try:
-            return session.query(User).all()
+            return session.query(User).options(
+                joinedload(User.company)
+            ).all()
         finally:
             session.close()
 
@@ -199,7 +210,9 @@ class DatabaseManager:
         session = self.get_session()
         try:
             # Use joinedload to eagerly load the company relationship
-            return session.query(User).options(joinedload(User.company)).filter(User.id == user_id).first()
+            return session.query(User).options(
+                joinedload(User.company)
+            ).filter(User.id == user_id).first()
         finally:
             session.close()
 

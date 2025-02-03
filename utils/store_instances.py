@@ -8,15 +8,17 @@ from utils.snipeit_client import SnipeITClient
 from utils.shipment_store import ShipmentStore
 from utils.db_manager import DatabaseManager
 
-# Initialize all stores
+# Initialize database manager first
+db_manager = DatabaseManager()
+
+# Initialize stores in dependency order
 user_store = UserStore()
 activity_store = ActivityStore()
-ticket_store = TicketStore()
-queue_store = QueueStore()
 inventory_store = InventoryStore()
+queue_store = QueueStore()
+ticket_store = TicketStore()
 shipment_store = ShipmentStore()
 snipe_client = SnipeITClient()
-db_manager = DatabaseManager()
 
 # Initialize CommentStore with dependencies
 comment_store = CommentStore(user_store, activity_store, ticket_store) 

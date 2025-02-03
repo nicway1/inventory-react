@@ -15,9 +15,49 @@ class Company(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships - use string to avoid circular import
-    users = relationship("User", back_populates="company", lazy="dynamic")
-    assets = relationship("Asset", back_populates="company", lazy="dynamic")
+    # Relationships
+    users = relationship("User", back_populates="company", lazy="dynamic", viewonly=True)
+    assets = relationship("Asset", back_populates="company", lazy="dynamic", viewonly=True)
+    sales = relationship("Sale", back_populates="company", lazy="dynamic", viewonly=True)
+
+    @property
+    def total_sales(self):
+        """Calculate total sales amount for the company"""
+        return sum(sale.selling_price for sale in self.sales)
+
+    @property
+    def total_profit(self):
+        """Calculate total profit for the company"""
+        return sum(sale.profit for sale in self.sales if sale.profit is not None)
+
+    def get_sales_by_period(self, start_date, end_date):
+        """Get company sales within a specific date range"""
+        from models.sale import Sale
+        return self.sales.filter(
+            Sale.sale_date >= start_date,
+            Sale.sale_date <= end_date
+        ).all()
+
+    def get_top_salespeople(self, limit=5):
+        """Get top performing salespeople"""
+        user_sales = {}
+        for sale in self.sales:
+            if sale.user_id not in user_sales:
+                user_sales[sale.user_id] = {
+                    'user': sale.user,
+                    'total_sales': 0,
+                    'total_profit': 0
+                }
+            user_sales[sale.user_id]['total_sales'] += sale.selling_price
+            user_sales[sale.user_id]['total_profit'] += (sale.profit or 0)
+        
+        # Sort by total sales and return top performers
+        sorted_users = sorted(
+            user_sales.values(),
+            key=lambda x: x['total_sales'],
+            reverse=True
+        )
+        return sorted_users[:limit]
 
     @property
     def logo_url(self):

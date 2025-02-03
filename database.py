@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from models.base import Base
+import models  # Import all models
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,17 +28,6 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
-    # Import all models here to ensure they are registered with Base
-    from models.user import User
-    from models.asset import Asset
-    from models.accessory import Accessory
-    from models.ticket import Ticket
-    from models.activity import Activity
-    from models.comment import Comment
-    from models.queue import Queue
-    from models.shipment import Shipment
-    from models.company import Company
-    
     try:
         Base.metadata.create_all(bind=engine)
         print("Database initialized successfully")
