@@ -16,6 +16,18 @@
     </div>
 
     {% if preview_data %}
+        <!-- Confirm Import Button -->
+        <div class="mb-6">
+            <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
+                <input type="hidden" name="filename" value="{{ filename }}">
+                <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
+                <button type="submit" 
+                        class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    Confirm and Process Import
+                </button>
+            </form>
+        </div>
+
         <div class="mb-6">
             <h2 class="text-xl font-semibold mb-4">Preview Data ({{ total_rows }} rows)</h2>
             <div class="space-y-4">
@@ -80,6 +92,18 @@
                         </div>
                     </div>
                 {% endfor %}
+            </div>
+
+            <!-- Bottom Confirm Button -->
+            <div class="mt-6">
+                <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
+                    <input type="hidden" name="filename" value="{{ filename }}">
+                    <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        Confirm and Process Import
+                    </button>
+                </form>
             </div>
         </div>
     {% endif %}

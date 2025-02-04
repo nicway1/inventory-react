@@ -26,7 +26,7 @@ def import_data():
             return redirect(request.url)
             
         file = request.files['file']
-        import_type = request.form.get('import_type')
+        import_type = request.form.get('import_type', 'assets')  # Default to assets if not specified
         
         if file.filename == '':
             flash('No file selected')
@@ -36,7 +36,7 @@ def import_data():
             try:
                 # Save file with unique name to prevent conflicts
                 filename = f"{int(time.time())}_{secure_filename(file.filename)}"
-                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                filepath = os.path.join(os.path.abspath(UPLOAD_FOLDER), filename)  # Use absolute path
                 file.save(filepath)
                 
                 # Read the CSV file for preview
@@ -63,7 +63,7 @@ def import_data():
                     product_string = ' '.join([part for part in product_parts if part])
                     
                     preview_data.append({
-                        'row_number': index + 2,
+                        'row_number': index + 2,  # Add 2 to account for 0-based index and header row
                         'basic_info': {
                             'Hardware Type': row_data.get('HARDWARE TYPE', '').upper() or 'APPLE',
                             'Product': product_string
@@ -74,6 +74,13 @@ def import_data():
                 session['preview_data'] = preview_data
                 session['import_filepath'] = filepath
                 session['import_type'] = import_type
+                session['filename'] = filename
+                
+                # Print debug information
+                print(f"Debug - Session variables set:")
+                print(f"filepath: {filepath}")
+                print(f"import_type: {import_type}")
+                print(f"total_rows: {len(preview_data)}")
                 
                 return render_template(
                     'data_loader/preview.html',

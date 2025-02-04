@@ -11,6 +11,8 @@ from sqlalchemy import func, case, or_
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
 from flask_login import current_user
+import json
+import time
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -357,8 +359,6 @@ def unassign_item(item_id):
     return redirect(url_for('inventory.view_item', item_id=item_id))
 
 @inventory_bp.route('/import', methods=['GET', 'POST'])
-# @login_required  # Temporarily commented out for testing
-# @admin_required  # Temporarily commented out for testing
 def import_inventory():
     if request.method == 'POST':
         db_session = db_manager.get_session()
@@ -369,8 +369,12 @@ def import_inventory():
                 dry_run = request.form.get('dry_run') == 'on'
                 
                 if file and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    filepath = os.path.join(UPLOAD_FOLDER, filename)
+                    # Create unique filename for both the uploaded file and preview data
+                    timestamp = int(time.time())
+                    filename = f"{timestamp}_{secure_filename(file.filename)}"
+                    filepath = os.path.join(os.path.abspath(UPLOAD_FOLDER), filename)
+                    preview_filepath = os.path.join(os.path.abspath(UPLOAD_FOLDER), f"{timestamp}_preview.json")
+                    
                     file.save(filepath)
                     
                     try:
@@ -378,31 +382,15 @@ def import_inventory():
                         def clean_value(val):
                             if pd.isna(val) or str(val).lower() == 'nan':
                                 return None
-                            return str(val).strip()  # Add strip() to remove any whitespace
+                            return str(val).strip()
 
-                        # Helper function to parse date
-                        def parse_date(date_str):
-                            if pd.isna(date_str) or str(date_str).lower() in ['present', 'nan', '']:
-                                return None
-                            try:
-                                return pd.to_datetime(date_str).date()
-                            except:
-                                return None
+                        # Helper function to clean status
+                        def clean_status(val):
+                            if pd.isna(val) or str(val).lower() in ['nan', '', 'none']:
+                                return 'IN STOCK'  # Default status
+                            return str(val).strip()
 
-                        # Helper function to parse numeric values
-                        def parse_numeric(val):
-                            if pd.isna(val) or str(val).lower() == 'nan' or str(val).strip() == '':
-                                return None
-                            try:
-                                # Convert to integer first, then to string
-                                num_val = int(float(val))
-                                if num_val > 0:  # Only return positive values
-                                    return str(num_val)
-                                return None
-                            except:
-                                return None  # Return None if conversion fails
-
-                        # Read CSV file with no headers and assign our own column names
+                        # Read CSV file with column names
                         column_names = [
                             'Index', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
                             'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG', 
@@ -410,8 +398,26 @@ def import_inventory():
                             'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
                         ]
 
-                        # Read the CSV file, skipping the first row (header)
-                        df = pd.read_csv(filepath, skiprows=[0], names=column_names)
+                        # Try different encodings
+                        encodings = ['utf-8-sig', 'utf-8', 'latin1', 'iso-8859-1', 'cp1252']
+                        df = None
+                        last_error = None
+
+                        for encoding in encodings:
+                            try:
+                                # Read the CSV file with the current encoding
+                                df = pd.read_csv(filepath, 
+                                               skiprows=[0], 
+                                               names=column_names,
+                                               encoding=encoding,
+                                               on_bad_lines='skip')  # Skip problematic lines
+                                break  # If successful, break the loop
+                            except Exception as e:
+                                last_error = e
+                                continue
+
+                        if df is None:
+                            raise Exception(f"Failed to read CSV with any encoding. Last error: {str(last_error)}")
 
                         # Drop the index column
                         df = df.drop('Index', axis=1)
@@ -419,48 +425,56 @@ def import_inventory():
                         # Create preview data
                         preview_data = []
                         for _, row in df.iterrows():
-                            # Clean and format the data
                             preview_row = {
-                                'Asset Tag': str(row.get('ASSET TAG', '')).strip(),
-                                'Serial Number': str(row.get('SERIAL NUMBER', '')).strip(),
-                                'Product': f"MacBook Pro {row.get('MODEL', '')} Apple {row.get('CPU TYPE', '')}",
-                                'Model': str(row.get('MODEL', '')).strip(),
-                                'Hardware Type': str(row.get('HARDWARE TYPE', '')).strip(),
-                                'CPU Type': str(row.get('CPU TYPE', '')).strip(),
-                                'CPU Cores': str(row.get('CPU CORES', '')).strip(),
-                                'GPU Cores': str(row.get('GPU CORES', '')).strip(),
-                                'Memory': str(row.get('MEMORY', '')).strip(),
-                                'Hard Drive': str(row.get('HARDDRIVE', '')).strip(),
-                                'Status': str(row.get('STATUS', 'IN STOCK')).strip(),
-                                'Customer': str(row.get('CUSTOMER', '')).strip(),
-                                'Country': str(row.get('country', '')).strip(),
-                                'PO': str(row.get('PO', '')).strip(),
-                                'Receiving Date': str(row.get('Receiving date', '')).strip(),
-                                'Condition': str(row.get('CONDITION', '')).strip(),
-                                'Diagnostic': str(row.get('DIAG', '')).strip(),
-                                'Erased': str(row.get('ERASED', '')).strip(),
-                                'Keyboard': str(row.get('Keyboard', '')).strip(),
-                                'Charger': str(row.get('CHARGER', '')).strip(),
-                                'Included': str(row.get('INCLUDED', '')).strip()
+                                'Asset Tag': clean_value(row.get('ASSET TAG', '')),
+                                'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
+                                'Product': f"MacBook Pro {clean_value(row.get('MODEL', ''))} Apple {clean_value(row.get('CPU TYPE', ''))}",
+                                'Model': clean_value(row.get('MODEL', '')),
+                                'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
+                                'CPU Type': clean_value(row.get('CPU TYPE', '')),
+                                'CPU Cores': clean_value(row.get('CPU CORES', '')),
+                                'GPU Cores': clean_value(row.get('GPU CORES', '')),
+                                'Memory': clean_value(row.get('MEMORY', '')),
+                                'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
+                                'Status': clean_status(row.get('STATUS', '')),
+                                'Customer': clean_value(row.get('CUSTOMER', '')),
+                                'Country': clean_value(row.get('country', '')),
+                                'PO': clean_value(row.get('PO', '')),
+                                'Receiving Date': clean_value(row.get('Receiving date', '')),
+                                'Condition': clean_value(row.get('CONDITION', '')),
+                                'Diagnostic': clean_value(row.get('DIAG', '')),
+                                'Erased': clean_value(row.get('ERASED', '')),
+                                'Keyboard': clean_value(row.get('Keyboard', '')),
+                                'Charger': clean_value(row.get('CHARGER', '')),
+                                'Included': clean_value(row.get('INCLUDED', ''))
                             }
                             preview_data.append(preview_row)
 
-                        # Store preview data in session
-                        session['preview_data'] = preview_data
+                        # Store preview data in a temporary file instead of session
+                        with open(preview_filepath, 'w') as f:
+                            json.dump(preview_data, f)
+
+                        # Store only the file paths in session
+                        session['import_filepath'] = filepath
+                        session['preview_filepath'] = preview_filepath
                         session['filename'] = filename
                         session['total_rows'] = len(preview_data)
 
                         return render_template('inventory/import.html',
                                             preview_data=preview_data,
                                             filename=filename,
+                                            filepath=filepath,
                                             total_rows=len(preview_data))
 
                     except Exception as e:
                         db_session.rollback()
-                        raise e
-                    finally:
-                        if os.path.exists(filepath) and not dry_run:
+                        print(f"Error processing file: {str(e)}")
+                        # Clean up files on error
+                        if os.path.exists(filepath):
                             os.remove(filepath)
+                        if os.path.exists(preview_filepath):
+                            os.remove(preview_filepath)
+                        raise e
                 else:
                     flash('Invalid file type. Please upload a CSV file.', 'error')
                     return redirect(url_for('inventory.import_inventory'))
@@ -471,6 +485,151 @@ def import_inventory():
             db_session.close()
 
     return render_template('inventory/import.html')
+
+@inventory_bp.route('/confirm-import', methods=['POST'])
+@admin_required
+def confirm_import():
+    try:
+        filepath = request.form.get('filepath') or session.get('import_filepath')
+        preview_filepath = session.get('preview_filepath')
+
+        if not filepath or not preview_filepath:
+            flash('No file path provided for import', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+
+        if not os.path.exists(filepath) or not os.path.exists(preview_filepath):
+            flash('Import file not found. Please upload again.', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+
+        # Read preview data from file
+        try:
+            with open(preview_filepath, 'r') as f:
+                preview_data = json.load(f)
+        except Exception as e:
+            flash('Error reading preview data. Please upload again.', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+
+        db_session = db_manager.get_session()
+        try:
+            successful = 0
+            failed = 0
+            errors = []
+            
+            for index, row in enumerate(preview_data, 1):
+                try:
+                    # Default to IN_STOCK if status is empty, nan, or invalid
+                    status = AssetStatus.IN_STOCK
+                    if row['Status'] and str(row['Status']).lower() not in ['nan', 'none', '']:
+                        try:
+                            status = AssetStatus[row['Status'].upper().replace(' ', '_')]
+                        except KeyError:
+                            print(f"Invalid status '{row['Status']}', defaulting to IN_STOCK")
+
+                    # Parse date
+                    receiving_date = None
+                    if row['Receiving Date'] and str(row['Receiving Date']).lower() not in ['nan', 'none', '']:
+                        try:
+                            receiving_date = datetime.strptime(row['Receiving Date'], '%Y-%m-%d').date()
+                        except ValueError:
+                            print(f"Invalid date format '{row['Receiving Date']}', skipping")
+
+                    # Convert memory and storage to integers if present
+                    memory = None
+                    if row['Memory'] and str(row['Memory']).lower() not in ['nan', 'none', '']:
+                        try:
+                            memory = int(str(row['Memory']).replace('GB', '').strip())
+                        except ValueError:
+                            print(f"Invalid memory value '{row['Memory']}', skipping")
+
+                    storage = None
+                    if row['Hard Drive'] and str(row['Hard Drive']).lower() not in ['nan', 'none', '']:
+                        try:
+                            storage = int(str(row['Hard Drive']).replace('GB', '').strip())
+                        except ValueError:
+                            print(f"Invalid storage value '{row['Hard Drive']}', skipping")
+
+                    # Create new asset with proper type conversion and defaults
+                    asset = Asset(
+                        # Required fields
+                        asset_tag=str(row['Asset Tag']).strip() if row['Asset Tag'] else None,
+                        serial_num=str(row['Serial Number']).strip() if row['Serial Number'] else None,
+                        model=str(row['Model']).strip() if row['Model'] else None,
+                        
+                        # Hardware specifications
+                        hardware_type=str(row['Hardware Type']).strip() if row['Hardware Type'] else None,
+                        cpu_type=str(row['CPU Type']).strip() if row['CPU Type'] else None,
+                        cpu_cores=str(row['CPU Cores']).strip() if row['CPU Cores'] else None,
+                        gpu_cores=str(row['GPU Cores']).strip() if row['GPU Cores'] else None,
+                        memory=str(row['Memory']).strip() if row['Memory'] else None,
+                        harddrive=str(row['Hard Drive']).strip() if row['Hard Drive'] else None,
+                        
+                        # Status and location
+                        status=status,
+                        customer=str(row['Customer']).strip() if row['Customer'] else None,
+                        country=str(row['Country']).strip() if row['Country'] else None,
+                        
+                        # Purchase and receiving info
+                        po=str(row['PO']).strip() if row['PO'] else None,
+                        receiving_date=receiving_date,
+                        
+                        # Condition and diagnostics
+                        condition=str(row['Condition']).strip() if row['Condition'] else None,
+                        diag=str(row['Diagnostic']).strip() if row['Diagnostic'] else None,
+                        erased=str(row['Erased']).strip() if row['Erased'] else None,
+                        
+                        # Accessories
+                        keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
+                        charger=str(row['Charger']).strip() if row['Charger'] else None,
+                        
+                        # Set default values for required fields
+                        name=f"{str(row['Hardware Type']).strip()} {str(row['Model']).strip()}".strip(),
+                        category="Computer",  # Default category
+                        inventory=status.value  # Set inventory status same as status
+                    )
+                    db_session.add(asset)
+                    successful += 1
+                except Exception as e:
+                    error_msg = f"Row {index}: {str(e)}"
+                    print(error_msg)
+                    errors.append(error_msg)
+                    failed += 1
+                    continue
+
+            if failed == 0:
+                db_session.commit()
+                flash(f'Successfully imported {successful} items.', 'success')
+            else:
+                db_session.rollback()
+                error_details = '<br>'.join(errors[:10])
+                if len(errors) > 10:
+                    error_details += f'<br>... and {len(errors) - 10} more errors'
+                flash(f'Failed to import {failed} items. Errors:<br>{error_details}', 'error')
+                return redirect(url_for('inventory.import_inventory'))
+            
+            # Clean up files after successful import or on error
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            if os.path.exists(preview_filepath):
+                os.remove(preview_filepath)
+            
+            # Clear session data
+            session.pop('import_filepath', None)
+            session.pop('preview_filepath', None)
+            session.pop('filename', None)
+            session.pop('total_rows', None)
+            
+            return redirect(url_for('inventory.view_inventory'))
+
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error during import: {str(e)}', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        flash(f'Error processing import: {str(e)}', 'error')
+        return redirect(url_for('inventory.import_inventory'))
 
 @inventory_bp.route('/asset/<int:asset_id>')
 @login_required

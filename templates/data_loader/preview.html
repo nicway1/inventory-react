@@ -4,12 +4,25 @@
 <div class="w-full px-4 py-8">
     <h1 class="text-2xl font-bold mb-6">Data Import Tool</h1>
 
+    <!-- Debug Information -->
+    {% if preview_data %}
+        <div class="mb-4 p-4 bg-gray-100 rounded">
+            <p>Preview Data Available: Yes</p>
+            <p>Number of Records: {{ total_rows }}</p>
+            <p>Import Type: {{ import_type }}</p>
+            <p>File Path: {{ session.get('import_filepath', 'Not set') }}</p>
+        </div>
+    {% endif %}
+
     <div class="bg-white rounded-lg shadow-lg">
         <!-- Table -->
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
                     <tr class="bg-gray-50 border-b">
+                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">
+                            Row
+                        </th>
                         <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">
                             Asset Type
                         </th>
@@ -21,6 +34,9 @@
                 <tbody>
                     {% for record in preview_data %}
                     <tr class="border-b hover:bg-gray-50">
+                        <td class="py-3 px-4 text-sm text-gray-900">
+                            {{ record.row_number }}
+                        </td>
                         <td class="py-3 px-4 text-sm text-gray-900">
                             {{ record.basic_info.get('Hardware Type', '') }}
                         </td>
@@ -43,6 +59,7 @@
                     Cancel
                 </button>
                 
+                {% if preview_data and session.get('import_filepath') %}
                 <form action="{{ url_for('data_loader.confirm_import') }}" method="POST" class="inline">
                     <input type="hidden" name="file_path" value="{{ session.get('import_filepath') }}">
                     <input type="hidden" name="import_type" value="{{ import_type }}">
@@ -51,6 +68,9 @@
                         Confirm Import
                     </button>
                 </form>
+                {% else %}
+                <p class="text-red-500">Error: Missing required data for import</p>
+                {% endif %}
             </div>
         </div>
     </div>
