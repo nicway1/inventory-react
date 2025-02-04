@@ -46,18 +46,20 @@
                             Data Management
                         </a>
                         {% endif %}
-                        <a href="{{ url_for('inventory.view_inventory') }}" 
-                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
+                        <a href="{{ url_for('inventory.view_inventory') }}"
+                           class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                             Inventory
                         </a>
-                        <a href="{{ url_for('tickets.list_tickets') }}"
-                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
-                            Tickets
+                        <a href="{{ url_for('data_loader.import_data') }}"
+                           class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Import
                         </a>
-                        <a href="{{ url_for('sales.dashboard') }}"
-                           class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300">
-                            Sales
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('admin.dashboard') }}"
+                           class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Admin
                         </a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
