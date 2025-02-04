@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file
 from datetime import datetime
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
@@ -13,6 +13,8 @@ from flask_wtf.csrf import generate_csrf
 from flask_login import current_user
 import json
 import time
+import io
+import csv
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -365,8 +367,7 @@ def import_inventory():
         try:
             if 'file' in request.files:
                 file = request.files['file']
-                import_type = request.form.get('import_type', 'assets')
-                dry_run = request.form.get('dry_run') == 'on'
+                import_type = request.form.get('import_type', 'tech_assets')
                 
                 if file and allowed_file(file.filename):
                     # Create unique filename for both the uploaded file and preview data
@@ -390,13 +391,18 @@ def import_inventory():
                                 return 'IN STOCK'  # Default status
                             return str(val).strip()
 
-                        # Read CSV file with column names
-                        column_names = [
-                            'Index', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
-                            'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG', 
-                            'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 
-                            'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
-                        ]
+                        # Define column names based on import type
+                        if import_type == 'tech_assets':
+                            column_names = [
+                                'Index', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
+                                'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG', 
+                                'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 
+                                'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
+                            ]
+                        else:  # accessories
+                            column_names = [
+                                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL NO', 'QUANTITY', 'STATUS', 'NOTES'
+                            ]
 
                         # Try different encodings
                         encodings = ['utf-8-sig', 'utf-8', 'latin1', 'iso-8859-1', 'cp1252']
@@ -405,13 +411,12 @@ def import_inventory():
 
                         for encoding in encodings:
                             try:
-                                # Read the CSV file with the current encoding
-                                df = pd.read_csv(filepath, 
-                                               skiprows=[0], 
-                                               names=column_names,
-                                               encoding=encoding,
-                                               on_bad_lines='skip')  # Skip problematic lines
-                                break  # If successful, break the loop
+                                if import_type == 'tech_assets':
+                                    df = pd.read_csv(filepath, skiprows=[0], names=column_names, encoding=encoding)
+                                    df = df.drop('Index', axis=1)
+                                else:
+                                    df = pd.read_csv(filepath, encoding=encoding)
+                                break
                             except Exception as e:
                                 last_error = e
                                 continue
@@ -419,57 +424,71 @@ def import_inventory():
                         if df is None:
                             raise Exception(f"Failed to read CSV with any encoding. Last error: {str(last_error)}")
 
-                        # Drop the index column
-                        df = df.drop('Index', axis=1)
-
-                        # Create preview data
+                        # Create preview data based on import type
                         preview_data = []
-                        for _, row in df.iterrows():
-                            preview_row = {
-                                'Asset Tag': clean_value(row.get('ASSET TAG', '')),
-                                'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
-                                'Product': f"MacBook Pro {clean_value(row.get('MODEL', ''))} Apple {clean_value(row.get('CPU TYPE', ''))}",
-                                'Model': clean_value(row.get('MODEL', '')),
-                                'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
-                                'CPU Type': clean_value(row.get('CPU TYPE', '')),
-                                'CPU Cores': clean_value(row.get('CPU CORES', '')),
-                                'GPU Cores': clean_value(row.get('GPU CORES', '')),
-                                'Memory': clean_value(row.get('MEMORY', '')),
-                                'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
-                                'Status': clean_status(row.get('STATUS', '')),
-                                'Customer': clean_value(row.get('CUSTOMER', '')),
-                                'Country': clean_value(row.get('country', '')),
-                                'PO': clean_value(row.get('PO', '')),
-                                'Receiving Date': clean_value(row.get('Receiving date', '')),
-                                'Condition': clean_value(row.get('CONDITION', '')),
-                                'Diagnostic': clean_value(row.get('DIAG', '')),
-                                'Erased': clean_value(row.get('ERASED', '')),
-                                'Keyboard': clean_value(row.get('Keyboard', '')),
-                                'Charger': clean_value(row.get('CHARGER', '')),
-                                'Included': clean_value(row.get('INCLUDED', ''))
-                            }
-                            preview_data.append(preview_row)
+                        if import_type == 'tech_assets':
+                            for _, row in df.iterrows():
+                                preview_row = {
+                                    'Asset Tag': clean_value(row.get('ASSET TAG', '')),
+                                    'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
+                                    'Product': f"MacBook Pro {clean_value(row.get('MODEL', ''))} Apple {clean_value(row.get('CPU TYPE', ''))}",
+                                    'Model': clean_value(row.get('MODEL', '')),
+                                    'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
+                                    'CPU Type': clean_value(row.get('CPU TYPE', '')),
+                                    'CPU Cores': clean_value(row.get('CPU CORES', '')),
+                                    'GPU Cores': clean_value(row.get('GPU CORES', '')),
+                                    'Memory': clean_value(row.get('MEMORY', '')),
+                                    'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
+                                    'Status': clean_status(row.get('STATUS', '')),
+                                    'Customer': clean_value(row.get('CUSTOMER', '')),
+                                    'Country': clean_value(row.get('country', '')),
+                                    'PO': clean_value(row.get('PO', '')),
+                                    'Receiving Date': clean_value(row.get('Receiving date', '')),
+                                    'Condition': clean_value(row.get('CONDITION', '')),
+                                    'Diagnostic': clean_value(row.get('DIAG', '')),
+                                    'Erased': clean_value(row.get('ERASED', '')),
+                                    'Keyboard': clean_value(row.get('Keyboard', '')),
+                                    'Charger': clean_value(row.get('CHARGER', '')),
+                                    'Included': clean_value(row.get('INCLUDED', ''))
+                                }
+                                preview_data.append(preview_row)
+                        else:  # accessories
+                            for _, row in df.iterrows():
+                                preview_row = {
+                                    'Name': clean_value(row.get('NAME', '')),
+                                    'Category': clean_value(row.get('CATEGORY', '')),
+                                    'Manufacturer': clean_value(row.get('MANUFACTURER', '')),
+                                    'Model No': clean_value(row.get('MODEL NO', '')),
+                                    'Quantity': clean_value(row.get('QUANTITY', '')),
+                                    'Status': clean_status(row.get('STATUS', '')),
+                                    'Notes': clean_value(row.get('NOTES', ''))
+                                }
+                                preview_data.append(preview_row)
 
-                        # Store preview data in a temporary file instead of session
+                        # Store preview data in a temporary file
                         with open(preview_filepath, 'w') as f:
-                            json.dump(preview_data, f)
+                            json.dump({
+                                'import_type': import_type,
+                                'data': preview_data
+                            }, f)
 
-                        # Store only the file paths in session
+                        # Store file paths in session
                         session['import_filepath'] = filepath
                         session['preview_filepath'] = preview_filepath
                         session['filename'] = filename
+                        session['import_type'] = import_type
                         session['total_rows'] = len(preview_data)
 
                         return render_template('inventory/import.html',
                                             preview_data=preview_data,
                                             filename=filename,
                                             filepath=filepath,
+                                            import_type=import_type,
                                             total_rows=len(preview_data))
 
                     except Exception as e:
                         db_session.rollback()
                         print(f"Error processing file: {str(e)}")
-                        # Clean up files on error
                         if os.path.exists(filepath):
                             os.remove(filepath)
                         if os.path.exists(preview_filepath):
@@ -515,7 +534,7 @@ def confirm_import():
             failed = 0
             errors = []
             
-            for index, row in enumerate(preview_data, 1):
+            for index, row in enumerate(preview_data['data'], 1):
                 try:
                     # Default to IN_STOCK if status is empty, nan, or invalid
                     status = AssetStatus.IN_STOCK
@@ -616,6 +635,7 @@ def confirm_import():
             session.pop('import_filepath', None)
             session.pop('preview_filepath', None)
             session.pop('filename', None)
+            session.pop('import_type', None)
             session.pop('total_rows', None)
             
             return redirect(url_for('inventory.view_inventory'))
@@ -836,6 +856,55 @@ def add_asset():
             db_session.close()
             
     return render_template('inventory/add_asset.html', statuses=AssetStatus)
+
+@inventory_bp.route('/download-template/<template_type>')
+@login_required
+def download_template(template_type):
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        if template_type == 'tech_assets':
+            # Write headers for tech assets template
+            writer.writerow([
+                'Asset Tag', 'Serial Number', 'Model', 'Hardware Type', 'CPU Type',
+                'CPU Cores', 'GPU Cores', 'Memory', 'Hard Drive', 'Status',
+                'Customer', 'Country', 'PO', 'Receiving date', 'Condition',
+                'Diagnostic', 'Erased', 'Keyboard', 'Charger', 'Included'
+            ])
+            # Write example row
+            writer.writerow([
+                'AST001', 'SN123456', 'MacBook Pro', 'Laptop', 'M1',
+                '8', '8', '16', '512', 'IN_STOCK',
+                'Company Name', 'USA', 'PO123', '2024-01-01', 'New',
+                'Passed', 'YES', 'US', 'YES', 'Box, Manual'
+            ])
+            filename = 'tech_assets_template.csv'
+        else:  # accessories
+            # Write headers for accessories template
+            writer.writerow([
+                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL NO', 'QUANTITY',
+                'STATUS', 'NOTES'
+            ])
+            # Write example row
+            writer.writerow([
+                'USB-C Charger', 'Charger', 'Apple', 'A1234', '10',
+                'Available', 'New stock'
+            ])
+            filename = 'accessories_template.csv'
+        
+        # Prepare the output
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'Error generating template: {str(e)}', 'error')
+        return redirect(url_for('inventory.import_inventory'))
 
 @inventory_bp.after_request
 def add_csrf_token_to_response(response):

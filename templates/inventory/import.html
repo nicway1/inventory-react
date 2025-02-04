@@ -110,6 +110,37 @@
 
     <div class="bg-white rounded-lg shadow-md p-6">
         <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            <!-- Import Type Selection -->
+            <div>
+                <label for="import_type" class="block text-sm font-medium text-gray-700 mb-2">Import Type</label>
+                <select name="import_type" id="import_type" required
+                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="tech_assets">Tech Assets</option>
+                    <option value="accessories">Accessories</option>
+                </select>
+                <p class="mt-2 text-sm text-gray-500">Select the type of items you want to import.</p>
+            </div>
+
+            <!-- Download Template Buttons -->
+            <div class="flex space-x-4">
+                <a href="{{ url_for('inventory.download_template', template_type='tech_assets') }}" 
+                   id="tech_assets_template"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Download Tech Assets Template
+                </a>
+                <a href="{{ url_for('inventory.download_template', template_type='accessories') }}"
+                   id="accessories_template" 
+                   class="hidden inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Download Accessories Template
+                </a>
+            </div>
+
             <div>
                 <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Choose CSV File</label>
                 <input type="file" name="file" id="file" accept=".csv" required
@@ -122,12 +153,36 @@
                 <p class="mt-2 text-sm text-gray-500">Upload a CSV file with the required columns.</p>
             </div>
 
-            <div class="flex items-center">
-                <input type="checkbox" name="preview" id="preview" checked
-                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                <label for="preview" class="ml-2 block text-sm text-gray-900">
-                    Preview data before import
-                </label>
+            <!-- CSV Format Guide -->
+            <div class="mt-4 border-t pt-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Required CSV Columns:</h3>
+                <div id="tech_assets_format" class="bg-gray-50 rounded-md p-4 text-sm text-gray-600">
+                    <p class="font-medium mb-2">For Tech Assets:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>ASSET TAG (required)</li>
+                        <li>SERIAL NUMBER</li>
+                        <li>MODEL</li>
+                        <li>HARDWARE TYPE</li>
+                        <li>CPU TYPE</li>
+                        <li>MEMORY</li>
+                        <li>HARDDRIVE</li>
+                        <li>STATUS</li>
+                        <li>CUSTOMER</li>
+                        <li>COUNTRY</li>
+                    </ul>
+                </div>
+                <div id="accessories_format" class="hidden bg-gray-50 rounded-md p-4 text-sm text-gray-600">
+                    <p class="font-medium mb-2">For Accessories:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>NAME (required)</li>
+                        <li>CATEGORY</li>
+                        <li>MANUFACTURER</li>
+                        <li>MODEL NO</li>
+                        <li>QUANTITY</li>
+                        <li>STATUS</li>
+                        <li>NOTES</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="flex justify-end space-x-4">
@@ -142,5 +197,27 @@
             </div>
         </form>
     </div>
+
+    <!-- Update JavaScript to toggle template buttons -->
+    <script>
+        document.getElementById('import_type').addEventListener('change', function() {
+            const techFormat = document.getElementById('tech_assets_format');
+            const accessoryFormat = document.getElementById('accessories_format');
+            const techTemplate = document.getElementById('tech_assets_template');
+            const accessoryTemplate = document.getElementById('accessories_template');
+            
+            if (this.value === 'tech_assets') {
+                techFormat.classList.remove('hidden');
+                accessoryFormat.classList.add('hidden');
+                techTemplate.classList.remove('hidden');
+                accessoryTemplate.classList.add('hidden');
+            } else {
+                techFormat.classList.add('hidden');
+                accessoryFormat.classList.remove('hidden');
+                techTemplate.classList.add('hidden');
+                accessoryTemplate.classList.remove('hidden');
+            }
+        });
+    </script>
 </div>
 {% endblock %} 
