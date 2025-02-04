@@ -26,7 +26,6 @@ class User(UserMixin, Base):
     
     # Relationships
     company = relationship("Company", back_populates="users")
-    sales = relationship("Sale", back_populates="user", lazy="dynamic", viewonly=True)
     tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
     tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to")
     
@@ -61,29 +60,6 @@ class User(UserMixin, Base):
     @property
     def is_admin(self):
         return self.user_type in [UserType.ADMIN, UserType.SUPER_ADMIN]
-
-    @property
-    def total_sales(self):
-        """Calculate total sales amount"""
-        return sum(sale.selling_price for sale in self.sales)
-
-    @property
-    def total_profit(self):
-        """Calculate total profit"""
-        return sum(sale.profit for sale in self.sales if sale.profit is not None)
-
-    def get_sales_by_period(self, start_date, end_date):
-        """Get sales within a specific date range"""
-        from models.sale import Sale
-        return self.sales.filter(
-            Sale.sale_date >= start_date,
-            Sale.sale_date <= end_date
-        ).all()
-
-    def get_recent_sales(self, limit=5):
-        """Get recent sales with a limit"""
-        from models.sale import Sale
-        return self.sales.order_by(Sale.sale_date.desc()).limit(limit).all()
 
     def to_dict(self):
         """Convert user object to dictionary with serializable values"""

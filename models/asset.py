@@ -54,5 +54,4 @@ class Asset(Base):
     # Relationships with string references
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
-    sales = relationship("Sale", back_populates="product", lazy="dynamic") 
+    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic") 

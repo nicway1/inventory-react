@@ -21,9 +21,9 @@ from utils.store_instances import (
 from flask_sqlalchemy import SQLAlchemy
 from models.base import Base
 from models.company import Company
+from models.user import User, UserType
 from utils.db_manager import DatabaseManager
 import os
-from models.user import UserType
 from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect
 from database import init_db, engine, SessionLocal
@@ -125,24 +125,30 @@ if __name__ == '__main__':
             
             # Create default admin user if it doesn't exist
             print("\nChecking for admin user...")
-            admin_user = db_manager.get_user_by_username('admin')
+            admin_user = db.query(User).filter_by(username='admin').first()
             if not admin_user:
                 print("Creating admin user...")
-                admin_data = {
-                    'username': 'admin',
-                    'password_hash': generate_password_hash('admin123'),
-                    'email': 'admin@lunacomputer.com',
-                    'user_type': UserType.SUPER_ADMIN,
-                    'company_id': default_company.id
-                }
-                try:
-                    admin_user = db_manager.create_user(admin_data)
-                    print(f"Admin user created successfully: {admin_user.username}")
-                except Exception as e:
-                    print(f"Error creating admin user: {e}")
+                admin_user = User(
+                    username='admin',
+                    password_hash=generate_password_hash('admin123'),
+                    email='admin@lunacomputer.com',
+                    user_type=UserType.SUPER_ADMIN,
+                    company_id=default_company.id
+                )
+                db.add(admin_user)
+                db.commit()
+                print(f"Admin user created successfully: {admin_user.username}")
             else:
                 print(f"Admin user already exists: {admin_user.username}")
         finally:
             db.close()
 
-    app.run(debug=True, host='0.0.0.0', port=5001) 
+    # Try different ports if 5001 is in use
+    port = 5001
+    while port < 5010:  # Try ports 5001-5009
+        try:
+            app.run(debug=True, host='0.0.0.0', port=port)
+            break
+        except OSError:
+            print(f"Port {port} is in use, trying {port + 1}")
+            port += 1 
