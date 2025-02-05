@@ -790,9 +790,18 @@ def delete_accessory(id):
 @login_required
 @admin_required
 def add_asset():
-    if request.method == 'POST':
-        db_session = db_manager.get_session()
-        try:
+    db_session = db_manager.get_session()
+    try:
+        # Get all unique models and their associated products from the database
+        model_products = db_session.query(Asset.model, Asset.name).distinct().filter(Asset.model.isnot(None)).all()
+        unique_models = []
+        model_product_map = {}
+        for model, product in model_products:
+            if model and model not in model_product_map:
+                unique_models.append(model)
+                model_product_map[model] = product if product else f"{model}"
+        
+        if request.method == 'POST':
             # Map inventory status to AssetStatus enum
             inventory_status = request.form.get('status', '').upper()
             if inventory_status == 'READY TO DEPLOY':
@@ -810,23 +819,21 @@ def add_asset():
             else:
                 status = AssetStatus.IN_STOCK  # Default status
 
-            # Get cost price if provided
-            cost_price = None
-            if request.form.get('cost_price'):
-                try:
-                    cost_price = float(request.form.get('cost_price'))
-                except ValueError:
-                    flash('Invalid cost price value', 'error')
-                    return redirect(url_for('inventory.add_asset'))
+            # Get model directly from the form
+            model = request.form.get('model')
+            if not model:
+                flash('Model is required', 'error')
+                return redirect(url_for('inventory.add_asset'))
 
             # Create new asset from form data
             new_asset = Asset(
                 asset_tag=request.form.get('asset_tag', ''),
+                name=request.form.get('product', ''),  # Add product as name
                 receiving_date=datetime.strptime(request.form.get('receiving_date', ''), '%Y-%m-%d').date() if request.form.get('receiving_date') else None,
                 keyboard=request.form.get('keyboard', ''),
                 serial_num=request.form.get('serial_num', ''),
                 po=request.form.get('po', ''),
-                model=request.form.get('model', ''),
+                model=model,
                 erased=request.form.get('erased') == 'true',
                 customer=request.form.get('customer', ''),
                 condition=request.form.get('condition', ''),
@@ -839,23 +846,24 @@ def add_asset():
                 harddrive=request.form.get('harddrive', ''),
                 charger=request.form.get('charger', ''),
                 country=request.form.get('country', ''),
-                status=status,
-                cost_price=cost_price
+                status=status
             )
             
             db_session.add(new_asset)
             db_session.commit()
             flash('Asset added successfully!', 'success')
             return redirect(url_for('inventory.view_inventory'))
-            
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Error adding asset: {str(e)}', 'error')
-            return redirect(url_for('inventory.add_asset'))
-        finally:
-            db_session.close()
-            
-    return render_template('inventory/add_asset.html', statuses=AssetStatus)
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error adding asset: {str(e)}', 'error')
+        return redirect(url_for('inventory.add_asset'))
+    finally:
+        db_session.close()
+        
+    return render_template('inventory/add_asset.html', 
+                         statuses=AssetStatus, 
+                         models=unique_models,
+                         model_product_map=model_product_map)
 
 @inventory_bp.route('/download-template/<template_type>')
 @login_required

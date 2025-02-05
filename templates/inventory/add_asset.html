@@ -30,6 +30,15 @@
                     </div>
 
                     <div>
+                        <label for="product" class="block text-sm font-medium text-gray-700">Product</label>
+                        <input type="text" 
+                               id="product" 
+                               name="product" 
+                               required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
                         <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number</label>
                         <input type="text" 
                                id="serial_num" 
@@ -53,16 +62,6 @@
                                name="po" 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                     </div>
-
-                    <div>
-                        <label for="cost_price" class="block text-sm font-medium text-gray-700">Cost Price</label>
-                        <input type="number" 
-                               id="cost_price" 
-                               name="cost_price" 
-                               step="0.01"
-                               min="0"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
                 </div>
 
                 <!-- Hardware Information -->
@@ -78,11 +77,20 @@
 
                     <div>
                         <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
-                        <input type="text" 
-                               id="model" 
-                               name="model" 
-                               required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <div class="relative">
+                            <input type="text" 
+                                   id="model" 
+                                   name="model" 
+                                   list="model-list"
+                                   required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   onchange="handleModelChange(this)">
+                            <datalist id="model-list">
+                                {% for model in models %}
+                                <option value="{{ model }}" data-product="{{ model_product_map[model] }}">{{ model }}</option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
                     </div>
 
                     <div>
@@ -215,4 +223,32 @@
         </div>
     </div>
 </div>
+
+<script>
+    function handleModelChange(input) {
+        const productInput = document.getElementById('product');
+        const modelList = document.getElementById('model-list');
+        const options = modelList.options;
+        
+        // Find if the current input value matches any existing model
+        let matchingOption = null;
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].value === input.value) {
+                matchingOption = options[i];
+                break;
+            }
+        }
+        
+        if (matchingOption) {
+            // If it's an existing model, set the product and make it read-only
+            const product = matchingOption.getAttribute('data-product');
+            productInput.value = product;
+            productInput.readOnly = true;
+        } else {
+            // If it's a new model, clear the product and make it editable
+            productInput.value = '';
+            productInput.readOnly = false;
+        }
+    }
+</script>
 {% endblock %} 
