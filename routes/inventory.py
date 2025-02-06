@@ -394,7 +394,7 @@ def import_inventory():
                         # Define column names based on import type
                         if import_type == 'tech_assets':
                             column_names = [
-                                'Index', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
+                                'Index', 'ASSET TYPE', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
                                 'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG', 
                                 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 
                                 'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
@@ -431,8 +431,9 @@ def import_inventory():
                                 preview_row = {
                                     'Asset Tag': clean_value(row.get('ASSET TAG', '')),
                                     'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
-                                    'Product': f"MacBook Pro {clean_value(row.get('MODEL', ''))} Apple {clean_value(row.get('CPU TYPE', ''))}",
+                                    'Product': clean_value(row.get('Product', '')),
                                     'Model': clean_value(row.get('MODEL', '')),
+                                    'Asset Type': clean_value(row.get('ASSET TYPE', '')),
                                     'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
                                     'CPU Type': clean_value(row.get('CPU TYPE', '')),
                                     'CPU Cores': clean_value(row.get('CPU CORES', '')),
@@ -536,6 +537,17 @@ def confirm_import():
             
             for index, row in enumerate(preview_data['data'], 1):
                 try:
+                    # Check for duplicate serial number
+                    serial_num = str(row['Serial Number']).strip() if row['Serial Number'] else None
+                    if serial_num:
+                        existing_asset = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
+                        if existing_asset:
+                            error_msg = f"Row {index}: Serial Number '{serial_num}' already exists in the database (Asset Tag: {existing_asset.asset_tag})"
+                            print(error_msg)
+                            errors.append(error_msg)
+                            failed += 1
+                            continue
+
                     # Default to IN_STOCK if status is empty, nan, or invalid
                     status = AssetStatus.IN_STOCK
                     if row['Status'] and str(row['Status']).lower() not in ['nan', 'none', '']:
@@ -574,8 +586,11 @@ def confirm_import():
                         serial_num=str(row['Serial Number']).strip() if row['Serial Number'] else None,
                         model=str(row['Model']).strip() if row['Model'] else None,
                         
-                        # Hardware specifications
+                        # Asset and hardware type
+                        asset_type=str(row['Asset Type']).strip() if row['Asset Type'] else None,
                         hardware_type=str(row['Hardware Type']).strip() if row['Hardware Type'] else None,
+                        
+                        # Hardware specifications
                         cpu_type=str(row['CPU Type']).strip() if row['CPU Type'] else None,
                         cpu_cores=str(row['CPU Cores']).strip() if row['CPU Cores'] else None,
                         gpu_cores=str(row['GPU Cores']).strip() if row['GPU Cores'] else None,
@@ -600,8 +615,8 @@ def confirm_import():
                         keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
                         charger=str(row['Charger']).strip() if row['Charger'] else None,
                         
-                        # Set default values for required fields
-                        name=f"{str(row['Hardware Type']).strip()} {str(row['Model']).strip()}".strip(),
+                        # Set name to just the Product field from CSV
+                        name=str(row['Product']).strip() if row['Product'] else None,
                         category="Computer",  # Default category
                         inventory=status.value  # Set inventory status same as status
                     )
@@ -792,78 +807,140 @@ def delete_accessory(id):
 def add_asset():
     db_session = db_manager.get_session()
     try:
-        # Get all unique models and their associated products from the database
-        model_products = db_session.query(Asset.model, Asset.name).distinct().filter(Asset.model.isnot(None)).all()
+        # Get all unique models and their exact product names from the database
+        model_info = db_session.query(
+            Asset.model, 
+            Asset.name,
+            Asset.asset_type
+        ).distinct().filter(
+            Asset.model.isnot(None),
+            Asset.name.isnot(None)  # Only get models that have a product name
+        ).all()
+        
+        # Get unique values for dropdown fields
+        unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        
+        # Process the lists to remove tuples and None values
         unique_models = []
         model_product_map = {}
-        for model, product in model_products:
+        model_type_map = {}
+        for model, product_name, asset_type in model_info:
             if model and model not in model_product_map:
                 unique_models.append(model)
-                model_product_map[model] = product if product else f"{model}"
+                model_product_map[model] = product_name
+                model_type_map[model] = asset_type if asset_type else ''
+
+        # Clean up the unique values
+        unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
+        unique_customers = sorted([c[0] for c in unique_customers if c[0]])
+        unique_countries = sorted([c[0] for c in unique_countries if c[0]])
+        unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
+        unique_diags = sorted([d[0] for d in unique_diags if d[0]])
+        unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
         
         if request.method == 'POST':
-            # Map inventory status to AssetStatus enum
-            inventory_status = request.form.get('status', '').upper()
-            if inventory_status == 'READY TO DEPLOY':
-                status = AssetStatus.READY_TO_DEPLOY
-            elif inventory_status == 'IN STOCK':
-                status = AssetStatus.IN_STOCK
-            elif inventory_status == 'SHIPPED':
-                status = AssetStatus.SHIPPED
-            elif inventory_status == 'DEPLOYED':
-                status = AssetStatus.DEPLOYED
-            elif inventory_status == 'REPAIR':
-                status = AssetStatus.REPAIR
-            elif inventory_status == 'ARCHIVED':
-                status = AssetStatus.ARCHIVED
-            else:
-                status = AssetStatus.IN_STOCK  # Default status
+            try:
+                # Map inventory status to AssetStatus enum
+                inventory_status = request.form.get('status', '').upper()
+                if inventory_status == 'READY TO DEPLOY':
+                    status = AssetStatus.READY_TO_DEPLOY
+                elif inventory_status == 'IN STOCK':
+                    status = AssetStatus.IN_STOCK
+                elif inventory_status == 'SHIPPED':
+                    status = AssetStatus.SHIPPED
+                elif inventory_status == 'DEPLOYED':
+                    status = AssetStatus.DEPLOYED
+                elif inventory_status == 'REPAIR':
+                    status = AssetStatus.REPAIR
+                elif inventory_status == 'ARCHIVED':
+                    status = AssetStatus.ARCHIVED
+                else:
+                    status = AssetStatus.IN_STOCK  # Default status
 
-            # Get model directly from the form
-            model = request.form.get('model')
-            if not model:
-                flash('Model is required', 'error')
-                return redirect(url_for('inventory.add_asset'))
+                # Get model directly from the form
+                model = request.form.get('model')
+                if not model:
+                    flash('Model is required', 'error')
+                    return render_template('inventory/add_asset.html',
+                                        statuses=AssetStatus,
+                                        models=unique_models,
+                                        model_product_map=model_product_map,
+                                        model_type_map=model_type_map,
+                                        chargers=unique_chargers,
+                                        customers=unique_customers,
+                                        countries=unique_countries,
+                                        conditions=unique_conditions,
+                                        diags=unique_diags,
+                                        asset_types=unique_asset_types)
 
-            # Create new asset from form data
-            new_asset = Asset(
-                asset_tag=request.form.get('asset_tag', ''),
-                name=request.form.get('product', ''),  # Add product as name
-                receiving_date=datetime.strptime(request.form.get('receiving_date', ''), '%Y-%m-%d').date() if request.form.get('receiving_date') else None,
-                keyboard=request.form.get('keyboard', ''),
-                serial_num=request.form.get('serial_num', ''),
-                po=request.form.get('po', ''),
-                model=model,
-                erased=request.form.get('erased') == 'true',
-                customer=request.form.get('customer', ''),
-                condition=request.form.get('condition', ''),
-                diag=request.form.get('diag', ''),
-                hardware_type=request.form.get('hardware_type', ''),
-                cpu_type=request.form.get('cpu_type', ''),
-                cpu_cores=request.form.get('cpu_cores', ''),
-                gpu_cores=request.form.get('gpu_cores', ''),
-                memory=request.form.get('memory', ''),
-                harddrive=request.form.get('harddrive', ''),
-                charger=request.form.get('charger', ''),
-                country=request.form.get('country', ''),
-                status=status
-            )
-            
-            db_session.add(new_asset)
-            db_session.commit()
-            flash('Asset added successfully!', 'success')
-            return redirect(url_for('inventory.view_inventory'))
+                # Create new asset from form data
+                new_asset = Asset(
+                    asset_tag=request.form.get('asset_tag', ''),
+                    name=request.form.get('product', ''),  # Add product as name
+                    asset_type=request.form.get('asset_type', ''),  # Add asset type
+                    receiving_date=datetime.strptime(request.form.get('receiving_date', ''), '%Y-%m-%d').date() if request.form.get('receiving_date') else None,
+                    keyboard=request.form.get('keyboard', ''),
+                    serial_num=request.form.get('serial_num', ''),
+                    po=request.form.get('po', ''),
+                    model=model,
+                    erased=request.form.get('erased') == 'true',
+                    customer=request.form.get('customer', ''),
+                    condition=request.form.get('condition', ''),
+                    diag=request.form.get('diag', ''),
+                    hardware_type=request.form.get('hardware_type', ''),
+                    cpu_type=request.form.get('cpu_type', ''),
+                    cpu_cores=request.form.get('cpu_cores', ''),
+                    gpu_cores=request.form.get('gpu_cores', ''),
+                    memory=request.form.get('memory', ''),
+                    harddrive=request.form.get('harddrive', ''),
+                    charger=request.form.get('charger', ''),
+                    country=request.form.get('country', ''),
+                    status=status
+                )
+                
+                db_session.add(new_asset)
+                db_session.commit()
+                flash('Asset added successfully!', 'success')
+                return redirect(url_for('inventory.view_inventory'))
+                
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error adding asset: {str(e)}', 'error')
+                return render_template('inventory/add_asset.html',
+                                    statuses=AssetStatus,
+                                    models=unique_models,
+                                    model_product_map=model_product_map,
+                                    model_type_map=model_type_map,
+                                    chargers=unique_chargers,
+                                    customers=unique_customers,
+                                    countries=unique_countries,
+                                    conditions=unique_conditions,
+                                    diags=unique_diags,
+                                    asset_types=unique_asset_types)
+        
+        # GET request - render the form
+        return render_template('inventory/add_asset.html',
+                            statuses=AssetStatus,
+                            models=unique_models,
+                            model_product_map=model_product_map,
+                            model_type_map=model_type_map,
+                            chargers=unique_chargers,
+                            customers=unique_customers,
+                            countries=unique_countries,
+                            conditions=unique_conditions,
+                            diags=unique_diags,
+                            asset_types=unique_asset_types)
+                            
     except Exception as e:
-        db_session.rollback()
-        flash(f'Error adding asset: {str(e)}', 'error')
-        return redirect(url_for('inventory.add_asset'))
+        flash(f'Error loading form: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_inventory'))
     finally:
         db_session.close()
-        
-    return render_template('inventory/add_asset.html', 
-                         statuses=AssetStatus, 
-                         models=unique_models,
-                         model_product_map=model_product_map)
 
 @inventory_bp.route('/download-template/<template_type>')
 @login_required
@@ -875,14 +952,14 @@ def download_template(template_type):
         if template_type == 'tech_assets':
             # Write headers for tech assets template
             writer.writerow([
-                'Asset Tag', 'Serial Number', 'Model', 'Hardware Type', 'CPU Type',
-                'CPU Cores', 'GPU Cores', 'Memory', 'Hard Drive', 'Status',
-                'Customer', 'Country', 'PO', 'Receiving date', 'Condition',
-                'Diagnostic', 'Erased', 'Keyboard', 'Charger', 'Included'
+                'ASSET TYPE', 'ASSET TAG', 'SERIAL NUMBER', 'Product', 'MODEL', 'HARDWARE TYPE', 'CPU TYPE',
+                'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 'STATUS',
+                'CUSTOMER', 'country', 'PO', 'Receiving date', 'CONDITION',
+                'DIAG', 'ERASED', 'Keyboard', 'CHARGER', 'INCLUDED'
             ])
             # Write example row
             writer.writerow([
-                'AST001', 'SN123456', 'MacBook Pro', 'Laptop', 'M1',
+                'Laptop', 'AST001', 'SN123456', 'MacBook Pro', 'MacBook Pro', 'Laptop', 'M1',
                 '8', '8', '16', '512', 'IN_STOCK',
                 'Company Name', 'USA', 'PO123', '2024-01-01', 'New',
                 'Passed', 'YES', 'US', 'YES', 'Box, Manual'

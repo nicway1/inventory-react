@@ -30,6 +30,35 @@
                     </div>
 
                     <div>
+                        <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                        <input type="text" 
+                               id="serial_num" 
+                               name="serial_num" 
+                               required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
+                        <div class="relative">
+                            <input type="text" 
+                                   id="model" 
+                                   name="model" 
+                                   list="model-list"
+                                   required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   onchange="handleModelChange(this)">
+                            <datalist id="model-list">
+                                {% for model in models %}
+                                <option value="{{ model }}" 
+                                        data-product="{{ model_product_map[model] }}"
+                                        data-asset-type="{{ model_type_map[model] }}">{{ model }}</option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <div>
                         <label for="product" class="block text-sm font-medium text-gray-700">Product</label>
                         <input type="text" 
                                id="product" 
@@ -39,12 +68,18 @@
                     </div>
 
                     <div>
-                        <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                        <label for="asset_type" class="block text-sm font-medium text-gray-700">Asset Type</label>
                         <input type="text" 
-                               id="serial_num" 
-                               name="serial_num" 
+                               id="asset_type" 
+                               name="asset_type" 
+                               list="asset-type-list"
                                required
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="asset-type-list">
+                            {% for type in asset_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
 
                     <div>
@@ -68,28 +103,17 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="hardware_type" class="block text-sm font-medium text-gray-700">Hardware Type</label>
-                        <input type="text" 
-                               id="hardware_type" 
-                               name="hardware_type" 
-                               required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                    </div>
-
-                    <div>
-                        <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
-                        <div class="relative">
+                        <div class="flex space-x-2">
                             <input type="text" 
-                                   id="model" 
-                                   name="model" 
-                                   list="model-list"
+                                   id="hardware_type" 
+                                   name="hardware_type" 
                                    required
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                                   onchange="handleModelChange(this)">
-                            <datalist id="model-list">
-                                {% for model in models %}
-                                <option value="{{ model }}" data-product="{{ model_product_map[model] }}">{{ model }}</option>
-                                {% endfor %}
-                            </datalist>
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <button type="button"
+                                    onclick="generateHardwareType()"
+                                    class="mt-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                Generate
+                            </button>
                         </div>
                     </div>
 
@@ -146,7 +170,13 @@
                         <input type="text" 
                                id="charger" 
                                name="charger" 
+                               list="charger-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="charger-list">
+                            {% for charger in chargers %}
+                            <option value="{{ charger }}">{{ charger }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
                 </div>
 
@@ -170,7 +200,13 @@
                         <input type="text" 
                                id="customer" 
                                name="customer" 
+                               list="customer-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="customer-list">
+                            {% for customer in customers %}
+                            <option value="{{ customer }}">{{ customer }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
 
                     <div>
@@ -178,7 +214,13 @@
                         <input type="text" 
                                id="country" 
                                name="country" 
+                               list="country-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="country-list">
+                            {% for country in countries %}
+                            <option value="{{ country }}">{{ country }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
                 </div>
 
@@ -189,7 +231,13 @@
                         <input type="text" 
                                id="condition" 
                                name="condition" 
+                               list="condition-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="condition-list">
+                            {% for condition in conditions %}
+                            <option value="{{ condition }}">{{ condition }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
 
                     <div>
@@ -197,7 +245,13 @@
                         <input type="text" 
                                id="diag" 
                                name="diag" 
+                               list="diag-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <datalist id="diag-list">
+                            {% for diag in diags %}
+                            <option value="{{ diag }}">{{ diag }}</option>
+                            {% endfor %}
+                        </datalist>
                     </div>
 
                     <div class="col-span-2">
@@ -225,8 +279,31 @@
 </div>
 
 <script>
+    function generateHardwareType() {
+        const product = document.getElementById('product').value;
+        const assetType = document.getElementById('asset_type').value;
+        const cpuType = document.getElementById('cpu_type').value;
+        const cpuCores = document.getElementById('cpu_cores').value;
+        const gpuCores = document.getElementById('gpu_cores').value;
+        const harddrive = document.getElementById('harddrive').value;
+
+        let hardwareType = '';
+
+        // Build the hardware type string
+        if (product) hardwareType += product + ' ';
+        if (assetType) hardwareType += assetType + ' ';
+        if (cpuType) hardwareType += cpuType + ' ';
+        if (cpuCores) hardwareType += cpuCores + '-Core ';
+        if (gpuCores) hardwareType += gpuCores + '-Core GPU ';
+        if (harddrive) hardwareType += harddrive + 'GB';
+
+        // Set the generated hardware type
+        document.getElementById('hardware_type').value = hardwareType.trim();
+    }
+
     function handleModelChange(input) {
         const productInput = document.getElementById('product');
+        const assetTypeInput = document.getElementById('asset_type');
         const modelList = document.getElementById('model-list');
         const options = modelList.options;
         
@@ -240,14 +317,21 @@
         }
         
         if (matchingOption) {
-            // If it's an existing model, set the product and make it read-only
+            // If it's an existing model, set the product and asset type
             const product = matchingOption.getAttribute('data-product');
+            const assetType = matchingOption.getAttribute('data-asset-type');
+            
             productInput.value = product;
             productInput.readOnly = true;
+            
+            if (assetType) {
+                assetTypeInput.value = assetType;
+            }
         } else {
-            // If it's a new model, clear the product and make it editable
+            // If it's a new model, clear the fields and make them editable
             productInput.value = '';
             productInput.readOnly = false;
+            assetTypeInput.value = '';
         }
     }
 </script>

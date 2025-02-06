@@ -54,6 +54,10 @@
                     <dd class="text-sm text-gray-900">{{ asset.model or 'N/A' }}</dd>
                 </div>
                 <div>
+                    <dt class="text-sm font-medium text-gray-500">Asset Type</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.asset_type or 'N/A' }}</dd>
+                </div>
+                <div>
                     <dt class="text-sm font-medium text-gray-500">Hardware Type</dt>
                     <dd class="text-sm text-gray-900">{{ asset.hardware_type or 'N/A' }}</dd>
                 </div>
@@ -72,6 +76,10 @@
         <div class="bg-white shadow rounded-lg p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Hardware Specifications</h2>
             <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Model Name</dt>
+                    <dd class="text-sm text-gray-900">{{ asset.name or 'N/A' }}</dd>
+                </div>
                 <div>
                     <dt class="text-sm font-medium text-gray-500">CPU Type</dt>
                     <dd class="text-sm text-gray-900">{{ asset.cpu_type or 'N/A' }}</dd>

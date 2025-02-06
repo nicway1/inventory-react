@@ -36,6 +36,7 @@ class Asset(Base):
     inventory = Column(String(50))  # For inventory status
     customer = Column(String(100))  # For storing customer name
     country = Column(String(100))
+    asset_type = Column(String(100))  # For storing asset type
     
     # Additional fields from import
     receiving_date = Column(DateTime)

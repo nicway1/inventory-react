@@ -38,6 +38,7 @@
                             <div>
                                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
                                 <div class="space-y-2">
+                                    <p class="text-sm"><span class="font-medium">Asset Type:</span> {{ row['Asset Type'] }}</p>
                                     <p class="text-sm"><span class="font-medium">Asset Tag:</span> {{ row['Asset Tag'] }}</p>
                                     <p class="text-sm"><span class="font-medium">Serial Number:</span> {{ row['Serial Number'] }}</p>
                                     <p class="text-sm"><span class="font-medium">Product:</span> {{ row['Product'] }}</p>
@@ -159,6 +160,7 @@
                 <div id="tech_assets_format" class="bg-gray-50 rounded-md p-4 text-sm text-gray-600">
                     <p class="font-medium mb-2">For Tech Assets:</p>
                     <ul class="list-disc list-inside space-y-1">
+                        <li>ASSET TYPE (required)</li>
                         <li>ASSET TAG (required)</li>
                         <li>SERIAL NUMBER</li>
                         <li>MODEL</li>
