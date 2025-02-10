@@ -15,6 +15,7 @@ import json
 import time
 import io
 import csv
+from models.user import UserType
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -34,21 +35,33 @@ def allowed_file(filename):
 def view_inventory():
     db_session = db_manager.get_session()
     try:
-        # Get counts using a simpler query
-        tech_assets_count = db_session.query(Asset).count()
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query for tech assets
+        tech_assets_query = db_session.query(Asset)
+        
+        # Filter by country if user is Country Admin
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            tech_assets_query = tech_assets_query.filter(Asset.country == user.assigned_country.value)
+        
+        # Get counts
+        tech_assets_count = tech_assets_query.count()
         accessories_count = db_session.query(Accessory).count()
 
-        print(f"Initial Tech Assets Count: {tech_assets_count}")  # Debug print
-
-        # Get unique values for filters from assets only
-        companies = db_session.query(Asset.customer).distinct().all()
+        # Get unique values for filters from filtered assets only
+        companies = tech_assets_query.with_entities(Asset.customer).distinct().all()
         companies = sorted(list(set([c[0] for c in companies if c[0]])))
 
-        models = db_session.query(Asset.model).distinct().all()
+        models = tech_assets_query.with_entities(Asset.model).distinct().all()
         models = sorted(list(set([m[0] for m in models if m[0]])))
 
-        countries = db_session.query(Asset.country).distinct().all()
-        countries = sorted(list(set([c[0] for c in countries if c[0]])))
+        # For Country Admin, only show their assigned country
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            countries = [user.assigned_country.value]
+        else:
+            countries = tech_assets_query.with_entities(Asset.country).distinct().all()
+            countries = sorted(list(set([c[0] for c in countries if c[0]])))
 
         # Get accessories with counts
         accessories = db_session.query(
@@ -68,9 +81,6 @@ def view_inventory():
             for acc in accessories
         ]
 
-        print(f"Tech Assets Count: {tech_assets_count}")  # Debug print
-        print(f"Accessories Count: {accessories_count}")  # Debug print
-
         return render_template(
             'inventory/view.html',
             tech_assets_count=tech_assets_count,
@@ -78,7 +88,8 @@ def view_inventory():
             companies=companies,
             models=models,
             countries=countries,
-            accessories=accessories_list
+            accessories=accessories_list,
+            user=user
         )
 
     finally:
@@ -89,7 +100,17 @@ def view_inventory():
 def view_tech_assets():
     db_session = db_manager.get_session()
     try:
-        assets = db_session.query(Asset).all()
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query for assets
+        assets_query = db_session.query(Asset)
+        
+        # Filter by country if user is Country Admin
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
+        
+        assets = assets_query.all()
         total_count = len(assets)
         
         return jsonify({
@@ -154,8 +175,15 @@ def filter_inventory():
         
         db_session = db_manager.get_session()
         try:
+            # Get the current user
+            user = db_manager.get_user(session['user_id'])
+            
             # Build query based on filters
             assets_query = db_session.query(Asset)
+            
+            # Always apply country filter for Country Admin
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
 
             if data.get('search'):
                 search = f"%{data['search']}%"
@@ -181,7 +209,8 @@ def filter_inventory():
                 print(f"Applying model filter: {data['model']}")  # Debug log
                 assets_query = assets_query.filter(Asset.model == data['model'])
 
-            if data.get('country'):
+            # Only apply country filter if user is not Country Admin
+            if data.get('country') and user.user_type != UserType.COUNTRY_ADMIN:
                 print(f"Applying country filter: {data['country']}")  # Debug log
                 assets_query = assets_query.filter(Asset.country == data['country'])
 
@@ -193,7 +222,7 @@ def filter_inventory():
                 print(f"Filtered Tech Assets Count: {tech_assets_count}")
 
                 response_data = {
-                    'total_count': tech_assets_count,  # Use consistent key name
+                    'total_count': tech_assets_count,
                     'assets': [
                         {
                             'id': asset.id,
@@ -205,7 +234,10 @@ def filter_inventory():
                             'customer': asset.customer,
                             'country': asset.country,
                             'cpu_type': asset.cpu_type,
-                            'cpu_cores': asset.cpu_cores
+                            'cpu_cores': asset.cpu_cores,
+                            'gpu_cores': asset.gpu_cores,
+                            'memory': asset.memory,
+                            'harddrive': asset.harddrive
                         }
                         for asset in assets
                     ]
@@ -671,10 +703,20 @@ def confirm_import():
 def view_asset(asset_id):
     db_session = db_manager.get_session()
     try:
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Get the asset
         asset = db_session.query(Asset).get(asset_id)
         if not asset:
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory'))
+        
+        # Check if Country Admin has access to this asset
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            if asset.country != user.assigned_country.value:
+                flash('You do not have permission to view this asset', 'error')
+                return redirect(url_for('inventory.view_inventory'))
         
         return render_template('inventory/asset_details.html', asset=asset)
     finally:
@@ -990,6 +1032,142 @@ def download_template(template_type):
     except Exception as e:
         flash(f'Error generating template: {str(e)}', 'error')
         return redirect(url_for('inventory.import_inventory'))
+
+@inventory_bp.route('/asset/<int:asset_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_asset(asset_id):
+    db_session = db_manager.get_session()
+    try:
+        # Get the asset
+        asset = db_session.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+
+        if request.method == 'POST':
+            try:
+                # Update asset with form data
+                asset.asset_tag = request.form.get('asset_tag', '')
+                asset.name = request.form.get('product', '')
+                asset.asset_type = request.form.get('asset_type', '')
+                asset.serial_num = request.form.get('serial_num', '')
+                asset.po = request.form.get('po', '')
+                asset.model = request.form.get('model', '')
+                asset.customer = request.form.get('customer', '')
+                asset.condition = request.form.get('condition', '')
+                asset.diag = request.form.get('diag', '')
+                asset.hardware_type = request.form.get('hardware_type', '')
+                asset.cpu_type = request.form.get('cpu_type', '')
+                asset.cpu_cores = request.form.get('cpu_cores', '')
+                asset.gpu_cores = request.form.get('gpu_cores', '')
+                asset.memory = request.form.get('memory', '')
+                asset.harddrive = request.form.get('harddrive', '')
+                asset.charger = request.form.get('charger', '')
+                asset.country = request.form.get('country', '')
+                
+                # Handle status
+                status_value = request.form.get('status', '')
+                if status_value:
+                    try:
+                        asset.status = AssetStatus[status_value.upper().replace(' ', '_')]
+                    except KeyError:
+                        asset.status = AssetStatus.IN_STOCK
+
+                # Handle receiving date
+                receiving_date = request.form.get('receiving_date')
+                if receiving_date:
+                    asset.receiving_date = datetime.strptime(receiving_date, '%Y-%m-%d').date()
+
+                # Handle boolean fields
+                asset.erased = request.form.get('erased') == 'true'
+
+                db_session.commit()
+                flash('Asset updated successfully!', 'success')
+                return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error updating asset: {str(e)}', 'error')
+                return redirect(url_for('inventory.edit_asset', asset_id=asset_id))
+
+        # Get unique values for dropdowns (same as in add_asset)
+        model_info = db_session.query(
+            Asset.model, 
+            Asset.name,
+            Asset.asset_type
+        ).distinct().filter(
+            Asset.model.isnot(None),
+            Asset.name.isnot(None)
+        ).all()
+        
+        unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        
+        # Process the lists
+        unique_models = []
+        model_product_map = {}
+        model_type_map = {}
+        for model, product_name, asset_type in model_info:
+            if model and model not in model_product_map:
+                unique_models.append(model)
+                model_product_map[model] = product_name
+                model_type_map[model] = asset_type if asset_type else ''
+
+        # Clean up the unique values
+        unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
+        unique_customers = sorted([c[0] for c in unique_customers if c[0]])
+        unique_countries = sorted([c[0] for c in unique_countries if c[0]])
+        unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
+        unique_diags = sorted([d[0] for d in unique_diags if d[0]])
+        unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
+
+        return render_template('inventory/edit_asset.html',
+                            asset=asset,
+                            statuses=AssetStatus,
+                            models=unique_models,
+                            model_product_map=model_product_map,
+                            model_type_map=model_type_map,
+                            chargers=unique_chargers,
+                            customers=unique_customers,
+                            countries=unique_countries,
+                            conditions=unique_conditions,
+                            diags=unique_diags,
+                            asset_types=unique_asset_types)
+
+    except Exception as e:
+        flash(f'Error loading form: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_inventory'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/asset/<int:asset_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_asset(asset_id):
+    db_session = db_manager.get_session()
+    try:
+        asset = db_session.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+
+        try:
+            db_session.delete(asset)
+            db_session.commit()
+            flash('Asset deleted successfully!', 'success')
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error deleting asset: {str(e)}', 'error')
+            
+        return redirect(url_for('inventory.view_inventory'))
+        
+    finally:
+        db_session.close()
 
 @inventory_bp.after_request
 def add_csrf_token_to_response(response):
