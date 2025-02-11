@@ -60,10 +60,33 @@
                             name="user_type" 
                             required
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="user" {% if user.user_type.value == 'user' %}selected{% endif %}>Regular User</option>
-                        {% if current_user.is_super_admin %}
-                        <option value="admin" {% if user.user_type.value == 'admin' %}selected{% endif %}>Admin</option>
-                        {% endif %}
+                        <option value="SUPER_ADMIN" {% if user.user_type.value == 'Super Admin' %}selected{% endif %}>Super Admin</option>
+                        <option value="SUPERVISOR" {% if user.user_type.value == 'Supervisor' %}selected{% endif %}>Supervisor</option>
+                        <option value="COUNTRY_ADMIN" {% if user.user_type.value == 'Country Admin' %}selected{% endif %}>Country Admin</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Super Admin: Full system access
+                        <br>
+                        Supervisor: View and search access only
+                        <br>
+                        Country Admin: Manage assigned country's inventory
+                    </p>
+                </div>
+
+                <!-- Country Selection (for Country Admin) -->
+                <div id="countrySelect" style="display: none;">
+                    <label for="assigned_country" class="block text-sm font-medium text-gray-700">Assigned Country</label>
+                    <select id="assigned_country" 
+                            name="assigned_country" 
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select Country --</option>
+                        <option value="USA" {% if user.assigned_country and user.assigned_country.value == 'USA' %}selected{% endif %}>USA</option>
+                        <option value="JAPAN" {% if user.assigned_country and user.assigned_country.value == 'Japan' %}selected{% endif %}>Japan</option>
+                        <option value="PHILIPPINES" {% if user.assigned_country and user.assigned_country.value == 'Philippines' %}selected{% endif %}>Philippines</option>
+                        <option value="AUSTRALIA" {% if user.assigned_country and user.assigned_country.value == 'Australia' %}selected{% endif %}>Australia</option>
+                        <option value="ISRAEL" {% if user.assigned_country and user.assigned_country.value == 'Israel' %}selected{% endif %}>Israel</option>
+                        <option value="INDIA" {% if user.assigned_country and user.assigned_country.value == 'India' %}selected{% endif %}>India</option>
+                        <option value="SINGAPORE" {% if user.assigned_country and user.assigned_country.value == 'Singapore' %}selected{% endif %}>Singapore</option>
                     </select>
                 </div>
 
@@ -89,4 +112,24 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.getElementById('user_type');
+    const countrySelect = document.getElementById('countrySelect');
+    
+    userTypeSelect.addEventListener('change', function() {
+        if (this.value === 'COUNTRY_ADMIN') {
+            countrySelect.style.display = 'block';
+            document.getElementById('assigned_country').required = true;
+        } else {
+            countrySelect.style.display = 'none';
+            document.getElementById('assigned_country').required = false;
+        }
+    });
+
+    // Trigger the change event on load to handle initial state
+    userTypeSelect.dispatchEvent(new Event('change'));
+});
+</script>
 {% endblock %} 

@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
-from utils.auth_decorators import admin_required
+from flask_login import current_user
+from utils.auth_decorators import admin_required, super_admin_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
-from models.user import UserType
+from models.user import User, UserType, Country
+from models.permission import Permission
 from datetime import datetime
 from models.company import Company
 import os
@@ -29,8 +31,13 @@ def save_company_logo(file):
 @admin_bp.route('/settings')
 @admin_required
 def settings():
-    """Admin settings page"""
-    return render_template('admin/settings.html')
+    """Render the settings page with permissions management"""
+    db = SessionLocal()
+    try:
+        permissions = db.query(Permission).all()
+        return render_template('admin/settings.html', permissions=permissions)
+    finally:
+        db.close()
 
 @admin_bp.route('/companies')
 @admin_required
@@ -151,18 +158,29 @@ def create_user():
         email = request.form.get('email')
         password = request.form.get('password')
         company_id = request.form.get('company_id')
-        user_type = request.form.get('user_type', 'user')
+        user_type = request.form.get('user_type')
+        assigned_country = request.form.get('assigned_country')
 
         try:
-            from werkzeug.security import generate_password_hash
-            from models.user import User
-            user = User(
-                username=username,
-                email=email,
-                password_hash=generate_password_hash(password),
-                company_id=company_id if company_id else None,
-                user_type=UserType[user_type.upper()]
-            )
+            from models.user import User, UserType, Country
+
+            # Create user data dictionary
+            user_data = {
+                'username': username,
+                'email': email,
+                'password_hash': generate_password_hash(password),
+                'company_id': company_id if company_id else None,
+                'user_type': UserType[user_type]
+            }
+
+            # Add assigned country for Country Admin
+            if user_type == 'COUNTRY_ADMIN':
+                if not assigned_country:
+                    flash('Country selection is required for Country Admin', 'error')
+                    return render_template('admin/create_user.html', companies=companies)
+                user_data['assigned_country'] = Country[assigned_country]
+
+            user = User(**user_data)
             db_session.add(user)
             db_session.commit()
             flash('User created successfully', 'success')
@@ -178,38 +196,52 @@ def create_user():
 @admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @admin_required
 def edit_user(user_id):
-    user = db_manager.get_user(user_id)
+    """Edit an existing user"""
+    db_session = db_manager.get_session()
+    user = db_session.query(User).get(user_id)
     if not user:
         flash('User not found', 'error')
         return redirect(url_for('admin.manage_users'))
 
+    companies = db_session.query(Company).all()
+
     if request.method == 'POST':
         username = request.form.get('username')
-        company = request.form.get('company')
-        role = request.form.get('role')
+        email = request.form.get('email')
+        company_id = request.form.get('company_id')
         user_type = request.form.get('user_type')
-        new_password = request.form.get('new_password')
+        password = request.form.get('password')
+        assigned_country = request.form.get('assigned_country')
 
-        # Update user data
         try:
-            update_data = {
-                'username': username,
-                'company': company,
-                'role': role,
-                'user_type': UserType.ADMIN if user_type == 'admin' else UserType.USER
-            }
-            
-            # Only update password if a new one is provided
-            if new_password:
-                update_data['password_hash'] = new_password
+            # Update basic user information
+            user.username = username
+            user.email = email
+            user.company_id = company_id if company_id else None
+            user.user_type = UserType[user_type]
 
-            db_manager.update_user(user_id, update_data)
+            # Update password if provided
+            if password:
+                user.password_hash = generate_password_hash(password)
+
+            # Handle country assignment
+            if user_type == 'COUNTRY_ADMIN':
+                if not assigned_country:
+                    flash('Country selection is required for Country Admin', 'error')
+                    return render_template('admin/edit_user.html', user=user, companies=companies)
+                user.assigned_country = Country[assigned_country]
+            else:
+                user.assigned_country = None
+
+            db_session.commit()
             flash('User updated successfully', 'success')
             return redirect(url_for('admin.manage_users'))
         except Exception as e:
+            db_session.rollback()
             flash(f'Error updating user: {str(e)}', 'error')
+        finally:
+            db_session.close()
 
-    companies = db_manager.get_all_companies()
     return render_template('admin/edit_user.html', user=user, companies=companies)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
@@ -247,4 +279,65 @@ def manage_user(user_id):
     return render_template('admin/manage_user.html', 
                          user=user, 
                          activities=activities,
-                         assigned_assets=assigned_assets) 
+                         assigned_assets=assigned_assets)
+
+@admin_bp.route('/permissions/update', methods=['POST'])
+@super_admin_required
+def update_permissions():
+    """Update user type permissions"""
+    db = SessionLocal()
+    try:
+        # Get form data
+        user_type = request.form.get('user_type')
+        permissions_data = {}
+        
+        # Extract permission values from form
+        for key in request.form:
+            if key.startswith('can_'):
+                permissions_data[key] = request.form.get(key) == 'on'
+        
+        # Update or create permission record
+        permission = db.query(Permission).filter_by(user_type=user_type).first()
+        if not permission:
+            permission = Permission(user_type=user_type)
+            db.add(permission)
+        
+        # Update permission attributes
+        for key, value in permissions_data.items():
+            setattr(permission, key, value)
+        
+        db.commit()
+        flash('Permissions updated successfully', 'success')
+        return redirect(url_for('admin.settings'))
+    except Exception as e:
+        db.rollback()
+        flash(f'Error updating permissions: {str(e)}', 'error')
+        return redirect(url_for('admin.settings'))
+    finally:
+        db.close()
+
+@admin_bp.route('/permissions/reset/<user_type>')
+@super_admin_required
+def reset_permissions(user_type):
+    """Reset permissions for a user type to default values"""
+    db = SessionLocal()
+    try:
+        # Delete existing permissions
+        db.query(Permission).filter_by(user_type=user_type).delete()
+        
+        # Get default permissions
+        default_permissions = Permission.get_default_permissions(user_type)
+        
+        # Create new permission record with defaults
+        permission = Permission(user_type=user_type, **default_permissions)
+        db.add(permission)
+        db.commit()
+        
+        flash('Permissions reset to default values', 'success')
+        return redirect(url_for('admin.settings'))
+    except Exception as e:
+        db.rollback()
+        flash(f'Error resetting permissions: {str(e)}', 'error')
+        return redirect(url_for('admin.settings'))
+    finally:
+        db.close() 

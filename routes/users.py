@@ -1,8 +1,11 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, session, request
-from utils.auth_decorators import login_required, admin_required
+from flask import Blueprint, render_template, redirect, url_for, flash, session, request, jsonify
+from utils.auth_decorators import login_required, admin_required, super_admin_required
 from utils.user_store import UserStore
 from utils.ticket_store import TicketStore
 from utils.snipeit_api import get_all_assets
+from forms.user_form import UserCreateForm
+from models.user import UserType, Country
+from werkzeug.security import generate_password_hash
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 user_store = UserStore()
@@ -147,4 +150,37 @@ def reset_user_password(user_id):
     else:
         flash('New password is required')
 
-    return redirect(url_for('users.manage_user', user_id=user_id)) 
+    return redirect(url_for('users.manage_user', user_id=user_id))
+
+@users_bp.route('/create', methods=['GET', 'POST'])
+@login_required
+@super_admin_required
+def create_user():
+    form = UserCreateForm()
+    
+    if request.method == 'POST' and form.validate_on_submit():
+        try:
+            user_data = {
+                'username': form.username.data,
+                'email': form.email.data,
+                'password_hash': generate_password_hash(form.password.data),
+                'user_type': UserType(form.user_type.data)
+            }
+            
+            # Add assigned country only for Country Admin
+            if form.user_type.data == UserType.COUNTRY_ADMIN.value:
+                if not form.assigned_country.data:
+                    return jsonify({'error': 'Country selection is required for Country Admin'}), 400
+                user_data['assigned_country'] = Country(form.assigned_country.data)
+            
+            new_user = User(**user_data)
+            db.session.add(new_user)
+            db.session.commit()
+            
+            return jsonify({'message': 'User created successfully'}), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 400
+            
+    return render_template('users/create.html', form=form) 

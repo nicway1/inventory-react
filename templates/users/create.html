@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-6">Create New User</h2>
+        <form id="createUserForm" method="POST" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            {{ form.csrf_token }}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                {{ form.username(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                {{ form.email(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                {{ form.password(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">User Type</label>
+                {{ form.user_type(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+                <p class="text-sm text-gray-500 mt-1">
+                    Super Admin: Full system access
+                    <br>
+                    Supervisor: View and search access only
+                    <br>
+                    Country Admin: Manage assigned country's inventory
+                </p>
+            </div>
+            
+            <div class="mb-4" id="countrySelect" style="display: none;">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Assigned Country</label>
+                {{ form.assigned_country(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Create User
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.getElementById('user_type');
+    const countrySelect = document.getElementById('countrySelect');
+    
+    userTypeSelect.addEventListener('change', function() {
+        if (this.value === 'Country Admin') {
+            countrySelect.style.display = 'block';
+            document.getElementById('assigned_country').required = true;
+        } else {
+            countrySelect.style.display = 'none';
+            document.getElementById('assigned_country').required = false;
+        }
+    });
+
+    // Trigger the change event on load to handle initial state
+    userTypeSelect.dispatchEvent(new Event('change'));
+});
+</script>
+{% endblock %} 

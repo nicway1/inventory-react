@@ -40,4 +40,4 @@ env/
 
 # Environment variables
 .env
-.env.* 
+.env.* uploads/

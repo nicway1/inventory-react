@@ -30,6 +30,7 @@ class Asset(Base):
     notes = Column(String(1000))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    assigned_to_id = Column(Integer, ForeignKey('users.id'))
     
     # Additional fields used in inventory routes
     hardware_type = Column(String(100))
@@ -55,4 +56,5 @@ class Asset(Base):
     # Relationships with string references
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic") 
+    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
+    assigned_to = relationship("User", back_populates="assigned_assets") 

@@ -433,7 +433,8 @@ def import_inventory():
                             ]
                         else:  # accessories
                             column_names = [
-                                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL NO', 'QUANTITY', 'STATUS', 'NOTES'
+                                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL NO', 'STATUS',
+                                'QUANTITY', 'COUNTRY', 'NOTES'
                             ]
 
                         # Try different encodings
@@ -447,7 +448,7 @@ def import_inventory():
                                     df = pd.read_csv(filepath, skiprows=[0], names=column_names, encoding=encoding)
                                     df = df.drop('Index', axis=1)
                                 else:
-                                    df = pd.read_csv(filepath, encoding=encoding)
+                                    df = pd.read_csv(filepath, skiprows=[0], names=column_names, encoding=encoding)
                                 break
                             except Exception as e:
                                 last_error = e
@@ -479,22 +480,33 @@ def import_inventory():
                                     'Receiving Date': clean_value(row.get('Receiving date', '')),
                                     'Condition': clean_value(row.get('CONDITION', '')),
                                     'Diagnostic': clean_value(row.get('DIAG', '')),
-                                    'Erased': clean_value(row.get('ERASED', '')),
+                                    'Erased': clean_value(row.get('ERASED', '')).upper() == 'YES' if clean_value(row.get('ERASED', '')) else False,
                                     'Keyboard': clean_value(row.get('Keyboard', '')),
                                     'Charger': clean_value(row.get('CHARGER', '')),
                                     'Included': clean_value(row.get('INCLUDED', ''))
                                 }
                                 preview_data.append(preview_row)
                         else:  # accessories
+                            # Read CSV file with headers
+                            df = pd.read_csv(filepath, encoding=encoding)
+                            
+                            # Generate preview data
                             for _, row in df.iterrows():
+                                try:
+                                    quantity = str(row['TOTAL QUANTITY']).strip()
+                                    quantity = int(quantity) if quantity else 0
+                                except (ValueError, KeyError):
+                                    quantity = 0
+
                                 preview_row = {
-                                    'Name': clean_value(row.get('NAME', '')),
-                                    'Category': clean_value(row.get('CATEGORY', '')),
-                                    'Manufacturer': clean_value(row.get('MANUFACTURER', '')),
-                                    'Model No': clean_value(row.get('MODEL NO', '')),
-                                    'Quantity': clean_value(row.get('QUANTITY', '')),
-                                    'Status': clean_status(row.get('STATUS', '')),
-                                    'Notes': clean_value(row.get('NOTES', ''))
+                                    'Name': str(row['NAME']).strip(),
+                                    'Category': str(row['CATEGORY']).strip(),
+                                    'Manufacturer': str(row['MANUFACTURER']).strip(),
+                                    'Model Number': str(row['MODEL_NO']).strip(),
+                                    'Status': str(row['Status']).strip() if pd.notna(row['Status']) else 'Available',
+                                    'Total Quantity': quantity,
+                                    'Country': str(row['COUNTRY']).strip(),
+                                    'Notes': str(row['NOTES']).strip()
                                 }
                                 preview_data.append(preview_row)
 
@@ -541,6 +553,12 @@ def import_inventory():
 @inventory_bp.route('/confirm-import', methods=['POST'])
 @admin_required
 def confirm_import():
+    # Helper function to clean values
+    def clean_value(val):
+        if pd.isna(val) or str(val).lower() == 'nan':
+            return None
+        return str(val).strip()
+
     try:
         filepath = request.form.get('filepath') or session.get('import_filepath')
         preview_filepath = session.get('preview_filepath')
@@ -569,96 +587,142 @@ def confirm_import():
             
             for index, row in enumerate(preview_data['data'], 1):
                 try:
-                    # Check for duplicate serial number
-                    serial_num = str(row['Serial Number']).strip() if row['Serial Number'] else None
-                    if serial_num:
-                        existing_asset = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
-                        if existing_asset:
-                            error_msg = f"Row {index}: Serial Number '{serial_num}' already exists in the database (Asset Tag: {existing_asset.asset_tag})"
+                    if preview_data['import_type'] == 'tech_assets':
+                        # Get and validate serial number
+                        serial_num = clean_value(row.get('Serial Number', ''))
+                        if not serial_num:
+                            error_msg = f"Row {index}: Serial Number is required but was empty"
                             print(error_msg)
                             errors.append(error_msg)
                             failed += 1
                             continue
 
-                    # Default to IN_STOCK if status is empty, nan, or invalid
-                    status = AssetStatus.IN_STOCK
-                    if row['Status'] and str(row['Status']).lower() not in ['nan', 'none', '']:
-                        try:
-                            status = AssetStatus[row['Status'].upper().replace(' ', '_')]
-                        except KeyError:
-                            print(f"Invalid status '{row['Status']}', defaulting to IN_STOCK")
+                        # Check for duplicate serial number
+                        serial_num = str(row['Serial Number']).strip() if row['Serial Number'] else None
+                        if serial_num:
+                            existing_asset = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
+                            if existing_asset:
+                                error_msg = f"Row {index}: Serial Number '{serial_num}' already exists in the database (Asset Tag: {existing_asset.asset_tag})"
+                                print(error_msg)
+                                errors.append(error_msg)
+                                failed += 1
+                                continue
 
-                    # Parse date
-                    receiving_date = None
-                    if row['Receiving Date'] and str(row['Receiving Date']).lower() not in ['nan', 'none', '']:
-                        try:
-                            receiving_date = datetime.strptime(row['Receiving Date'], '%Y-%m-%d').date()
-                        except ValueError:
-                            print(f"Invalid date format '{row['Receiving Date']}', skipping")
+                        # Default to IN_STOCK if status is empty, nan, or invalid
+                        status = AssetStatus.IN_STOCK
+                        if row['Status'] and str(row['Status']).lower() not in ['nan', 'none', '']:
+                            try:
+                                status = AssetStatus[row['Status'].upper().replace(' ', '_')]
+                            except KeyError:
+                                print(f"Invalid status '{row['Status']}', defaulting to IN_STOCK")
 
-                    # Convert memory and storage to integers if present
-                    memory = None
-                    if row['Memory'] and str(row['Memory']).lower() not in ['nan', 'none', '']:
-                        try:
-                            memory = int(str(row['Memory']).replace('GB', '').strip())
-                        except ValueError:
-                            print(f"Invalid memory value '{row['Memory']}', skipping")
+                        # Parse date
+                        receiving_date = None
+                        if row['Receiving Date'] and str(row['Receiving Date']).lower() not in ['nan', 'none', '']:
+                            try:
+                                # Try different date formats
+                                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d-%b-%y']
+                                date_str = str(row['Receiving Date']).strip()
+                                for date_format in date_formats:
+                                    try:
+                                        receiving_date = datetime.strptime(date_str, date_format)
+                                        break
+                                    except ValueError:
+                                        continue
+                                if not receiving_date:
+                                    print(f"Could not parse date '{date_str}' with any known format")
+                            except Exception as e:
+                                print(f"Error parsing date '{date_str}': {str(e)}")
 
-                    storage = None
-                    if row['Hard Drive'] and str(row['Hard Drive']).lower() not in ['nan', 'none', '']:
-                        try:
-                            storage = int(str(row['Hard Drive']).replace('GB', '').strip())
-                        except ValueError:
-                            print(f"Invalid storage value '{row['Hard Drive']}', skipping")
+                        # Convert memory and storage to integers if present
+                        memory = None
+                        if row['Memory'] and str(row['Memory']).lower() not in ['nan', 'none', '']:
+                            try:
+                                memory = int(str(row['Memory']).replace('GB', '').strip())
+                            except ValueError:
+                                print(f"Invalid memory value '{row['Memory']}', skipping")
 
-                    # Create new asset with proper type conversion and defaults
-                    asset = Asset(
-                        # Required fields
-                        asset_tag=str(row['Asset Tag']).strip() if row['Asset Tag'] else None,
-                        serial_num=str(row['Serial Number']).strip() if row['Serial Number'] else None,
-                        model=str(row['Model']).strip() if row['Model'] else None,
-                        
-                        # Asset and hardware type
-                        asset_type=str(row['Asset Type']).strip() if row['Asset Type'] else None,
-                        hardware_type=str(row['Hardware Type']).strip() if row['Hardware Type'] else None,
-                        
-                        # Hardware specifications
-                        cpu_type=str(row['CPU Type']).strip() if row['CPU Type'] else None,
-                        cpu_cores=str(row['CPU Cores']).strip() if row['CPU Cores'] else None,
-                        gpu_cores=str(row['GPU Cores']).strip() if row['GPU Cores'] else None,
-                        memory=str(row['Memory']).strip() if row['Memory'] else None,
-                        harddrive=str(row['Hard Drive']).strip() if row['Hard Drive'] else None,
-                        
-                        # Status and location
-                        status=status,
-                        customer=str(row['Customer']).strip() if row['Customer'] else None,
-                        country=str(row['Country']).strip() if row['Country'] else None,
-                        
-                        # Purchase and receiving info
-                        po=str(row['PO']).strip() if row['PO'] else None,
-                        receiving_date=receiving_date,
-                        
-                        # Condition and diagnostics
-                        condition=str(row['Condition']).strip() if row['Condition'] else None,
-                        diag=str(row['Diagnostic']).strip() if row['Diagnostic'] else None,
-                        erased=str(row['Erased']).strip() if row['Erased'] else None,
-                        
-                        # Accessories
-                        keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
-                        charger=str(row['Charger']).strip() if row['Charger'] else None,
-                        
-                        # Set name to just the Product field from CSV
-                        name=str(row['Product']).strip() if row['Product'] else None,
-                        category="Computer",  # Default category
-                        inventory=status.value  # Set inventory status same as status
-                    )
-                    db_session.add(asset)
-                    successful += 1
+                        storage = None
+                        if row['Hard Drive'] and str(row['Hard Drive']).lower() not in ['nan', 'none', '']:
+                            try:
+                                storage = int(str(row['Hard Drive']).replace('GB', '').strip())
+                            except ValueError:
+                                print(f"Invalid storage value '{row['Hard Drive']}', skipping")
+
+                        # Create new asset with proper type conversion and defaults
+                        asset = Asset(
+                            # Required fields
+                            asset_tag=str(row['Asset Tag']).strip() if row['Asset Tag'] else None,
+                            serial_num=str(row['Serial Number']).strip() if row['Serial Number'] else None,
+                            model=str(row['Model']).strip() if row['Model'] else None,
+                            
+                            # Asset and hardware type
+                            asset_type=str(row['Asset Type']).strip() if row['Asset Type'] else None,
+                            hardware_type=str(row['Hardware Type']).strip() if row['Hardware Type'] else None,
+                            
+                            # Hardware specifications
+                            cpu_type=str(row['CPU Type']).strip() if row['CPU Type'] else None,
+                            cpu_cores=str(row['CPU Cores']).strip() if row['CPU Cores'] else None,
+                            gpu_cores=str(row['GPU Cores']).strip() if row['GPU Cores'] else None,
+                            memory=memory,
+                            harddrive=storage,
+                            
+                            # Status and location
+                            status=status,
+                            customer=str(row['Customer']).strip() if row['Customer'] else None,
+                            country=str(row['Country']).strip() if row['Country'] else None,
+                            
+                            # Purchase and receiving info
+                            po=str(row['PO']).strip() if row['PO'] else None,
+                            receiving_date=receiving_date,  # Use the parsed datetime object directly
+                            
+                            # Condition and diagnostics
+                            condition=str(row['Condition']).strip() if row['Condition'] else None,
+                            diag=str(row['Diagnostic']).strip() if row['Diagnostic'] else None,
+                            erased=str(row['Erased']).strip().upper() == 'YES' if row['Erased'] else False,
+                            
+                            # Accessories
+                            keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
+                            charger=str(row['Charger']).strip() if row['Charger'] else None,
+                            
+                            # Set name to just the Product field from CSV
+                            name=str(row['Product']).strip() if row['Product'] else None,
+                            category="Computer",  # Default category
+                            inventory=status.value  # Set inventory status same as status
+                        )
+                        db_session.add(asset)
+                        db_session.flush()  # Flush each row to catch any database errors early
+                        successful += 1
+                    else:  # accessories
+                        try:
+                            quantity = int(row.get('Total Quantity', 0))
+                        except (ValueError, TypeError):
+                            error_msg = f"Row {index}: Invalid quantity value '{row.get('Total Quantity', '')}'"
+                            print(error_msg)
+                            errors.append(error_msg)
+                            failed += 1
+                            continue
+
+                        accessory = Accessory(
+                            name=str(row['Name']).strip() if row['Name'] else None,
+                            category=str(row['Category']).strip() if row['Category'] else None,
+                            manufacturer=str(row['Manufacturer']).strip() if row['Manufacturer'] else None,
+                            model_no=str(row['Model Number']).strip() if row['Model Number'] else None,
+                            total_quantity=quantity,
+                            available_quantity=quantity,  # Initially set to total quantity
+                            country=str(row['Country']).strip() if row['Country'] else None,
+                            status=str(row['Status']).strip() if row['Status'] else 'Available',
+                            notes=str(row['Notes']).strip() if row['Notes'] else None
+                        )
+                        db_session.add(accessory)
+                        db_session.flush()  # Flush each row to catch any database errors early
+                        successful += 1
                 except Exception as e:
                     error_msg = f"Row {index}: {str(e)}"
                     print(error_msg)
                     errors.append(error_msg)
                     failed += 1
+                    db_session.rollback()  # Rollback on error for this row
                     continue
 
             if failed == 0:
@@ -758,6 +822,7 @@ def add_accessory():
                 model_no=request.form['model_no'],
                 total_quantity=int(request.form['total_quantity']),
                 available_quantity=int(request.form['total_quantity']),  # Initially all are available
+                country=request.form['country'],  # Add country field
                 status='Available',
                 notes=request.form.get('notes', '')
             )
@@ -794,6 +859,7 @@ def edit_accessory(id):
                 accessory.manufacturer = request.form['manufacturer']
                 accessory.model_no = request.form['model_no']
                 new_total = int(request.form['total_quantity'])
+                accessory.country = request.form['country']  # Add country field
                 
                 # Update available quantity proportionally
                 if accessory.total_quantity > 0:
@@ -994,29 +1060,29 @@ def download_template(template_type):
         if template_type == 'tech_assets':
             # Write headers for tech assets template
             writer.writerow([
-                'ASSET TYPE', 'ASSET TAG', 'SERIAL NUMBER', 'Product', 'MODEL', 'HARDWARE TYPE', 'CPU TYPE',
-                'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 'STATUS',
-                'CUSTOMER', 'country', 'PO', 'Receiving date', 'CONDITION',
-                'DIAG', 'ERASED', 'Keyboard', 'CHARGER', 'INCLUDED'
+                '#', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
+                'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG',
+                'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE',
+                'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
             ])
             # Write example row
             writer.writerow([
-                'Laptop', 'AST001', 'SN123456', 'MacBook Pro', 'MacBook Pro', 'Laptop', 'M1',
-                '8', '8', '16', '512', 'IN_STOCK',
-                'Company Name', 'USA', 'PO123', '2024-01-01', 'New',
-                'Passed', 'YES', 'US', 'YES', 'Box, Manual'
+                '4', 'APPLE', 'MacBook Pro 14 Apple', '4', '25/07/2024', '',
+                'SC4QHX9P6PM', '', 'A2442', 'COMPLETED', 'Wise', 'NEW', 'ADP000',
+                'MacBook Pro 14 Apple M3 Pro 11-Core CPU 14-Core GPU 36GB RAM 512GB SSD', 'M3 Pro', '11', '14', '36', '512',
+                '', 'INCLUDED', '', 'SHIPPED', 'Singapore'
             ])
             filename = 'tech_assets_template.csv'
         else:  # accessories
             # Write headers for accessories template
             writer.writerow([
-                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL NO', 'QUANTITY',
-                'STATUS', 'NOTES'
+                'NAME', 'CATEGORY', 'MANUFACTURER', 'MODEL_NO', 'Status',
+                'TOTAL QUANTITY', 'COUNTRY', 'NOTES'
             ])
             # Write example row
             writer.writerow([
-                'USB-C Charger', 'Charger', 'Apple', 'A1234', '10',
-                'Available', 'New stock'
+                'USB-C Charger', 'Power Adapter', 'Apple', 'A1234', 'Available',
+                '10', 'USA', 'New stock from Q1 2024'
             ])
             filename = 'accessories_template.csv'
         
@@ -1055,16 +1121,16 @@ def edit_asset(asset_id):
                 asset.po = request.form.get('po', '')
                 asset.model = request.form.get('model', '')
                 asset.customer = request.form.get('customer', '')
-                asset.condition = request.form.get('condition', '')
-                asset.diag = request.form.get('diag', '')
-                asset.hardware_type = request.form.get('hardware_type', '')
-                asset.cpu_type = request.form.get('cpu_type', '')
-                asset.cpu_cores = request.form.get('cpu_cores', '')
-                asset.gpu_cores = request.form.get('gpu_cores', '')
-                asset.memory = request.form.get('memory', '')
-                asset.harddrive = request.form.get('harddrive', '')
-                asset.charger = request.form.get('charger', '')
-                asset.country = request.form.get('country', '')
+                asset.condition = request.form.get('condition', ''),
+                asset.diag = request.form.get('diag', ''),
+                asset.hardware_type = request.form.get('hardware_type', ''),
+                asset.cpu_type = request.form.get('cpu_type', ''),
+                asset.cpu_cores = request.form.get('cpu_cores', ''),
+                asset.gpu_cores = request.form.get('gpu_cores', ''),
+                asset.memory = request.form.get('memory', ''),
+                asset.harddrive = request.form.get('harddrive', ''),
+                asset.charger = request.form.get('charger', ''),
+                asset.country = request.form.get('country', ''),
                 
                 # Handle status
                 status_value = request.form.get('status', '')
@@ -1125,7 +1191,7 @@ def edit_asset(asset_id):
         unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
         unique_diags = sorted([d[0] for d in unique_diags if d[0]])
         unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
-
+        
         return render_template('inventory/edit_asset.html',
                             asset=asset,
                             statuses=AssetStatus,

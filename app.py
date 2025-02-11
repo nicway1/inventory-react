@@ -6,7 +6,6 @@ from routes.auth import auth_bp
 from routes.tickets import tickets_bp
 from routes.shipments import shipments_bp
 from routes.users import users_bp
-from routes.data_loader import data_loader_bp
 from routes.admin import admin_bp
 from utils.auth_decorators import login_required
 from utils.store_instances import (
@@ -21,7 +20,7 @@ from utils.store_instances import (
 from flask_sqlalchemy import SQLAlchemy
 from models.base import Base
 from models.company import Company
-from models.user import User, UserType
+from models.user import User, UserType, Country
 from utils.db_manager import DatabaseManager
 import os
 from routes.main import main_bp
@@ -59,7 +58,6 @@ csrf.exempt(inventory_bp)
 
 # Initialize database
 db = SQLAlchemy(app)
-db_manager = DatabaseManager(app.config['SQLALCHEMY_DATABASE_URI'])
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -72,7 +70,10 @@ def load_user(user_id):
     if user_id is None:
         return None
     try:
-        return db_manager.get_user(int(user_id))
+        db_session = SessionLocal()
+        user = db_session.query(User).get(int(user_id))
+        db_session.close()
+        return user
     except (ValueError, TypeError):
         return None
 
@@ -83,7 +84,6 @@ app.register_blueprint(inventory_bp, url_prefix='/inventory')
 app.register_blueprint(tickets_bp, url_prefix='/tickets')
 app.register_blueprint(shipments_bp, url_prefix='/shipments')
 app.register_blueprint(users_bp, url_prefix='/users')
-app.register_blueprint(data_loader_bp, url_prefix='/data-loader')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 
 @app.context_processor
@@ -100,6 +100,10 @@ def mark_activity_read(activity_id):
 @app.route('/health')
 def health_check():
     return jsonify({"status": "healthy"}), 200
+
+@app.route('/')
+def hello():
+    return 'Hello, World!'
 
 if __name__ == '__main__':
     print("Starting application...")

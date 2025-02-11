@@ -1,17 +1,27 @@
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
 from datetime import datetime
+from models.base import Base
 
-class Activity:
-    def __init__(self, id, user_id, type, content, reference_id, created_at=None):
-        self.id = id
-        self.user_id = user_id
-        self.type = type  # e.g., 'mention', 'ticket_assigned', etc.
-        self.content = content
-        self.reference_id = reference_id  # e.g., ticket_id
-        self.created_at = created_at or datetime.now()
-        self.is_read = False
+class Activity(Base):
+    __tablename__ = 'activities'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    type = Column(String(50), nullable=False)  # e.g., 'mention', 'ticket_assigned', etc.
+    content = Column(String(500), nullable=False)
+    reference_id = Column(Integer)  # e.g., ticket_id
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_read = Column(Boolean, default=False)
+    
+    # Relationship with user
+    user = relationship("User", back_populates="activities")
 
     @staticmethod
     def create(user_id, type, content, reference_id):
-        import random
-        activity_id = random.randint(1000, 9999)
-        return Activity(activity_id, user_id, type, content, reference_id) 
+        return Activity(
+            user_id=user_id,
+            type=type,
+            content=content,
+            reference_id=reference_id
+        ) 

@@ -6,6 +6,7 @@ from models.user import User, UserType
 from models.asset import Asset
 from models.location import Location
 from models.accessory import Accessory
+from models.activity import Activity
 from datetime import datetime
 
 class DatabaseManager:
@@ -235,5 +236,82 @@ class DatabaseManager:
         except Exception as e:
             session.rollback()
             raise e
+        finally:
+            session.close()
+
+    def delete_user(self, user_id):
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if user:
+                session.delete(user)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    # Activity Management
+    def get_user_activities(self, user_id, limit=50):
+        """Get recent activities for a user"""
+        session = self.get_session()
+        try:
+            return session.query(Activity).filter(
+                Activity.user_id == user_id
+            ).order_by(
+                Activity.created_at.desc()
+            ).limit(limit).all()
+        finally:
+            session.close()
+
+    def add_activity(self, user_id, type, content, reference_id):
+        """Add a new activity for a user"""
+        session = self.get_session()
+        try:
+            activity = Activity.create(user_id, type, content, reference_id)
+            session.add(activity)
+            session.commit()
+            return activity
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def mark_activity_read(self, activity_id):
+        """Mark an activity as read"""
+        session = self.get_session()
+        try:
+            activity = session.query(Activity).get(activity_id)
+            if activity:
+                activity.is_read = True
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def get_unread_activities_count(self, user_id):
+        """Get count of unread activities for a user"""
+        session = self.get_session()
+        try:
+            return session.query(Activity).filter(
+                Activity.user_id == user_id,
+                Activity.is_read == False
+            ).count()
+        finally:
+            session.close()
+
+    def get_user_assets(self, user_id):
+        """Get assets assigned to a user"""
+        session = self.get_session()
+        try:
+            return session.query(Asset).filter(Asset.assigned_to_id == user_id).all()
         finally:
             session.close()

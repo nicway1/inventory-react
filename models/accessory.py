@@ -13,6 +13,7 @@ class Accessory(Base):
     model_no = Column(String(100))  # Model No
     total_quantity = Column(Integer, default=0)  # Quantity
     available_quantity = Column(Integer, default=0)  # Available quantity from total
+    country = Column(String(100))  # Country
     status = Column(String(50), default='Available')  # Status
     notes = Column(String(1000))  # Notes
     assigned_to = Column(String(100))  # User who checked out the accessory
@@ -33,6 +34,7 @@ class Accessory(Base):
             'model_no': self.model_no,
             'total_quantity': self.total_quantity,
             'available_quantity': self.available_quantity,
+            'country': self.country,
             'status': self.status,
             'notes': self.notes,
             'assigned_to': self.assigned_to,

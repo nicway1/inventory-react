@@ -8,6 +8,9 @@ from utils.db_manager import DatabaseManager
 from models.company import Company
 import os
 from werkzeug.utils import secure_filename
+from models.asset import Asset
+from models.accessory import Accessory
+from models.user import UserType
 
 main_bp = Blueprint('main', __name__)
 db_manager = DatabaseManager()
@@ -32,7 +35,7 @@ def index():
         return redirect(url_for('auth.login'))
 
     # Handle file upload if POST request
-    if request.method == 'POST' and user.is_admin:
+    if request.method == 'POST' and user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
         if 'file' not in request.files:
             flash('No file uploaded')
             return redirect(request.url)
@@ -55,6 +58,12 @@ def index():
                 flash('Error importing inventory')
                 
             return redirect(url_for('main.index'))
+        else:
+            flash('Invalid file type. Please upload an Excel file (.xlsx or .xls)')
+            return redirect(request.url)
+    elif request.method == 'POST':
+        flash('You do not have permission to import data')
+        return redirect(url_for('main.index'))
 
     # Get shipments
     shipments = shipment_store.get_user_shipments(user_id)
@@ -62,10 +71,14 @@ def index():
     # Get queues
     queues = queue_store.get_all_queues()
 
-    # For now, use placeholder counts until we set up Asset model
-    tech_assets_count = 0
-    accessories_count = 0
-    total_inventory = tech_assets_count + accessories_count
+    # Get asset counts from database
+    db_session = db_manager.get_session()
+    try:
+        tech_assets_count = db_session.query(Asset).count()
+        accessories_count = db_session.query(Accessory).count()
+        total_inventory = tech_assets_count + accessories_count
+    finally:
+        db_session.close()
 
     # Calculate summary statistics
     stats = {

@@ -33,8 +33,9 @@
             <div class="space-y-4">
                 {% for row in preview_data %}
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <!-- Basic Information -->
+                        <div class="grid grid-cols-1 md:grid-cols-{% if import_type == 'tech_assets' %}4{% else %}3{% endif %} gap-6">
+                            {% if import_type == 'tech_assets' %}
+                            <!-- Tech Assets Preview -->
                             <div>
                                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
                                 <div class="space-y-2">
@@ -47,7 +48,6 @@
                                 </div>
                             </div>
 
-                            <!-- Hardware Specifications -->
                             <div>
                                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Hardware Specifications</h3>
                                 <div class="space-y-2">
@@ -58,7 +58,6 @@
                                 </div>
                             </div>
 
-                            <!-- Status & Location -->
                             <div>
                                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
                                 <div class="space-y-2">
@@ -78,7 +77,6 @@
                                 </div>
                             </div>
 
-                            <!-- Additional Details -->
                             <div>
                                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Additional Details</h3>
                                 <div class="space-y-2">
@@ -90,6 +88,38 @@
                                     <p class="text-sm"><span class="font-medium">Included Items:</span> {{ row['Included'] }}</p>
                                 </div>
                             </div>
+                            {% else %}
+                            <!-- Accessories Preview -->
+                            <div>
+                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
+                                <div class="space-y-2">
+                                    <p class="text-sm"><span class="font-medium">Name:</span> {{ row['Name'] }}</p>
+                                    <p class="text-sm"><span class="font-medium">Category:</span> {{ row['Category'] }}</p>
+                                    <p class="text-sm"><span class="font-medium">Manufacturer:</span> {{ row['Manufacturer'] }}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Details</h3>
+                                <div class="space-y-2">
+                                    <p class="text-sm"><span class="font-medium">Model Number:</span> {{ row['Model Number'] }}</p>
+                                    <p class="text-sm"><span class="font-medium">Total Quantity:</span> {{ row['Total Quantity'] }}</p>
+                                    <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] }}</p>
+                                    <p class="text-sm"><span class="font-medium">Status:</span> 
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ row['Status'] }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Additional Information</h3>
+                                <div class="space-y-2">
+                                    <p class="text-sm"><span class="font-medium">Notes:</span> {{ row['Notes'] }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 {% endfor %}
