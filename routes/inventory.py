@@ -16,6 +16,7 @@ import time
 import io
 import csv
 from models.user import UserType
+from models.customer_user import CustomerUser
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -272,23 +273,50 @@ def filter_inventory():
 def checkout_accessory(id):
     db_session = db_manager.get_session()
     try:
+        # Get the requested quantity and customer from the form
+        try:
+            quantity = int(request.form.get('quantity', 1))
+            customer_id = int(request.form.get('customer_id'))
+            if quantity < 1:
+                flash('Quantity must be at least 1', 'error')
+                return redirect(url_for('inventory.view_accessory', id=id))
+        except ValueError:
+            flash('Invalid quantity or customer', 'error')
+            return redirect(url_for('inventory.view_accessory', id=id))
+
         accessory = db_session.query(Accessory).get(id)
+        customer = db_session.query(CustomerUser).get(customer_id)
+        
         if not accessory:
-            flash('Accessory not found')
-            return redirect(url_for('inventory.view_inventory'))
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_accessories'))
+            
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('inventory.view_accessory', id=id))
 
-        if accessory.status != 'Available':
-            flash('This accessory is not available for checkout')
-            return redirect(url_for('inventory.view_inventory'))
+        # Check if enough quantity is available
+        if accessory.available_quantity < quantity:
+            flash(f'Only {accessory.available_quantity} items available', 'error')
+            return redirect(url_for('inventory.view_accessory', id=id))
 
-        # Update accessory status
-        accessory.status = 'Checked Out'
-        accessory.customer = session.get('user_id')  # Or however you track the current user
+        # Update accessory quantities
+        accessory.available_quantity -= quantity
+        accessory.checkout_date = datetime.now()
+        accessory.customer_id = customer_id  # Set customer_id instead of assigned_to
+
+        # If all items are checked out, update status
+        if accessory.available_quantity == 0:
+            accessory.status = 'Checked Out'
+
         db_session.commit()
+        flash(f'Successfully checked out {quantity} {accessory.name}(s) to {customer.name}', 'success')
+        return redirect(url_for('inventory.view_accessory', id=id))
 
-        flash('Accessory checked out successfully')
-        return redirect(url_for('inventory.view_inventory'))
-
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error checking out accessory: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_accessory', id=id))
     finally:
         db_session.close()
 
@@ -782,14 +810,19 @@ def view_asset(asset_id):
                 flash('You do not have permission to view this asset', 'error')
                 return redirect(url_for('inventory.view_inventory'))
         
-        return render_template('inventory/asset_details.html', asset=asset)
+        # Get all customers for the deployment dropdown
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        
+        return render_template('inventory/asset_details.html', asset=asset, customers=customers)
     finally:
         db_session.close()
 
-@inventory_bp.route('/asset/<int:asset_id>/update-status', methods=['POST'])
+@inventory_bp.route('/assets/<int:asset_id>/update-status', methods=['POST'])
 @login_required
 def update_asset_status(asset_id):
     new_status = request.form.get('status')
+    customer_id = request.form.get('customer_id')  # Get customer_id from form
+    
     if not new_status:
         flash('No status provided', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
@@ -801,9 +834,41 @@ def update_asset_status(asset_id):
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory'))
         
-        asset.status = new_status
-        db_session.commit()
-        flash(f'Status updated to {new_status}', 'success')
+        # Convert string status to enum
+        try:
+            # Map the form values to enum values
+            status_mapping = {
+                'IN_STOCK': AssetStatus.IN_STOCK,
+                'DEPLOYED': AssetStatus.DEPLOYED,
+                'READY_TO_DEPLOY': AssetStatus.READY_TO_DEPLOY,
+                'SHIPPED': AssetStatus.SHIPPED,
+                'REPAIR': AssetStatus.REPAIR,
+                'ARCHIVED': AssetStatus.ARCHIVED
+            }
+            
+            if new_status in status_mapping:
+                asset.status = status_mapping[new_status]
+                
+                # If status is DEPLOYED and customer_id is provided, assign the asset
+                if new_status == 'DEPLOYED' and customer_id:
+                    customer = db_session.query(CustomerUser).get(customer_id)
+                    if customer:
+                        asset.customer_id = customer.id
+                        flash(f'Asset assigned to {customer.name}', 'success')
+                    else:
+                        flash('Customer not found', 'error')
+                # If status is changed to something other than DEPLOYED, remove customer assignment
+                elif new_status != 'DEPLOYED':
+                    asset.customer_id = None
+                
+                db_session.commit()
+                flash(f'Status updated to {asset.status.value}', 'success')
+            else:
+                flash(f'Invalid status: {new_status}', 'error')
+            
+        except Exception as e:
+            flash(f'Error updating status: {str(e)}', 'error')
+            
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     finally:
         db_session.close()
@@ -1232,6 +1297,135 @@ def delete_asset(asset_id):
             
         return redirect(url_for('inventory.view_inventory'))
         
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/accessory/<int:id>')
+@login_required
+def view_accessory(id):
+    """View accessory details"""
+    db_session = db_manager.get_session()
+    try:
+        accessory = db_session.query(Accessory).get(id)
+        if not accessory:
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_accessories'))
+        
+        # Get all customers for the checkout form
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        
+        # Check if user is admin (either SUPER_ADMIN or COUNTRY_ADMIN)
+        is_admin = current_user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]
+        
+        return render_template('inventory/accessory_details.html', 
+                             accessory=accessory,
+                             customers=customers,
+                             is_admin=is_admin)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users')
+@login_required
+def list_customer_users():
+    """List all customer users"""
+    db_session = db_manager.get_session()
+    try:
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        return render_template('inventory/customer_users.html', customers=customers, len=len)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/add', methods=['GET', 'POST'])
+@login_required
+def add_customer_user():
+    """Add a new customer user"""
+    if request.method == 'POST':
+        db_session = db_manager.get_session()
+        try:
+            new_customer = CustomerUser(
+                name=request.form['name'],
+                contact_number=request.form['contact_number'],
+                email=request.form['email'],
+                address=request.form['address']
+            )
+            db_session.add(new_customer)
+            db_session.commit()
+            flash('Customer added successfully!', 'success')
+            return redirect(url_for('inventory.list_customer_users'))
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error adding customer: {str(e)}', 'error')
+            return redirect(url_for('inventory.add_customer_user'))
+        finally:
+            db_session.close()
+    
+    return render_template('inventory/add_customer_user.html')
+
+@inventory_bp.route('/customer-users/<int:id>')
+@login_required
+def view_customer_user(id):
+    """View customer user details"""
+    db_session = db_manager.get_session()
+    try:
+        customer = db_session.query(CustomerUser).get(id)
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('inventory.list_customer_users'))
+        
+        return render_template('inventory/view_customer_user.html', customer=customer)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_customer_user(id):
+    """Edit a customer user"""
+    db_session = db_manager.get_session()
+    try:
+        customer = db_session.query(CustomerUser).get(id)
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('inventory.list_customer_users'))
+
+        if request.method == 'POST':
+            try:
+                customer.name = request.form['name']
+                customer.contact_number = request.form['contact_number']
+                customer.email = request.form['email']
+                customer.address = request.form['address']
+                
+                db_session.commit()
+                flash('Customer updated successfully!', 'success')
+                return redirect(url_for('inventory.list_customer_users'))
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error updating customer: {str(e)}', 'error')
+                return redirect(url_for('inventory.edit_customer_user', id=id))
+        
+        return render_template('inventory/edit_customer_user.html', customer=customer)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_customer_user(id):
+    """Delete a customer user"""
+    db_session = db_manager.get_session()
+    try:
+        customer = db_session.query(CustomerUser).get(id)
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('inventory.list_customer_users'))
+
+        try:
+            db_session.delete(customer)
+            db_session.commit()
+            flash('Customer deleted successfully!', 'success')
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error deleting customer: {str(e)}', 'error')
+        
+        return redirect(url_for('inventory.list_customer_users'))
     finally:
         db_session.close()
 

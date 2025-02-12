@@ -5,12 +5,12 @@ import enum
 from models.base import Base
 
 class AssetStatus(enum.Enum):
-    IN_STOCK = "IN STOCK"
+    IN_STOCK = "In Stock"
     READY_TO_DEPLOY = "Ready to Deploy"
-    SHIPPED = "SHIPPED"
-    DEPLOYED = "DEPLOYED"
-    REPAIR = "REPAIR"
-    ARCHIVED = "ARCHIVED"
+    SHIPPED = "Shipped"
+    DEPLOYED = "Deployed"
+    REPAIR = "Repair"
+    ARCHIVED = "Archived"
 
 class Asset(Base):
     __tablename__ = 'assets'
@@ -23,21 +23,22 @@ class Asset(Base):
     manufacturer = Column(String(100))
     category = Column(String(50))
     status = Column(Enum(AssetStatus), default=AssetStatus.IN_STOCK)
-    cost_price = Column(Float)  # New column for cost price
+    cost_price = Column(Float)
     location_id = Column(Integer, ForeignKey('locations.id'))
     company_id = Column(Integer, ForeignKey('companies.id'))
-    specifications = Column(JSON)  # Store specs as JSON
+    specifications = Column(JSON)
     notes = Column(String(1000))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     assigned_to_id = Column(Integer, ForeignKey('users.id'))
+    customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
     
     # Additional fields used in inventory routes
     hardware_type = Column(String(100))
-    inventory = Column(String(50))  # For inventory status
-    customer = Column(String(100))  # For storing customer name
+    inventory = Column(String(50))
+    customer = Column(String(100))
     country = Column(String(100))
-    asset_type = Column(String(100))  # For storing asset type
+    asset_type = Column(String(100))
     
     # Additional fields from import
     receiving_date = Column(DateTime)
@@ -57,4 +58,5 @@ class Asset(Base):
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
     tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
-    assigned_to = relationship("User", back_populates="assigned_assets") 
+    assigned_to = relationship("User", back_populates="assigned_assets")
+    customer_user = relationship("CustomerUser", foreign_keys=[customer_id]) 

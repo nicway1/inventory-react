@@ -10,6 +10,7 @@ import os
 from werkzeug.utils import secure_filename
 from models.asset import Asset
 from models.accessory import Accessory
+from models.customer_user import CustomerUser
 from models.user import UserType
 
 main_bp = Blueprint('main', __name__)
@@ -71,12 +72,13 @@ def index():
     # Get queues
     queues = queue_store.get_all_queues()
 
-    # Get asset counts from database
+    # Get counts from database
     db_session = db_manager.get_session()
     try:
         tech_assets_count = db_session.query(Asset).count()
         accessories_count = db_session.query(Accessory).count()
         total_inventory = tech_assets_count + accessories_count
+        total_customers = db_session.query(CustomerUser).count()
     finally:
         db_session.close()
 
@@ -84,7 +86,8 @@ def index():
     stats = {
         'total_inventory': total_inventory,
         'total_shipments': len(shipments),
-        'total_queues': len(queues)
+        'total_queues': len(queues),
+        'total_customers': total_customers
     }
 
     # Get activities

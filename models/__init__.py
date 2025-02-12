@@ -6,28 +6,29 @@ This module initializes all models in the correct order to avoid circular import
 
 # Import all models to ensure proper SQLAlchemy model registration
 from models.base import Base
-from models.location import Location
+from models.user import User, UserType, Country
 from models.company import Company
-from models.user import User
-from models.asset import Asset
+from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
-from models.ticket import Ticket
+from models.customer_user import CustomerUser
 from models.activity import Activity
-from models.comment import Comment
-from models.queue import Queue
-from models.shipment import Shipment
+from models.ticket import Ticket
+from models.location import Location
+from models.permission import Permission
 
 # This ensures all models are registered with SQLAlchemy
 __all__ = [
     'Base',
-    'Location',
-    'Company',
     'User',
+    'UserType',
+    'Country',
+    'Company',
     'Asset',
+    'AssetStatus',
     'Accessory',
-    'Ticket',
+    'CustomerUser',
     'Activity',
-    'Comment',
-    'Queue',
-    'Shipment'
+    'Ticket',
+    'Location',
+    'Permission'
 ] 

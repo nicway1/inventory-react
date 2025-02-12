@@ -23,13 +23,13 @@
                 <p class="text-sm text-gray-500 mt-1">Asset ID: {{ asset.asset_tag }}</p>
             </div>
             <div class="flex items-center space-x-4">
-                <span class="px-2 py-1 text-xs font-semibold rounded-full {% if asset.status and asset.status.value == 'IN STOCK' %}
+                <span class="px-2 py-1 text-xs font-semibold rounded-full {% if asset.status and asset.status.value == 'IN_STOCK' %}
                     bg-blue-100 text-blue-800
                 {% elif asset.status and asset.status.value == 'DEPLOYED' %}
                     bg-green-100 text-green-800
                 {% elif asset.status and asset.status.value == 'SHIPPED' %}
                     bg-yellow-100 text-yellow-800
-                {% elif asset.status and asset.status.value == 'RETIRED' %}
+                {% elif asset.status and asset.status.value == 'ARCHIVED' %}
                     bg-red-100 text-red-800
                 {% else %}
                     bg-gray-100 text-gray-800
@@ -168,22 +168,24 @@
                     <dt class="text-sm font-medium text-gray-500">Inventory Status</dt>
                     <dd class="flex items-center space-x-3 mt-1">
                         <span class="text-sm text-gray-900">{{ asset.status.value if asset.status else 'Unknown' }}</span>
-                        {% if asset.status and asset.status.value == 'IN STOCK' %}
+                        {% if asset.status and asset.status.value == 'In Stock' %}
                         <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
                             <input type="hidden" name="status" value="DEPLOYED">
-                            <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 hover:bg-green-200">
-                                Mark as Deployed
-                            </button>
+                            <div class="flex items-center space-x-2">
+                                <select name="customer_id" class="text-sm rounded-md border-gray-300" required>
+                                    <option value="">Select Customer</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 hover:bg-green-200">
+                                    Mark as Deployed
+                                </button>
+                            </div>
                         </form>
+                        {% elif asset.status and asset.status.value == 'Deployed' %}
                         <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
-                            <input type="hidden" name="status" value="SHIPPED">
-                            <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200">
-                                Mark as Shipped
-                            </button>
-                        </form>
-                        {% elif asset.status and asset.status.value == 'DEPLOYED' %}
-                        <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
-                            <input type="hidden" name="status" value="IN STOCK">
+                            <input type="hidden" name="status" value="IN_STOCK">
                             <button type="submit" class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200">
                                 Return to Stock
                             </button>

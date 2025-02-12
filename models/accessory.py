@@ -16,14 +16,15 @@ class Accessory(Base):
     country = Column(String(100))  # Country
     status = Column(String(50), default='Available')  # Status
     notes = Column(String(1000))  # Notes
-    assigned_to = Column(String(100))  # User who checked out the accessory
     checkout_date = Column(DateTime)
     return_date = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
 
-    # Relationship with tickets using string reference
+    # Relationships
     tickets = relationship("Ticket", back_populates="accessory", lazy="dynamic")
+    customer_user = relationship("CustomerUser", back_populates="assigned_accessories")
 
     def to_dict(self):
         return {
@@ -37,7 +38,7 @@ class Accessory(Base):
             'country': self.country,
             'status': self.status,
             'notes': self.notes,
-            'assigned_to': self.assigned_to,
+            'customer_id': self.customer_id,
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,
             'return_date': self.return_date.isoformat() if self.return_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -48,7 +49,7 @@ class Accessory(Base):
         """Check out this accessory to a user"""
         if self.available_quantity > 0:
             self.available_quantity -= 1
-            self.assigned_to = assigned_to
+            self.customer_id = assigned_to
             self.checkout_date = datetime.utcnow()
             self.status = 'Checked Out'
             return True
@@ -58,7 +59,7 @@ class Accessory(Base):
         """Return this accessory to inventory"""
         if self.total_quantity > self.available_quantity:
             self.available_quantity += 1
-            self.assigned_to = None
+            self.customer_id = None
             self.return_date = datetime.utcnow()
             self.status = 'Available'
             return True

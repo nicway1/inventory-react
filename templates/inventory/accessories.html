@@ -44,7 +44,12 @@
                     {% for accessory in accessories %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-4 whitespace-normal">
-                            <div class="text-sm font-medium text-gray-900">{{ accessory.name }}</div>
+                            <div class="text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
+                                   class="hover:text-blue-600">
+                                    {{ accessory.name }}
+                                </a>
+                            </div>
                         </td>
                         <td class="px-4 py-4 whitespace-normal text-sm text-gray-500">
                             {{ accessory.category }}
