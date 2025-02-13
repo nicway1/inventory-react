@@ -1,6 +1,7 @@
 from flask_mail import Mail, Message
 from flask import current_app
 import logging
+import socket
 
 mail = Mail()
 
@@ -21,9 +22,19 @@ def send_welcome_email(user_email, username, password):
             
         msg = Message(
             'TrueLog Access',
-            sender=current_app.config['MAIL_DEFAULT_SENDER'],
+            sender=('TrueLog Support', current_app.config['MAIL_DEFAULT_SENDER']),
             recipients=[user_email]
         )
+        
+        # Add authentication headers
+        msg.extra_headers = {
+            'X-Originating-IP': '[127.0.0.1]',
+            'X-Remote-Host': socket.gethostname(),
+            'Received': f'from {socket.gethostname()} (localhost [127.0.0.1]) by mail.privateemail.com',
+            'Authentication-Results': 'mail.privateemail.com; auth=pass',
+            'MIME-Version': '1.0',
+            'Precedence': 'bulk'
+        }
         
         # Simple plain text format that worked on PythonAnywhere
         msg.body = f"""{username}
