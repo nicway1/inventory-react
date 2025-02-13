@@ -11,6 +11,7 @@ import os
 from werkzeug.utils import secure_filename
 import uuid
 from werkzeug.security import generate_password_hash
+from database import SessionLocal
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -28,14 +29,25 @@ def save_company_logo(file):
         return filename
     return None
 
-@admin_bp.route('/settings')
+@admin_bp.route('/permission-management')
 @admin_required
-def settings():
-    """Render the settings page with permissions management"""
+def permission_management():
+    """Render the permissions management page"""
     db = SessionLocal()
     try:
+        # Get all permissions
         permissions = db.query(Permission).all()
-        return render_template('admin/settings.html', permissions=permissions)
+        
+        # If no permissions exist, initialize them for each user type
+        if not permissions:
+            for user_type in UserType:
+                default_permissions = Permission.get_default_permissions(user_type)
+                permission = Permission(user_type=user_type, **default_permissions)
+                db.add(permission)
+            db.commit()
+            permissions = db.query(Permission).all()
+            
+        return render_template('admin/permission_management.html', permissions=permissions)
     finally:
         db.close()
 
@@ -308,11 +320,11 @@ def update_permissions():
         
         db.commit()
         flash('Permissions updated successfully', 'success')
-        return redirect(url_for('admin.settings'))
+        return redirect(url_for('admin.permission_management'))
     except Exception as e:
         db.rollback()
         flash(f'Error updating permissions: {str(e)}', 'error')
-        return redirect(url_for('admin.settings'))
+        return redirect(url_for('admin.permission_management'))
     finally:
         db.close()
 
@@ -334,10 +346,10 @@ def reset_permissions(user_type):
         db.commit()
         
         flash('Permissions reset to default values', 'success')
-        return redirect(url_for('admin.settings'))
+        return redirect(url_for('admin.permission_management'))
     except Exception as e:
         db.rollback()
         flash(f'Error resetting permissions: {str(e)}', 'error')
-        return redirect(url_for('admin.settings'))
+        return redirect(url_for('admin.permission_management'))
     finally:
         db.close() 
