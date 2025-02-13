@@ -6,19 +6,24 @@ path = '/home/nicway2/inventory'
 if path not in sys.path:
     sys.path.append(path)
 
-# Set Python path and enable debugging
+# Set environment variables
 os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
 os.environ['MAIL_DEBUG'] = '1'
-os.environ['MAIL_USE_TLS'] = 'True'
 
-# Set environment variables
+# Email configuration with TLS
 os.environ['MAIL_SERVER'] = 'mail.privateemail.com'
-os.environ['MAIL_PORT'] = '587'
+os.environ['MAIL_PORT'] = '587'  # Using TLS port
+os.environ['MAIL_USE_TLS'] = 'True'  # Enable TLS
+os.environ['MAIL_USE_SSL'] = 'False'  # Disable SSL
 os.environ['MAIL_USERNAME'] = 'support@truelog.site'
 os.environ['MAIL_PASSWORD'] = '123456'
 os.environ['MAIL_DEFAULT_SENDER'] = 'support@truelog.site'
-os.environ['SECRET_KEY'] = 'your-secret-key-here'
+os.environ['MAIL_SUPPRESS_SEND'] = 'False'
+os.environ['MAIL_ASCII_ATTACHMENTS'] = 'False'
+
+# Database configuration
 os.environ['DATABASE_URL'] = 'sqlite:////home/nicway2/inventory/inventory.db'
+os.environ['SECRET_KEY'] = 'your-secret-key-here'
 
 # Import your Flask app
 from app import app as application

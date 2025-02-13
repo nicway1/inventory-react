@@ -1,8 +1,6 @@
 from flask_mail import Mail, Message
 from flask import current_app
 import logging
-import uuid
-from email.utils import make_msgid
 
 mail = Mail()
 
@@ -27,12 +25,8 @@ def send_welcome_email(user_email, username, password):
             recipients=[user_email]
         )
         
-        # Generate a proper Message-ID with the domain
-        msg.msgId = make_msgid(domain='truelog.site')
-        
-        # Plain text version only - no HTML to avoid spam triggers
-        msg.body = f"""
-{username}
+        # Simple plain text format that worked on PythonAnywhere
+        msg.body = f"""{username}
 
 Access: truelog.site
 User: {username}
