@@ -55,7 +55,7 @@ app.config.update(
     WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
     # Email configuration for Namecheap Email Hosting
     MAIL_SERVER=os.environ.get('MAIL_SERVER', 'mail.privateemail.com'),
-    MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),
+    MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),  # TLS port
     MAIL_USE_TLS=True,
     MAIL_USE_SSL=False,
     MAIL_USERNAME=os.environ.get('MAIL_USERNAME', 'support@truelog.site'),
