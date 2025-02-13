@@ -22,11 +22,19 @@ from models.base import Base
 from models.company import Company
 from models.user import User, UserType, Country
 from utils.db_manager import DatabaseManager
+from utils.email_sender import mail
 import os
+import logging
 from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Create data directory if it doesn't exist
 os.makedirs('data', exist_ok=True)
@@ -36,7 +44,7 @@ app = Flask(__name__)
 # Configure Flask app
 app.config.update(
     SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-please-change'),
-    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+    SESSION_COOKIE_SECURE=False,  # Set to False for development without HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
@@ -44,7 +52,15 @@ app.config.update(
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
     WTF_CSRF_CHECK_DEFAULT=False,  # Disable CSRF check by default
-    WTF_CSRF_SSL_STRICT=False  # Allow CSRF tokens over HTTP
+    WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
+    # Email configuration for Namecheap Email Hosting
+    MAIL_SERVER=os.environ.get('MAIL_SERVER', 'mail.privateemail.com'),
+    MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME=os.environ.get('MAIL_USERNAME', 'support@truelog.site'),
+    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD', '123456'),
+    MAIL_DEFAULT_SENDER=os.environ.get('MAIL_DEFAULT_SENDER', 'support@truelog.site'),
+    MAIL_DEBUG=True  # Enable debug mode for Flask-Mail
 )
 
 # Initialize CORS
@@ -52,6 +68,17 @@ CORS(app)
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Initialize Flask-Mail
+mail.init_app(app)
+
+# Log mail configuration
+logging.info("Mail Configuration:")
+logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
+logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
+logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
+logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
 
 # Exempt certain routes from CSRF protection
 csrf.exempt(inventory_bp)

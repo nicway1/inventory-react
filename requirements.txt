@@ -12,4 +12,6 @@ python-dateutil==2.8.2
 pandas==1.5.3
 flask-login==0.6.2
 email-validator==2.0.0
-Flask-WTF==1.1.1 
+Flask-WTF==1.1.1
+Flask-Mail==0.10.0
+WTForms==2.3.3 

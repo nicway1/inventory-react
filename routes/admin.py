@@ -7,6 +7,7 @@ from models.user import User, UserType, Country
 from models.permission import Permission
 from datetime import datetime
 from models.company import Company
+from utils.email_sender import send_welcome_email
 import os
 from werkzeug.utils import secure_filename
 import uuid
@@ -162,48 +163,66 @@ def manage_users():
 @admin_required
 def create_user():
     """Create a new user"""
+    from models.user import User, UserType, Country
+    
     db_session = db_manager.get_session()
-    companies = db_session.query(Company).all()
+    try:
+        companies = db_session.query(Company).all()
+        
+        if request.method == 'POST':
+            username = request.form.get('username')
+            email = request.form.get('email')
+            password = request.form.get('password')
+            company_id = request.form.get('company_id')
+            user_type = request.form.get('user_type')
+            assigned_country = request.form.get('assigned_country')
 
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        company_id = request.form.get('company_id')
-        user_type = request.form.get('user_type')
-        assigned_country = request.form.get('assigned_country')
+            # Check if user with this email already exists
+            existing_user = db_session.query(User).filter_by(email=email).first()
+            if existing_user:
+                flash('A user with this email already exists. Please use a different email address.', 'error')
+                companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                return render_template('admin/create_user.html', companies=companies_data)
 
-        try:
-            from models.user import User, UserType, Country
+            try:
+                # Create user data dictionary
+                user_data = {
+                    'username': username,
+                    'email': email,
+                    'password_hash': generate_password_hash(password),
+                    'company_id': company_id if company_id else None,
+                    'user_type': UserType[user_type]
+                }
 
-            # Create user data dictionary
-            user_data = {
-                'username': username,
-                'email': email,
-                'password_hash': generate_password_hash(password),
-                'company_id': company_id if company_id else None,
-                'user_type': UserType[user_type]
-            }
+                # Add assigned country for Country Admin
+                if user_type == 'COUNTRY_ADMIN':
+                    if not assigned_country:
+                        flash('Country selection is required for Country Admin', 'error')
+                        return render_template('admin/create_user.html', companies=companies)
+                    user_data['assigned_country'] = Country[assigned_country]
 
-            # Add assigned country for Country Admin
-            if user_type == 'COUNTRY_ADMIN':
-                if not assigned_country:
-                    flash('Country selection is required for Country Admin', 'error')
-                    return render_template('admin/create_user.html', companies=companies)
-                user_data['assigned_country'] = Country[assigned_country]
+                user = User(**user_data)
+                db_session.add(user)
+                db_session.commit()
 
-            user = User(**user_data)
-            db_session.add(user)
-            db_session.commit()
-            flash('User created successfully', 'success')
-            return redirect(url_for('admin.manage_users'))
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Error creating user: {str(e)}', 'error')
-        finally:
-            db_session.close()
+                # Send welcome email
+                if send_welcome_email(email, username, password):
+                    flash('User created successfully and welcome email sent', 'success')
+                else:
+                    flash('User created successfully but failed to send welcome email', 'warning')
 
-    return render_template('admin/create_user.html', companies=companies)
+                return redirect(url_for('admin.manage_users'))
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error creating user: {str(e)}', 'error')
+                companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                return render_template('admin/create_user.html', companies=companies_data)
+
+        # Convert companies to list of dicts to avoid detached instance errors
+        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+        return render_template('admin/create_user.html', companies=companies_data)
+    finally:
+        db_session.close()
 
 @admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @admin_required
@@ -352,4 +371,34 @@ def reset_permissions(user_type):
         flash(f'Error resetting permissions: {str(e)}', 'error')
         return redirect(url_for('admin.permission_management'))
     finally:
-        db.close() 
+        db.close()
+
+@admin_bp.route('/users/<int:user_id>/resend-welcome', methods=['POST'])
+@admin_required
+def resend_welcome_email(user_id):
+    """Resend welcome email to a user"""
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('admin.manage_users'))
+
+        # Generate a new password for the user
+        new_password = str(uuid.uuid4())[:8]  # Use first 8 characters of a UUID as password
+        user.password_hash = generate_password_hash(new_password)
+        db_session.commit()
+
+        # Send welcome email with new credentials
+        if send_welcome_email(user.email, user.username, new_password):
+            flash('Welcome email sent successfully with new credentials', 'success')
+        else:
+            flash('Failed to send welcome email', 'error')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error resending welcome email: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_users')) 
