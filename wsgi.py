@@ -11,7 +11,6 @@ os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
 os.environ['MAIL_DEBUG'] = '1'
 os.environ['MAIL_USE_TLS'] = 'True'
 os.environ['MAIL_USE_LOCALADDRESS'] = '0'  # Prevent using localhost
-os.environ['SERVER_NAME'] = 'truelog.site'  # Set proper hostname
 
 # Set environment variables
 os.environ['MAIL_SERVER'] = 'mail.privateemail.com'
