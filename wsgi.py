@@ -10,7 +10,6 @@ if path not in sys.path:
 os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
 os.environ['MAIL_DEBUG'] = '1'
 os.environ['MAIL_USE_TLS'] = 'True'
-os.environ['MAIL_USE_LOCALADDRESS'] = '0'  # Prevent using localhost
 
 # Set environment variables
 os.environ['MAIL_SERVER'] = 'mail.privateemail.com'
