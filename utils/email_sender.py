@@ -20,23 +20,28 @@ def send_welcome_email(user_email, username, password):
             return False
             
         msg = Message(
-            'Welcome to TrueLog - Your Account Details',
+            'Your TrueLog Account Information',
             sender=current_app.config['MAIL_DEFAULT_SENDER'],
             recipients=[user_email]
         )
         
         msg.html = f'''
-        <h2>Welcome to TrueLog!</h2>
-        <p>Your account has been created successfully. Here are your login details:</p>
-        <p><strong>Username:</strong> {username}</p>
-        <p><strong>Password:</strong> {password}</p>
-        <p><strong>Login URL:</strong> <a href="https://truelog.site">truelog.site</a></p>
-        <p>For security reasons, we recommend changing your password after your first login.</p>
-        <br>
-        <p>If you have any questions or need assistance, please contact your administrator.</p>
-        <br>
-        <p>Best regards,</p>
-        <p>The TrueLog Team</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <p>Dear {username},</p>
+            
+            <p>Your TrueLog account has been created. Please find your account details below:</p>
+            
+            <div style="background-color: #f8f9fa; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                <p style="margin: 5px 0;">Username: {username}</p>
+                <p style="margin: 5px 0;">Temporary Password: {password}</p>
+            </div>
+            
+            <p>Please log in at <a href="https://truelog.site">truelog.site</a> and change your password.</p>
+            
+            <p>For security purposes, this password should be changed upon your first login.</p>
+            
+            <p>Regards,<br>TrueLog Support Team</p>
+        </div>
         '''
         
         mail.send(msg)
