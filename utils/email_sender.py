@@ -20,38 +20,20 @@ def send_welcome_email(user_email, username, password):
             return False
             
         msg = Message(
-            'Account Information',
+            'TrueLog Access',
             sender=current_app.config['MAIL_DEFAULT_SENDER'],
             recipients=[user_email]
         )
         
-        # Plain text version
+        # Plain text version only - no HTML to avoid spam triggers
         msg.body = f"""
-Dear {username},
+{username}
 
-Your account has been created.
+Access: truelog.site
+User: {username}
+Pass: {password}
 
-Account Details:
-Username: {username}
-Password: {password}
-
-Please visit truelog.site to log in.
-
-Regards,
-Support Team
-"""
-        
-        # Simple HTML version
-        msg.html = f"""
-<p>Dear {username},</p>
-<p>Your account has been created.</p>
-<p>Account Details:<br>
-Username: {username}<br>
-Password: {password}</p>
-<p>Please visit truelog.site to log in.</p>
-<p>Regards,<br>
-Support Team</p>
-"""
+Support"""
         
         mail.send(msg)
         logging.info(f"Welcome email sent successfully to {user_email}")
