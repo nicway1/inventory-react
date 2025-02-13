@@ -2,9 +2,16 @@ import os
 import sys
 
 # Add your project directory to the sys.path
-path = '/home/yourusername/inventory'
+path = '/home/nicway2/inventory'
 if path not in sys.path:
     sys.path.append(path)
+
+# Set Python path and enable debugging
+os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
+os.environ['MAIL_DEBUG'] = '1'
+os.environ['MAIL_USE_TLS'] = 'True'
+os.environ['MAIL_USE_LOCALADDRESS'] = '0'  # Prevent using localhost
+os.environ['SERVER_NAME'] = 'truelog.site'  # Set proper hostname
 
 # Set environment variables
 os.environ['MAIL_SERVER'] = 'mail.privateemail.com'
@@ -13,7 +20,7 @@ os.environ['MAIL_USERNAME'] = 'support@truelog.site'
 os.environ['MAIL_PASSWORD'] = '123456'
 os.environ['MAIL_DEFAULT_SENDER'] = 'support@truelog.site'
 os.environ['SECRET_KEY'] = 'your-secret-key-here'
-os.environ['DATABASE_URL'] = 'sqlite:///inventory.db'
+os.environ['DATABASE_URL'] = 'sqlite:////home/nicway2/inventory/inventory.db'
 
 # Import your Flask app
 from app import app as application
