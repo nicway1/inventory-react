@@ -813,65 +813,40 @@ def view_asset(asset_id):
         # Get all customers for the deployment dropdown
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
         
-        return render_template('inventory/asset_details.html', asset=asset, customers=customers)
+        return render_template('inventory/asset_details.html', 
+                             asset=asset, 
+                             customers=customers,
+                             user=user)
     finally:
         db_session.close()
 
 @inventory_bp.route('/assets/<int:asset_id>/update-status', methods=['POST'])
 @login_required
 def update_asset_status(asset_id):
-    new_status = request.form.get('status')
-    customer_id = request.form.get('customer_id')  # Get customer_id from form
-    
-    if not new_status:
-        flash('No status provided', 'error')
-        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
-    
     db_session = db_manager.get_session()
-    try:
-        asset = db_session.query(Asset).get(asset_id)
-        if not asset:
-            flash('Asset not found', 'error')
-            return redirect(url_for('inventory.view_inventory'))
+    asset = db_session.query(Asset).get_or_404(asset_id)
+    
+    if request.method == 'POST':
+        old_status = asset.status.value if asset.status else None
+        new_status = request.form.get('status')
+        notes = request.form.get('notes')
         
-        # Convert string status to enum
-        try:
-            # Map the form values to enum values
-            status_mapping = {
-                'IN_STOCK': AssetStatus.IN_STOCK,
-                'DEPLOYED': AssetStatus.DEPLOYED,
-                'READY_TO_DEPLOY': AssetStatus.READY_TO_DEPLOY,
-                'SHIPPED': AssetStatus.SHIPPED,
-                'REPAIR': AssetStatus.REPAIR,
-                'ARCHIVED': AssetStatus.ARCHIVED
-            }
-            
-            if new_status in status_mapping:
-                asset.status = status_mapping[new_status]
-                
-                # If status is DEPLOYED and customer_id is provided, assign the asset
-                if new_status == 'DEPLOYED' and customer_id:
-                    customer = db_session.query(CustomerUser).get(customer_id)
-                    if customer:
-                        asset.customer_id = customer.id
-                        flash(f'Asset assigned to {customer.name}', 'success')
-                    else:
-                        flash('Customer not found', 'error')
-                # If status is changed to something other than DEPLOYED, remove customer assignment
-                elif new_status != 'DEPLOYED':
-                    asset.customer_id = None
-                
-                db_session.commit()
-                flash(f'Status updated to {asset.status.value}', 'success')
-            else:
-                flash(f'Invalid status: {new_status}', 'error')
-            
-        except Exception as e:
-            flash(f'Error updating status: {str(e)}', 'error')
-            
-        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
-    finally:
-        db_session.close()
+        asset.status = AssetStatus(new_status)
+        
+        # Track status change
+        history_entry = asset.track_change(
+            user_id=current_user.id,
+            action='status_change',
+            changes={'status': {'old': old_status, 'new': new_status}},
+            notes=notes
+        )
+        db_session.add(history_entry)
+        db_session.commit()
+        
+        flash('Asset status updated successfully', 'success')
+        return redirect(url_for('inventory.view_asset', asset_id=asset.id))
+    
+    return redirect(url_for('inventory.view_asset', asset_id=asset.id))
 
 @inventory_bp.route('/accessories/add', methods=['GET', 'POST'])
 @login_required
@@ -1170,109 +1145,178 @@ def download_template(template_type):
 def edit_asset(asset_id):
     db_session = db_manager.get_session()
     try:
-        # Get the asset
-        asset = db_session.query(Asset).get(asset_id)
+        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
         if not asset:
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory'))
-
+        
+        # Get all unique values for dropdowns
+        models = db_session.query(Asset.model).distinct().filter(Asset.model.isnot(None)).all()
+        models = sorted([m[0] for m in models if m[0]])
+        
+        chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        chargers = sorted([c[0] for c in chargers if c[0]])
+        
+        customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        customers = sorted([c[0] for c in customers if c[0]])
+        
+        countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        countries = sorted([c[0] for c in countries if c[0]])
+        
+        asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        asset_types = sorted([t[0] for t in asset_types if t[0]])
+        
         if request.method == 'POST':
             try:
-                # Update asset with form data
-                asset.asset_tag = request.form.get('asset_tag', '')
-                asset.name = request.form.get('product', '')
-                asset.asset_type = request.form.get('asset_type', '')
-                asset.serial_num = request.form.get('serial_num', '')
-                asset.po = request.form.get('po', '')
-                asset.model = request.form.get('model', '')
-                asset.customer = request.form.get('customer', '')
-                asset.condition = request.form.get('condition', ''),
-                asset.diag = request.form.get('diag', ''),
-                asset.hardware_type = request.form.get('hardware_type', ''),
-                asset.cpu_type = request.form.get('cpu_type', ''),
-                asset.cpu_cores = request.form.get('cpu_cores', ''),
-                asset.gpu_cores = request.form.get('gpu_cores', ''),
-                asset.memory = request.form.get('memory', ''),
-                asset.harddrive = request.form.get('harddrive', ''),
-                asset.charger = request.form.get('charger', ''),
-                asset.country = request.form.get('country', ''),
+                print("Received POST request for asset edit")  # Debug log
                 
-                # Handle status
-                status_value = request.form.get('status', '')
-                if status_value:
-                    try:
-                        asset.status = AssetStatus[status_value.upper().replace(' ', '_')]
-                    except KeyError:
-                        asset.status = AssetStatus.IN_STOCK
+                # Validate required fields
+                required_fields = ['asset_tag', 'serial_num', 'model', 'asset_type']
+                for field in required_fields:
+                    value = request.form.get(field)
+                    print(f"Checking required field {field}: {value}")  # Debug log
+                    if not value:
+                        flash(f'{field.replace("_", " ").title()} is required', 'error')
+                        raise ValueError(f'Missing required field: {field}')
 
+                # Store old values for change tracking
+                old_values = {
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'name': asset.name,
+                    'model': asset.model,
+                    'asset_type': asset.asset_type,
+                    'receiving_date': asset.receiving_date,
+                    'status': asset.status.value if asset.status else None,
+                    'customer': asset.customer,
+                    'country': asset.country,
+                    'hardware_type': asset.hardware_type,
+                    'cpu_type': asset.cpu_type,
+                    'cpu_cores': asset.cpu_cores,
+                    'gpu_cores': asset.gpu_cores,
+                    'memory': asset.memory,
+                    'harddrive': asset.harddrive,
+                    'po': asset.po,
+                    'charger': asset.charger,
+                    'erased': asset.erased
+                }
+                
+                print("Old values stored")  # Debug log
+                
+                # Update asset with new values
+                asset.asset_tag = request.form.get('asset_tag')
+                asset.serial_num = request.form.get('serial_num')
+                asset.name = request.form.get('product')  # form field is 'product'
+                asset.model = request.form.get('model')
+                asset.asset_type = request.form.get('asset_type')
+                
+                print("Basic fields updated")  # Debug log
+                
                 # Handle receiving date
                 receiving_date = request.form.get('receiving_date')
                 if receiving_date:
-                    asset.receiving_date = datetime.strptime(receiving_date, '%Y-%m-%d').date()
-
-                # Handle boolean fields
-                asset.erased = request.form.get('erased') == 'true'
-
+                    try:
+                        asset.receiving_date = datetime.strptime(receiving_date, '%Y-%m-%d')
+                        print(f"Receiving date set to: {asset.receiving_date}")  # Debug log
+                    except ValueError as e:
+                        print(f"Error parsing receiving date: {str(e)}")  # Debug log
+                        flash('Invalid receiving date format. Please use YYYY-MM-DD', 'error')
+                        raise
+                else:
+                    asset.receiving_date = None
+                
+                # Handle status
+                status = request.form.get('status')
+                print(f"Status from form: {status}")  # Debug log
+                if status:
+                    try:
+                        status_value = status.upper().replace(' ', '_')
+                        print(f"Converted status value: {status_value}")  # Debug log
+                        if not hasattr(AssetStatus, status_value):
+                            print(f"Invalid status value: {status_value}")  # Debug log
+                            flash(f'Invalid status value: {status}', 'error')
+                            raise ValueError(f'Invalid status value: {status}')
+                        asset.status = AssetStatus[status_value]
+                        print(f"Status set to: {asset.status}")  # Debug log
+                    except (KeyError, ValueError) as e:
+                        print(f"Error setting status: {str(e)}")  # Debug log
+                        flash(f'Error setting status: {str(e)}', 'error')
+                        raise
+                
+                # Update remaining fields
+                asset.customer = request.form.get('customer')
+                asset.country = request.form.get('country')
+                asset.hardware_type = request.form.get('hardware_type')
+                asset.cpu_type = request.form.get('cpu_type')
+                asset.cpu_cores = request.form.get('cpu_cores')
+                asset.gpu_cores = request.form.get('gpu_cores')
+                asset.memory = request.form.get('memory')
+                asset.harddrive = request.form.get('harddrive')
+                asset.po = request.form.get('po')
+                asset.charger = request.form.get('charger')
+                
+                # Handle erased field
+                erased_value = request.form.get('erased')
+                print(f"Received erased value from form: {erased_value}")  # Debug log
+                asset.erased = erased_value == 'true'
+                print(f"Set asset.erased to: {asset.erased}")  # Debug log
+                
+                # Track changes
+                changes = {}
+                for field in old_values:
+                    new_value = getattr(asset, field)
+                    if isinstance(new_value, AssetStatus):
+                        new_value = new_value.value
+                    if old_values[field] != new_value:
+                        changes[field] = {
+                            'old': old_values[field],
+                            'new': new_value
+                        }
+                
+                print(f"Changes detected: {changes}")  # Debug log
+                
+                if changes:
+                    history_entry = asset.track_change(
+                        user_id=current_user.id,
+                        action='update',
+                        changes=changes,
+                        notes=f"Asset updated by {current_user.username}"
+                    )
+                    db_session.add(history_entry)
+                    print("History entry added")  # Debug log
+                
                 db_session.commit()
-                flash('Asset updated successfully!', 'success')
-                return redirect(url_for('inventory.view_asset', asset_id=asset_id))
-
+                print("Changes committed to database")  # Debug log
+                flash('Asset updated successfully', 'success')
+                return redirect(url_for('inventory.view_asset', asset_id=asset.id))
+                
             except Exception as e:
                 db_session.rollback()
+                print(f"Error in edit_asset: {str(e)}")  # Debug log
                 flash(f'Error updating asset: {str(e)}', 'error')
-                return redirect(url_for('inventory.edit_asset', asset_id=asset_id))
-
-        # Get unique values for dropdowns (same as in add_asset)
-        model_info = db_session.query(
-            Asset.model, 
-            Asset.name,
-            Asset.asset_type
-        ).distinct().filter(
-            Asset.model.isnot(None),
-            Asset.name.isnot(None)
-        ).all()
-        
-        unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
-        unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
-        unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
-        unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
-        unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
-        unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
-        
-        # Process the lists
-        unique_models = []
-        model_product_map = {}
-        model_type_map = {}
-        for model, product_name, asset_type in model_info:
-            if model and model not in model_product_map:
-                unique_models.append(model)
-                model_product_map[model] = product_name
-                model_type_map[model] = asset_type if asset_type else ''
-
-        # Clean up the unique values
-        unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
-        unique_customers = sorted([c[0] for c in unique_customers if c[0]])
-        unique_countries = sorted([c[0] for c in unique_countries if c[0]])
-        unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
-        unique_diags = sorted([d[0] for d in unique_diags if d[0]])
-        unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
+                return render_template('inventory/edit_asset.html',
+                                     asset=asset,
+                                     models=models,
+                                     chargers=chargers,
+                                     customers=customers,
+                                     countries=countries,
+                                     asset_types=asset_types,
+                                     statuses=AssetStatus)
         
         return render_template('inventory/edit_asset.html',
-                            asset=asset,
-                            statuses=AssetStatus,
-                            models=unique_models,
-                            model_product_map=model_product_map,
-                            model_type_map=model_type_map,
-                            chargers=unique_chargers,
-                            customers=unique_customers,
-                            countries=unique_countries,
-                            conditions=unique_conditions,
-                            diags=unique_diags,
-                            asset_types=unique_asset_types)
-
+                             asset=asset,
+                             models=models,
+                             chargers=chargers,
+                             customers=customers,
+                             countries=countries,
+                             asset_types=asset_types,
+                             statuses=AssetStatus)
+                             
     except Exception as e:
-        flash(f'Error loading form: {str(e)}', 'error')
-        return redirect(url_for('inventory.view_inventory'))
+        db_session.rollback()
+        print(f"Error in edit_asset outer block: {str(e)}")  # Debug log
+        flash(f'Error updating asset: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     finally:
         db_session.close()
 
@@ -1426,6 +1470,31 @@ def delete_customer_user(id):
             flash(f'Error deleting customer: {str(e)}', 'error')
         
         return redirect(url_for('inventory.list_customer_users'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/asset/<int:asset_id>/history')
+@login_required
+def view_asset_history(asset_id):
+    db_session = db_manager.get_session()
+    try:
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Get the asset with its history
+        asset = db_session.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+        
+        # Check if user is super admin
+        if not user.is_super_admin:
+            flash('You do not have permission to view asset history', 'error')
+            return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+        
+        return render_template('inventory/asset_history.html', 
+                             asset=asset,
+                             user=user)
     finally:
         db_session.close()
 
