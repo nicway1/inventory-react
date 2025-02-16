@@ -72,32 +72,33 @@ def recreate_database():
             
         # Create default permissions for each user type
         for user_type in UserType:
+            default_permissions = Permission.get_default_permissions(user_type)
             conn.execute(
                 text("""
                     INSERT INTO permissions 
                     (user_type, can_view_assets, can_edit_assets, can_delete_assets, 
-                     can_create_assets, can_view_accessories, can_edit_accessories, 
-                     can_delete_accessories, can_create_accessories, can_import_data, 
-                     can_export_data, can_view_reports, can_generate_reports)
+                     can_create_assets, can_view_country_assets, can_edit_country_assets,
+                     can_delete_country_assets, can_create_country_assets,
+                     can_view_accessories, can_edit_accessories, can_delete_accessories,
+                     can_create_accessories, can_view_companies, can_edit_companies,
+                     can_delete_companies, can_create_companies, can_view_users,
+                     can_edit_users, can_delete_users, can_create_users,
+                     can_view_reports, can_generate_reports, can_import_data,
+                     can_export_data)
                     VALUES
-                    (:user_type, :can_view, :can_edit, :can_delete, :can_create,
-                     :can_view_acc, :can_edit_acc, :can_delete_acc, :can_create_acc,
-                     :can_import, :can_export, :can_view_rep, :can_gen_rep)
+                    (:user_type, :can_view_assets, :can_edit_assets, :can_delete_assets,
+                     :can_create_assets, :can_view_country_assets, :can_edit_country_assets,
+                     :can_delete_country_assets, :can_create_country_assets,
+                     :can_view_accessories, :can_edit_accessories, :can_delete_accessories,
+                     :can_create_accessories, :can_view_companies, :can_edit_companies,
+                     :can_delete_companies, :can_create_companies, :can_view_users,
+                     :can_edit_users, :can_delete_users, :can_create_users,
+                     :can_view_reports, :can_generate_reports, :can_import_data,
+                     :can_export_data)
                 """),
                 {
                     "user_type": user_type.value,
-                    "can_view": True,
-                    "can_edit": user_type == UserType.SUPER_ADMIN,
-                    "can_delete": user_type == UserType.SUPER_ADMIN,
-                    "can_create": user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN],
-                    "can_view_acc": True,
-                    "can_edit_acc": user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN],
-                    "can_delete_acc": user_type == UserType.SUPER_ADMIN,
-                    "can_create_acc": user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN],
-                    "can_import": user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN],
-                    "can_export": True,
-                    "can_view_rep": True,
-                    "can_gen_rep": user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]
+                    **default_permissions
                 }
             )
         print("Created default permissions for all user types")
