@@ -7,18 +7,18 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash
 
 class UserType(str, PyEnum):
-    SUPER_ADMIN = "Super Admin"
-    SUPERVISOR = "Supervisor"
-    COUNTRY_ADMIN = "Country Admin"
+    SUPER_ADMIN = "SUPER_ADMIN"
+    SUPERVISOR = "SUPERVISOR"
+    COUNTRY_ADMIN = "COUNTRY_ADMIN"
 
 class Country(str, PyEnum):
     USA = "USA"
-    JAPAN = "Japan"
-    PHILIPPINES = "Philippines"
-    AUSTRALIA = "Australia"
-    ISRAEL = "Israel"
-    INDIA = "India"
-    SINGAPORE = "Singapore"
+    JAPAN = "JAPAN"
+    PHILIPPINES = "PHILIPPINES"
+    AUSTRALIA = "AUSTRALIA"
+    ISRAEL = "ISRAEL"
+    INDIA = "INDIA"
+    SINGAPORE = "SINGAPORE"
 
 class User(UserMixin, Base):
     __tablename__ = 'users'
@@ -32,13 +32,6 @@ class User(UserMixin, Base):
     assigned_country = Column(Enum(Country), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
-    
-    # Relationships
-    company = relationship("Company", back_populates="users")
-    tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
-    tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to")
-    activities = relationship("Activity", back_populates="user")
-    assigned_assets = relationship("Asset", back_populates="assigned_to")
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
@@ -88,3 +81,13 @@ class User(UserMixin, Base):
     def update_last_login(self):
         """Update the last login timestamp"""
         self.last_login = datetime.utcnow()
+
+# Add relationships after all models are defined to avoid circular imports
+from models.asset_history import AssetHistory
+
+User.company = relationship("Company", back_populates="users")
+User.tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
+User.tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to")
+User.activities = relationship("Activity", back_populates="user")
+User.assigned_assets = relationship("Asset", back_populates="assigned_to")
+User.asset_changes = relationship("AssetHistory", back_populates="user")

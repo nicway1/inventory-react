@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" 
+           class="text-blue-600 hover:text-blue-800">
+            ← Back to Asset Details
+        </a>
+    </div>
+
+    <!-- Asset Header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h1 class="text-2xl font-bold mb-4">Asset History</h1>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-500">Asset Tag</p>
+                <p class="text-lg">{{ asset.asset_tag }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Serial Number</p>
+                <p class="text-lg">{{ asset.serial_num }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Model</p>
+                <p class="text-lg">{{ asset.model }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Timeline -->
+    <div class="bg-white shadow rounded-lg p-6">
+        {% if asset.history %}
+        <div class="space-y-6">
+            {% for entry in asset.history %}
+            <div class="relative pl-8 pb-6 border-l-2 border-blue-500 last:pb-0">
+                <!-- Timeline Dot -->
+                <div class="absolute left-[-9px] top-0 w-4 h-4 bg-blue-500 rounded-full"></div>
+                
+                <!-- Entry Content -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-lg font-semibold text-gray-900">
+                                {{ entry.action|title }}
+                            </p>
+                            <p class="text-sm text-gray-600">
+                                By {{ entry.user.username }} on {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {% if entry.changes %}
+                    <div class="mt-3 space-y-2">
+                        {% for field, change in entry.changes.items() %}
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="font-medium">{{ field|title }}:</span>
+                            <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                            <span class="text-green-500">→</span>
+                            <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if entry.notes %}
+                    <div class="mt-3 text-sm text-gray-700">
+                        <p class="font-medium">Notes:</p>
+                        <p>{{ entry.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-4">No history available for this asset.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

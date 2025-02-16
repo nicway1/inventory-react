@@ -50,7 +50,7 @@
         </div>
 
         <!-- Import Card -->
-        {% if user.user_type in ['Super Admin', 'Country Admin'] %}
+        {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +65,7 @@
         {% endif %}
 
         <!-- System Management Card (Only for Super Admin) -->
-        {% if user.user_type.value == 'Super Admin' %}
+        {% if user.user_type.value == 'SUPER_ADMIN' %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

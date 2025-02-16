@@ -1,0 +1,36 @@
+    <!-- Additional Information -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Additional Information</h2>
+        <dl class="grid grid-cols-1 gap-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Notes</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.notes or 'No notes available' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Created At</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else 'Not available' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.updated_at.strftime('%Y-%m-%d %H:%M:%S') if asset.updated_at else 'Not available' }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    {% if user.is_super_admin %}
+    <!-- History Button -->
+    <div class="flex justify-end mb-6">
+        <a href="{{ url_for('inventory.view_asset_history', asset_id=asset.id) }}"
+           class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            View History
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Delete Confirmation Form -->
+    <form id="deleteForm" action="{{ url_for('inventory.delete_asset', asset_id=asset.id) }}" method="POST" class="hidden">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form> 

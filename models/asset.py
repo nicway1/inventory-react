@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -44,7 +44,7 @@ class Asset(Base):
     receiving_date = Column(DateTime)
     keyboard = Column(String(100))
     po = Column(String(100))
-    erased = Column(String(50))
+    erased = Column(Boolean, default=False)
     condition = Column(String(100))
     diag = Column(String(1000))
     cpu_type = Column(String(100))
@@ -59,4 +59,17 @@ class Asset(Base):
     company = relationship("Company", back_populates="assets")
     tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
     assigned_to = relationship("User", back_populates="assigned_assets")
-    customer_user = relationship("CustomerUser", foreign_keys=[customer_id]) 
+    customer_user = relationship("CustomerUser", foreign_keys=[customer_id])
+    history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
+
+    def track_change(self, user_id, action, changes, notes=None):
+        """Track changes made to the asset"""
+        from models.asset_history import AssetHistory
+        history_entry = AssetHistory.create_history(
+            asset_id=self.id,
+            user_id=user_id,
+            action=action,
+            changes=changes,
+            notes=notes
+        )
+        return history_entry 
