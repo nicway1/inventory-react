@@ -4,6 +4,15 @@ from sqlalchemy import create_engine, text
 from models import Base
 from models.user import User, UserType
 from models.company import Company
+from models.location import Location
+from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
+from models.customer_user import CustomerUser
+from models.activity import Activity
+from models.ticket import Ticket
+from models.queue import Queue
+from models.asset_history import AssetHistory
+from models.permission import Permission
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
@@ -18,7 +27,24 @@ def recreate_database():
     
     # Create new database and tables
     engine = create_engine('sqlite:///inventory.db')
-    Base.metadata.create_all(engine)
+    
+    # Create tables in the correct order
+    tables_order = [
+        Company.__table__,
+        User.__table__,
+        Location.__table__,
+        Queue.__table__,  # Create Queue table before Ticket
+        CustomerUser.__table__,
+        Asset.__table__,
+        Accessory.__table__,
+        Ticket.__table__,
+        Activity.__table__,
+        AssetHistory.__table__,
+        Permission.__table__
+    ]
+    
+    for table in tables_order:
+        table.create(engine)
     print("Created new database with all tables")
     
     # Create default company
