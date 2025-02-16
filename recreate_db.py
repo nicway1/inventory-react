@@ -2,14 +2,14 @@ import os
 import sys
 from sqlalchemy import create_engine, text
 from models import Base
-from models.user import User, UserType
+from models.user import User, UserType, Country
 from models.company import Company
 from models.location import Location
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.activity import Activity
-from models.ticket import Ticket
+from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory, RMAStatus
 from models.queue import Queue
 from models.asset_history import AssetHistory
 from models.permission import Permission
@@ -27,24 +27,7 @@ def recreate_database():
     
     # Create new database and tables
     engine = create_engine('sqlite:///inventory.db')
-    
-    # Create tables in the correct order
-    tables_order = [
-        Company.__table__,
-        User.__table__,
-        Location.__table__,
-        Queue.__table__,  # Create Queue table before Ticket
-        CustomerUser.__table__,
-        Asset.__table__,
-        Accessory.__table__,
-        Ticket.__table__,
-        Activity.__table__,
-        AssetHistory.__table__,
-        Permission.__table__
-    ]
-    
-    for table in tables_order:
-        table.create(engine)
+    Base.metadata.create_all(engine)  # Let SQLAlchemy handle the table creation order
     print("Created new database with all tables")
     
     # Create default company
@@ -80,12 +63,12 @@ def recreate_database():
         )
         print("Created admin user (username: admin, password: admin123)")
         
-        # Ensure erased field in assets table is boolean
-        try:
-            conn.execute(text("ALTER TABLE assets ADD COLUMN erased BOOLEAN DEFAULT FALSE"))
-            print("Added erased boolean field to assets table")
-        except Exception as e:
-            print("Erased field already exists or couldn't be added:", str(e))
+        # Create default queue
+        conn.execute(
+            text("INSERT INTO queues (name, description) VALUES (:name, :description)"),
+            {"name": "General", "description": "Default queue for all tickets"}
+        )
+        print("Created default queue")
             
         # Create default permissions for each user type
         for user_type in UserType:
