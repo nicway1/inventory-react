@@ -508,7 +508,7 @@ def import_inventory():
                                     'Receiving Date': clean_value(row.get('Receiving date', '')),
                                     'Condition': clean_value(row.get('CONDITION', '')),
                                     'Diagnostic': clean_value(row.get('DIAG', '')),
-                                    'Erased': clean_value(row.get('ERASED', '')).upper() == 'YES' if clean_value(row.get('ERASED', '')) else False,
+                                    'Erased': clean_value(row.get('ERASED', row.get('Erased', ''))).strip().upper() in ['YES', 'TRUE'] if row.get('ERASED') or row.get('Erased') else False,
                                     'Keyboard': clean_value(row.get('Keyboard', '')),
                                     'Charger': clean_value(row.get('CHARGER', '')),
                                     'Included': clean_value(row.get('INCLUDED', ''))
@@ -707,7 +707,7 @@ def confirm_import():
                             # Condition and diagnostics
                             condition=str(row['Condition']).strip() if row['Condition'] else None,
                             diag=str(row['Diagnostic']).strip() if row['Diagnostic'] else None,
-                            erased=str(row['Erased']).strip().upper() == 'YES' if row['Erased'] else False,
+                            erased=str(row.get('ERASED', row.get('Erased', ''))).strip().upper() in ['YES', 'TRUE'] if row.get('ERASED') or row.get('Erased') else False,
                             
                             # Accessories
                             keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
