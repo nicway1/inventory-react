@@ -662,20 +662,20 @@ def confirm_import():
                             except Exception as e:
                                 print(f"Error parsing date '{date_str}': {str(e)}")
 
-                        # Convert memory and storage to integers if present
+                        # Process memory and storage as strings
                         memory = None
                         if row['Memory'] and str(row['Memory']).lower() not in ['nan', 'none', '']:
-                            try:
-                                memory = int(str(row['Memory']).replace('GB', '').strip())
-                            except ValueError:
-                                print(f"Invalid memory value '{row['Memory']}', skipping")
+                            memory_str = str(row['Memory']).strip()
+                            if not memory_str.endswith('GB'):
+                                memory_str += 'GB'
+                            memory = memory_str
 
                         storage = None
                         if row['Hard Drive'] and str(row['Hard Drive']).lower() not in ['nan', 'none', '']:
-                            try:
-                                storage = int(str(row['Hard Drive']).replace('GB', '').strip())
-                            except ValueError:
-                                print(f"Invalid storage value '{row['Hard Drive']}', skipping")
+                            storage_str = str(row['Hard Drive']).strip()
+                            if not storage_str.endswith('GB'):
+                                storage_str += 'GB'
+                            storage = storage_str
 
                         # Create new asset with proper type conversion and defaults
                         asset = Asset(

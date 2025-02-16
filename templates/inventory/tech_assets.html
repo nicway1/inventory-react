@@ -49,7 +49,9 @@
                                 {{ asset.cpu_type }}, {{ asset.cpu_cores }} cores
                             </div>
                             <div class="text-sm text-gray-500">
-                                {{ asset.gpu_cores }} GPU cores, {{ asset.memory }}GB RAM, {{ asset.harddrive }}GB SSD
+                                {% if asset.gpu_cores %}{{ asset.gpu_cores }} GPU cores, {% endif %}
+                                {% if asset.memory %}{{ asset.memory }} RAM{% endif %}
+                                {% if asset.harddrive %}, {{ asset.harddrive }} Storage{% endif %}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
