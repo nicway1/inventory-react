@@ -48,8 +48,8 @@ class Asset(Base):
     condition = Column(String(100))
     diag = Column(String(1000))
     cpu_type = Column(String(100))
-    cpu_cores = Column(String(50))
-    gpu_cores = Column(String(50))
+    cpu_cores = Column(String(100))
+    gpu_cores = Column(String(100))
     memory = Column(String(100))
     harddrive = Column(String(100))
     charger = Column(String(100))
@@ -59,7 +59,7 @@ class Asset(Base):
     company = relationship("Company", back_populates="assets")
     tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
     assigned_to = relationship("User", back_populates="assigned_assets")
-    customer_user = relationship("CustomerUser", foreign_keys=[customer_id])
+    customer_user = relationship("CustomerUser", back_populates="assigned_assets")
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
 
     def track_change(self, user_id, action, changes, notes=None):

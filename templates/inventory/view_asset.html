@@ -1,3 +1,28 @@
+    <!-- Assignment Information -->
+    {% if asset.status == AssetStatus.DEPLOYED and asset.customer_user %}
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Assignment Information</h2>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Assigned To</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.customer_user.name }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Contact Number</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.customer_user.contact_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Email</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.customer_user.email }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Address</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.customer_user.address }}</dd>
+            </div>
+        </dl>
+    </div>
+    {% endif %}
+
     <!-- Additional Information -->
     <div class="bg-white shadow rounded-lg p-6 mb-6">
         <h2 class="text-xl font-semibold mb-4">Additional Information</h2>

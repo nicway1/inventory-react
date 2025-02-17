@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file
+from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file, abort
 from datetime import datetime
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
@@ -17,6 +17,7 @@ import io
 import csv
 from models.user import UserType
 from models.customer_user import CustomerUser
+from sqlalchemy.orm import joinedload
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -284,8 +285,9 @@ def checkout_accessory(id):
             flash('Invalid quantity or customer', 'error')
             return redirect(url_for('inventory.view_accessory', id=id))
 
-        accessory = db_session.query(Accessory).get(id)
-        customer = db_session.query(CustomerUser).get(customer_id)
+        # Get the accessory and customer
+        accessory = db_session.query(Accessory).filter(Accessory.id == id).first()
+        customer = db_session.query(CustomerUser).filter(CustomerUser.id == customer_id).first()
         
         if not accessory:
             flash('Accessory not found', 'error')
@@ -300,14 +302,12 @@ def checkout_accessory(id):
             flash(f'Only {accessory.available_quantity} items available', 'error')
             return redirect(url_for('inventory.view_accessory', id=id))
 
-        # Update accessory quantities
+        # Update accessory quantities and assign to customer
         accessory.available_quantity -= quantity
-        accessory.checkout_date = datetime.now()
-        accessory.customer_id = customer_id  # Set customer_id instead of assigned_to
-
-        # If all items are checked out, update status
-        if accessory.available_quantity == 0:
-            accessory.status = 'Checked Out'
+        accessory.checkout_date = datetime.utcnow()
+        accessory.customer_id = customer_id
+        accessory.customer_user = customer  # Set the relationship
+        accessory.status = 'Checked Out'
 
         db_session.commit()
         flash(f'Successfully checked out {quantity} {accessory.name}(s) to {customer.name}', 'success')
@@ -501,7 +501,7 @@ def import_inventory():
                                     'GPU Cores': clean_value(row.get('GPU CORES', '')),
                                     'Memory': clean_value(row.get('MEMORY', '')),
                                     'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
-                                    'Status': clean_status(row.get('STATUS', '')),
+                                    'Status': clean_value(row.get('STATUS', '')),
                                     'Customer': clean_value(row.get('CUSTOMER', '')),
                                     'Country': clean_value(row.get('country', '')),
                                     'PO': clean_value(row.get('PO', '')),
@@ -824,29 +824,99 @@ def view_asset(asset_id):
 @login_required
 def update_asset_status(asset_id):
     db_session = db_manager.get_session()
-    asset = db_session.query(Asset).get_or_404(asset_id)
-    
-    if request.method == 'POST':
-        old_status = asset.status.value if asset.status else None
+    try:
+        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+        if not asset:
+            abort(404)
+            
         new_status = request.form.get('status')
-        notes = request.form.get('notes')
+        notes = request.form.get('notes', '')
         
-        asset.status = AssetStatus(new_status)
+        if not new_status:
+            flash('Status is required', 'error')
+            return redirect(url_for('inventory.view_asset', asset_id=asset_id))
         
-        # Track status change
-        history_entry = asset.track_change(
-            user_id=current_user.id,
-            action='status_change',
-            changes={'status': {'old': old_status, 'new': new_status}},
-            notes=notes
-        )
-        db_session.add(history_entry)
-        db_session.commit()
-        
-        flash('Asset status updated successfully', 'success')
-        return redirect(url_for('inventory.view_asset', asset_id=asset.id))
-    
-    return redirect(url_for('inventory.view_asset', asset_id=asset.id))
+        try:
+            # Convert status to the correct format for the enum
+            status_map = {
+                'IN_STOCK': AssetStatus.IN_STOCK,
+                'READY_TO_DEPLOY': AssetStatus.READY_TO_DEPLOY,
+                'SHIPPED': AssetStatus.SHIPPED,
+                'DEPLOYED': AssetStatus.DEPLOYED,
+                'REPAIR': AssetStatus.REPAIR,
+                'ARCHIVED': AssetStatus.ARCHIVED
+            }
+            
+            new_status_value = new_status.upper()
+            if new_status_value not in status_map:
+                flash(f'Invalid status value: {new_status}', 'error')
+                return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+                
+            new_status_enum = status_map[new_status_value]
+            
+            # Track the change
+            changes = {
+                'status': {
+                    'old': asset.status.value if asset.status else None,
+                    'new': new_status_enum.value
+                }
+            }
+
+            # Handle customer assignment when deploying
+            if new_status_enum == AssetStatus.DEPLOYED:
+                customer_id = request.form.get('customer_id')
+                if customer_id:
+                    customer = db_session.query(CustomerUser).get(customer_id)
+                    if customer:
+                        asset.customer_id = customer.id
+                        asset.customer = customer.name
+                        asset.customer_user = customer
+                        changes['customer'] = {
+                            'old': None if not asset.customer else asset.customer,
+                            'new': customer.name
+                        }
+                    else:
+                        flash('Selected customer not found', 'error')
+                        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+                else:
+                    flash('Customer ID is required for deployment', 'error')
+                    return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+            elif new_status_enum == AssetStatus.IN_STOCK:
+                # Clear customer when returning to stock
+                if asset.customer_id:
+                    changes['customer'] = {
+                        'old': asset.customer,
+                        'new': None
+                    }
+                    asset.customer_id = None
+                    asset.customer = None
+                    asset.customer_user = None
+            
+            # Create history entry
+            history_entry = asset.track_change(
+                user_id=session['user_id'],
+                action='status_change',
+                changes=changes,
+                notes=notes
+            )
+            
+            # Update the asset
+            asset.status = new_status_enum
+            if notes:
+                asset.notes = notes
+                
+            db_session.add(history_entry)
+            db_session.commit()
+            
+            flash('Asset status updated successfully', 'success')
+            return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+            
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error updating asset status: {str(e)}', 'error')
+            return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/accessories/add', methods=['GET', 'POST'])
 @login_required
@@ -1350,7 +1420,8 @@ def view_accessory(id):
     """View accessory details"""
     db_session = db_manager.get_session()
     try:
-        accessory = db_session.query(Accessory).get(id)
+        # Get the accessory
+        accessory = db_session.query(Accessory).filter(Accessory.id == id).first()
         if not accessory:
             flash('Accessory not found', 'error')
             return redirect(url_for('inventory.view_accessories'))
@@ -1358,8 +1429,14 @@ def view_accessory(id):
         # Get all customers for the checkout form
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
         
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            flash('User session expired', 'error')
+            return redirect(url_for('auth.login'))
+            
         # Check if user is admin (either SUPER_ADMIN or COUNTRY_ADMIN)
-        is_admin = current_user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]
+        is_admin = user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]
         
         return render_template('inventory/accessory_details.html', 
                              accessory=accessory,
@@ -1374,7 +1451,17 @@ def list_customer_users():
     """List all customer users"""
     db_session = db_manager.get_session()
     try:
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        customers = db_session.query(CustomerUser)\
+            .options(joinedload(CustomerUser.assigned_assets))\
+            .options(joinedload(CustomerUser.assigned_accessories))\
+            .order_by(CustomerUser.name).all()
+        
+        # Debug print
+        for customer in customers:
+            print(f"Customer {customer.name}:")
+            print(f"Assets: {len(customer.assigned_assets)}")
+            print(f"Accessories: {len(customer.assigned_accessories)}")
+            
         return render_template('inventory/customer_users.html', customers=customers, len=len)
     finally:
         db_session.close()
@@ -1485,7 +1572,7 @@ def view_asset_history(asset_id):
         asset = db_session.query(Asset).get(asset_id)
         if not asset:
             flash('Asset not found', 'error')
-            return redirect(url_for('inventory.view_inventory'))
+            return redirect(url_for('inventory.view_asset', asset_id=asset_id))
         
         # Check if user is super admin
         if not user.is_super_admin:
