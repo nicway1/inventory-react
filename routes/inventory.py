@@ -7,7 +7,7 @@ from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
-from models.user import User, UserType
+from models.user import User, UserType, Country
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 import os
@@ -23,6 +23,7 @@ import io
 import csv
 from models.activity import Activity
 from sqlalchemy.orm import joinedload
+from models.company import Company
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -1665,6 +1666,7 @@ def list_customer_users():
     db_session = db_manager.get_session()
     try:
         customers = db_session.query(CustomerUser)\
+            .options(joinedload(CustomerUser.company))\
             .options(joinedload(CustomerUser.assigned_assets))\
             .options(joinedload(CustomerUser.assigned_accessories))\
             .order_by(CustomerUser.name).all()
@@ -1672,10 +1674,15 @@ def list_customer_users():
         # Debug print
         for customer in customers:
             print(f"Customer {customer.name}:")
+            print(f"Company: {customer.company.name if customer.company else 'N/A'}")
+            print(f"Country: {customer.country.value if customer.country else 'N/A'}")
             print(f"Assets: {len(customer.assigned_assets)}")
             print(f"Accessories: {len(customer.assigned_accessories)}")
             
-        return render_template('inventory/customer_users.html', customers=customers, len=len)
+        return render_template('inventory/customer_users.html', 
+                             customers=customers, 
+                             len=len,
+                             Country=Country)  # Pass Country enum to template
     finally:
         db_session.close()
 
@@ -1683,27 +1690,56 @@ def list_customer_users():
 @login_required
 def add_customer_user():
     """Add a new customer user"""
-    if request.method == 'POST':
-        db_session = db_manager.get_session()
-        try:
-            new_customer = CustomerUser(
-                name=request.form['name'],
-                contact_number=request.form['contact_number'],
-                email=request.form['email'],
-                address=request.form['address']
+    db_session = db_manager.get_session()
+    try:
+        if request.method == 'POST':
+            # Get form data
+            name = request.form.get('name')
+            contact_number = request.form.get('contact_number')
+            email = request.form.get('email')
+            address = request.form.get('address')
+            company_name = request.form.get('company')
+            country = Country[request.form.get('country')]
+
+            # Get or create the company
+            company = db_session.query(Company).filter_by(name=company_name).first()
+            if not company:
+                # Create new company if it doesn't exist
+                company = Company(name=company_name)
+                db_session.add(company)
+                db_session.flush()  # Get the company ID
+
+            # Create new customer user
+            customer = CustomerUser(
+                name=name,
+                contact_number=contact_number,
+                email=email,
+                address=address,
+                company=company,  # Assign the Company object
+                country=country
             )
-            db_session.add(new_customer)
+            
+            db_session.add(customer)
             db_session.commit()
-            flash('Customer added successfully!', 'success')
+            
+            flash('Customer user added successfully!', 'success')
             return redirect(url_for('inventory.list_customer_users'))
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Error adding customer: {str(e)}', 'error')
-            return redirect(url_for('inventory.add_customer_user'))
-        finally:
-            db_session.close()
-    
-    return render_template('inventory/add_customer_user.html')
+        
+        # For GET request, get unique company names from assets
+        companies = db_session.query(Asset.customer)\
+            .filter(Asset.customer.isnot(None))\
+            .distinct()\
+            .order_by(Asset.customer)\
+            .all()
+        
+        # Convert list of tuples to list of company names
+        companies = [company[0] for company in companies if company[0]]  # Filter out None/empty values
+        
+        return render_template('inventory/add_customer_user.html', 
+                             companies=companies,
+                             Country=Country)
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/customer-users/<int:id>')
 @login_required
@@ -1727,26 +1763,29 @@ def edit_customer_user(id):
     db_session = db_manager.get_session()
     try:
         customer = db_session.query(CustomerUser).get(id)
-        if not customer:
-            flash('Customer not found', 'error')
-            return redirect(url_for('inventory.list_customer_users'))
-
-        if request.method == 'POST':
-            try:
-                customer.name = request.form['name']
-                customer.contact_number = request.form['contact_number']
-                customer.email = request.form['email']
-                customer.address = request.form['address']
-                
-                db_session.commit()
-                flash('Customer updated successfully!', 'success')
-                return redirect(url_for('inventory.list_customer_users'))
-            except Exception as e:
-                db_session.rollback()
-                flash(f'Error updating customer: {str(e)}', 'error')
-                return redirect(url_for('inventory.edit_customer_user', id=id))
+        companies = db_session.query(Company).all()
+        countries = list(Country)
         
-        return render_template('inventory/edit_customer_user.html', customer=customer)
+        if not customer:
+            flash('Customer user not found', 'error')
+            return redirect(url_for('inventory.list_customer_users'))
+            
+        if request.method == 'POST':
+            customer.name = request.form['name']
+            customer.contact_number = request.form['contact_number']
+            customer.email = request.form['email']
+            customer.address = request.form['address']
+            customer.company_id = request.form['company_id']
+            customer.country = Country(request.form['country'])
+            
+            db_session.commit()
+            flash('Customer user updated successfully', 'success')
+            return redirect(url_for('inventory.list_customer_users'))
+            
+        return render_template('inventory/edit_customer_user.html', 
+                             customer=customer,
+                             companies=companies,
+                             countries=countries)
     finally:
         db_session.close()
 

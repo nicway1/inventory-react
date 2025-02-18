@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from models.base import Base
+from datetime import datetime
 
 class Company(Base):
     __tablename__ = 'companies'
@@ -18,6 +19,7 @@ class Company(Base):
     # Relationships
     users = relationship("User", back_populates="company", lazy="dynamic", viewonly=True)
     assets = relationship("Asset", back_populates="company", lazy="dynamic", viewonly=True)
+    customer_users = relationship("CustomerUser", back_populates="company")
 
     @property
     def logo_url(self):
@@ -25,3 +27,14 @@ class Company(Base):
         if self.logo_path:
             return f'/static/company_logos/{self.logo_path}'
         return '/static/images/default-company.png'  # Default logo path 
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'contact_name': self.contact_name,
+            'contact_email': self.contact_email,
+            'address': self.address,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        } 
