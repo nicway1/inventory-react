@@ -12,6 +12,7 @@ from models.asset import Asset
 from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.user import UserType
+from sqlalchemy import func
 
 main_bp = Blueprint('main', __name__)
 db_manager = DatabaseManager()
@@ -76,7 +77,7 @@ def index():
     db_session = db_manager.get_session()
     try:
         tech_assets_count = db_session.query(Asset).count()
-        accessories_count = db_session.query(Accessory).count()
+        accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
         total_inventory = tech_assets_count + accessories_count
         total_customers = db_session.query(CustomerUser).count()
     finally:

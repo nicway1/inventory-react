@@ -4,6 +4,8 @@ from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
+from models.customer_user import CustomerUser
+from models.asset_history import AssetHistory
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -16,7 +18,6 @@ import time
 import io
 import csv
 from models.user import UserType
-from models.customer_user import CustomerUser
 from sqlalchemy.orm import joinedload
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
@@ -49,7 +50,7 @@ def view_inventory():
         
         # Get counts
         tech_assets_count = tech_assets_query.count()
-        accessories_count = db_session.query(Accessory).count()
+        accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
 
         # Get unique values for filters from filtered assets only
         companies = tech_assets_query.with_entities(Asset.customer).distinct().all()
@@ -1025,6 +1026,9 @@ def delete_accessory(id):
 def add_asset():
     db_session = db_manager.get_session()
     try:
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
         # Get all unique models and their exact product names from the database
         model_info = db_session.query(
             Asset.model, 
@@ -1038,10 +1042,16 @@ def add_asset():
         # Get unique values for dropdown fields
         unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
         unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
-        unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
         unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
         unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
         unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        
+        # For Country Admin, only show their assigned country
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            unique_countries = [user.assigned_country.value]
+        else:
+            unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+            unique_countries = sorted([c[0] for c in unique_countries if c[0]])
         
         # Process the lists to remove tuples and None values
         unique_models = []
@@ -1056,7 +1066,6 @@ def add_asset():
         # Clean up the unique values
         unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
         unique_customers = sorted([c[0] for c in unique_customers if c[0]])
-        unique_countries = sorted([c[0] for c in unique_countries if c[0]])
         unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
         unique_diags = sorted([d[0] for d in unique_diags if d[0]])
         unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
@@ -1094,7 +1103,8 @@ def add_asset():
                                         countries=unique_countries,
                                         conditions=unique_conditions,
                                         diags=unique_diags,
-                                        asset_types=unique_asset_types)
+                                        asset_types=unique_asset_types,
+                                        user=user)
 
                 # Create new asset from form data
                 new_asset = Asset(
@@ -1139,7 +1149,8 @@ def add_asset():
                                     countries=unique_countries,
                                     conditions=unique_conditions,
                                     diags=unique_diags,
-                                    asset_types=unique_asset_types)
+                                    asset_types=unique_asset_types,
+                                    user=user)
         
         # GET request - render the form
         return render_template('inventory/add_asset.html',
@@ -1152,7 +1163,8 @@ def add_asset():
                             countries=unique_countries,
                             conditions=unique_conditions,
                             diags=unique_diags,
-                            asset_types=unique_asset_types)
+                            asset_types=unique_asset_types,
+                            user=user)
                             
     except Exception as e:
         flash(f'Error loading form: {str(e)}', 'error')
@@ -1402,6 +1414,10 @@ def delete_asset(asset_id):
             return redirect(url_for('inventory.view_inventory'))
 
         try:
+            # First delete all history records for this asset
+            db_session.query(AssetHistory).filter(AssetHistory.asset_id == asset_id).delete()
+            
+            # Then delete the asset
             db_session.delete(asset)
             db_session.commit()
             flash('Asset deleted successfully!', 'success')
