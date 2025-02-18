@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">System History</h1>
+        <p class="mt-2 text-sm text-gray-600">View all system activities and changes</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="mb-4 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button onclick="switchTab('activities')"
+                    class="tab-button border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                General Activities
+            </button>
+            <button onclick="switchTab('asset-history')"
+                    class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Asset Changes
+            </button>
+        </nav>
+    </div>
+
+    <!-- Activities Tab -->
+    <div id="activities-tab" class="tab-content">
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for activity in activities %}
+                <li class="px-4 py-4 sm:px-6">
+                    <div class="flex items-center justify-between">
+                        <div class="sm:flex sm:items-center sm:justify-between w-full">
+                            <div class="sm:flex sm:items-center">
+                                <div class="text-sm">
+                                    <p class="font-medium text-blue-600">
+                                        {{ activity.user.username }}
+                                    </p>
+                                    <p class="text-gray-900 mt-1">
+                                        {{ activity.content }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-2 sm:mt-0">
+                                <div class="text-sm text-gray-500">
+                                    {{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    Type: {{ activity.type }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Asset History Tab -->
+    <div id="asset-history-tab" class="tab-content hidden">
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for history in asset_history %}
+                <li class="px-4 py-4 sm:px-6">
+                    <div class="flex items-center justify-between">
+                        <div class="sm:flex sm:items-center sm:justify-between w-full">
+                            <div class="sm:flex sm:items-center">
+                                <div class="text-sm">
+                                    <p class="font-medium text-blue-600">
+                                        {{ history.user.username }}
+                                    </p>
+                                    <p class="text-gray-900 mt-1">
+                                        Asset: {{ history.asset.asset_tag }} ({{ history.asset.model }})
+                                    </p>
+                                    <p class="text-gray-700 mt-1">
+                                        Action: {{ history.action }}
+                                    </p>
+                                    {% if history.changes %}
+                                    <div class="mt-2">
+                                        <p class="text-sm font-medium text-gray-500">Changes:</p>
+                                        <ul class="mt-1 text-sm text-gray-600">
+                                        {% for field, change in history.changes.items() %}
+                                            <li>
+                                                {{ field }}: 
+                                                <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                                →
+                                                <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                            </li>
+                                        {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                    {% if history.notes %}
+                                    <p class="text-gray-600 mt-2">
+                                        Notes: {{ history.notes }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mt-2 sm:mt-0">
+                                <div class="text-sm text-gray-500">
+                                    {{ history.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+    
+    // Show selected tab content
+    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    
+    // Update tab button styles
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-blue-500', 'text-blue-600');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Style active tab button
+    event.target.classList.remove('border-transparent', 'text-gray-500');
+    event.target.classList.add('border-blue-500', 'text-blue-600');
+}
+</script>
+{% endblock %} 

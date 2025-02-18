@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, session
 from flask_login import current_user
+from flask_wtf.csrf import CSRFProtect
 from utils.auth_decorators import admin_required, super_admin_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
@@ -13,10 +14,13 @@ from werkzeug.utils import secure_filename
 import uuid
 from werkzeug.security import generate_password_hash
 from database import SessionLocal
+from models.activity import Activity
+from models.asset_history import AssetHistory
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
+csrf = CSRFProtect()
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -33,24 +37,40 @@ def save_company_logo(file):
 @admin_bp.route('/permission-management')
 @admin_required
 def permission_management():
-    """Render the permissions management page"""
-    db = SessionLocal()
+    """Manage user type permissions"""
+    if 'user_id' not in session:
+        flash('Please log in to continue', 'error')
+        return redirect(url_for('auth.login'))
+
+    db_session = db_manager.get_session()
     try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
         # Get all permissions
-        permissions = db.query(Permission).all()
-        
-        # If no permissions exist, initialize them for each user type
+        permissions = db_session.query(Permission).all()
         if not permissions:
+            # Initialize default permissions if none exist
             for user_type in UserType:
                 default_permissions = Permission.get_default_permissions(user_type)
                 permission = Permission(user_type=user_type, **default_permissions)
-                db.add(permission)
-            db.commit()
-            permissions = db.query(Permission).all()
-            
-        return render_template('admin/permission_management.html', permissions=permissions)
+                db_session.add(permission)
+            db_session.commit()
+            permissions = db_session.query(Permission).all()
+
+        return render_template('admin/permission_management.html', 
+                             permissions=permissions,
+                             user=user,
+                             UserType=UserType)
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error loading permissions: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
     finally:
-        db.close()
+        db_session.close()
 
 @admin_bp.route('/companies')
 @admin_required
@@ -315,63 +335,100 @@ def manage_user(user_id):
 @admin_bp.route('/permissions/update', methods=['POST'])
 @super_admin_required
 def update_permissions():
-    """Update user type permissions"""
-    db = SessionLocal()
+    """Update user type permissions based on form data"""
+    if 'user_id' not in session:
+        flash('Please log in to continue', 'error')
+        return redirect(url_for('auth.login'))
+
+    db_session = db_manager.get_session()
     try:
-        # Get form data
+        # Log the form data
+        print("Form data received:", request.form)
+        
         user_type = request.form.get('user_type')
-        permissions_data = {}
+        print("User type:", user_type)
         
-        # Extract permission values from form
-        for key in request.form:
-            if key.startswith('can_'):
-                permissions_data[key] = request.form.get(key) == 'on'
+        if not user_type:
+            flash('User type is required', 'error')
+            return redirect(url_for('admin.permission_management'))
+
+        try:
+            user_type_enum = UserType[user_type]
+            print("User type enum:", user_type_enum)
+        except KeyError:
+            flash('Invalid user type', 'error')
+            return redirect(url_for('admin.permission_management'))
+
+        # Get existing permission record
+        permission = db_session.query(Permission).filter_by(user_type=user_type_enum).first()
+        print("Existing permission:", permission)
         
-        # Update or create permission record
-        permission = db.query(Permission).filter_by(user_type=user_type).first()
         if not permission:
-            permission = Permission(user_type=user_type)
-            db.add(permission)
+            permission = Permission(user_type=user_type_enum)
+            db_session.add(permission)
+            print("Created new permission record")
+
+        # Get all permission fields
+        fields = Permission.permission_fields()
+        print("Permission fields:", fields)
+
+        # Update permissions from form data
+        for field in fields:
+            old_value = getattr(permission, field)
+            # Check if the field exists in form and its value is 'true'
+            new_value = request.form.get(field) == 'true'
+            setattr(permission, field, new_value)
+            print(f"Updating {field}: {old_value} -> {new_value}")
+
+        db_session.commit()
+        print("Changes committed successfully")
         
-        # Update permission attributes
-        for key, value in permissions_data.items():
-            setattr(permission, key, value)
-        
-        db.commit()
         flash('Permissions updated successfully', 'success')
         return redirect(url_for('admin.permission_management'))
     except Exception as e:
-        db.rollback()
+        db_session.rollback()
+        print("Error updating permissions:", str(e))
         flash(f'Error updating permissions: {str(e)}', 'error')
         return redirect(url_for('admin.permission_management'))
     finally:
-        db.close()
+        db_session.close()
 
-@admin_bp.route('/permissions/reset/<user_type>')
+@admin_bp.route('/permissions/reset/<user_type>', methods=['POST'])
 @super_admin_required
 def reset_permissions(user_type):
     """Reset permissions for a user type to default values"""
-    db = SessionLocal()
+    if 'user_id' not in session:
+        flash('Please log in to continue', 'error')
+        return redirect(url_for('auth.login'))
+
+    db_session = db_manager.get_session()
     try:
+        # Validate user type
+        try:
+            user_type_enum = UserType[user_type]
+        except KeyError:
+            flash('Invalid user type', 'error')
+            return redirect(url_for('admin.permission_management'))
+
         # Delete existing permissions
-        db.query(Permission).filter_by(user_type=user_type).delete()
+        db_session.query(Permission).filter_by(user_type=user_type_enum).delete()
         
         # Get default permissions
-        default_permissions = Permission.get_default_permissions(user_type)
+        default_permissions = Permission.get_default_permissions(user_type_enum)
         
         # Create new permission record with defaults
-        permission = Permission(user_type=user_type, **default_permissions)
-        db.add(permission)
-        db.commit()
+        permission = Permission(user_type=user_type_enum, **default_permissions)
+        db_session.add(permission)
+        db_session.commit()
         
         flash('Permissions reset to default values', 'success')
         return redirect(url_for('admin.permission_management'))
     except Exception as e:
-        db.rollback()
+        db_session.rollback()
         flash(f'Error resetting permissions: {str(e)}', 'error')
         return redirect(url_for('admin.permission_management'))
     finally:
-        db.close()
+        db_session.close()
 
 @admin_bp.route('/users/<int:user_id>/resend-welcome', methods=['POST'])
 @admin_required
@@ -401,4 +458,29 @@ def resend_welcome_email(user_id):
     finally:
         db_session.close()
     
-    return redirect(url_for('admin.manage_users')) 
+    return redirect(url_for('admin.manage_users'))
+
+@admin_bp.route('/history')
+@super_admin_required
+def view_history():
+    """View all system history/activity logs"""
+    db_session = db_manager.get_session()
+    try:
+        # Get all activities with user information, ordered by most recent first
+        activities = (db_session.query(Activity)
+                     .join(Activity.user)
+                     .order_by(Activity.created_at.desc())
+                     .all())
+        
+        # Get all asset history with user information
+        asset_history = (db_session.query(AssetHistory)
+                        .join(AssetHistory.user)
+                        .join(AssetHistory.asset)
+                        .order_by(AssetHistory.created_at.desc())
+                        .all())
+        
+        return render_template('admin/history.html',
+                             activities=activities,
+                             asset_history=asset_history)
+    finally:
+        db_session.close() 

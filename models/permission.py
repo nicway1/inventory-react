@@ -45,7 +45,15 @@ class Permission(Base):
     # Import/Export Permissions
     can_import_data = Column(Boolean, default=False)
     can_export_data = Column(Boolean, default=True)
-    
+
+    @classmethod
+    def permission_fields(cls):
+        """Get all permission field names"""
+        return [
+            column.name for column in cls.__table__.columns 
+            if column.name.startswith('can_')
+        ]
+
     @staticmethod
     def get_default_permissions(user_type):
         """Get default permissions for a user type"""
