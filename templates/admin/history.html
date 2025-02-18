@@ -3,132 +3,143 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">System History</h1>
-        <p class="mt-2 text-sm text-gray-600">View all system activities and changes</p>
-    </div>
+        <h1 class="text-2xl font-bold mb-4">System History</h1>
+        <div class="bg-white shadow rounded-lg p-6">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="-mb-px flex space-x-8">
+                    <button onclick="switchTab('activities')"
+                            id="activities-tab"
+                            class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        General Activities
+                    </button>
+                    <button onclick="switchTab('asset-changes')"
+                            id="asset-changes-tab"
+                            class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        Asset Changes
+                    </button>
+                </nav>
+            </div>
 
-    <!-- Tab Navigation -->
-    <div class="mb-4 border-b border-gray-200">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button onclick="switchTab('activities')"
-                    class="tab-button border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                General Activities
-            </button>
-            <button onclick="switchTab('asset-history')"
-                    class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                Asset Changes
-            </button>
-        </nav>
-    </div>
-
-    <!-- Activities Tab -->
-    <div id="activities-tab" class="tab-content">
-        <div class="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul class="divide-y divide-gray-200">
-                {% for activity in activities %}
-                <li class="px-4 py-4 sm:px-6">
-                    <div class="flex items-center justify-between">
-                        <div class="sm:flex sm:items-center sm:justify-between w-full">
-                            <div class="sm:flex sm:items-center">
-                                <div class="text-sm">
-                                    <p class="font-medium text-blue-600">
-                                        {{ activity.user.username }}
-                                    </p>
-                                    <p class="text-gray-900 mt-1">
-                                        {{ activity.content }}
-                                    </p>
+            <!-- Activities Tab Content -->
+            <div id="activities-content" class="space-y-6">
+                {% if activities %}
+                    {% for activity in activities %}
+                    <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-start space-x-3">
+                                <!-- Activity Icon based on type -->
+                                <div class="mt-1">
+                                    {% if activity.type == 'asset_created' %}
+                                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    {% elif activity.type == 'data_import' %}
+                                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                    {% elif activity.type == 'accessory_created' %}
+                                        <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    {% else %}
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    {% endif %}
                                 </div>
-                            </div>
-                            <div class="mt-2 sm:mt-0">
-                                <div class="text-sm text-gray-500">
-                                    {{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    Type: {{ activity.type }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
-    <!-- Asset History Tab -->
-    <div id="asset-history-tab" class="tab-content hidden">
-        <div class="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul class="divide-y divide-gray-200">
-                {% for history in asset_history %}
-                <li class="px-4 py-4 sm:px-6">
-                    <div class="flex items-center justify-between">
-                        <div class="sm:flex sm:items-center sm:justify-between w-full">
-                            <div class="sm:flex sm:items-center">
-                                <div class="text-sm">
-                                    <p class="font-medium text-blue-600">
-                                        {{ history.user.username }}
-                                    </p>
-                                    <p class="text-gray-900 mt-1">
-                                        Asset: {{ history.asset.asset_tag }} ({{ history.asset.model }})
-                                    </p>
-                                    <p class="text-gray-700 mt-1">
-                                        Action: {{ history.action }}
-                                    </p>
-                                    {% if history.changes %}
-                                    <div class="mt-2">
-                                        <p class="text-sm font-medium text-gray-500">Changes:</p>
-                                        <ul class="mt-1 text-sm text-gray-600">
-                                        {% for field, change in history.changes.items() %}
-                                            <li>
-                                                {{ field }}: 
-                                                <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
-                                                →
-                                                <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
-                                            </li>
-                                        {% endfor %}
-                                        </ul>
+                                <div>
+                                    <p class="text-sm text-gray-900">{{ activity.content }}</p>
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        By <span class="font-medium">{{ activity.user.username }}</span>
+                                        on {{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
                                     </div>
-                                    {% endif %}
-                                    {% if history.notes %}
-                                    <p class="text-gray-600 mt-2">
-                                        Notes: {{ history.notes }}
-                                    </p>
-                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="mt-2 sm:mt-0">
-                                <div class="text-sm text-gray-500">
-                                    {{ history.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            <!-- Activity Type Badge -->
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if activity.type == 'asset_created' %}
+                                    bg-green-100 text-green-800
+                                {% elif activity.type == 'data_import' %}
+                                    bg-blue-100 text-blue-800
+                                {% elif activity.type == 'accessory_created' %}
+                                    bg-purple-100 text-purple-800
+                                {% else %}
+                                    bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {{ activity.type|replace('_', ' ')|title }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center py-4">No activities recorded yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Asset Changes Tab Content -->
+            <div id="asset-changes-content" class="hidden space-y-6">
+                {% if asset_history %}
+                    {% for entry in asset_history %}
+                    <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">
+                                    {{ entry.asset.name }} ({{ entry.asset.asset_tag }})
+                                </h3>
+                                <div class="mt-1">
+                                    <span class="text-sm font-medium text-gray-500">Action:</span>
+                                    <span class="ml-1 text-sm text-gray-900">{{ entry.action|title }}</span>
+                                </div>
+                                {% if entry.changes %}
+                                <div class="mt-2 space-y-1">
+                                    {% for field, change in entry.changes.items() %}
+                                    <div class="text-sm">
+                                        <span class="font-medium text-gray-500">{{ field|title }}:</span>
+                                        <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                        <span class="text-green-500 mx-1">→</span>
+                                        <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if entry.notes %}
+                                <div class="mt-2 text-sm text-gray-600">
+                                    <span class="font-medium">Notes:</span>
+                                    <span class="ml-1">{{ entry.notes }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="mt-2 text-xs text-gray-500">
+                                    By <span class="font-medium">{{ entry.user.username }}</span>
+                                    on {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
                                 </div>
                             </div>
                         </div>
                     </div>
-                </li>
-                {% endfor %}
-            </ul>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center py-4">No asset changes recorded yet.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 function switchTab(tabName) {
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.add('hidden');
-    });
+    // Update tab buttons
+    document.getElementById('activities-tab').classList.remove('border-blue-500', 'text-blue-600');
+    document.getElementById('activities-tab').classList.add('border-transparent', 'text-gray-500');
+    document.getElementById('asset-changes-tab').classList.remove('border-blue-500', 'text-blue-600');
+    document.getElementById('asset-changes-tab').classList.add('border-transparent', 'text-gray-500');
     
-    // Show selected tab content
-    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    document.getElementById(`${tabName}-tab`).classList.remove('border-transparent', 'text-gray-500');
+    document.getElementById(`${tabName}-tab`).classList.add('border-blue-500', 'text-blue-600');
     
-    // Update tab button styles
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('border-blue-500', 'text-blue-600');
-        button.classList.add('border-transparent', 'text-gray-500');
-    });
-    
-    // Style active tab button
-    event.target.classList.remove('border-transparent', 'text-gray-500');
-    event.target.classList.add('border-blue-500', 'text-blue-600');
+    // Update content visibility
+    document.getElementById('activities-content').classList.add('hidden');
+    document.getElementById('asset-changes-content').classList.add('hidden');
+    document.getElementById(`${tabName}-content`).classList.remove('hidden');
 }
 </script>
 {% endblock %} 

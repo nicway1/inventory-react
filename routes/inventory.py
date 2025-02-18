@@ -19,6 +19,7 @@ import io
 import csv
 from models.user import UserType
 from sqlalchemy.orm import joinedload
+from models.activity import Activity
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -746,6 +747,16 @@ def confirm_import():
                         db_session.add(accessory)
                         db_session.flush()  # Flush each row to catch any database errors early
                         successful += 1
+
+                        # Add activity tracking
+                        activity = Activity(
+                            user_id=current_user.id,
+                            type='accessory_created',
+                            content=f'Created new accessory: {accessory.name} (Quantity: {accessory.total_quantity})',
+                            reference_id=accessory.id
+                        )
+                        db_session.add(activity)
+                        db_session.commit()
                 except Exception as e:
                     error_msg = f"Row {index}: {str(e)}"
                     print(error_msg)
@@ -778,6 +789,17 @@ def confirm_import():
             session.pop('import_type', None)
             session.pop('total_rows', None)
             
+            # Add activity tracking for successful import
+            activity = Activity(
+                user_id=current_user.id,
+                type='data_import',
+                content=f'Successfully imported {len(preview_data)} {import_type} via data loader',
+                reference_id=0  # No specific reference for bulk import
+            )
+            db_session.add(activity)
+            db_session.commit()
+            
+            flash('Data imported successfully!', 'success')
             return redirect(url_for('inventory.view_inventory'))
 
         except Exception as e:
@@ -940,6 +962,17 @@ def add_accessory():
             
             db_session.add(new_accessory)
             db_session.commit()
+            
+            # Add activity tracking
+            activity = Activity(
+                user_id=current_user.id,
+                type='accessory_created',
+                content=f'Created new accessory: {new_accessory.name} (Quantity: {new_accessory.total_quantity})',
+                reference_id=new_accessory.id
+            )
+            db_session.add(activity)
+            db_session.commit()
+            
             flash('Accessory added successfully!', 'success')
             return redirect(url_for('inventory.view_accessories'))
             
@@ -1133,6 +1166,17 @@ def add_asset():
                 
                 db_session.add(new_asset)
                 db_session.commit()
+                
+                # Add activity tracking
+                activity = Activity(
+                    user_id=current_user.id,
+                    type='asset_created',
+                    content=f'Created new asset: {new_asset.name} (Asset Tag: {new_asset.asset_tag})',
+                    reference_id=new_asset.id
+                )
+                db_session.add(activity)
+                db_session.commit()
+                
                 flash('Asset added successfully!', 'success')
                 return redirect(url_for('inventory.view_inventory'))
                 
