@@ -12,7 +12,7 @@
         </div>
 
         <!-- Permissions Management Section -->
-        {% if current_user.user_type.value == 'Super Admin' %}
+        {% if user.is_super_admin %}
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">User Type Permissions</h2>
             
@@ -20,12 +20,14 @@
             <div class="mb-8 border-b pb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-medium">{{ permission.user_type.value }}</h3>
-                    <form action="{{ url_for('admin.reset_permissions', user_type=permission.user_type.name) }}" method="GET" class="inline">
+                    <form action="{{ url_for('admin.reset_permissions', user_type=permission.user_type.name) }}" method="POST" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-sm text-blue-600 hover:text-blue-800">Reset to Default</button>
                     </form>
                 </div>
 
                 <form action="{{ url_for('admin.update_permissions') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="user_type" value="{{ permission.user_type.name }}">
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -33,20 +35,41 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Asset Management</h4>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_view_assets" {% if permission.can_view_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_view_assets" value="true" {% if permission.can_view_assets %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">View Assets</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_edit_assets" {% if permission.can_edit_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_edit_assets" value="true" {% if permission.can_edit_assets %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Edit Assets</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_delete_assets" {% if permission.can_delete_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_delete_assets" value="true" {% if permission.can_delete_assets %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Delete Assets</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_create_assets" {% if permission.can_create_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_create_assets" value="true" {% if permission.can_create_assets %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Create Assets</span>
+                            </label>
+                        </div>
+
+                        <!-- Country-specific Asset Permissions -->
+                        <div class="space-y-2">
+                            <h4 class="font-medium text-gray-700">Country Asset Management</h4>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_view_country_assets" value="true" {% if permission.can_view_country_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">View Country Assets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_edit_country_assets" value="true" {% if permission.can_edit_country_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Edit Country Assets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_delete_country_assets" value="true" {% if permission.can_delete_country_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Delete Country Assets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_create_country_assets" value="true" {% if permission.can_create_country_assets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Create Country Assets</span>
                             </label>
                         </div>
 
@@ -54,19 +77,19 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Accessory Management</h4>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_view_accessories" {% if permission.can_view_accessories %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_view_accessories" value="true" {% if permission.can_view_accessories %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">View Accessories</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_edit_accessories" {% if permission.can_edit_accessories %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_edit_accessories" value="true" {% if permission.can_edit_accessories %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Edit Accessories</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_delete_accessories" {% if permission.can_delete_accessories %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_delete_accessories" value="true" {% if permission.can_delete_accessories %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Delete Accessories</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_create_accessories" {% if permission.can_create_accessories %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_create_accessories" value="true" {% if permission.can_create_accessories %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Create Accessories</span>
                             </label>
                         </div>
@@ -75,19 +98,19 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Company Management</h4>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_view_companies" {% if permission.can_view_companies %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_view_companies" value="true" {% if permission.can_view_companies %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">View Companies</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_edit_companies" {% if permission.can_edit_companies %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_edit_companies" value="true" {% if permission.can_edit_companies %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Edit Companies</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_delete_companies" {% if permission.can_delete_companies %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_delete_companies" value="true" {% if permission.can_delete_companies %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Delete Companies</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_create_companies" {% if permission.can_create_companies %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_create_companies" value="true" {% if permission.can_create_companies %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Create Companies</span>
                             </label>
                         </div>
@@ -96,19 +119,19 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">User Management</h4>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_view_users" {% if permission.can_view_users %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_view_users" value="true" {% if permission.can_view_users %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">View Users</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_edit_users" {% if permission.can_edit_users %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_edit_users" value="true" {% if permission.can_edit_users %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Edit Users</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_delete_users" {% if permission.can_delete_users %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_delete_users" value="true" {% if permission.can_delete_users %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Delete Users</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_create_users" {% if permission.can_create_users %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_create_users" value="true" {% if permission.can_create_users %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Create Users</span>
                             </label>
                         </div>
@@ -117,19 +140,19 @@
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Other Permissions</h4>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_import_data" {% if permission.can_import_data %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_import_data" value="true" {% if permission.can_import_data %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Import Data</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_export_data" {% if permission.can_export_data %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_export_data" value="true" {% if permission.can_export_data %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Export Data</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_view_reports" {% if permission.can_view_reports %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_view_reports" value="true" {% if permission.can_view_reports %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">View Reports</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" name="can_generate_reports" {% if permission.can_generate_reports %}checked{% endif %} class="rounded text-blue-600">
+                                <input type="checkbox" name="can_generate_reports" value="true" {% if permission.can_generate_reports %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Generate Reports</span>
                             </label>
                         </div>
@@ -143,6 +166,21 @@
                 </form>
             </div>
             {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        You need to be a Super Admin to manage permissions.
+                    </p>
+                </div>
+            </div>
         </div>
         {% endif %}
     </div>

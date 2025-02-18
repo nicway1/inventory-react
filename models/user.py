@@ -65,6 +65,10 @@ class User(UserMixin, Base):
     def is_admin(self):
         return self.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPER_ADMIN]
 
+    @property
+    def is_country_admin(self):
+        return self.user_type == UserType.COUNTRY_ADMIN
+
     def to_dict(self):
         """Convert user object to dictionary with serializable values"""
         return {
@@ -84,6 +88,7 @@ class User(UserMixin, Base):
 
 # Add relationships after all models are defined to avoid circular imports
 from models.asset_history import AssetHistory
+from models.accessory_history import AccessoryHistory
 
 User.company = relationship("Company", back_populates="users")
 User.tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
@@ -91,3 +96,4 @@ User.tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to
 User.activities = relationship("Activity", back_populates="user")
 User.assigned_assets = relationship("Asset", back_populates="assigned_to")
 User.asset_changes = relationship("AssetHistory", back_populates="user")
+User.accessory_changes = relationship("AccessoryHistory", back_populates="user")

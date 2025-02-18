@@ -6,6 +6,10 @@ from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.asset_history import AssetHistory
+from models.accessory_history import AccessoryHistory
+from models.user import User, UserType
+from models.asset_history import AssetHistory
+from models.accessory_history import AccessoryHistory
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -17,9 +21,8 @@ import json
 import time
 import io
 import csv
-from models.user import UserType
-from sqlalchemy.orm import joinedload
 from models.activity import Activity
+from sqlalchemy.orm import joinedload
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -146,20 +149,89 @@ def view_tech_assets():
 def view_accessories():
     db_session = db_manager.get_session()
     try:
-        # Get all accessories with their full details
-        accessories = db_session.query(Accessory).order_by(Accessory.name).all()
-        
-        # Get current user's admin status
-        is_admin = current_user.is_admin if current_user.is_authenticated else False
-        
-        return render_template(
-            'inventory/accessories.html',
-            accessories=accessories,
-            is_admin=is_admin
-        )
-    except Exception as e:
-        flash(f'Error loading accessories: {str(e)}', 'error')
-        return redirect(url_for('inventory.view_inventory'))
+        accessories = db_session.query(Accessory).all()
+        return render_template('inventory/accessories.html', 
+                             accessories=accessories,
+                             is_admin=current_user.is_admin,
+                             is_country_admin=current_user.is_country_admin)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/accessories/<int:id>/add-stock', methods=['GET', 'POST'])
+@login_required
+def add_accessory_stock(id):
+    if not (current_user.is_admin or current_user.is_country_admin):
+        flash('You do not have permission to add stock.', 'error')
+        return redirect(url_for('inventory.view_accessories'))
+
+    db_session = db_manager.get_session()
+    try:
+        accessory = db_session.query(Accessory).get(id)
+        if not accessory:
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_accessories'))
+
+        if request.method == 'POST':
+            try:
+                additional_quantity = int(request.form['additional_quantity'])
+                if additional_quantity < 1:
+                    flash('Additional quantity must be at least 1', 'error')
+                    return redirect(url_for('inventory.add_accessory_stock', id=id))
+
+                # Store old values for history tracking
+                old_values = {
+                    'total_quantity': accessory.total_quantity,
+                    'available_quantity': accessory.available_quantity
+                }
+
+                # Update quantities
+                accessory.total_quantity += additional_quantity
+                accessory.available_quantity += additional_quantity
+
+                # Track changes
+                changes = {
+                    'total_quantity': {
+                        'old': old_values['total_quantity'],
+                        'new': accessory.total_quantity
+                    },
+                    'available_quantity': {
+                        'old': old_values['available_quantity'],
+                        'new': accessory.available_quantity
+                    }
+                }
+
+                # Create history entry
+                history_entry = accessory.track_change(
+                    user_id=current_user.id,
+                    action='add_stock',
+                    changes=changes,
+                    notes=request.form.get('notes')
+                )
+                db_session.add(history_entry)
+
+                # Add activity record
+                activity = Activity(
+                    user_id=current_user.id,
+                    type='accessory_stock_added',
+                    content=f'Added {additional_quantity} units to accessory: {accessory.name}',
+                    reference_id=accessory.id
+                )
+                db_session.add(activity)
+
+                db_session.commit()
+                flash(f'Successfully added {additional_quantity} units to stock!', 'success')
+                return redirect(url_for('inventory.view_accessories'))
+
+            except ValueError:
+                flash('Invalid quantity value', 'error')
+                return redirect(url_for('inventory.add_accessory_stock', id=id))
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error adding stock: {str(e)}', 'error')
+                return redirect(url_for('inventory.add_accessory_stock', id=id))
+
+        return render_template('inventory/add_accessory_stock.html', accessory=accessory)
+
     finally:
         db_session.close()
 
@@ -605,6 +677,11 @@ def confirm_import():
         try:
             with open(preview_filepath, 'r') as f:
                 preview_data = json.load(f)
+                import_type = preview_data.get('import_type')  # Get import_type from preview data
+                
+                if not import_type:
+                    flash('Invalid preview data: missing import type', 'error')
+                    return redirect(url_for('inventory.import_inventory'))
         except Exception as e:
             flash('Error reading preview data. Please upload again.', 'error')
             return redirect(url_for('inventory.import_inventory'))
@@ -997,13 +1074,24 @@ def edit_accessory(id):
 
         if request.method == 'POST':
             try:
+                # Store old values for history tracking
+                old_values = {
+                    'name': accessory.name,
+                    'category': accessory.category,
+                    'manufacturer': accessory.manufacturer,
+                    'model_no': accessory.model_no,
+                    'total_quantity': accessory.total_quantity,
+                    'country': accessory.country,
+                    'notes': accessory.notes
+                }
+
                 # Update accessory with form data
                 accessory.name = request.form['name']
                 accessory.category = request.form['category']
                 accessory.manufacturer = request.form['manufacturer']
                 accessory.model_no = request.form['model_no']
                 new_total = int(request.form['total_quantity'])
-                accessory.country = request.form['country']  # Add country field
+                accessory.country = request.form['country']
                 
                 # Update available quantity proportionally
                 if accessory.total_quantity > 0:
@@ -1014,6 +1102,31 @@ def edit_accessory(id):
                 
                 accessory.total_quantity = new_total
                 accessory.notes = request.form.get('notes', '')
+
+                # Track changes
+                changes = {}
+                new_values = {
+                    'name': accessory.name,
+                    'category': accessory.category,
+                    'manufacturer': accessory.manufacturer,
+                    'model_no': accessory.model_no,
+                    'total_quantity': accessory.total_quantity,
+                    'country': accessory.country,
+                    'notes': accessory.notes
+                }
+                
+                for key, old_value in old_values.items():
+                    new_value = new_values[key]
+                    if old_value != new_value:
+                        changes[key] = {'old': old_value, 'new': new_value}
+
+                if changes:  # Only create history entry if there were changes
+                    history_entry = accessory.track_change(
+                        user_id=current_user.id,
+                        action='update',
+                        changes=changes
+                    )
+                    db_session.add(history_entry)
                 
                 db_session.commit()
                 flash('Accessory updated successfully!', 'success')
@@ -1041,6 +1154,29 @@ def delete_accessory(id):
             return redirect(url_for('inventory.view_accessories'))
 
         try:
+            # Store accessory info for history
+            accessory_info = {
+                'name': accessory.name,
+                'category': accessory.category,
+                'manufacturer': accessory.manufacturer,
+                'model_no': accessory.model_no,
+                'total_quantity': accessory.total_quantity,
+                'country': accessory.country
+            }
+
+            # Create activity record
+            activity = Activity(
+                user_id=current_user.id,
+                type='accessory_deleted',
+                content=f'Deleted accessory: {accessory.name} (Total Quantity: {accessory.total_quantity})',
+                reference_id=0  # Since the accessory will be deleted
+            )
+            db_session.add(activity)
+
+            # Delete associated history records first
+            db_session.query(AccessoryHistory).filter_by(accessory_id=id).delete()
+
+            # Delete the accessory
             db_session.delete(accessory)
             db_session.commit()
             flash('Accessory deleted successfully!', 'success')
@@ -1458,11 +1594,28 @@ def delete_asset(asset_id):
             return redirect(url_for('inventory.view_inventory'))
 
         try:
+            # Store asset info before deletion for activity tracking
+            asset_info = {
+                'name': asset.name,
+                'asset_tag': asset.asset_tag,
+                'serial_num': asset.serial_num
+            }
+            
             # First delete all history records for this asset
             db_session.query(AssetHistory).filter(AssetHistory.asset_id == asset_id).delete()
             
             # Then delete the asset
             db_session.delete(asset)
+            
+            # Add activity tracking
+            activity = Activity(
+                user_id=current_user.id,
+                type='asset_deleted',
+                content=f'Deleted asset: {asset_info["name"]} (Asset Tag: {asset_info["asset_tag"]}, Serial: {asset_info["serial_num"]})',
+                reference_id=0  # Since the asset is deleted, we use 0 as reference
+            )
+            db_session.add(activity)
+            
             db_session.commit()
             flash('Asset deleted successfully!', 'success')
         except Exception as e:
@@ -1641,6 +1794,77 @@ def view_asset_history(asset_id):
         
         return render_template('inventory/asset_history.html', 
                              asset=asset,
+                             user=user)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/search')
+@login_required
+def search():
+    """Search for assets, accessories, and customers"""
+    search_term = request.args.get('q', '').strip()
+    if not search_term:
+        return redirect(url_for('inventory.view_inventory'))
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(session['user_id'])
+        
+        # Base queries
+        asset_query = db_session.query(Asset)
+        accessory_query = db_session.query(Accessory)
+        customer_query = db_session.query(CustomerUser)
+
+        # Filter by country for country admins
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+            accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
+            # Note: Customers don't have a country field, so no filtering needed
+
+        # Search assets
+        assets = asset_query.filter(
+            or_(
+                Asset.name.ilike(f'%{search_term}%'),
+                Asset.model.ilike(f'%{search_term}%'),
+                Asset.serial_num.ilike(f'%{search_term}%'),
+                Asset.asset_tag.ilike(f'%{search_term}%'),
+                Asset.category.ilike(f'%{search_term}%'),
+                Asset.customer.ilike(f'%{search_term}%'),
+                Asset.country.ilike(f'%{search_term}%'),
+                Asset.hardware_type.ilike(f'%{search_term}%'),
+                Asset.cpu_type.ilike(f'%{search_term}%')
+            )
+        ).all()
+
+        # Search accessories
+        accessories = accessory_query.filter(
+            or_(
+                Accessory.name.ilike(f'%{search_term}%'),
+                Accessory.category.ilike(f'%{search_term}%'),
+                Accessory.manufacturer.ilike(f'%{search_term}%'),
+                Accessory.model_no.ilike(f'%{search_term}%'),
+                Accessory.country.ilike(f'%{search_term}%'),
+                Accessory.notes.ilike(f'%{search_term}%')
+            )
+        ).all()
+
+        # Search customers (only for super admins)
+        customers = []
+        if user.is_super_admin:
+            customers = customer_query.filter(
+                or_(
+                    CustomerUser.name.ilike(f'%{search_term}%'),
+                    CustomerUser.email.ilike(f'%{search_term}%'),
+                    CustomerUser.contact_number.ilike(f'%{search_term}%'),
+                    CustomerUser.address.ilike(f'%{search_term}%')
+                )
+            ).all()
+
+        return render_template('inventory/search_results.html',
+                             query=search_term,
+                             assets=assets,
+                             accessories=accessories,
+                             customers=customers,
                              user=user)
     finally:
         db_session.close()

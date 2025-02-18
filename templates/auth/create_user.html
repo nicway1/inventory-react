@@ -22,6 +22,7 @@
 
         <div class="bg-white shadow rounded-lg p-6">
             <form method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Username</label>
                     <input type="text" name="username" required

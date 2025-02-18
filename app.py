@@ -51,7 +51,7 @@ app.config.update(
     SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///inventory.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
-    WTF_CSRF_CHECK_DEFAULT=False,  # Disable CSRF check by default
+    WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
     WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
     # Email configuration for Gmail SMTP
     MAIL_SERVER=os.environ.get('MAIL_SERVER', 'smtp.gmail.com'),
@@ -79,9 +79,6 @@ logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
 logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
 logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
 logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
-
-# Exempt certain routes from CSRF protection
-csrf.exempt(inventory_bp)
 
 # Initialize database
 db = SQLAlchemy(app)

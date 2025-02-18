@@ -19,9 +19,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
 venv/
+.venv/
 ENV/
 env/
 
@@ -41,3 +43,8 @@ env/
 # Environment variables
 .env
 .env.* uploads/
+
+# Additional files and directories
+instance/
+.webassets-cache/
+.DS_Store

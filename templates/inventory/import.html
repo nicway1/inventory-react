@@ -19,6 +19,7 @@
         <!-- Confirm Import Button -->
         <div class="mb-6">
             <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="filename" value="{{ filename }}">
                 <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
                 <button type="submit" 
@@ -128,6 +129,7 @@
             <!-- Bottom Confirm Button -->
             <div class="mt-6">
                 <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="filename" value="{{ filename }}">
                     <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
                     <button type="submit" 
@@ -141,6 +143,7 @@
 
     <div class="bg-white rounded-lg shadow-md p-6">
         <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- Import Type Selection -->
             <div>
                 <label for="import_type" class="block text-sm font-medium text-gray-700 mb-2">Import Type</label>
@@ -154,22 +157,24 @@
 
             <!-- Download Template Buttons -->
             <div class="flex space-x-4">
-                <a href="{{ url_for('inventory.download_template', template_type='tech_assets') }}" 
-                   id="tech_assets_template"
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Download Tech Assets Template
-                </a>
-                <a href="{{ url_for('inventory.download_template', template_type='accessories') }}"
-                   id="accessories_template" 
-                   class="hidden inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Download Accessories Template
-                </a>
+                <div id="tech_assets_template">
+                    <a href="{{ url_for('inventory.download_template', template_type='tech_assets') }}"
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Download Tech Assets Template
+                    </a>
+                </div>
+                <div id="accessories_template" class="hidden">
+                    <a href="{{ url_for('inventory.download_template', template_type='accessories') }}"
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Download Accessories Template
+                    </a>
+                </div>
             </div>
 
             <div>

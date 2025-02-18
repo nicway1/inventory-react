@@ -161,6 +161,7 @@
                     <!-- Add Comment Form -->
                     <div class="p-4 border-b border-gray-200 relative">
                         <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="relative">
                                 <label for="content" class="sr-only">Comment</label>
                                 <textarea id="content" name="content" rows="3"
@@ -556,10 +557,12 @@
                     <h3 class="text-lg font-medium text-gray-900">Update Status</h3>
                 </div>
                 <div class="p-4">
-                    <form action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                    <form method="POST" action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
-                            <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                            <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <label for="status" class="block text-sm font-medium text-gray-700">New Status</label>
+                            <select id="status" name="status"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 {% for status in ticket.STATUS_OPTIONS %}
                                 <option value="{{ status }}" {% if ticket.status == status %}selected{% endif %}>
                                     {{ status }}
@@ -568,7 +571,7 @@
                             </select>
                         </div>
                         <div>
-                            <label for="status_comment" class="block text-sm font-medium text-gray-700">Comment</label>
+                            <label for="status_comment" class="block text-sm font-medium text-gray-700">Status Comment</label>
                             <textarea id="status_comment" name="status_comment" rows="3"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="Add a comment about this status change..."></textarea>
@@ -593,6 +596,7 @@
                 <!-- Comment Form -->
                 <div class="p-4 border-b border-gray-200">
                     <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
                             <label for="content" class="sr-only">Comment</label>
                             <textarea id="content" name="content" rows="3"

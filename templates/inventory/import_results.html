@@ -22,10 +22,13 @@
         </div>
     </div>
 
-    <button onclick="window.location.href='{{ url_for('inventory.confirm_import') }}'" 
-            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded mb-8 transition-colors">
-        Confirm and Process Import
-    </button>
+    <form method="POST" action="{{ url_for('inventory.confirm_import') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" 
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded mb-8 transition-colors">
+            Confirm and Process Import
+        </button>
+    </form>
 
     <!-- Summary Section -->
     <div class="bg-white rounded-lg shadow-sm p-6 mb-8">

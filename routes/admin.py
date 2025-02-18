@@ -16,6 +16,7 @@ from werkzeug.security import generate_password_hash
 from database import SessionLocal
 from models.activity import Activity
 from models.asset_history import AssetHistory
+from models.accessory_history import AccessoryHistory
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -478,9 +479,17 @@ def view_history():
                         .join(AssetHistory.asset)
                         .order_by(AssetHistory.created_at.desc())
                         .all())
-        
+                        
+        # Get all accessory history with user information
+        accessory_history = (db_session.query(AccessoryHistory)
+                           .join(AccessoryHistory.user)
+                           .join(AccessoryHistory.accessory)
+                           .order_by(AccessoryHistory.created_at.desc())
+                           .all())
+
         return render_template('admin/history.html',
                              activities=activities,
-                             asset_history=asset_history)
+                             asset_history=asset_history,
+                             accessory_history=accessory_history)
     finally:
         db_session.close() 

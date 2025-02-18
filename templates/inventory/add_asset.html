@@ -18,6 +18,7 @@
 
         <div class="p-6">
             <form method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -211,16 +212,34 @@
 
                     <div>
                         <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                        <input type="text" 
-                               id="country" 
-                               name="country" 
-                               list="country-list"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        <datalist id="country-list">
-                            {% for country in countries %}
-                            <option value="{{ country }}">{{ country }}</option>
-                            {% endfor %}
-                        </datalist>
+                        {% if user.user_type == 'COUNTRY_ADMIN' %}
+                            <input type="text" 
+                                   id="country" 
+                                   name="country" 
+                                   value="{{ user.assigned_country.value }}"
+                                   readonly
+                                   class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm">
+                        {% elif user.is_super_admin %}
+                            <input type="text" 
+                                   id="country" 
+                                   name="country" 
+                                   list="country-list"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <datalist id="country-list">
+                                {% for country in countries %}
+                                <option value="{{ country }}">{{ country }}</option>
+                                {% endfor %}
+                            </datalist>
+                        {% else %}
+                            <select id="country" 
+                                    name="country" 
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="">Select a country...</option>
+                                {% for country in countries %}
+                                <option value="{{ country }}">{{ country }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
                     </div>
                 </div>
 

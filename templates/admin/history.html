@@ -18,6 +18,11 @@
                             class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                         Asset Changes
                     </button>
+                    <button onclick="switchTab('accessory-changes')"
+                            id="accessory-changes-tab"
+                            class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        Accessory Changes
+                    </button>
                 </nav>
             </div>
 
@@ -42,6 +47,10 @@
                                         <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
+                                    {% elif activity.type == 'asset_deleted' %}
+                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
                                     {% else %}
                                         <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -64,6 +73,8 @@
                                     bg-blue-100 text-blue-800
                                 {% elif activity.type == 'accessory_created' %}
                                     bg-purple-100 text-purple-800
+                                {% elif activity.type == 'asset_deleted' %}
+                                    bg-red-100 text-red-800
                                 {% else %}
                                     bg-gray-100 text-gray-800
                                 {% endif %}">
@@ -121,6 +132,51 @@
                     <p class="text-gray-500 text-center py-4">No asset changes recorded yet.</p>
                 {% endif %}
             </div>
+
+            <!-- Accessory Changes Tab Content -->
+            <div id="accessory-changes-content" class="hidden space-y-6">
+                {% if accessory_history %}
+                    {% for entry in accessory_history %}
+                    <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">
+                                    {{ entry.accessory.name }} ({{ entry.accessory.category }})
+                                </h3>
+                                <div class="mt-1">
+                                    <span class="text-sm font-medium text-gray-500">Action:</span>
+                                    <span class="ml-1 text-sm text-gray-900">{{ entry.action|title }}</span>
+                                </div>
+                                {% if entry.changes %}
+                                <div class="mt-2 space-y-1">
+                                    {% for field, change in entry.changes.items() %}
+                                    <div class="text-sm">
+                                        <span class="font-medium text-gray-500">{{ field|title }}:</span>
+                                        <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                        <span class="text-green-500 mx-1">→</span>
+                                        <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if entry.notes %}
+                                <div class="mt-2 text-sm text-gray-600">
+                                    <span class="font-medium">Notes:</span>
+                                    <span class="ml-1">{{ entry.notes }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="mt-2 text-xs text-gray-500">
+                                    By <span class="font-medium">{{ entry.user.username }}</span>
+                                    on {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center py-4">No accessory changes recorded yet.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -132,6 +188,8 @@ function switchTab(tabName) {
     document.getElementById('activities-tab').classList.add('border-transparent', 'text-gray-500');
     document.getElementById('asset-changes-tab').classList.remove('border-blue-500', 'text-blue-600');
     document.getElementById('asset-changes-tab').classList.add('border-transparent', 'text-gray-500');
+    document.getElementById('accessory-changes-tab').classList.remove('border-blue-500', 'text-blue-600');
+    document.getElementById('accessory-changes-tab').classList.add('border-transparent', 'text-gray-500');
     
     document.getElementById(`${tabName}-tab`).classList.remove('border-transparent', 'text-gray-500');
     document.getElementById(`${tabName}-tab`).classList.add('border-blue-500', 'text-blue-600');
@@ -139,6 +197,7 @@ function switchTab(tabName) {
     // Update content visibility
     document.getElementById('activities-content').classList.add('hidden');
     document.getElementById('asset-changes-content').classList.add('hidden');
+    document.getElementById('accessory-changes-content').classList.add('hidden');
     document.getElementById(`${tabName}-content`).classList.remove('hidden');
 }
 </script>

@@ -15,6 +15,8 @@ from models.activity import Activity
 from models.ticket import Ticket
 from models.location import Location
 from models.permission import Permission
+from models.asset_history import AssetHistory
+from models.accessory_history import AccessoryHistory
 
 # This ensures all models are registered with SQLAlchemy
 __all__ = [
@@ -30,5 +32,7 @@ __all__ = [
     'Activity',
     'Ticket',
     'Location',
-    'Permission'
+    'Permission',
+    'AssetHistory',
+    'AccessoryHistory'
 ] 
