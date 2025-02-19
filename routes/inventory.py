@@ -24,6 +24,7 @@ import csv
 from models.activity import Activity
 from sqlalchemy.orm import joinedload
 from models.company import Company
+from io import StringIO
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -1905,6 +1906,101 @@ def search():
                              accessories=accessories,
                              customers=customers,
                              user=user)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/export/<item_type>')
+@login_required
+def export_inventory(item_type):
+    """Export inventory items to CSV"""
+    db_session = db_manager.get_session()
+    try:
+        # Create a string buffer to write CSV data
+        si = StringIO()
+        writer = csv.writer(si)
+        
+        if item_type == 'assets':
+            # Get assets based on user permissions
+            query = db_session.query(Asset)
+            if not current_user.is_super_admin:
+                if current_user.is_country_admin and current_user.assigned_country:
+                    query = query.filter(Asset.country == current_user.assigned_country.value)
+            assets = query.all()
+            
+            # Write header
+            writer.writerow([
+                'Asset Tag', 'Serial Number', 'Name', 'Model', 'Manufacturer',
+                'Category', 'Status', 'Cost Price', 'Location', 'Company',
+                'Hardware Type', 'Country', 'Condition', 'CPU Type',
+                'Memory', 'Hard Drive', 'Notes', 'Created At'
+            ])
+            
+            # Write data
+            for asset in assets:
+                writer.writerow([
+                    asset.asset_tag,
+                    asset.serial_num,
+                    asset.name,
+                    asset.model,
+                    asset.manufacturer,
+                    asset.category,
+                    asset.status.value if asset.status else '',
+                    asset.cost_price,
+                    asset.location.name if asset.location else '',
+                    asset.company.name if asset.company else '',
+                    asset.hardware_type,
+                    asset.country,
+                    asset.condition,
+                    asset.cpu_type,
+                    asset.memory,
+                    asset.harddrive,
+                    asset.notes,
+                    asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else ''
+                ])
+        
+        elif item_type == 'accessories':
+            # Get accessories based on user permissions
+            query = db_session.query(Accessory)
+            if not current_user.is_super_admin:
+                if current_user.is_country_admin and current_user.assigned_country:
+                    query = query.filter(Accessory.country == current_user.assigned_country.value)
+            accessories = query.all()
+            
+            # Write header
+            writer.writerow([
+                'Name', 'Category', 'Manufacturer', 'Model No',
+                'Total Quantity', 'Available Quantity', 'Country',
+                'Status', 'Notes', 'Created At'
+            ])
+            
+            # Write data
+            for accessory in accessories:
+                writer.writerow([
+                    accessory.name,
+                    accessory.category,
+                    accessory.manufacturer,
+                    accessory.model_no,
+                    accessory.total_quantity,
+                    accessory.available_quantity,
+                    accessory.country,
+                    accessory.status,
+                    accessory.notes,
+                    accessory.created_at.strftime('%Y-%m-%d %H:%M:%S') if accessory.created_at else ''
+                ])
+        
+        # Set the cursor to the beginning of the buffer
+        si.seek(0)
+        output = si.getvalue()
+        si.close()
+        
+        # Create the response
+        return send_file(
+            StringIO(output),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'inventory_{item_type}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+    
     finally:
         db_session.close()
 
