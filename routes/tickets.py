@@ -2,7 +2,7 @@ import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from utils.auth_decorators import login_required, admin_required
 from utils.snipeit_api import get_all_assets, get_asset, get_all_accessories
-from models.ticket import Ticket
+from models.ticket import Ticket, TicketCategory, TicketPriority
 from utils.store_instances import (
     ticket_store,
     user_store,
@@ -11,8 +11,10 @@ from utils.store_instances import (
     comment_store,
     activity_store
 )
+from utils.db_manager import DatabaseManager
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
+db_manager = DatabaseManager()
 
 @tickets_bp.route('/')
 @login_required
@@ -25,26 +27,32 @@ def list_tickets():
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_ticket():
+    if request.method == 'GET':
+        return render_template('tickets/create.html', 
+                             priorities=list(TicketPriority),
+                             categories=list(TicketCategory))
     if request.method == 'POST':
-        category = request.form.get('category')
+        subject = request.form.get('subject')
         description = request.form.get('description')
+        category = request.form.get('category')
+        priority = request.form.get('priority')
         
-        ticket = ticket_store.create_ticket(
-            subject=request.form.get('subject'),
+        user_id = session['user_id']
+        
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
             description=description,
-            requester_id=session['user_id'],
-            priority=request.form.get('priority'),
+            requester_id=user_id,
             category=category,
-            queue_id=request.form.get('queue_id')
+            priority=priority
         )
+        
         flash('Ticket created successfully')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket.id))
+        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
     
-    return render_template(
-        'tickets/create.html',
-        categories=Ticket.CATEGORIES,
-        asset_types=Ticket.NEW_ASSET_TYPES
-    )
+    return render_template('tickets/create.html',
+                         categories=list(TicketCategory),
+                         priorities=list(TicketPriority))
 
 @tickets_bp.route('/<int:ticket_id>')
 @login_required
@@ -406,8 +414,8 @@ def ticket_composer():
     
     return render_template(
         'tickets/composer.html',
-        categories=Ticket.CATEGORIES,
-        priorities=Ticket.PRIORITY_OPTIONS,
+        categories=[category.value for category in TicketCategory],
+        priorities=[priority.value for priority in TicketPriority],
         templates=templates,
         field_options=[
             {'id': 'serial_number', 'label': 'Serial Number'},

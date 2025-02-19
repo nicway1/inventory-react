@@ -1,13 +1,16 @@
 import json
 import os
 from datetime import datetime
-from models.ticket import Ticket
+from models.ticket import Ticket, TicketPriority
 from models.shipment import Shipment
+from models.user import UserType
+from utils.db_manager import DatabaseManager
 
 class TicketStore:
     def __init__(self):
         self.tickets = {}
         self.TICKETS_FILE = 'data/tickets.json'
+        self.db_manager = DatabaseManager()
         self.load_tickets()
 
     def load_tickets(self):
@@ -80,25 +83,57 @@ class TicketStore:
         with open(self.TICKETS_FILE, 'w') as f:
             json.dump(tickets_data, f, indent=2)
 
-    def create_ticket(self, subject, description, requester_id, priority, category, queue_id=None):
+    def create_ticket(self, subject, description, requester_id, category=None, priority='Medium'):
         """Create a new ticket"""
-        ticket = Ticket.create(subject, description, requester_id, priority, category, queue_id)
-        self.tickets[ticket.id] = ticket
-        self.save_tickets()  # Save immediately after creating
-        return ticket
+        db_session = self.db_manager.get_session()
+        try:
+            # Convert priority to enum if it's not already
+            if isinstance(priority, str):
+                try:
+                    # First try to get enum by name (e.g., 'LOW')
+                    priority = TicketPriority[priority]
+                except KeyError:
+                    # If that fails, try to get enum by value (e.g., 'Low')
+                    priority = TicketPriority(priority)
+                
+            ticket = Ticket(
+                subject=subject,
+                description=description,
+                requester_id=requester_id,
+                category=category,
+                priority=priority
+            )
+            db_session.add(ticket)
+            db_session.commit()
+            return ticket.id  # Return the ID instead of the ticket object
+        finally:
+            db_session.close()
 
     def get_ticket(self, ticket_id):
-        """Get a ticket by ID"""
-        return self.tickets.get(ticket_id)
+        """Get a specific ticket by ID"""
+        db_session = self.db_manager.get_session()
+        try:
+            return db_session.query(Ticket).get(ticket_id)
+        finally:
+            db_session.close()
 
     def get_user_tickets(self, user_id, user_type):
-        """Get tickets for a user"""
-        if user_type == 'admin':
-            return list(self.tickets.values())
-        return [
-            ticket for ticket in self.tickets.values()
-            if ticket.requester_id == user_id
-        ]
+        """Get tickets based on user's role and ID"""
+        db_session = self.db_manager.get_session()
+        try:
+            query = db_session.query(Ticket)
+            
+            # Super admin can see all tickets
+            if user_type == UserType.SUPER_ADMIN:
+                return query.all()
+            
+            # Country admin and regular users only see their own tickets
+            return query.filter(
+                (Ticket.requester_id == user_id) | 
+                (Ticket.assigned_to_id == user_id)
+            ).all()
+        finally:
+            db_session.close()
 
     def assign_ticket(self, ticket_id, assigned_to_id, queue_id):
         """Assign a ticket to a user and/or queue"""
@@ -177,3 +212,29 @@ class TicketStore:
         except Exception as e:
             print(f"Error getting asset tickets: {str(e)}")
             return [] 
+
+    def update_ticket(self, ticket_id, **kwargs):
+        """Update ticket details"""
+        db_session = self.db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if ticket:
+                for key, value in kwargs.items():
+                    setattr(ticket, key, value)
+                db_session.commit()
+            return ticket
+        finally:
+            db_session.close()
+
+    def delete_ticket(self, ticket_id):
+        """Delete a ticket"""
+        db_session = self.db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if ticket:
+                db_session.delete(ticket)
+                db_session.commit()
+                return True
+            return False
+        finally:
+            db_session.close() 

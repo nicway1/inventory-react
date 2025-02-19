@@ -26,7 +26,7 @@ from utils.email_sender import mail
 import os
 import logging
 from routes.main import main_bp
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
 
@@ -68,6 +68,13 @@ CORS(app)
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    logging.error(f"CSRF Error: {str(e)}")
+    return render_template('error.html', 
+                         error="CSRF token validation failed. Please try again.",
+                         details=str(e)), 400
 
 # Initialize Flask-Mail
 mail.init_app(app)

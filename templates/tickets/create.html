@@ -37,7 +37,7 @@
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a category...</option>
                         {% for category in categories %}
-                        <option value="{{ category }}">{{ category }}</option>
+                        <option value="{{ category.name }}">{{ category.value }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -50,10 +50,9 @@
                             required
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select priority...</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
+                        {% for priority in priorities %}
+                        <option value="{{ priority.name }}">{{ priority.value }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 

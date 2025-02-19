@@ -16,6 +16,7 @@
             </div>
 
             <form method="POST" enctype="multipart/form-data" class="px-6 py-4 space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Company Logo -->
                 <div>
                     {% if company and company.logo_path %}

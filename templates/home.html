@@ -23,17 +23,17 @@
             <a href="{{ url_for('inventory.view_inventory') }}" class="mt-4 inline-block text-blue-600 hover:text-blue-800">View Inventory →</a>
         </div>
 
-        <!-- Shipments Card -->
+        <!-- Tickets Card -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <h2 class="text-xl font-semibold">Shipments</h2>
+                <h2 class="text-xl font-semibold">Tickets</h2>
             </div>
             <p class="text-3xl font-bold text-green-600">{{ stats.total_shipments }}</p>
-            <p class="text-gray-600">Active Shipments</p>
-            <a href="{{ url_for('shipments.list_shipments') }}" class="mt-4 inline-block text-green-600 hover:text-green-800">View Shipments →</a>
+            <p class="text-gray-600">Active Tickets</p>
+            <a href="{{ url_for('tickets.list_tickets') }}" class="mt-4 inline-block text-green-600 hover:text-green-800">View Tickets →</a>
         </div>
 
         <!-- Manage Customers Card -->

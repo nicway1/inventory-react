@@ -2,10 +2,11 @@ from flask import Blueprint, render_template, redirect, url_for, session, reques
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import (
     user_store, activity_store, ticket_store, 
-    inventory_store, queue_store, shipment_store
+    inventory_store, queue_store
 )
 from utils.db_manager import DatabaseManager
 from models.company import Company
+from models.ticket import Ticket
 import os
 from werkzeug.utils import secure_filename
 from models.asset import Asset
@@ -67,9 +68,6 @@ def index():
         flash('You do not have permission to import data')
         return redirect(url_for('main.index'))
 
-    # Get shipments
-    shipments = shipment_store.get_user_shipments(user_id)
-
     # Get queues
     queues = queue_store.get_all_queues()
 
@@ -80,13 +78,14 @@ def index():
         accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
         total_inventory = tech_assets_count + accessories_count
         total_customers = db_session.query(CustomerUser).count()
+        total_tickets = db_session.query(Ticket).count()
     finally:
         db_session.close()
 
     # Calculate summary statistics
     stats = {
         'total_inventory': total_inventory,
-        'total_shipments': len(shipments),
+        'total_shipments': total_tickets,  # Using total_tickets instead of shipments
         'total_queues': len(queues),
         'total_customers': total_customers
     }
@@ -95,7 +94,6 @@ def index():
     activities = activity_store.get_user_activities(user_id)
 
     return render_template('home.html',
-        shipments=shipments,
         queues=queues,
         stats=stats,
         activities=activities,
