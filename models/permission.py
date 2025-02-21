@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, Enum
+from sqlalchemy.orm import relationship
 from models.base import Base
 from models.user import UserType
 
@@ -7,6 +8,9 @@ class Permission(Base):
     
     id = Column(Integer, primary_key=True)
     user_type = Column(Enum(UserType), nullable=False)
+    
+    # Relationship with User
+    users = relationship("User", back_populates="permissions")
     
     # Asset Permissions
     can_view_assets = Column(Boolean, default=True)
