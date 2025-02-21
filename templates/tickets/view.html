@@ -26,11 +26,11 @@
                             <div class="flex space-x-4 text-sm text-gray-600">
                                 <div>
                                     <span class="font-medium">Created:</span> 
-                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}
                                 </div>
                                 <div>
                                     <span class="font-medium">Last Updated:</span> 
-                                    {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') if ticket.updated_at else 'N/A' }}
                                 </div>
                             </div>
                         </div>
@@ -154,6 +154,106 @@
                     <p class="whitespace-pre-wrap">{{ ticket.description }}</p>
                 </div>
 
+                <!-- Asset Information -->
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Asset Information</h2>
+                        {% if session.get('user_type') == 'admin' %}
+                        <div class="flex space-x-2">
+                            <button onclick="showAssetForm('tech')" 
+                                    class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                Add Tech Asset
+                            </button>
+                            <button onclick="showAssetForm('accessory')" 
+                                    class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                                Add Accessory
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tech Asset Form -->
+                    <div id="techAssetForm" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
+                        <form action="{{ url_for('tickets.assign_asset', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Select Tech Asset</label>
+                                <select name="asset_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- Select Asset --</option>
+                                    {% for asset in available_assets %}
+                                    <option value="{{ asset.id }}">
+                                        {{ asset.asset_tag }} - {{ asset.name }} ({{ asset.serial_num }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    Assign Asset
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Accessory Form -->
+                    <div id="accessoriesForm" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
+                        <form action="{{ url_for('tickets.assign_accessory', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Select Accessory</label>
+                                <select name="accessory_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- Select Accessory --</option>
+                                    {% for accessory in available_accessories %}
+                                    <option value="{{ accessory.id }}">
+                                        {{ accessory.name }} (Available: {{ accessory.available_quantity }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Quantity</label>
+                                <input type="number" name="quantity" min="1" value="1" 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                                    Assign Accessory
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Current Assets Display -->
+                    {% if ticket.asset or ticket.accessory %}
+                    <div class="space-y-4">
+                        {% if ticket.asset %}
+                        <div class="p-4 bg-white border rounded-lg">
+                            <h3 class="font-medium mb-2">Assigned Tech Asset</h3>
+                            <div class="text-sm">
+                                <p><span class="font-medium">Asset Tag:</span> {{ ticket.asset.asset_tag }}</p>
+                                <p><span class="font-medium">Name:</span> {{ ticket.asset.name }}</p>
+                                <p><span class="font-medium">Serial Number:</span> {{ ticket.asset.serial_num }}</p>
+                                <p><span class="font-medium">Status:</span> {{ ticket.asset.status }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if ticket.accessory %}
+                        <div class="p-4 bg-white border rounded-lg">
+                            <h3 class="font-medium mb-2">Assigned Accessory</h3>
+                            <div class="text-sm">
+                                <p><span class="font-medium">Name:</span> {{ ticket.accessory.name }}</p>
+                                <p><span class="font-medium">Category:</span> {{ ticket.accessory.category }}</p>
+                                <p><span class="font-medium">Quantity:</span> {{ ticket.accessory.total_quantity }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500 text-sm">No assets currently assigned to this ticket.</p>
+                    {% endif %}
+                </div>
+
                 <!-- Comments Section -->
                 <div class="p-6">
                     <h2 class="text-lg font-semibold mb-4">Comments</h2>
@@ -185,7 +285,7 @@
                             <div class="flex justify-between items-start">
                                 <div class="font-medium">{{ comment.user_id }}</div>
                                 <div class="text-sm text-gray-500">
-                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
                                 </div>
                             </div>
                             <div class="mt-2">{{ comment.content }}</div>
@@ -620,19 +720,29 @@
                             <div class="flex-shrink-0">
                                 <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                                     <span class="text-white font-bold">
-                                        {{ comment.user.username[0].upper() }}
+                                        {% if comment.user %}
+                                            {{ comment.user.username[0].upper() }}
+                                        {% else %}
+                                            ?
+                                        {% endif %}
                                     </span>
                                 </div>
                             </div>
                             <div class="flex-grow">
                                 <div class="text-sm">
-                                    <span class="font-medium text-gray-900">{{ comment.user.username }}</span>
+                                    <span class="font-medium text-gray-900">
+                                        {% if comment.user %}
+                                            {{ comment.user.username }}
+                                        {% else %}
+                                            Unknown User
+                                        {% endif %}
+                                    </span>
                                 </div>
                                 <div class="mt-1 text-sm text-gray-700">
                                     {{ comment.content|safe }}
                                 </div>
                                 <div class="mt-2 text-sm text-gray-500">
-                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
                                 </div>
                             </div>
                         </div>

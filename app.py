@@ -7,6 +7,7 @@ from routes.tickets import tickets_bp
 from routes.shipments import shipments_bp
 from routes.users import users_bp
 from routes.admin import admin_bp
+from routes.api import api_bp
 from utils.auth_decorators import login_required
 from utils.store_instances import (
     user_store,
@@ -29,6 +30,7 @@ from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
+from sqlalchemy.orm import joinedload
 
 # Configure logging
 logging.basicConfig(
@@ -102,7 +104,10 @@ def load_user(user_id):
         return None
     try:
         db_session = SessionLocal()
-        user = db_session.query(User).get(int(user_id))
+        user = db_session.query(User).options(joinedload(User.permissions)).get(int(user_id))
+        if user:
+            # Expunge the user from the session but keep the permissions loaded
+            db_session.expunge(user)
         db_session.close()
         return user
     except (ValueError, TypeError):
@@ -116,6 +121,7 @@ app.register_blueprint(tickets_bp, url_prefix='/tickets')
 app.register_blueprint(shipments_bp, url_prefix='/shipments')
 app.register_blueprint(users_bp, url_prefix='/users')
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(api_bp)
 
 @app.context_processor
 def utility_processor():

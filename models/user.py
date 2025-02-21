@@ -30,8 +30,13 @@ class User(UserMixin, Base):
     user_type = Column(Enum(UserType), nullable=False)
     company_id = Column(Integer, ForeignKey('companies.id'))
     assigned_country = Column(Enum(Country), nullable=True)
+    role = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    
+    # Add permissions relationship
+    permissions_id = Column(Integer, ForeignKey('permissions.id'))
+    permissions = relationship("Permission", uselist=False)
     
     def check_password(self, password):
         """Check if the provided password matches the stored password hash"""
@@ -78,6 +83,7 @@ class User(UserMixin, Base):
             'company_id': self.company_id,
             'user_type': self.user_type.value,  # Convert enum to string
             'assigned_country': self.assigned_country.value if self.assigned_country else None,
+            'role': self.role,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }

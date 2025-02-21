@@ -143,5 +143,9 @@
     <main class="max-w-7xl mx-auto px-4 py-8">
         {% block content %}{% endblock %}
     </main>
+    
+    <!-- Common Scripts -->
+    <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html> 

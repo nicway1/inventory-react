@@ -1,5 +1,6 @@
-from models.database import Asset, Accessory, AssetStatus
 from utils.db_manager import DatabaseManager
+from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
 import pandas as pd
 from datetime import datetime
 import os
@@ -133,6 +134,58 @@ class InventoryStore:
             item = db_session.query(Asset).get(item_id)
             if item:
                 db_session.delete(item)
+                db_session.commit()
+                return True
+            return False
+        finally:
+            db_session.close()
+
+    def get_available_assets(self):
+        """Get all assets that are available for assignment to tickets"""
+        db_session = self.db_manager.get_session()
+        try:
+            # Get assets that are in stock or ready to deploy
+            available_assets = db_session.query(Asset).filter(
+                Asset.status.in_([AssetStatus.IN_STOCK, AssetStatus.READY_TO_DEPLOY])
+            ).all()
+            return available_assets
+        finally:
+            db_session.close()
+
+    def get_available_accessories(self):
+        """Get all accessories that have available quantity"""
+        db_session = self.db_manager.get_session()
+        try:
+            # Get accessories with available quantity > 0
+            available_accessories = db_session.query(Accessory).filter(
+                Accessory.available_quantity > 0
+            ).all()
+            return available_accessories
+        finally:
+            db_session.close()
+
+    def assign_asset_to_ticket(self, asset_id, ticket_id):
+        """Assign an asset to a ticket and update its status"""
+        db_session = self.db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).get(asset_id)
+            if asset:
+                # Update asset status to indicate it's assigned
+                asset.status = AssetStatus.DEPLOYED
+                db_session.commit()
+                return True
+            return False
+        finally:
+            db_session.close()
+
+    def assign_accessory_to_ticket(self, accessory_id, ticket_id, quantity=1):
+        """Assign an accessory to a ticket and update its quantity"""
+        db_session = self.db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).get(accessory_id)
+            if accessory and accessory.available_quantity >= quantity:
+                # Update available quantity
+                accessory.available_quantity -= quantity
                 db_session.commit()
                 return True
             return False

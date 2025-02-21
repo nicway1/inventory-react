@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Add Select2 CSS in the head -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-2xl mx-auto">
         <div class="mb-6">
@@ -15,9 +18,207 @@
                 <h1 class="text-2xl font-bold">Create New Ticket</h1>
             </div>
 
-            <form method="POST" class="px-6 py-4 space-y-6">
+            <form method="POST" enctype="multipart/form-data" class="px-6 py-4 space-y-6">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
+                <!-- Category -->
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                    <select id="category" 
+                            name="category" 
+                            required
+                            onchange="toggleFormFields()"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Select a category...</option>
+                        <option value="PIN_REQUEST">PIN Request</option>
+                        <option value="ASSET_REPAIR">Asset Repair</option>
+                        <option value="BULK_DELIVERY_QUOTATION">Bulk Delivery Quotation</option>
+                    </select>
+                </div>
+
+                <!-- PIN Request Fields -->
+                <div id="pinRequestFields" class="hidden space-y-6">
+                    <!-- Country -->
+                    <div>
+                        <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
+                        <input type="text" 
+                               id="country" 
+                               name="country" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Serial Number Selection -->
+                    <div>
+                        <label for="serial_number" class="block text-sm font-medium text-gray-700">Asset Selection</label>
+                        <select id="serial_number" 
+                                name="serial_number"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select an asset...</option>
+                            {% for asset in assets %}
+                            <option value="{{ asset.serial_number }}" 
+                                    data-model="{{ asset.model }}"
+                                    data-customer="{{ asset.customer }}"
+                                    data-asset-tag="{{ asset.asset_tag }}">
+                                {{ asset.serial_number }} - {{ asset.model }} ({{ asset.asset_tag }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Auto-populated fields -->
+                    <div>
+                        <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
+                        <input type="text" 
+                               id="model" 
+                               name="model" 
+                               readonly
+                               class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="customer_company" class="block text-sm font-medium text-gray-700">Customer Company</label>
+                        <input type="text" 
+                               id="customer_company" 
+                               name="customer_company" 
+                               readonly
+                               class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
+                    </div>
+
+                    <!-- Lock Type -->
+                    <div>
+                        <label for="lock_type" class="block text-sm font-medium text-gray-700">Lock Type</label>
+                        <select id="lock_type" 
+                                name="lock_type" 
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select lock type...</option>
+                            <option value="ACTIVATION">Activation Lock</option>
+                            <option value="6_DIGIT">6 Digit Lock</option>
+                            <option value="BIOS">BIOS Lock</option>
+                            <option value="BITLOCKER">Bitlocker</option>
+                        </select>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea id="notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Repair Fields -->
+                <div id="repairFields" class="hidden space-y-6">
+                    <!-- Country -->
+                    <div>
+                        <label for="repair_country" class="block text-sm font-medium text-gray-700">Country</label>
+                        <input type="text" 
+                               id="repair_country" 
+                               name="country" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Serial Number Selection -->
+                    <div>
+                        <label for="repair_serial_number" class="block text-sm font-medium text-gray-700">Asset Selection</label>
+                        <select id="repair_serial_number" 
+                                name="serial_number"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select an asset...</option>
+                            {% for asset in assets %}
+                            <option value="{{ asset.serial_number }}" 
+                                    data-model="{{ asset.model }}"
+                                    data-customer="{{ asset.customer }}"
+                                    data-asset-tag="{{ asset.asset_tag }}">
+                                {{ asset.serial_number }} - {{ asset.model }} ({{ asset.asset_tag }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Auto-populated fields -->
+                    <div>
+                        <label for="repair_model" class="block text-sm font-medium text-gray-700">Model</label>
+                        <input type="text" 
+                               id="repair_model" 
+                               name="model" 
+                               readonly
+                               class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="repair_customer" class="block text-sm font-medium text-gray-700">Customer Company</label>
+                        <input type="text" 
+                               id="repair_customer" 
+                               name="customer_company" 
+                               readonly
+                               class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
+                    </div>
+
+                    <!-- Apple Diagnostics Code -->
+                    <div>
+                        <label for="apple_diagnostics" class="block text-sm font-medium text-gray-700">Apple Diagnostics Code (if applicable)</label>
+                        <input type="text" 
+                               id="apple_diagnostics" 
+                               name="apple_diagnostics" 
+                               placeholder="e.g., ADP000"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Damage Description -->
+                    <div>
+                        <label for="damage_description" class="block text-sm font-medium text-gray-700">Description of Damage</label>
+                        <textarea id="damage_description" 
+                                  name="damage_description" 
+                                  rows="3"
+                                  required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Image Upload -->
+                    <div>
+                        <label for="image" class="block text-sm font-medium text-gray-700">Upload Images</label>
+                        <input type="file" 
+                               id="image" 
+                               name="image" 
+                               accept="image/*"
+                               multiple
+                               class="mt-1 block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="repair_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea id="repair_notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Quote Options -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <button type="button" 
+                                    onclick="requestQuote('repair')"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                                Request Repair Quote
+                            </button>
+                            <button type="button" 
+                                    onclick="requestQuote('disposal')"
+                                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                                Request Disposal Quote
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Subject -->
                 <div>
                     <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
@@ -26,20 +227,6 @@
                            name="subject" 
                            required
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-
-                <!-- Category -->
-                <div>
-                    <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-                    <select id="category" 
-                            name="category" 
-                            required
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Select a category...</option>
-                        {% for category in categories %}
-                        <option value="{{ category.name }}">{{ category.value }}</option>
-                        {% endfor %}
-                    </select>
                 </div>
 
                 <!-- Priority -->
@@ -77,4 +264,135 @@
         </div>
     </div>
 </div>
+
+<!-- Add jQuery and Select2 JS before the closing body tag -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+function toggleFormFields() {
+    const category = document.getElementById('category').value;
+    const pinRequestFields = document.getElementById('pinRequestFields');
+    const repairFields = document.getElementById('repairFields');
+    
+    // Hide all category-specific fields first
+    pinRequestFields.classList.add('hidden');
+    repairFields.classList.add('hidden');
+    
+    // Remove required attributes
+    document.getElementById('country').required = false;
+    document.getElementById('serial_number').required = false;
+    document.getElementById('lock_type').required = false;
+    document.getElementById('repair_country').required = false;
+    document.getElementById('repair_serial_number').required = false;
+    document.getElementById('damage_description').required = false;
+    
+    // Show and make required the appropriate fields
+    if (category === 'PIN_REQUEST') {
+        pinRequestFields.classList.remove('hidden');
+        document.getElementById('country').required = true;
+        document.getElementById('serial_number').required = true;
+        document.getElementById('lock_type').required = true;
+    } else if (category === 'ASSET_REPAIR') {
+        repairFields.classList.remove('hidden');
+        document.getElementById('repair_country').required = true;
+        document.getElementById('repair_serial_number').required = true;
+        document.getElementById('damage_description').required = true;
+    }
+}
+
+function requestQuote(type) {
+    const form = document.querySelector('form');
+    const quoteTypeInput = document.createElement('input');
+    quoteTypeInput.type = 'hidden';
+    quoteTypeInput.name = 'quote_type';
+    quoteTypeInput.value = type;
+    form.appendChild(quoteTypeInput);
+    form.submit();
+}
+
+// Initialize Select2
+$(document).ready(function() {
+    $('#serial_number, #repair_serial_number').select2({
+        placeholder: 'Search by serial number, model, or asset tag...',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Handle PIN request asset selection
+    $('#serial_number').on('change', function() {
+        const selectedOption = $(this).find(':selected');
+        if (selectedOption.val()) {
+            const model = selectedOption.data('model');
+            const customer = selectedOption.data('customer');
+            const assetTag = selectedOption.data('asset-tag');
+            
+            // Populate the fields
+            $('#model').val(model);
+            $('#customer_company').val(customer);
+            
+            // Auto-populate subject with a standard format
+            $('#subject').val(`PIN Request - ${model} - ${selectedOption.val()}`);
+            
+            // Auto-populate description with a template
+            const description = `Serial Number: ${selectedOption.val()}
+Model: ${model}
+Asset Tag: ${assetTag}
+Customer: ${customer}
+Lock Type: [To be selected]
+
+Additional Information:
+- Country: ${$('#country').val()}
+`;
+            $('#description').val(description);
+        } else {
+            // Clear the fields if no asset is selected
+            $('#model').val('');
+            $('#customer_company').val('');
+        }
+    });
+
+    // Handle repair asset selection
+    $('#repair_serial_number').on('change', function() {
+        const selectedOption = $(this).find(':selected');
+        if (selectedOption.val()) {
+            const model = selectedOption.data('model');
+            const customer = selectedOption.data('customer');
+            const assetTag = selectedOption.data('asset-tag');
+            
+            // Populate the fields
+            $('#repair_model').val(model);
+            $('#repair_customer').val(customer);
+            
+            // Auto-populate subject with a standard format
+            $('#subject').val(`Repair Request - ${model} - ${selectedOption.val()}`);
+            
+            // Auto-populate description with a template
+            const description = `Asset Details:
+Serial Number: ${selectedOption.val()}
+Model: ${model}
+Asset Tag: ${assetTag}
+Customer: ${customer}
+Country: ${$('#repair_country').val()}
+
+Damage Description:
+${$('#damage_description').val()}
+
+Apple Diagnostics Code: ${$('#apple_diagnostics').val() || 'N/A'}
+
+Additional Notes:
+${$('#repair_notes').val()}
+`;
+            $('#description').val(description);
+        } else {
+            // Clear the fields if no asset is selected
+            $('#repair_model').val('');
+            $('#repair_customer').val('');
+        }
+    });
+});
+
+// Initialize form state on page load
+document.addEventListener('DOMContentLoaded', toggleFormFields);
+</script>
 {% endblock %} 

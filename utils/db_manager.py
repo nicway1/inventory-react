@@ -175,9 +175,40 @@ class DatabaseManager:
     def get_user_by_username(self, username):
         session = self.get_session()
         try:
-            return session.query(User).options(
-                joinedload(User.company)
+            user = session.query(User).options(
+                joinedload(User.company),
+                joinedload(User.permissions)
             ).filter(User.username == username).first()
+            
+            # Initialize permissions if they don't exist
+            if user and not user.permissions:
+                from models.permission import Permission
+                default_permissions = Permission.get_default_permissions(user.user_type)
+                permission = Permission(user_type=user.user_type, **default_permissions)
+                session.add(permission)
+                user.permissions = permission
+                session.commit()
+            
+            return user
+        finally:
+            session.close()
+
+    def get_user_permissions(self, user_id):
+        session = self.get_session()
+        try:
+            user = session.query(User).options(
+                joinedload(User.permissions)
+            ).filter(User.id == user_id).first()
+            
+            if user and not user.permissions:
+                from models.permission import Permission
+                default_permissions = Permission.get_default_permissions(user.user_type)
+                permission = Permission(user_type=user.user_type, **default_permissions)
+                session.add(permission)
+                user.permissions = permission
+                session.commit()
+            
+            return user.permissions if user else None
         finally:
             session.close()
 

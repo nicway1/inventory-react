@@ -1,7 +1,7 @@
 import datetime
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from utils.auth_decorators import login_required, admin_required
-from utils.snipeit_api import get_all_assets, get_asset, get_all_accessories
 from models.ticket import Ticket, TicketCategory, TicketPriority
 from utils.store_instances import (
     ticket_store,
@@ -12,6 +12,8 @@ from utils.store_instances import (
     activity_store
 )
 from utils.db_manager import DatabaseManager
+from models.asset import Asset
+from werkzeug.utils import secure_filename
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 db_manager = DatabaseManager()
@@ -28,85 +30,189 @@ def list_tickets():
 @login_required
 def create_ticket():
     if request.method == 'GET':
-        return render_template('tickets/create.html', 
-                             priorities=list(TicketPriority),
-                             categories=list(TicketCategory))
+        db_session = db_manager.get_session()
+        try:
+            # Get all assets for the dropdown
+            assets = db_session.query(Asset).all()
+            assets_data = [{
+                'id': asset.id,
+                'serial_number': asset.serial_num,
+                'model': asset.model,
+                'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
+                'asset_tag': asset.asset_tag
+            } for asset in assets if asset.serial_num]
+            
+            return render_template('tickets/create.html', 
+                                 assets=assets_data,
+                                 priorities=list(TicketPriority))
+        finally:
+            db_session.close()
+
     if request.method == 'POST':
+        # Get common form data
+        category = request.form.get('category')
         subject = request.form.get('subject')
         description = request.form.get('description')
-        category = request.form.get('category')
         priority = request.form.get('priority')
-        
         user_id = session['user_id']
-        
-        ticket_id = ticket_store.create_ticket(
-            subject=subject,
-            description=description,
-            requester_id=user_id,
-            category=category,
-            priority=priority
-        )
-        
-        flash('Ticket created successfully')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-    
-    return render_template('tickets/create.html',
-                         categories=list(TicketCategory),
-                         priorities=list(TicketPriority))
+
+        # Get category-specific data
+        country = request.form.get('country')
+        serial_number = request.form.get('serial_number')
+        notes = request.form.get('notes', '')
+
+        # Get asset details
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+            if not asset:
+                flash('Asset not found with the provided serial number', 'error')
+                return redirect(url_for('tickets.create_ticket'))
+
+            # Handle category-specific logic
+            if category == 'PIN_REQUEST':
+                lock_type = request.form.get('lock_type')
+                description = f"""Serial Number: {serial_number}
+Model: {asset.model}
+Asset Tag: {asset.asset_tag}
+Customer: {asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer}
+Lock Type: {lock_type}
+
+Additional Information:
+- Country: {country}
+
+Notes:
+{notes}"""
+
+            elif category == 'ASSET_REPAIR':
+                damage_description = request.form.get('damage_description')
+                apple_diagnostics = request.form.get('apple_diagnostics')
+                quote_type = request.form.get('quote_type', 'assessment')
+                
+                # Handle image upload
+                image_paths = []
+                if 'image' in request.files:
+                    images = request.files.getlist('image')
+                    for image in images:
+                        if image and image.filename:
+                            # Secure the filename
+                            filename = secure_filename(image.filename)
+                            # Create unique filename with timestamp
+                            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                            unique_filename = f"{timestamp}_{filename}"
+                            # Save the file
+                            image_path = os.path.join('uploads', 'repairs', unique_filename)
+                            os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                            image.save(image_path)
+                            image_paths.append(image_path)
+
+                # Determine ticket category based on quote type
+                if quote_type == 'repair':
+                    category = TicketCategory.REPAIR_QUOTE
+                elif quote_type == 'disposal':
+                    category = TicketCategory.ITAD_QUOTE
+                else:
+                    category = TicketCategory.ASSET_REPAIR
+
+                description = f"""Asset Details:
+Serial Number: {serial_number}
+Model: {asset.model}
+Customer: {asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer}
+Country: {country}
+
+Damage Description:
+{damage_description}
+
+Apple Diagnostics Code: {apple_diagnostics if apple_diagnostics else 'N/A'}
+
+Additional Notes:
+{notes}
+
+Images Attached: {len(image_paths)} image(s)"""
+
+            # Create the ticket
+            ticket_id = ticket_store.create_ticket(
+                subject=subject,
+                description=description,
+                requester_id=user_id,
+                category=category,
+                priority=priority,
+                asset_id=asset.id,
+                country=country,
+                damage_description=damage_description if category == 'ASSET_REPAIR' else None,
+                apple_diagnostics=apple_diagnostics if category == 'ASSET_REPAIR' else None,
+                image_path=','.join(image_paths) if category == 'ASSET_REPAIR' and image_paths else None,
+                repair_status=RepairStatus.PENDING_ASSESSMENT if category == 'ASSET_REPAIR' else None
+            )
+
+            flash('Ticket created successfully')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+        finally:
+            db_session.close()
+
+    return render_template('tickets/create.html')
 
 @tickets_bp.route('/<int:ticket_id>')
 @login_required
 def view_ticket(ticket_id):
-    ticket = ticket_store.get_ticket(ticket_id)
-    if not ticket:
-        flash('Ticket not found')
-        return redirect(url_for('tickets.list_tickets'))
-    
-    comments = comment_store.get_ticket_comments(ticket_id)
-    
-    # Add user information to comments
-    for comment in comments:
-        comment.user = user_store.get_user_by_id(comment.user_id)
+    # Get ticket with eagerly loaded relationships
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket)\
+            .options(db_manager.joinedload(Ticket.asset))\
+            .options(db_manager.joinedload(Ticket.accessory))\
+            .filter(Ticket.id == ticket_id)\
+            .first()
+            
+        if not ticket:
+            flash('Ticket not found')
+            return redirect(url_for('tickets.list_tickets'))
+        
+        comments = comment_store.get_ticket_comments(ticket_id)
+        
+        # Add user information to comments
+        for comment in comments:
+            comment.user = user_store.get_user_by_id(comment.user_id)
 
-    # Convert users to a dictionary format that can be serialized to JSON
-    users_dict = {}
-    for user in user_store.get_all_users():
-        users_dict[str(user.id)] = {
-            'id': user.id,
-            'username': user.username,
-            'user_type': user.user_type,
-            'company': user.company,
-            'role': user.role
-        }
+        # Convert users to a dictionary format that can be serialized to JSON
+        users_dict = {}
+        for user in user_store.get_all_users():
+            users_dict[str(user.id)] = {
+                'id': user.id,
+                'username': user.username,
+                'user_type': user.user_type,
+                'company': user.company,
+                'role': user.role
+            }
 
-    # Get owner information
-    owner = None
-    if ticket.assigned_to_id:
-        owner = user_store.get_user_by_id(ticket.assigned_to_id)
-        if not owner:
-            # If owner not found, clear the assigned_to_id
-            ticket.assigned_to_id = None
-            ticket_store.save_tickets()
+        # Get owner information
+        owner = None
+        if ticket.assigned_to_id:
+            owner = user_store.get_user_by_id(ticket.assigned_to_id)
+            if not owner:
+                # If owner not found, clear the assigned_to_id
+                ticket.assigned_to_id = None
+                ticket_store.save_tickets()
 
-    queues = {q.id: q for q in queue_store.get_all_queues()}
-    snipeit_assets = get_all_assets()
-    snipeit_accessories = get_all_accessories()
-    
-    asset_details = None
-    if ticket.asset_id:
-        asset_details = get_asset(ticket.asset_id)
-    
-    return render_template(
-        'tickets/view.html',
-        ticket=ticket,
-        comments=sorted(comments, key=lambda x: x.created_at),
-        queues=queues,
-        users=users_dict,
-        owner=owner,  # Pass owner separately
-        snipeit_assets=snipeit_assets,
-        snipeit_accessories=snipeit_accessories,
-        asset_details=asset_details
-    )
+        queues = {q.id: q for q in queue_store.get_all_queues()}
+        
+        # Get available assets and accessories from inventory store
+        available_assets = inventory_store.get_available_assets()
+        available_accessories = inventory_store.get_available_accessories()
+        
+        return render_template(
+            'tickets/view.html',
+            ticket=ticket,
+            comments=sorted(comments, key=lambda x: x.created_at),
+            queues=queues,
+            users=users_dict,
+            owner=owner,  # Pass owner separately
+            available_assets=available_assets,
+            available_accessories=available_accessories
+        )
+    finally:
+        db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/comment', methods=['POST'])
 @login_required
@@ -304,13 +410,15 @@ def assign_asset(ticket_id):
     asset_id = request.form.get('asset_id')
     if asset_id:
         asset_id = int(asset_id)
-        # Check if asset exists in Snipe-IT
-        asset = get_asset(asset_id)
+        # Check if asset exists in local inventory
+        asset = inventory_store.get_asset(asset_id)
         if not asset:
-            flash('Asset not found in Snipe-IT')
+            flash('Asset not found')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         
+        # Update the ticket and the asset
         ticket.asset_id = asset_id
+        inventory_store.assign_asset_to_ticket(asset_id, ticket_id)
         flash('Asset assigned successfully')
     
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -324,11 +432,23 @@ def assign_accessory(ticket_id):
         return redirect(url_for('tickets.list_tickets'))
     
     accessory_id = request.form.get('accessory_id')
+    quantity = request.form.get('quantity', 1, type=int)
+    
     if accessory_id:
         accessory_id = int(accessory_id)
-        # Here you would typically check out the accessory in Snipe-IT
-        # and store the reference in your ticket
+        # Check if accessory exists and has enough quantity
+        accessory = inventory_store.get_accessory(accessory_id)
+        if not accessory:
+            flash('Accessory not found')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+            
+        if accessory.available_quantity < quantity:
+            flash(f'Not enough quantity available. Only {accessory.available_quantity} units available.')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+        # Update the ticket and the accessory
         ticket.accessory_id = accessory_id
+        inventory_store.assign_accessory_to_ticket(accessory_id, ticket_id, quantity)
         flash('Accessory assigned successfully')
     
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -506,5 +626,15 @@ def update_tracking_status(ticket_id, tracking_type):
     except Exception as e:
         print(f"Error updating tracking: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@tickets_bp.route('/clear-all', methods=['POST'])
+@admin_required
+def clear_all_tickets():
+    """Clear all tickets from the system"""
+    ticket_store.clear_all_tickets()
+    flash('All tickets have been cleared successfully')
+    return redirect(url_for('tickets.list_tickets'))
+
+# Remove the create_repair_ticket route since it's now part of create_ticket
 
 # Add other routes back as needed... 

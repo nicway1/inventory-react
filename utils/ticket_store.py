@@ -83,7 +83,9 @@ class TicketStore:
         with open(self.TICKETS_FILE, 'w') as f:
             json.dump(tickets_data, f, indent=2)
 
-    def create_ticket(self, subject, description, requester_id, category=None, priority='Medium'):
+    def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
+                    asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
+                    image_path=None, repair_status=None):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -101,7 +103,13 @@ class TicketStore:
                 description=description,
                 requester_id=requester_id,
                 category=category,
-                priority=priority
+                priority=priority,
+                asset_id=asset_id,
+                country=country,
+                damage_description=damage_description,
+                apple_diagnostics=apple_diagnostics,
+                image_path=image_path,
+                repair_status=repair_status
             )
             db_session.add(ticket)
             db_session.commit()
@@ -237,4 +245,24 @@ class TicketStore:
                 return True
             return False
         finally:
-            db_session.close() 
+            db_session.close()
+
+    def clear_all_tickets(self):
+        """Clear all tickets from both database and JSON storage"""
+        # Clear from database
+        db_session = self.db_manager.get_session()
+        try:
+            db_session.query(Ticket).delete()
+            db_session.commit()
+        finally:
+            db_session.close()
+
+        # Clear from JSON storage
+        self.tickets = {}
+        if os.path.exists(self.TICKETS_FILE):
+            os.remove(self.TICKETS_FILE)
+        else:
+            # Ensure the directory exists and create an empty tickets file
+            os.makedirs(os.path.dirname(self.TICKETS_FILE), exist_ok=True)
+            with open(self.TICKETS_FILE, 'w') as f:
+                json.dump([], f) 

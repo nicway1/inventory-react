@@ -5,61 +5,83 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">IT Asset Inventory</h1>
+    <h1 class="text-3xl font-bold mb-8">IT Asset Inventory</h1>
+
+    {% if is_admin %}
+    <div class="mb-6 flex justify-end space-x-4">
+        <a href="{{ url_for('inventory.import_inventory') }}" 
+           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+            Import Data
+        </a>
+        <a href="{{ url_for('inventory.add_asset') }}" 
+           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Add New Asset
+        </a>
+    </div>
+    {% endif %}
 
     <!-- Search Bar -->
-        <div class="mb-6">
-                    <input type="text" 
-                           id="searchInput" 
+    <div class="mb-6">
+        <input type="text" 
+               id="searchInput" 
                placeholder="Search by serial number, asset tag, name, model, country, or received"
                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
+    </div>
 
     <!-- Filters -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select id="statusFilter" class="w-full border rounded-lg p-2">
-                        <option value="">All Statuses</option>
+                <option value="">All Statuses</option>
                 <option value="IN STOCK">IN STOCK</option>
-                        <option value="Ready to Deploy">Ready to Deploy</option>
+                <option value="Ready to Deploy">Ready to Deploy</option>
                 <option value="SHIPPED">SHIPPED</option>
                 <option value="DEPLOYED">DEPLOYED</option>
                 <option value="REPAIR">REPAIR</option>
                 <option value="ARCHIVED">ARCHIVED</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
             <select id="companyFilter" class="w-full border rounded-lg p-2">
-                        <option value="">All Companies</option>
-                        {% for company in companies %}
+                <option value="">All Companies</option>
+                {% for company in companies %}
                 <option value="{{ company }}">{{ company }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
             <select id="modelFilter" class="w-full border rounded-lg p-2">
-                        <option value="">All Models</option>
-                        {% for model in models %}
+                <option value="">All Models</option>
+                {% for model in models %}
                 <option value="{{ model }}">{{ model }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
             <select id="countryFilter" class="w-full border rounded-lg p-2">
-                        <option value="">All Countries</option>
+                <option value="">All Countries</option>
                 {% for country in countries %}
-                            <option value="{{ country }}">{{ country }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+                <option value="{{ country }}">{{ country }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
 
     <!-- Filter Button -->
     <div class="flex justify-end mb-6 space-x-2">
+        {% if current_user.is_authenticated and current_user.permissions.can_export_data %}
+        <a href="{{ url_for('inventory.export_inventory', item_type='assets') }}" 
+           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export to CSV
+        </a>
+        {% endif %}
         {% if current_user.is_admin %}
         <a href="{{ url_for('inventory.add_asset') }}" 
            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
@@ -80,13 +102,13 @@
     <div id="errorAlert" class="hidden mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
         <strong class="font-bold">Error!</strong>
         <span id="errorMessage" class="block sm:inline"></span>
-                    </div>
+    </div>
 
     <!-- Loading Indicator -->
     <div id="loadingIndicator" class="hidden mb-4 text-center">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         <span class="ml-2">Loading...</span>
-                    </div>
+    </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -111,12 +133,47 @@
 
     <!-- Tech Assets Table -->
     <div id="techAssetsTable" class="mb-8">
-        <h2 class="text-xl font-semibold mb-4">Tech Assets</h2>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Tech Assets</h2>
+            <div class="flex space-x-4">
+                <!-- Bulk Delete Form -->
+                {% if current_user.is_admin %}
+                <form id="bulkDeleteForm" action="{{ url_for('inventory.bulk_delete') }}" method="POST" class="flex items-center" onsubmit="return confirmDelete()">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="selected_asset_ids" id="selectedAssetIdsDelete" value="[]">
+                    <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete" value="[]">
+                    
+                    <button type="submit" id="bulkDeleteBtn" disabled
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Delete Selected
+                    </button>
+                </form>
+                {% endif %}
+                
+                <!-- Checkout List Buttons -->
+                <button id="addToCheckoutList" disabled
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Add to Checkout List
+                </button>
+                <button id="viewCheckoutList"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    View Checkout List
+                    <span id="checkoutCount" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        0
+                    </span>
+                </button>
+            </div>
+        </div>
+        
         <div class="bg-white shadow-md rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-4 py-2">
+                                <input type="checkbox" id="selectAllAssets"
+                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            </th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Asset Tag</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Serial Number</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Product</th>
@@ -134,7 +191,7 @@
         </div>
     </div>
 
-        <!-- Accessories Table -->
+    <!-- Accessories Table -->
     <div id="accessoriesTable" class="mb-8 hidden">
         <h2 class="text-xl font-semibold mb-4">Accessories</h2>
         <div class="bg-white shadow-md rounded-lg overflow-hidden">
@@ -142,6 +199,10 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-4 py-2">
+                                <input type="checkbox" id="selectAllAccessories"
+                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            </th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Category</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Available</th>
@@ -152,6 +213,10 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for accessory in accessories %}
                         <tr>
+                            <td class="px-4 py-2">
+                                <input type="checkbox" class="accessory-checkbox" data-id="{{ accessory.id }}"
+                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            </td>
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ accessory.available_count }}</td>
@@ -172,7 +237,9 @@
     </div>
 </div>
 
-<!-- JavaScript for handling tech assets display and filtering -->
+<!-- Include the checkout modal -->
+{% include 'inventory/includes/checkout_modal.html' %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const techAssetsTable = document.getElementById('techAssetsTable');
@@ -190,15 +257,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const countryFilter = document.getElementById('countryFilter');
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const selectAllAssets = document.getElementById('selectAllAssets');
+    const selectAllAccessories = document.getElementById('selectAllAccessories');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+    // Initialize variables
+    let selectedAssetIds = [];
+    let selectedAccessoryIds = [];
+
+    // Initialize checkout list
+    let checkoutList = [];
+    const addToCheckoutList = document.getElementById('addToCheckoutList');
+    const viewCheckoutList = document.getElementById('viewCheckoutList');
+    const checkoutListModal = document.getElementById('checkoutListModal');
+    const closeCheckoutModal = document.getElementById('closeCheckoutModal');
+    const checkoutListContent = document.getElementById('checkoutListContent');
+    const clearCheckoutList = document.getElementById('clearCheckoutList');
+    const processCheckout = document.getElementById('processCheckout');
+    const customerSelect = document.getElementById('customerSelect');
+    const checkoutCount = document.getElementById('checkoutCount');
+
     // Function to show error
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorAlert.classList.remove('hidden');
-        setTimeout(() => {
-            errorAlert.classList.add('hidden');
-        }, 5000);
+    function showError(message, isSuccess = false) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `fixed top-4 right-4 p-4 rounded-md ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 3000);
     }
 
     // Function to show/hide loading indicator
@@ -210,24 +295,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to handle fetch with session check
+    // Function to handle fetch with CSRF token
     async function fetchWithSession(url, options = {}) {
-        const response = await fetch(url, {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        return fetch(url, {
             ...options,
             headers: {
                 ...options.headers,
-                'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
+                'X-CSRFToken': csrfToken
+            }
         });
-
-        if (response.redirected && response.url.includes('/auth/login')) {
-            window.location.href = '/auth/login';
-            throw new Error('Session expired. Please log in again.');
-        }
-
-        return response;
     }
 
     // Function to load tech assets with filters
@@ -270,16 +348,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to update the table with data
     function updateTable(data) {
-        // Update both the table count and the card count
         techAssetsCount.textContent = data.total_count;
         
         if (data.assets && data.assets.length > 0) {
             techAssetsBody.innerHTML = data.assets.map(asset => `
-                <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/inventory/asset/${asset.id}'">
-                    <td class="px-4 py-2 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${asset.asset_tag || ''}</div>
+                <tr class="hover:bg-gray-50 cursor-pointer">
+                    <td class="px-4 py-2" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="asset-checkbox" data-id="${asset.id}"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                     </td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.asset_tag || ''}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.serial_num || ''}</td>
                     <td class="px-4 py-2">
                         <div class="text-sm text-gray-900 mb-1">${asset.product || ''}</div>
                         <div class="text-xs text-gray-500">
@@ -289,20 +368,51 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</div>
                         </div>
                     </td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.model || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.customer || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${asset.country || ''}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.model || ''}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.customer || ''}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.country || ''}</td>
                     <td class="px-4 py-2 whitespace-nowrap">
-                        <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(asset.inventory)}">
-                            ${asset.inventory || 'Unknown'}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full
+                            ${getStatusClass(asset.inventory)}">
+                            ${asset.inventory}
                         </span>
                     </td>
                 </tr>
             `).join('');
+
+            // Add event listeners to rows for navigation
+            const rows = techAssetsBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                row.addEventListener('click', function(event) {
+                    // Don't navigate if clicking on the checkbox cell
+                    if (!event.target.closest('td:first-child')) {
+                        const checkbox = row.querySelector('.asset-checkbox');
+                        const assetId = checkbox.dataset.id;
+                        window.location.href = `/inventory/asset/${assetId}`;
+                    }
+                });
+            });
+
+            // Add event listeners to checkboxes
+            const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
+            assetCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    handleAssetSelection(this);
+                    selectAllAssets.checked = [...assetCheckboxes].every(cb => cb.checked);
+                });
+            });
+
+            // Add event listener for "Select All" checkbox
+            selectAllAssets.addEventListener('change', function() {
+                assetCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    handleAssetSelection(checkbox);
+                });
+            });
         } else {
             techAssetsBody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="px-4 py-2 text-center text-gray-500">
+                    <td colspan="8" class="px-4 py-2 text-center text-gray-500">
                         No assets found
                     </td>
                 </tr>
@@ -330,26 +440,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listeners for filters
-    applyFiltersBtn.addEventListener('click', () => {
-        const filters = {
-            search: searchInput.value,
-            inventory_status: statusFilter.value,
-            company: companyFilter.value,
-            model: modelFilter.value,
-            country: countryFilter.value
-        };
-        loadTechAssets(filters);
+    // Function to handle asset selection
+    function handleAssetSelection(checkbox) {
+        const assetId = parseInt(checkbox.dataset.id);
+        if (checkbox.checked) {
+            if (!selectedAssetIds.includes(assetId)) {
+                selectedAssetIds.push(assetId);
+            }
+        } else {
+            selectedAssetIds = selectedAssetIds.filter(id => id !== assetId);
+        }
+        updateSelection();
+    }
+
+    // Handle accessory selection
+    function handleAccessorySelection(checkbox) {
+        const accessoryId = parseInt(checkbox.dataset.id);
+        if (checkbox.checked) {
+            if (!selectedAccessoryIds.includes(accessoryId)) {
+                selectedAccessoryIds.push(accessoryId);
+            }
+        } else {
+            selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
+        }
+        updateSelection();
+    }
+
+    // Select all accessories
+    selectAllAccessories.addEventListener('change', function() {
+        const accessoryCheckboxes = document.querySelectorAll('.accessory-checkbox');
+        accessoryCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            handleAccessorySelection(checkbox);
+        });
     });
 
-    clearFiltersBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        statusFilter.value = '';
-        companyFilter.value = '';
-        modelFilter.value = '';
-        countryFilter.value = '';
-        loadTechAssets();
-    });
+    // Function to update selected IDs and button state
+    function updateSelection() {
+        // Update delete form inputs
+        const selectedAssetIdsDelete = document.getElementById('selectedAssetIdsDelete');
+        const selectedAccessoryIdsDelete = document.getElementById('selectedAccessoryIdsDelete');
+        if (selectedAssetIdsDelete) selectedAssetIdsDelete.value = JSON.stringify(selectedAssetIds);
+        if (selectedAccessoryIdsDelete) selectedAccessoryIdsDelete.value = JSON.stringify(selectedAccessoryIds);
+        
+        // Enable/disable buttons based on selection
+        const hasSelection = selectedAssetIds.length > 0 || selectedAccessoryIds.length > 0;
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        if (bulkDeleteBtn) bulkDeleteBtn.disabled = !hasSelection;
+        if (addToCheckoutList) addToCheckoutList.disabled = !hasSelection;
+    }
+
+    // Function to confirm deletion
+    function confirmDelete() {
+        const totalSelected = selectedAssetIds.length + selectedAccessoryIds.length;
+        return confirm(`Are you sure you want to delete ${totalSelected} selected item(s)? This action cannot be undone.`);
+    }
+
+    // Event listeners for filters
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', () => {
+            const filters = {
+                search: searchInput.value,
+                inventory_status: statusFilter.value,
+                company: companyFilter.value,
+                model: modelFilter.value,
+                country: countryFilter.value
+            };
+            loadTechAssets(filters);
+        });
+    }
+
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (companyFilter) companyFilter.value = '';
+            if (modelFilter) modelFilter.value = '';
+            if (countryFilter) countryFilter.value = '';
+            loadTechAssets();
+        });
+    }
+
+    // Event listeners for checkout list
+    if (addToCheckoutList) {
+        addToCheckoutList.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/inventory/get-checkout-items', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        asset_ids: selectedAssetIds,
+                        accessory_ids: selectedAccessoryIds
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch item details');
+                
+                const data = await response.json();
+                
+                // Add items to the shared checkout manager
+                const newAssets = (data.assets || []).map(asset => ({
+                    ...asset,
+                    type: 'asset'
+                }));
+                
+                const newAccessories = (data.accessories || []).map(acc => ({
+                    ...acc,
+                    type: 'accessory'
+                }));
+                
+                [...newAssets, ...newAccessories].forEach(item => window.checkoutManager.addItem(item));
+                
+                showError('Items added to checkout list', true);
+                
+                // Clear selections
+                selectedAssetIds = [];
+                selectedAccessoryIds = [];
+                document.querySelectorAll('.asset-checkbox, .accessory-checkbox').forEach(cb => cb.checked = false);
+                if (selectAllAssets) selectAllAssets.checked = false;
+                if (selectAllAccessories) selectAllAccessories.checked = false;
+                updateSelection();
+            } catch (error) {
+                console.error('Error adding to checkout list:', error);
+                showError(error.message);
+            }
+        });
+    }
+
+    if (viewCheckoutList) {
+        viewCheckoutList.addEventListener('click', () => {
+            window.checkoutManager.showModal();
+        });
+    }
+
+    // Function to remove item from checkout list
+    window.removeFromCheckoutList = function(itemId, itemType) {
+        window.checkoutManager.removeItem(itemId, itemType);
+    };
 
     // Load initial data
     loadTechAssets();

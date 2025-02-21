@@ -10,7 +10,7 @@ class CustomerUser(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     contact_number = Column(String(20), nullable=False)
-    email = Column(String(100), nullable=False)
+    email = Column(String(100), nullable=True)
     address = Column(String(500), nullable=False)
     company_id = Column(Integer, ForeignKey('companies.id'))
     country = Column(Enum(Country), nullable=False)

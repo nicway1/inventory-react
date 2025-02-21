@@ -4,10 +4,25 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Support Tickets</h1>
-        <a href="{{ url_for('tickets.create_ticket') }}" 
-           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            Create New Ticket
-        </a>
+        <div class="space-x-4">
+            <a href="{{ url_for('tickets.create_ticket') }}" 
+               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Create New Ticket
+            </a>
+            <a href="{{ url_for('users.add_customer') }}" 
+               class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Add Customer
+            </a>
+            {% if current_user.is_admin %}
+            <form action="{{ url_for('tickets.clear_all_tickets') }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to clear all tickets? This action cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" 
+                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                    Clear All Tickets
+                </button>
+            </form>
+            {% endif %}
+        </div>
     </div>
 
     <div class="bg-white shadow-md rounded-lg overflow-hidden">

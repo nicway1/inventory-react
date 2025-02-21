@@ -129,5 +129,124 @@
             </table>
         </div>
     </div>
+
+    <!-- Include the checkout modal -->
+    {% include 'inventory/includes/checkout_modal.html' %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize variables
+        let selectedAssets = new Set(); // Set to store selected asset IDs
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Get DOM elements
+        const selectAllAssets = document.getElementById('selectAllAssets');
+        const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
+        const addToCheckoutList = document.getElementById('addToCheckoutList');
+        const viewCheckoutList = document.getElementById('viewCheckoutList');
+
+        // Function to handle asset selection
+        function handleAssetSelection(checkbox) {
+            const assetId = parseInt(checkbox.dataset.id);
+            if (checkbox.checked) {
+                selectedAssets.add(assetId);
+            } else {
+                selectedAssets.delete(assetId);
+            }
+            updateSelection();
+        }
+
+        // Function to update selection state
+        function updateSelection() {
+            const hasSelection = selectedAssets.size > 0;
+            if (addToCheckoutList) addToCheckoutList.disabled = !hasSelection;
+            if (bulkDeleteBtn) bulkDeleteBtn.disabled = !hasSelection;
+            if (selectedAssetIdsDelete) {
+                selectedAssetIdsDelete.value = JSON.stringify([...selectedAssets]);
+            }
+        }
+
+        // Event listener for "Select All" checkbox
+        if (selectAllAssets) {
+            selectAllAssets.addEventListener('change', function() {
+                assetCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    handleAssetSelection(checkbox);
+                });
+            });
+        }
+
+        // Event listeners for individual checkboxes
+        assetCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                handleAssetSelection(this);
+                if (selectAllAssets) {
+                    selectAllAssets.checked = [...assetCheckboxes].every(cb => cb.checked);
+                }
+            });
+        });
+
+        // Event listener for "Add to Checkout List" button
+        if (addToCheckoutList) {
+            addToCheckoutList.addEventListener('click', async () => {
+                try {
+                    const selectedIds = [...selectedAssets];
+                    const response = await fetch('/inventory/get-checkout-items', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            asset_ids: selectedIds,
+                            accessory_ids: []
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to fetch item details');
+                    
+                    const data = await response.json();
+                    
+                    // Add assets to checkout list
+                    const newAssets = (data.assets || []).map(asset => ({
+                        ...asset,
+                        type: 'asset'
+                    }));
+                    
+                    // Add items to the shared checkout manager
+                    newAssets.forEach(item => window.checkoutManager.addItem(item));
+                    
+                    showError('Items added to checkout list', true);
+                    
+                    // Clear selections
+                    selectedAssets.clear();
+                    assetCheckboxes.forEach(cb => cb.checked = false);
+                    if (selectAllAssets) selectAllAssets.checked = false;
+                    updateSelection();
+                } catch (error) {
+                    console.error('Error adding to checkout list:', error);
+                    showError(error.message);
+                }
+            });
+        }
+
+        // Event listener for view checkout list button
+        if (viewCheckoutList) {
+            viewCheckoutList.addEventListener('click', () => {
+                window.checkoutManager.showModal();
+            });
+        }
+
+        // Function to remove item from checkout list
+        window.removeFromCheckoutList = function(itemId, itemType) {
+            window.checkoutManager.removeItem(itemId, itemType);
+        };
+
+        // Function to confirm deletion
+        window.confirmDelete = function() {
+            return confirm(`Are you sure you want to delete ${selectedAssets.size} selected item(s)? This action cannot be undone.`);
+        };
+    });
+    </script>
 </div>
 {% endblock %} 

@@ -17,11 +17,11 @@ class TicketPriority(enum.Enum):
     CRITICAL = "Critical"
 
 class TicketCategory(enum.Enum):
-    HARDWARE_ISSUE = "Hardware Issue"
-    SOFTWARE_ISSUE = "Software Issue"
-    ACCESS_REQUEST = "Access Request"
-    NEW_ASSET_REQUEST = "New Asset Request"
-    RMA_REQUEST = "RMA Request"
+    PIN_REQUEST = "PIN Request"
+    ASSET_REPAIR = "Asset Repair"
+    BULK_DELIVERY_QUOTATION = "Bulk Delivery Quotation"
+    REPAIR_QUOTE = "Repair Quote"
+    ITAD_QUOTE = "ITAD Quote"
 
 class RMAStatus(enum.Enum):
     PENDING_APPROVAL = "Pending Approval"
@@ -31,6 +31,17 @@ class RMAStatus(enum.Enum):
     REPLACEMENT_SHIPPED = "Replacement Shipped"
     COMPLETED = "Completed"
     DENIED = "Denied"
+
+class RepairStatus(enum.Enum):
+    PENDING_ASSESSMENT = "Pending Assessment"
+    PENDING_QUOTE = "Pending Quote"
+    QUOTE_PROVIDED = "Quote Provided"
+    REPAIR_APPROVED = "Repair Approved"
+    REPAIR_IN_PROGRESS = "Repair in Progress"
+    REPAIR_COMPLETED = "Repair Completed"
+    PENDING_DISPOSAL = "Pending Disposal"
+    DISPOSAL_APPROVED = "Disposal Approved"
+    DISPOSAL_COMPLETED = "Disposal Completed"
 
 class Ticket(Base):
     __tablename__ = 'tickets'
@@ -47,6 +58,11 @@ class Ticket(Base):
     queue_id = Column(Integer, ForeignKey('queues.id'))
     accessory_id = Column(Integer, ForeignKey('accessories.id'))
     rma_status = Column(SQLEnum(RMAStatus))
+    repair_status = Column(SQLEnum(RepairStatus))
+    country = Column(String(100))
+    damage_description = Column(String(1000))
+    apple_diagnostics = Column(String(100))
+    image_path = Column(String(500))
     return_tracking = Column(String(100))
     replacement_tracking = Column(String(100))
     warranty_number = Column(String(100))

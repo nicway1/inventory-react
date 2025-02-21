@@ -24,7 +24,7 @@ import csv
 from models.activity import Activity
 from sqlalchemy.orm import joinedload
 from models.company import Company
-from io import StringIO
+from io import StringIO, BytesIO
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -90,6 +90,9 @@ def view_inventory():
             for acc in accessories
         ]
 
+        # Get all customers for the checkout form
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+
         return render_template(
             'inventory/view.html',
             tech_assets_count=tech_assets_count,
@@ -98,6 +101,7 @@ def view_inventory():
             models=models,
             countries=countries,
             accessories=accessories_list,
+            customers=customers,
             user=user
         )
 
@@ -152,8 +156,10 @@ def view_accessories():
     db_session = db_manager.get_session()
     try:
         accessories = db_session.query(Accessory).all()
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
         return render_template('inventory/accessories.html', 
                              accessories=accessories,
+                             customers=customers,
                              is_admin=current_user.is_admin,
                              is_country_admin=current_user.is_country_admin)
     finally:
@@ -183,12 +189,17 @@ def add_accessory_stock(id):
                 # Store old values for history tracking
                 old_values = {
                     'total_quantity': accessory.total_quantity,
-                    'available_quantity': accessory.available_quantity
+                    'available_quantity': accessory.available_quantity,
+                    'status': accessory.status
                 }
 
                 # Update quantities
                 accessory.total_quantity += additional_quantity
                 accessory.available_quantity += additional_quantity
+
+                # Update status based on available quantity
+                if accessory.available_quantity > 0 and accessory.status == 'Out of Stock':
+                    accessory.status = 'Available'
 
                 # Track changes
                 changes = {
@@ -201,6 +212,12 @@ def add_accessory_stock(id):
                         'new': accessory.available_quantity
                     }
                 }
+
+                if old_values['status'] != accessory.status:
+                    changes['status'] = {
+                        'old': old_values['status'],
+                        'new': accessory.status
+                    }
 
                 # Create history entry
                 history_entry = accessory.track_change(
@@ -378,17 +395,63 @@ def checkout_accessory(id):
             flash(f'Only {accessory.available_quantity} items available', 'error')
             return redirect(url_for('inventory.view_accessory', id=id))
 
+        # Store old values for history tracking
+        old_values = {
+            'available_quantity': accessory.available_quantity,
+            'status': accessory.status,
+            'customer_id': accessory.customer_id
+        }
+
         # Update accessory quantities and assign to customer
         accessory.available_quantity -= quantity
+        
+        # Update status based on available quantity
+        if accessory.available_quantity == 0:
+            accessory.status = 'Out of Stock'
+        else:
+            accessory.status = 'Available'
+            
         accessory.checkout_date = datetime.utcnow()
         accessory.customer_id = customer_id
-        accessory.customer_user = customer  # Set the relationship
-        accessory.status = 'Checked Out'
+        accessory.customer_user = customer
+
+        # Track changes
+        changes = {
+            'available_quantity': {
+                'old': old_values['available_quantity'],
+                'new': accessory.available_quantity
+            },
+            'status': {
+                'old': old_values['status'],
+                'new': accessory.status
+            },
+            'customer_id': {
+                'old': old_values['customer_id'],
+                'new': customer_id
+            }
+        }
+
+        # Create history entry
+        history_entry = accessory.track_change(
+            user_id=current_user.id,
+            action='checkout',
+            changes=changes,
+            notes=f'Checked out {quantity} units to {customer.name}'
+        )
+        db_session.add(history_entry)
+
+        # Add activity record
+        activity = Activity(
+            user_id=current_user.id,
+            type='accessory_checked_out',
+            content=f'Checked out {quantity} {accessory.name}(s) to {customer.name}',
+            reference_id=accessory.id
+        )
+        db_session.add(activity)
 
         db_session.commit()
         flash(f'Successfully checked out {quantity} {accessory.name}(s) to {customer.name}', 'success')
         return redirect(url_for('inventory.view_accessory', id=id))
-
     except Exception as e:
         db_session.rollback()
         flash(f'Error checking out accessory: {str(e)}', 'error')
@@ -1688,7 +1751,6 @@ def list_customer_users():
         db_session.close()
 
 @inventory_bp.route('/customer-users/add', methods=['GET', 'POST'])
-@login_required
 def add_customer_user():
     """Add a new customer user"""
     db_session = db_manager.get_session()
@@ -1714,7 +1776,7 @@ def add_customer_user():
             customer = CustomerUser(
                 name=name,
                 contact_number=contact_number,
-                email=email,
+                email=email if email else None,
                 address=address,
                 company=company,  # Assign the Company object
                 country=country
@@ -1909,10 +1971,15 @@ def search():
     finally:
         db_session.close()
 
-@inventory_bp.route('/export/<item_type>')
+@inventory_bp.route('/export/<item_type>', methods=['GET', 'POST'])
 @login_required
 def export_inventory(item_type):
     """Export inventory items to CSV"""
+    # Check if user has export permission
+    if not current_user.permissions.can_export_data:
+        flash('You do not have permission to export data.', 'error')
+        return redirect(url_for('inventory.view_inventory'))
+
     db_session = db_manager.get_session()
     try:
         # Create a string buffer to write CSV data
@@ -1920,42 +1987,65 @@ def export_inventory(item_type):
         writer = csv.writer(si)
         
         if item_type == 'assets':
-            # Get assets based on user permissions
+            # Get assets based on user permissions and selection
             query = db_session.query(Asset)
+            
+            # Handle selected assets if POST request
+            if request.method == 'POST' and request.form.get('selected_ids'):
+                try:
+                    selected_ids = json.loads(request.form.get('selected_ids'))
+                    if selected_ids:
+                        query = query.filter(Asset.id.in_(selected_ids))
+                except json.JSONDecodeError:
+                    flash('Invalid selection data', 'error')
+                    return redirect(url_for('inventory.view_inventory'))
+            
+            # Apply user permission filters
             if not current_user.is_super_admin:
                 if current_user.is_country_admin and current_user.assigned_country:
                     query = query.filter(Asset.country == current_user.assigned_country.value)
+            
             assets = query.all()
+            
+            if not assets:
+                flash('No assets selected for export', 'error')
+                return redirect(url_for('inventory.view_inventory'))
             
             # Write header
             writer.writerow([
-                'Asset Tag', 'Serial Number', 'Name', 'Model', 'Manufacturer',
-                'Category', 'Status', 'Cost Price', 'Location', 'Company',
-                'Hardware Type', 'Country', 'Condition', 'CPU Type',
-                'Memory', 'Hard Drive', 'Notes', 'Created At'
+                'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
+                'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION',
+                'DIAG', 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES',
+                'MEMORY', 'HARDDRIVE', 'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY',
+                'country'
             ])
             
             # Write data
             for asset in assets:
                 writer.writerow([
-                    asset.asset_tag,
-                    asset.serial_num,
-                    asset.name,
-                    asset.model,
-                    asset.manufacturer,
-                    asset.category,
+                    asset.asset_type or '',
+                    asset.name or '',
+                    asset.asset_tag or '',
+                    asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '',
+                    asset.keyboard or '',
+                    asset.serial_num or '',
+                    asset.po or '',
+                    asset.model or '',
+                    'Yes' if asset.erased else 'No',
+                    asset.customer or '',
+                    asset.condition or '',
+                    asset.diag or '',
+                    asset.hardware_type or '',
+                    asset.cpu_type or '',
+                    asset.cpu_cores or '',
+                    asset.gpu_cores or '',
+                    asset.memory or '',
+                    asset.harddrive or '',
                     asset.status.value if asset.status else '',
-                    asset.cost_price,
-                    asset.location.name if asset.location else '',
-                    asset.company.name if asset.company else '',
-                    asset.hardware_type,
-                    asset.country,
-                    asset.condition,
-                    asset.cpu_type,
-                    asset.memory,
-                    asset.harddrive,
-                    asset.notes,
-                    asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else ''
+                    asset.charger or '',
+                    '',  # INCLUDED field (empty for now)
+                    asset.inventory or '',
+                    asset.country or ''
                 ])
         
         elif item_type == 'accessories':
@@ -1988,14 +2078,17 @@ def export_inventory(item_type):
                     accessory.created_at.strftime('%Y-%m-%d %H:%M:%S') if accessory.created_at else ''
                 ])
         
-        # Set the cursor to the beginning of the buffer
-        si.seek(0)
-        output = si.getvalue()
+        # Get the string data and convert to bytes
+        output = si.getvalue().encode('utf-8')
         si.close()
         
-        # Create the response
+        # Create a BytesIO object
+        bio = BytesIO()
+        bio.write(output)
+        bio.seek(0)
+        
         return send_file(
-            StringIO(output),
+            bio,
             mimetype='text/csv',
             as_attachment=True,
             download_name=f'inventory_{item_type}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
@@ -2009,3 +2102,221 @@ def add_csrf_token_to_response(response):
     if 'text/html' in response.headers.get('Content-Type', ''):
         response.set_cookie('csrf_token', generate_csrf())
     return response 
+
+@inventory_bp.route('/bulk-checkout', methods=['POST'])
+@login_required
+def bulk_checkout():
+    """Checkout multiple assets and accessories to a customer"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+        accessory_items = data.get('selected_accessory_ids', [])
+        warnings = []
+
+        # Get the customer
+        customer = db_session.query(CustomerUser).get(customer_id)
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+
+        # Process accessories
+        for accessory_item in accessory_items:
+            accessory_id = accessory_item.get('id')
+            quantity = int(accessory_item.get('quantity', 1))
+            
+            accessory = db_session.query(Accessory).get(accessory_id)
+            if accessory:
+                # Check if accessory is available in requested quantity
+                if accessory.available_quantity < quantity:
+                    warnings.append(f'Accessory {accessory.name} does not have enough quantity available (requested: {quantity}, available: {accessory.available_quantity})')
+                    continue
+
+                # Store old values for history tracking
+                old_values = {
+                    'available_quantity': accessory.available_quantity,
+                    'status': accessory.status,
+                    'customer_id': accessory.customer_id
+                }
+
+                # Update accessory
+                accessory.available_quantity -= quantity
+                
+                # Update status based on available quantity
+                if accessory.available_quantity == 0:
+                    accessory.status = 'Out of Stock'
+                else:
+                    accessory.status = 'Available'
+                    
+                accessory.customer_id = customer.id
+                accessory.customer_user = customer
+                accessory.checkout_date = datetime.utcnow()
+
+                # Track changes
+                changes = {
+                    'available_quantity': {
+                        'old': old_values['available_quantity'],
+                        'new': accessory.available_quantity
+                    },
+                    'status': {
+                        'old': old_values['status'],
+                        'new': accessory.status
+                    },
+                    'customer_id': {
+                        'old': old_values['customer_id'],
+                        'new': customer.id
+                    }
+                }
+
+                # Create history entry
+                history_entry = accessory.track_change(
+                    user_id=current_user.id,
+                    action='bulk_checkout',
+                    changes=changes,
+                    notes=f'Bulk checkout of {quantity} units to {customer.name}'
+                )
+                db_session.add(history_entry)
+
+        db_session.commit()
+        return jsonify({
+            'message': 'Checkout processed successfully',
+            'warnings': warnings
+        })
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/bulk-delete', methods=['POST'])
+@login_required
+@admin_required
+def bulk_delete():
+    """Delete multiple assets and accessories"""
+    if not current_user.is_admin:
+        flash('You do not have permission to delete items.', 'error')
+        return redirect(url_for('inventory.view_inventory'))
+
+    db_session = db_manager.get_session()
+    try:
+        # Get selected IDs
+        try:
+            asset_ids = json.loads(request.form.get('selected_asset_ids', '[]'))
+            accessory_ids = json.loads(request.form.get('selected_accessory_ids', '[]'))
+        except json.JSONDecodeError:
+            flash('Invalid selection data', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+
+        if not asset_ids and not accessory_ids:
+            flash('No items selected for deletion', 'error')
+            return redirect(url_for('inventory.view_inventory'))
+
+        deleted_assets = 0
+        deleted_accessories = 0
+        errors = []
+
+        # Process assets
+        for asset_id in asset_ids:
+            try:
+                asset = db_session.query(Asset).get(asset_id)
+                if asset:
+                    # Store asset info for activity log
+                    asset_info = {
+                        'name': asset.name,
+                        'asset_tag': asset.asset_tag,
+                        'serial_num': asset.serial_num
+                    }
+                    
+                    # Delete asset history first
+                    db_session.query(AssetHistory).filter(AssetHistory.asset_id == asset_id).delete()
+                    
+                    # Delete the asset
+                    db_session.delete(asset)
+                    deleted_assets += 1
+
+                    # Add activity log
+                    activity = Activity(
+                        user_id=current_user.id,
+                        type='asset_deleted',
+                        content=f'Deleted asset: {asset_info["name"]} (Asset Tag: {asset_info["asset_tag"]}, Serial: {asset_info["serial_num"]})',
+                        reference_id=0
+                    )
+                    db_session.add(activity)
+            except Exception as e:
+                errors.append(f'Error deleting asset {asset_id}: {str(e)}')
+
+        # Process accessories
+        for accessory_id in accessory_ids:
+            try:
+                accessory = db_session.query(Accessory).get(accessory_id)
+                if accessory:
+                    # Store accessory info for activity log
+                    accessory_info = {
+                        'name': accessory.name,
+                        'total_quantity': accessory.total_quantity
+                    }
+                    
+                    # Delete accessory history first
+                    db_session.query(AccessoryHistory).filter(AccessoryHistory.accessory_id == accessory_id).delete()
+                    
+                    # Delete the accessory
+                    db_session.delete(accessory)
+                    deleted_accessories += 1
+
+                    # Add activity log
+                    activity = Activity(
+                        user_id=current_user.id,
+                        type='accessory_deleted',
+                        content=f'Deleted accessory: {accessory_info["name"]} (Total Quantity: {accessory_info["total_quantity"]})',
+                        reference_id=0
+                    )
+                    db_session.add(activity)
+            except Exception as e:
+                errors.append(f'Error deleting accessory {accessory_id}: {str(e)}')
+
+        if errors:
+            db_session.rollback()
+            error_message = '<br>'.join(errors)
+            flash(f'Errors occurred during deletion:<br>{error_message}', 'error')
+        else:
+            db_session.commit()
+            flash(f'Successfully deleted {deleted_assets} assets and {deleted_accessories} accessories.', 'success')
+
+        return redirect(url_for('inventory.view_inventory'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error during bulk deletion: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_inventory'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/get-checkout-items', methods=['POST'])
+@login_required
+def get_checkout_items():
+    data = request.get_json()
+    asset_ids = data.get('asset_ids', [])
+    accessory_ids = data.get('accessory_ids', [])
+    
+    db_session = db_manager.get_session()
+    try:
+        assets = db_session.query(Asset).filter(Asset.id.in_(asset_ids)).all()
+        accessories = db_session.query(Accessory).filter(Accessory.id.in_(accessory_ids)).all()
+        
+        response = {
+            'assets': [{
+                'id': a.id,
+                'product': a.name,
+                'asset_tag': a.asset_tag,
+                'serial_num': a.serial_num,
+                'model': a.model
+            } for a in assets],
+            'accessories': [{
+                'id': acc.id,
+                'name': acc.name,
+                'category': acc.category,
+                'available_quantity': acc.available_quantity
+            } for acc in accessories]
+        }
+        return jsonify(response)
+    finally:
+        db_session.close()
