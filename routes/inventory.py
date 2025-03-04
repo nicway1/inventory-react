@@ -126,6 +126,10 @@ def view_tech_assets():
         assets = assets_query.all()
         total_count = len(assets)
         
+        # Debug: Print erased values
+        for asset in assets:
+            print(f"Asset {asset.id} - Raw erased value: '{asset.erased}', Type: {type(asset.erased)}")
+        
         return jsonify({
             'total_count': total_count,
             'assets': [
@@ -142,7 +146,8 @@ def view_tech_assets():
                     'cpu_cores': asset.cpu_cores,
                     'gpu_cores': asset.gpu_cores,
                     'memory': asset.memory,
-                    'harddrive': asset.harddrive
+                    'harddrive': asset.harddrive,
+                    'erased': asset.erased
                 }
                 for asset in assets
             ]
