@@ -11,6 +11,7 @@ class AssetStatus(enum.Enum):
     DEPLOYED = "Deployed"
     REPAIR = "Repair"
     ARCHIVED = "Archived"
+    DISPOSED = "Disposed"
 
 class Asset(Base):
     __tablename__ = 'assets'
@@ -28,6 +29,7 @@ class Asset(Base):
     company_id = Column(Integer, ForeignKey('companies.id'))
     specifications = Column(JSON)
     notes = Column(String(1000))
+    tech_notes = Column(String(2000))  # Longer length for detailed technical notes
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     assigned_to_id = Column(Integer, ForeignKey('users.id'))
@@ -44,7 +46,7 @@ class Asset(Base):
     receiving_date = Column(DateTime)
     keyboard = Column(String(100))
     po = Column(String(100))
-    erased = Column(Boolean, default=False)
+    erased = Column(String(50))
     condition = Column(String(100))
     diag = Column(String(1000))
     cpu_type = Column(String(100))

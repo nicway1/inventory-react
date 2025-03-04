@@ -28,8 +28,16 @@
         <h2 class="text-xl font-semibold mb-4">Additional Information</h2>
         <dl class="grid grid-cols-1 gap-4">
             <div>
-                <dt class="text-sm font-medium text-gray-500">Notes</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ asset.notes or 'No notes available' }}</dd>
+                <dt class="text-sm font-medium text-gray-500">General Notes</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ asset.notes or 'No notes available' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Technical Notes</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ asset.tech_notes or 'No technical notes available' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Erased Status</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ asset.erased or 'Not completed' }}</dd>
             </div>
             <div>
                 <dt class="text-sm font-medium text-gray-500">Created At</dt>

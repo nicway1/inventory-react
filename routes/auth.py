@@ -5,6 +5,7 @@ from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from flask_login import login_required, current_user, login_user, logout_user
 from datetime import datetime
+from models.user import User
 
 auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
@@ -21,19 +22,30 @@ def login():
             flash('Please provide both username and password')
             return render_template('auth/login.html')
         
-        user = db_manager.get_user_by_username(username)
-        if user and user.check_password(password):
-            login_user(user)
-            session['user_id'] = user.id
-            session['user_type'] = user.user_type.value
-            session['username'] = user.username
-            
-            # Update last login time with datetime object
-            db_manager.update_user(user.id, {'last_login': datetime.utcnow()})
-            
-            return redirect(url_for('main.index'))
-            
-        flash('Invalid username or password')
+        db_session = db_manager.get_session()
+        try:
+            user = db_session.query(User).filter(User.username == username).first()
+            if user and user.check_password(password):
+                # Make sure to load any necessary relationships before closing the session
+                if user.company:
+                    user.company
+                if user.permissions:
+                    user.permissions
+                    
+                login_user(user)
+                session['user_id'] = user.id
+                session['user_type'] = user.user_type.value
+                session['username'] = user.username
+                
+                # Update last login time with datetime object
+                user.last_login = datetime.utcnow()
+                db_session.commit()
+                
+                return redirect(url_for('main.index'))
+                
+            flash('Invalid username or password')
+        finally:
+            db_session.close()
     
     return render_template('auth/login.html')
 

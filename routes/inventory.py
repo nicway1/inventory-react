@@ -593,10 +593,11 @@ def import_inventory():
                         # Define column names based on import type
                         if import_type == 'tech_assets':
                             column_names = [
-                                'Index', 'ASSET TYPE', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard', 
-                                'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG', 
-                                'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE', 
-                                'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
+                                'Asset Tag', 'Serial Number', 'Product', 'Model', 'Asset Type',
+                                'Hardware Type', 'CPU Type', 'CPU Cores', 'GPU Cores', 'Memory',
+                                'Hard Drive', 'Status', 'Customer', 'Country', 'PO',
+                                'Receiving Date', 'Condition', 'Diagnostic', 'Notes', 'Tech Notes',
+                                'Erased', 'Keyboard', 'Charger', 'Included'
                             ]
                         else:  # accessories
                             column_names = [
@@ -612,10 +613,12 @@ def import_inventory():
                         for encoding in encodings:
                             try:
                                 if import_type == 'tech_assets':
-                                    df = pd.read_csv(filepath, skiprows=[0], names=column_names, encoding=encoding)
-                                    df = df.drop('Index', axis=1)
+                                    # Read with original headers
+                                    df = pd.read_csv(filepath, encoding=encoding)
+                                    # Remove any unnamed index column if present
+                                    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
                                 else:
-                                    df = pd.read_csv(filepath, skiprows=[0], names=column_names, encoding=encoding)
+                                    df = pd.read_csv(filepath, encoding=encoding)
                                 break
                             except Exception as e:
                                 last_error = e
@@ -629,25 +632,27 @@ def import_inventory():
                         if import_type == 'tech_assets':
                             for _, row in df.iterrows():
                                 preview_row = {
+                                    'Asset Type': clean_value(row.get('Asset Type', '')),
                                     'Asset Tag': clean_value(row.get('ASSET TAG', '')),
                                     'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
                                     'Product': clean_value(row.get('Product', '')),
                                     'Model': clean_value(row.get('MODEL', '')),
-                                    'Asset Type': clean_value(row.get('ASSET TYPE', '')),
                                     'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
                                     'CPU Type': clean_value(row.get('CPU TYPE', '')),
                                     'CPU Cores': clean_value(row.get('CPU CORES', '')),
                                     'GPU Cores': clean_value(row.get('GPU CORES', '')),
                                     'Memory': clean_value(row.get('MEMORY', '')),
                                     'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
-                                    'Status': clean_value(row.get('STATUS', '')),
+                                    'Status': clean_value(row.get('STATUS', 'IN STOCK')),
                                     'Customer': clean_value(row.get('CUSTOMER', '')),
                                     'Country': clean_value(row.get('country', '')),
                                     'PO': clean_value(row.get('PO', '')),
                                     'Receiving Date': clean_value(row.get('Receiving date', '')),
                                     'Condition': clean_value(row.get('CONDITION', '')),
                                     'Diagnostic': clean_value(row.get('DIAG', '')),
-                                    'Erased': clean_value(row.get('ERASED', row.get('Erased', ''))).strip().upper() in ['YES', 'TRUE'] if row.get('ERASED') or row.get('Erased') else False,
+                                    'Notes': clean_value(row.get('NOTES', '')),
+                                    'Tech Notes': clean_value(row.get('TECH NOTES', '')),
+                                    'Erased': clean_value(row.get('ERASED', '')),
                                     'Keyboard': clean_value(row.get('Keyboard', '')),
                                     'Charger': clean_value(row.get('CHARGER', '')),
                                     'Included': clean_value(row.get('INCLUDED', ''))
@@ -669,7 +674,7 @@ def import_inventory():
                                     'Name': str(row['NAME']).strip(),
                                     'Category': str(row['CATEGORY']).strip(),
                                     'Manufacturer': str(row['MANUFACTURER']).strip(),
-                                    'Model Number': str(row['MODEL_NO']).strip(),
+                                    'Model Number': str(row['MODEL NO']).strip() if 'MODEL NO' in row else str(row.get('MODEL_NO', '')).strip(),
                                     'Status': str(row['Status']).strip() if pd.notna(row['Status']) else 'Available',
                                     'Total Quantity': quantity,
                                     'Country': str(row['COUNTRY']).strip(),
@@ -722,238 +727,203 @@ def import_inventory():
 def confirm_import():
     # Helper function to clean values
     def clean_value(val):
-        if pd.isna(val) or str(val).lower() == 'nan':
+        if val is None:
             return None
+        val = str(val).strip()
+        return val if val else None
+
+    def validate_erased(val):
+        if not val:
+            return 'Not completed'
         return str(val).strip()
 
+    def parse_date(date_str):
+        if not date_str:
+            return None
+        try:
+            # Try to parse DD/MM/YYYY format
+            from datetime import datetime
+            return datetime.strptime(str(date_str).strip(), '%d/%m/%Y')
+        except ValueError:
+            try:
+                # Try to parse YYYY-MM-DD format
+                return datetime.strptime(str(date_str).strip(), '%Y-%m-%d')
+            except ValueError:
+                return None
+
+    db_session = db_manager.get_session()
     try:
-        filepath = request.form.get('filepath') or session.get('import_filepath')
+        # Get file paths from session
         preview_filepath = session.get('preview_filepath')
-
-        if not filepath or not preview_filepath:
-            flash('No file path provided for import', 'error')
+        
+        if not preview_filepath or not os.path.exists(preview_filepath):
+            flash('No preview data found. Please upload a file first.', 'error')
             return redirect(url_for('inventory.import_inventory'))
 
-        if not os.path.exists(filepath) or not os.path.exists(preview_filepath):
-            flash('Import file not found. Please upload again.', 'error')
+        # Load preview data from file
+        with open(preview_filepath, 'r') as f:
+            preview_data = json.load(f)
+
+        if not preview_data:
+            flash('No preview data found. Please upload a file first.', 'error')
             return redirect(url_for('inventory.import_inventory'))
 
-        # Read preview data from file
-        try:
-            with open(preview_filepath, 'r') as f:
-                preview_data = json.load(f)
-                import_type = preview_data.get('import_type')  # Get import_type from preview data
-                
-                if not import_type:
-                    flash('Invalid preview data: missing import type', 'error')
-                    return redirect(url_for('inventory.import_inventory'))
-        except Exception as e:
-            flash('Error reading preview data. Please upload again.', 'error')
-            return redirect(url_for('inventory.import_inventory'))
+        successful = 0
+        failed = 0
+        errors = []
 
-        db_session = db_manager.get_session()
-        try:
-            successful = 0
-            failed = 0
-            errors = []
-            
-            for index, row in enumerate(preview_data['data'], 1):
-                try:
-                    if preview_data['import_type'] == 'tech_assets':
-                        # Get and validate serial number
-                        serial_num = clean_value(row.get('Serial Number', ''))
-                        if not serial_num:
-                            error_msg = f"Row {index}: Serial Number is required but was empty"
-                            print(error_msg)
-                            errors.append(error_msg)
-                            failed += 1
-                            continue
+        # Start a transaction
+        for index, row in enumerate(preview_data['data'], start=1):
+            try:
+                if preview_data['import_type'] == 'tech_assets':
+                    # Check for missing required fields in form data
+                    asset_type = request.form.get(f'asset_type_{index}')
+                    asset_tag = request.form.get(f'asset_tag_{index}')
+                    
+                    # Update row data with form inputs if they exist
+                    if asset_type:
+                        row['Asset Type'] = asset_type
+                    if asset_tag:
+                        row['Asset Tag'] = asset_tag
 
-                        # Check for duplicate serial number
-                        serial_num = str(row['Serial Number']).strip() if row['Serial Number'] else None
-                        if serial_num:
-                            existing_asset = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
-                            if existing_asset:
-                                error_msg = f"Row {index}: Serial Number '{serial_num}' already exists in the database (Asset Tag: {existing_asset.asset_tag})"
-                                print(error_msg)
-                                errors.append(error_msg)
-                                failed += 1
-                                continue
+                    # Validate required fields
+                    if not row.get('Asset Type'):
+                        raise ValueError(f"Missing required field: Asset Type")
+                    if not row.get('Asset Tag'):
+                        raise ValueError(f"Missing required field: Asset Tag")
 
-                        # Default to IN_STOCK if status is empty, nan, or invalid
-                        status = AssetStatus.IN_STOCK
-                        if row['Status'] and str(row['Status']).lower() not in ['nan', 'none', '']:
-                            try:
-                                status = AssetStatus[row['Status'].upper().replace(' ', '_')]
-                            except KeyError:
-                                print(f"Invalid status '{row['Status']}', defaulting to IN_STOCK")
+                    # Get and validate serial number and asset tag
+                    serial_num = clean_value(row.get('Serial Number', ''))
+                    asset_tag = clean_value(row.get('Asset Tag', ''))
+                    erased_value = validate_erased(row.get('Erased', ''))
+                    receiving_date = parse_date(row.get('Receiving Date', ''))
 
-                        # Parse date
-                        receiving_date = None
-                        if row['Receiving Date'] and str(row['Receiving Date']).lower() not in ['nan', 'none', '']:
-                            try:
-                                # Try different date formats
-                                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d-%b-%y']
-                                date_str = str(row['Receiving Date']).strip()
-                                for date_format in date_formats:
-                                    try:
-                                        receiving_date = datetime.strptime(date_str, date_format)
-                                        break
-                                    except ValueError:
-                                        continue
-                                if not receiving_date:
-                                    print(f"Could not parse date '{date_str}' with any known format")
-                            except Exception as e:
-                                print(f"Error parsing date '{date_str}': {str(e)}")
+                    # Create new asset
+                    new_asset = Asset(
+                        asset_tag=asset_tag,
+                        serial_num=serial_num,
+                        name=clean_value(row.get('Product', '')),
+                        model=clean_value(row.get('Model', '')),
+                        manufacturer=clean_value(row.get('Manufacturer', '')),
+                        category=clean_value(row.get('Category', '')),
+                        status=AssetStatus.IN_STOCK,
+                        hardware_type=clean_value(row.get('Hardware Type', '')),
+                        inventory=clean_value(row.get('INVENTORY', '')),
+                        customer=clean_value(row.get('Customer', '')),
+                        country=clean_value(row.get('Country', '')),
+                        asset_type=clean_value(row.get('Asset Type', '')),
+                        erased=erased_value,
+                        condition=clean_value(row.get('Condition', '')),
+                        receiving_date=receiving_date,
+                        keyboard=clean_value(row.get('Keyboard', '')),
+                        charger=clean_value(row.get('Charger', '')),
+                        po=clean_value(row.get('PO', '')),
+                        notes=clean_value(row.get('Notes', '')),
+                        tech_notes=clean_value(row.get('Tech Notes', '')),
+                        diag=clean_value(row.get('Diagnostic', '')),
+                        cpu_type=clean_value(row.get('CPU Type', '')),
+                        cpu_cores=clean_value(row.get('CPU Cores', '')),
+                        gpu_cores=clean_value(row.get('GPU Cores', '')),
+                        memory=clean_value(row.get('Memory', '')),
+                        harddrive=clean_value(row.get('Hard Drive', ''))
+                    )
+                    db_session.add(new_asset)
+                    db_session.commit()
+                    successful += 1
+                else:  # accessories
+                    # Check for missing required fields in form data
+                    name = request.form.get(f'name_{index}')
+                    category = request.form.get(f'category_{index}')
+                    
+                    # Update row data with form inputs if they exist
+                    if name:
+                        row['Name'] = name
+                    if category:
+                        row['Category'] = category
 
-                        # Process memory and storage as strings
-                        memory = None
-                        if row['Memory'] and str(row['Memory']).lower() not in ['nan', 'none', '']:
-                            memory_str = str(row['Memory']).strip()
-                            if not memory_str.endswith('GB'):
-                                memory_str += 'GB'
-                            memory = memory_str
+                    # Validate required fields
+                    if not row.get('Name'):
+                        raise ValueError(f"Missing required field: Name")
+                    if not row.get('Category'):
+                        raise ValueError(f"Missing required field: Category")
 
-                        storage = None
-                        if row['Hard Drive'] and str(row['Hard Drive']).lower() not in ['nan', 'none', '']:
-                            storage_str = str(row['Hard Drive']).strip()
-                            if not storage_str.endswith('GB'):
-                                storage_str += 'GB'
-                            storage = storage_str
+                    try:
+                        quantity = str(row.get('Total Quantity', '')).strip()
+                        quantity = int(quantity) if quantity else 0
+                    except (ValueError, KeyError):
+                        quantity = 0
 
-                        # Create new asset with proper type conversion and defaults
-                        asset = Asset(
-                            # Required fields
-                            asset_tag=str(row['Asset Tag']).strip() if row['Asset Tag'] else None,
-                            serial_num=str(row['Serial Number']).strip() if row['Serial Number'] else None,
-                            model=str(row['Model']).strip() if row['Model'] else None,
-                            
-                            # Asset and hardware type
-                            asset_type=str(row['Asset Type']).strip() if row['Asset Type'] else None,
-                            hardware_type=str(row['Hardware Type']).strip() if row['Hardware Type'] else None,
-                            
-                            # Hardware specifications
-                            cpu_type=str(row['CPU Type']).strip() if row['CPU Type'] else None,
-                            cpu_cores=str(row['CPU Cores']).strip() if row['CPU Cores'] else None,
-                            gpu_cores=str(row['GPU Cores']).strip() if row['GPU Cores'] else None,
-                            memory=memory,
-                            harddrive=storage,
-                            
-                            # Status and location
-                            status=status,
-                            customer=str(row['Customer']).strip() if row['Customer'] else None,
-                            country=str(row['Country']).strip() if row['Country'] else None,
-                            
-                            # Purchase and receiving info
-                            po=str(row['PO']).strip() if row['PO'] else None,
-                            receiving_date=receiving_date,  # Use the parsed datetime object directly
-                            
-                            # Condition and diagnostics
-                            condition=str(row['Condition']).strip() if row['Condition'] else None,
-                            diag=str(row['Diagnostic']).strip() if row['Diagnostic'] else None,
-                            erased=str(row.get('ERASED', row.get('Erased', ''))).strip().upper() in ['YES', 'TRUE'] if row.get('ERASED') or row.get('Erased') else False,
-                            
-                            # Accessories
-                            keyboard=str(row['Keyboard']).strip() if row['Keyboard'] else None,
-                            charger=str(row['Charger']).strip() if row['Charger'] else None,
-                            
-                            # Set name to just the Product field from CSV
-                            name=str(row['Product']).strip() if row['Product'] else None,
-                            category="Computer",  # Default category
-                            inventory=status.value  # Set inventory status same as status
-                        )
-                        db_session.add(asset)
-                        db_session.flush()  # Flush each row to catch any database errors early
-                        successful += 1
-                    else:  # accessories
-                        try:
-                            quantity = int(row.get('Total Quantity', 0))
-                        except (ValueError, TypeError):
-                            error_msg = f"Row {index}: Invalid quantity value '{row.get('Total Quantity', '')}'"
-                            print(error_msg)
-                            errors.append(error_msg)
-                            failed += 1
-                            continue
+                    accessory = Accessory(
+                        name=clean_value(row.get('Name', '')),
+                        category=clean_value(row.get('Category', '')),
+                        manufacturer=clean_value(row.get('Manufacturer', '')),
+                        model_no=clean_value(row.get('Model Number', '')),
+                        total_quantity=quantity,
+                        available_quantity=quantity,  # Initially set to total quantity
+                        country=clean_value(row.get('Country', '')),
+                        status=clean_value(row.get('Status', 'Available')),
+                        notes=clean_value(row.get('Notes', ''))
+                    )
+                    db_session.add(accessory)
+                    db_session.commit()
+                    successful += 1
 
-                        accessory = Accessory(
-                            name=str(row['Name']).strip() if row['Name'] else None,
-                            category=str(row['Category']).strip() if row['Category'] else None,
-                            manufacturer=str(row['Manufacturer']).strip() if row['Manufacturer'] else None,
-                            model_no=str(row['Model Number']).strip() if row['Model Number'] else None,
-                            total_quantity=quantity,
-                            available_quantity=quantity,  # Initially set to total quantity
-                            country=str(row['Country']).strip() if row['Country'] else None,
-                            status=str(row['Status']).strip() if row['Status'] else 'Available',
-                            notes=str(row['Notes']).strip() if row['Notes'] else None
-                        )
-                        db_session.add(accessory)
-                        db_session.flush()  # Flush each row to catch any database errors early
-                        successful += 1
+                    # Add activity tracking
+                    activity = Activity(
+                        user_id=current_user.id,
+                        type='accessory_created',
+                        content=f'Created new accessory: {accessory.name} (Quantity: {accessory.total_quantity})',
+                        reference_id=accessory.id
+                    )
+                    db_session.add(activity)
+                    db_session.commit()
+            except Exception as e:
+                error_msg = f"Row {index}: {str(e)}"
+                print(error_msg)
+                errors.append(error_msg)
+                failed += 1
+                db_session.rollback()  # Rollback on error for this row
+                continue
 
-                        # Add activity tracking
-                        activity = Activity(
-                            user_id=current_user.id,
-                            type='accessory_created',
-                            content=f'Created new accessory: {accessory.name} (Quantity: {accessory.total_quantity})',
-                            reference_id=accessory.id
-                        )
-                        db_session.add(activity)
-                        db_session.commit()
-                except Exception as e:
-                    error_msg = f"Row {index}: {str(e)}"
-                    print(error_msg)
-                    errors.append(error_msg)
-                    failed += 1
-                    db_session.rollback()  # Rollback on error for this row
-                    continue
-
-            if failed == 0:
-                db_session.commit()
-                flash(f'Successfully imported {successful} items.', 'success')
-            else:
-                db_session.rollback()
-                error_details = '<br>'.join(errors[:10])
-                if len(errors) > 10:
-                    error_details += f'<br>... and {len(errors) - 10} more errors'
-                flash(f'Failed to import {failed} items. Errors:<br>{error_details}', 'error')
-                return redirect(url_for('inventory.import_inventory'))
-            
-            # Clean up files after successful import or on error
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            if os.path.exists(preview_filepath):
-                os.remove(preview_filepath)
-            
-            # Clear session data
-            session.pop('import_filepath', None)
-            session.pop('preview_filepath', None)
-            session.pop('filename', None)
-            session.pop('import_type', None)
-            session.pop('total_rows', None)
-            
+        if failed == 0:
             # Add activity tracking for successful import
             activity = Activity(
                 user_id=current_user.id,
                 type='data_import',
-                content=f'Successfully imported {len(preview_data)} {import_type} via data loader',
+                content=f'Successfully imported {successful} {preview_data["import_type"]} via data loader',
                 reference_id=0  # No specific reference for bulk import
             )
             db_session.add(activity)
             db_session.commit()
-            
-            flash('Data imported successfully!', 'success')
-            return redirect(url_for('inventory.view_inventory'))
-
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Error during import: {str(e)}', 'error')
+            flash(f'Successfully imported {successful} items.', 'success')
+        else:
+            error_summary = f"Failed to import {failed} items. Please check the following rows:"
+            error_details = '<br>'.join(errors[:10])
+            if len(errors) > 10:
+                error_details += f'<br>... and {len(errors) - 10} more errors'
+            flash(f'{error_summary}<br><br>{error_details}', 'error')
             return redirect(url_for('inventory.import_inventory'))
-        finally:
-            db_session.close()
-
-    except Exception as e:
-        flash(f'Error processing import: {str(e)}', 'error')
+        
+        # Clean up files after successful import or on error
+        if os.path.exists(preview_filepath):
+            os.remove(preview_filepath)
+        
+        # Clear session data
+        session.pop('import_filepath', None)
+        session.pop('preview_filepath', None)
+        session.pop('filename', None)
+        session.pop('import_type', None)
+        session.pop('total_rows', None)
+        session.pop('preview_data', None)
+        
+        flash('Data imported successfully!', 'success')
         return redirect(url_for('inventory.import_inventory'))
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error during import: {str(e)}', 'error')
+        return redirect(url_for('inventory.import_inventory'))
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/asset/<int:asset_id>')
 @login_required
@@ -1009,7 +979,8 @@ def update_asset_status(asset_id):
                 'SHIPPED': AssetStatus.SHIPPED,
                 'DEPLOYED': AssetStatus.DEPLOYED,
                 'REPAIR': AssetStatus.REPAIR,
-                'ARCHIVED': AssetStatus.ARCHIVED
+                'ARCHIVED': AssetStatus.ARCHIVED,
+                'DISPOSED': AssetStatus.DISPOSED
             }
             
             new_status_value = new_status.upper()
@@ -1019,6 +990,13 @@ def update_asset_status(asset_id):
                 
             new_status_enum = status_map[new_status_value]
             
+            # Check erased status before allowing deployment
+            if new_status_enum == AssetStatus.DEPLOYED:
+                erased_value = str(asset.erased).strip().upper() if asset.erased else ''
+                if erased_value not in ['COMPLETED', 'YES']:
+                    flash('Cannot deploy asset: Erased status must be either "COMPLETED" or "YES"', 'error')
+                    return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+
             # Track the change
             changes = {
                 'status': {
@@ -1430,7 +1408,7 @@ def download_template(template_type):
                 '#', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
                 'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION', 'DIAG',
                 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES', 'MEMORY', 'HARDDRIVE',
-                'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country'
+                'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY', 'country', 'NOTES', 'TECH NOTES'
             ])
             # Write example row
             writer.writerow([
@@ -1525,7 +1503,9 @@ def edit_asset(asset_id):
                     'harddrive': asset.harddrive,
                     'po': asset.po,
                     'charger': asset.charger,
-                    'erased': asset.erased
+                    'erased': asset.erased,
+                    'notes': asset.notes,
+                    'tech_notes': asset.tech_notes
                 }
                 
                 print("Old values stored")  # Debug log
@@ -1581,12 +1561,9 @@ def edit_asset(asset_id):
                 asset.harddrive = request.form.get('harddrive')
                 asset.po = request.form.get('po')
                 asset.charger = request.form.get('charger')
-                
-                # Handle erased field
-                erased_value = request.form.get('erased')
-                print(f"Received erased value from form: {erased_value}")  # Debug log
-                asset.erased = erased_value == 'true'
-                print(f"Set asset.erased to: {asset.erased}")  # Debug log
+                asset.notes = request.form.get('notes')
+                asset.tech_notes = request.form.get('tech_notes')
+                asset.erased = request.form.get('erased')
                 
                 # Track changes
                 changes = {}

@@ -39,6 +39,7 @@
             </form>
             {% endif %}
             
+            {% if current_user.is_admin %}
             <button id="addToCheckoutList" disabled
                     class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                 Add to Checkout List
@@ -50,6 +51,7 @@
                     0
                 </span>
             </button>
+            {% endif %}
             
             {% if is_admin %}
             <a href="{{ url_for('inventory.add_accessory') }}" 
@@ -70,10 +72,12 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        {% if current_user.is_admin %}
                         <th class="px-4 py-3 text-center">
                             <input type="checkbox" id="selectAllAccessories"
                                    class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                         </th>
+                        {% endif %}
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Name</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Category</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Manufacturer</th>
@@ -87,6 +91,7 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for accessory in accessories %}
                     <tr class="hover:bg-gray-50">
+                        {% if current_user.is_admin %}
                         <td class="px-4 py-4 text-center">
                             <div class="flex items-center space-x-2">
                                 <input type="checkbox" 
@@ -100,6 +105,7 @@
                                        value="1">
                             </div>
                         </td>
+                        {% endif %}
                         <td class="px-4 py-4 whitespace-normal">
                             <div class="text-sm font-medium text-gray-900">
                                 <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
@@ -128,7 +134,7 @@
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-right">
                             <div class="flex justify-end space-x-3">
-                                {% if accessory.available_quantity > 0 %}
+                                {% if accessory.available_quantity > 0 and current_user.is_admin %}
                                 <form action="{{ url_for('inventory.checkout_accessory', id=accessory.id) }}" 
                                       method="POST">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

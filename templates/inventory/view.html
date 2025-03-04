@@ -114,8 +114,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <!-- Tech Assets Card -->
         <div id="techAssetsCard" 
-             class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors"
-             onclick="showTable('techAssets')">
+             class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors">
             <h2 class="text-xl font-semibold mb-2">Tech Assets</h2>
             <p class="text-sm opacity-80 mb-4">Laptops, Desktops, Monitors, etc.</p>
             <p class="text-3xl font-bold" id="techAssetsCount">{{ tech_assets_count }}</p>
@@ -123,8 +122,7 @@
 
         <!-- Accessories Card -->
         <div id="accessoriesCard"
-             class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors"
-             onclick="window.location.href='{{ url_for('inventory.view_accessories') }}'">
+             class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
@@ -132,7 +130,7 @@
     </div>
 
     <!-- Tech Assets Table -->
-    <div id="techAssetsTable" class="mb-8">
+    <div id="techAssetsTable" class="mb-8" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold">Tech Assets</h2>
             <div class="flex space-x-4">
@@ -151,6 +149,7 @@
                 {% endif %}
                 
                 <!-- Checkout List Buttons -->
+                {% if current_user.is_admin %}
                 <button id="addToCheckoutList" disabled
                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     Add to Checkout List
@@ -162,6 +161,7 @@
                         0
                     </span>
                 </button>
+                {% endif %}
             </div>
         </div>
         
@@ -170,10 +170,12 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            {% if current_user.is_admin %}
                             <th class="px-4 py-2">
                                 <input type="checkbox" id="selectAllAssets"
                                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                             </th>
+                            {% endif %}
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Asset Tag</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Serial Number</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Product</th>
@@ -260,6 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllAssets = document.getElementById('selectAllAssets');
     const selectAllAccessories = document.getElementById('selectAllAccessories');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const isAdmin = techAssetsTable.dataset.isAdmin === 'true';
 
     // Initialize variables
     let selectedAssetIds = [];
@@ -351,73 +354,57 @@ document.addEventListener('DOMContentLoaded', function() {
         techAssetsCount.textContent = data.total_count;
         
         if (data.assets && data.assets.length > 0) {
-            techAssetsBody.innerHTML = data.assets.map(asset => `
-                <tr class="hover:bg-gray-50 cursor-pointer">
-                    <td class="px-4 py-2" onclick="event.stopPropagation()">
+            const rows = data.assets.map(asset => {
+                const checkboxCell = isAdmin ? 
+                    `<td class="px-4 py-2">
                         <input type="checkbox" class="asset-checkbox" data-id="${asset.id}"
                                class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                    </td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.asset_tag || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.serial_num || ''}</td>
-                    <td class="px-4 py-2">
-                        <div class="text-sm text-gray-900 mb-1">${asset.product || ''}</div>
-                        <div class="text-xs text-gray-500">
-                            <div>CPU: ${asset.cpu_type}${asset.cpu_cores ? `, ${asset.cpu_cores} cores` : ''}</div>
-                            <div>GPU: ${asset.gpu_cores ? `${asset.gpu_cores} cores` : 'N/A'}</div>
-                            <div>RAM: ${asset.memory ? `${asset.memory}GB` : 'N/A'}</div>
-                            <div>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</div>
-                        </div>
-                    </td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.model || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.customer || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.country || ''}</td>
-                    <td class="px-4 py-2 whitespace-nowrap">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full
-                            ${getStatusClass(asset.inventory)}">
-                            ${asset.inventory}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
-
-            // Add event listeners to rows for navigation
-            const rows = techAssetsBody.querySelectorAll('tr');
-            rows.forEach(row => {
-                row.addEventListener('click', function(event) {
-                    // Don't navigate if clicking on the checkbox cell
-                    if (!event.target.closest('td:first-child')) {
-                        const checkbox = row.querySelector('.asset-checkbox');
-                        const assetId = checkbox.dataset.id;
-                        window.location.href = `/inventory/asset/${assetId}`;
-                    }
-                });
-            });
-
-            // Add event listeners to checkboxes
-            const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
-            assetCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
+                    </td>` : '';
+                
+                return `
+                    <tr class="hover:bg-gray-50 cursor-pointer" data-asset-id="${asset.id}">
+                        ${checkboxCell}
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.asset_tag || ''}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.serial_num || ''}</td>
+                        <td class="px-4 py-2">
+                            <div class="text-sm text-gray-900 mb-1">${asset.product || ''}</div>
+                            <div class="text-xs text-gray-500">
+                                <div>CPU: ${asset.cpu_type}${asset.cpu_cores ? `, ${asset.cpu_cores} cores` : ''}</div>
+                                <div>GPU: ${asset.gpu_cores ? `${asset.gpu_cores} cores` : 'N/A'}</div>
+                                <div>RAM: ${asset.memory ? `${asset.memory}GB` : 'N/A'}</div>
+                                <div>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.model || ''}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.customer || ''}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.country || ''}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                ${getStatusClass(asset.inventory)}">
+                                ${asset.inventory}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            techAssetsBody.innerHTML = rows;
+            
+            // Re-attach checkbox handlers
+            document.querySelectorAll('.asset-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     handleAssetSelection(this);
-                    selectAllAssets.checked = [...assetCheckboxes].every(cb => cb.checked);
-                });
-            });
-
-            // Add event listener for "Select All" checkbox
-            selectAllAssets.addEventListener('change', function() {
-                assetCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                    handleAssetSelection(checkbox);
                 });
             });
         } else {
-            techAssetsBody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="px-4 py-2 text-center text-gray-500">
-                        No assets found
-                    </td>
-                </tr>
-            `;
+            techAssetsBody.innerHTML = '<tr><td colspan="8" class="px-4 py-2 text-center text-gray-500">No assets found</td></tr>';
         }
+    }
+
+    // Function to view asset details
+    function viewAssetDetails(assetId) {
+        window.location.href = `/inventory/asset/${assetId}`;
     }
 
     // Function to get status badge class
@@ -580,6 +567,42 @@ document.addEventListener('DOMContentLoaded', function() {
     window.removeFromCheckoutList = function(itemId, itemType) {
         window.checkoutManager.removeItem(itemId, itemType);
     };
+
+    // Add event delegation for row clicks and checkboxes
+    if (techAssetsBody) {
+        techAssetsBody.addEventListener('click', function(e) {
+            // Check if a checkbox was clicked
+            if (e.target.classList.contains('asset-checkbox')) {
+                e.stopPropagation(); // Prevent row click
+                handleAssetSelection(e.target);
+                return;
+            }
+            
+            // Find the closest row
+            const row = e.target.closest('tr');
+            if (row && row.dataset.assetId) {
+                viewAssetDetails(row.dataset.assetId);
+            }
+        });
+    }
+
+    // Add click handler for accessories card
+    const accessoriesCard = document.getElementById('accessoriesCard');
+    if (accessoriesCard) {
+        accessoriesCard.addEventListener('click', function() {
+            window.location.href = '{{ url_for("inventory.view_accessories") }}';
+        });
+    }
+
+    // Add click handler for tech assets card
+    const techAssetsCard = document.getElementById('techAssetsCard');
+    if (techAssetsCard) {
+        techAssetsCard.addEventListener('click', function() {
+            // Show tech assets table
+            if (techAssetsTable) techAssetsTable.classList.remove('hidden');
+            if (accessoriesTable) accessoriesTable.classList.add('hidden');
+        });
+    }
 
     // Load initial data
     loadTechAssets();

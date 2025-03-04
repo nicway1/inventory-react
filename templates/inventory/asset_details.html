@@ -31,18 +31,22 @@
                     bg-yellow-100 text-yellow-800
                 {% elif asset.status and asset.status.value == 'ARCHIVED' %}
                     bg-red-100 text-red-800
+                {% elif asset.status and asset.status.value == 'DISPOSED' %}
+                    bg-red-100 text-red-800
                 {% else %}
                     bg-gray-100 text-gray-800
                 {% endif %}">
                     {{ asset.status.value if asset.status else 'Unknown' }}
                 </span>
+                {% if current_user.is_admin %}
                 <a href="{{ url_for('inventory.add_customer_user') }}" 
-                   class="inline-flex items-center px-3 py-1.5 border border-green-600 text-green-600 hover:bg-green-50 rounded-md text-sm font-medium">
+                   class="inline-flex items-center px-3 py-1 border border-green-600 text-green-600 hover:bg-green-50 rounded-md text-sm font-medium">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     Add Customer
                 </a>
+                {% endif %}
                 {% if user.is_super_admin %}
                 <a href="{{ url_for('inventory.view_asset_history', asset_id=asset.id) }}"
                    class="inline-flex items-center px-3 py-1.5 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium">
@@ -186,7 +190,7 @@
                 </div>
                 <div>
                     <dt class="text-sm font-medium text-gray-500">Erased</dt>
-                    <dd class="text-sm text-gray-900">{{ 'Yes' if asset.erased else 'No' }}</dd>
+                    <dd class="text-sm text-gray-900">{{ asset.erased or 'N/A' }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm font-medium text-gray-500">Keyboard</dt>
@@ -243,56 +247,96 @@
                                     bg-yellow-50 text-yellow-700 border border-yellow-200
                                 {% elif asset.status and asset.status.name == 'ARCHIVED' %}
                                     bg-red-50 text-red-700 border border-red-200
+                                {% elif asset.status and asset.status.name == 'DISPOSED' %}
+                                    bg-red-50 text-red-700 border border-red-200
                                 {% else %}
                                     bg-gray-50 text-gray-700 border border-gray-200
                                 {% endif %}">
-                                    <svg class="w-5 h-5 mr-2 {% if asset.status and asset.status.name == 'IN_STOCK' %}
-                                        text-blue-500
-                                    {% elif asset.status and asset.status.name == 'DEPLOYED' %}
-                                        text-green-500
-                                    {% elif asset.status and asset.status.name == 'SHIPPED' %}
-                                        text-yellow-500
-                                    {% elif asset.status and asset.status.name == 'ARCHIVED' %}
-                                        text-red-500
-                                    {% else %}
-                                        text-gray-500
-                                    {% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        {% if asset.status and asset.status.name == 'IN_STOCK' %}
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                                        {% elif asset.status and asset.status.name == 'DEPLOYED' %}
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        {% elif asset.status and asset.status.name == 'SHIPPED' %}
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        {% elif asset.status and asset.status.name == 'ARCHIVED' %}
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                                        {% else %}
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        {% endif %}
-                                    </svg>
                                     {{ asset.status.value if asset.status else 'Unknown' }}
                                 </span>
                             </div>
 
-                            {% if asset.status and asset.status.name == 'IN_STOCK' %}
-                            <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="status" value="DEPLOYED">
-                                <div class="flex items-center space-x-2">
-                                    <select name="customer_id" class="text-sm rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500" required>
-                                        <option value="">Select Customer</option>
-                                        {% for customer in customers %}
-                                        <option value="{{ customer.id }}">{{ customer.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            {% if asset.status and asset.status.name == 'DISPOSED' %}
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
-                                        Mark as Deployed
-                                    </button>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium">
+                                            Asset was disposed
+                                        </p>
+                                        <p class="mt-1 text-sm">
+                                            Disposal date: {{ asset.history[0].created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.history else 'N/A' }}
+                                        </p>
+                                    </div>
                                 </div>
+                            </div>
+                            {% endif %}
+
+                            {% set erased_value = asset.erased.strip().upper() if asset.erased else '' %}
+                            {% if erased_value == 'PHYSICALLY DEFECTIVE' and user.is_super_admin and asset.status.name != 'DISPOSED' %}
+                            <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" 
+                                  method="POST" 
+                                  class="inline"
+                                  onsubmit="return confirm('Are you sure you want to dispose of this asset? This action cannot be undone.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="DISPOSED">
+                                <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Dispose Asset
+                                </button>
                             </form>
-                            {% elif asset.status and asset.status.name == 'DEPLOYED' %}
+                            {% endif %}
+
+                            {% if erased_value not in ['COMPLETED', 'YES', 'PHYSICALLY DEFECTIVE'] %}
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium">
+                                            Asset is not deployable: Data erasure is required
+                                        </p>
+                                        <p class="mt-1 text-sm">
+                                            Current erased status: {{ asset.erased or 'Not completed' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if asset.status and asset.status.name == 'IN_STOCK' %}
+                                {% if erased_value in ['COMPLETED', 'YES'] and current_user.is_admin %}
+                                <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="DEPLOYED">
+                                    <div class="flex items-center space-x-2">
+                                        <select name="customer_id" class="text-sm rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500" required>
+                                            <option value="">Select Customer</option>
+                                            {% for customer in customers %}
+                                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Mark as Deployed
+                                        </button>
+                                    </div>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if asset.status and asset.status.name == 'DEPLOYED' %}
                             <form action="{{ url_for('inventory.update_asset_status', asset_id=asset.id) }}" method="POST" class="inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="status" value="IN_STOCK">
@@ -306,6 +350,23 @@
                             {% endif %}
                         </div>
                     </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="mt-6">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Notes</h2>
+            <dl class="space-y-6">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">General Notes</dt>
+                    <dd class="mt-2 text-sm text-gray-900 whitespace-pre-wrap">{{ asset.notes or 'No general notes available' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Technical Notes</dt>
+                    <dd class="mt-2 text-sm text-gray-900 whitespace-pre-wrap">{{ asset.tech_notes or 'No technical notes available' }}</dd>
                 </div>
             </dl>
         </div>

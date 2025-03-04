@@ -33,6 +33,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erased</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -102,6 +103,21 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">{{ asset.customer }}</div>
                             <div class="text-sm text-gray-500">{{ asset.country }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ asset.location }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg
+                                {% if asset.erased and asset.erased.strip().upper() in ['COMPLETED', 'YES'] %}
+                                    bg-green-50 text-green-700 border border-green-200
+                                {% elif asset.erased and asset.erased.strip().upper() == 'PHYSICALLY DEFECTIVE' %}
+                                    bg-red-50 text-red-700 border border-red-200
+                                {% else %}
+                                    bg-yellow-50 text-yellow-700 border border-yellow-200
+                                {% endif %}">
+                                {{ asset.erased if asset.erased else 'Not completed' }}
+                            </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex space-x-3">

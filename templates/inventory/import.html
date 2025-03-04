@@ -16,135 +16,240 @@
     </div>
 
     {% if preview_data %}
-        <!-- Confirm Import Button -->
+        <!-- Missing Required Fields Summary -->
+        {% set missing_fields = [] %}
+        {% for row in preview_data %}
+            {% if import_type == 'tech_assets' %}
+                {% if not row['Asset Type'] %}
+                    {% set _ = missing_fields.extend([{'row': loop.index, 'field': 'Asset Type'}]) %}
+                {% endif %}
+                {% if not row['Asset Tag'] %}
+                    {% set _ = missing_fields.extend([{'row': loop.index, 'field': 'Asset Tag'}]) %}
+                {% endif %}
+            {% else %}
+                {% if not row['Name'] %}
+                    {% set _ = missing_fields.extend([{'row': loop.index, 'field': 'Name'}]) %}
+                {% endif %}
+                {% if not row['Category'] %}
+                    {% set _ = missing_fields.extend([{'row': loop.index, 'field': 'Category'}]) %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+
+        {% if missing_fields %}
+        <div class="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-yellow-800">Missing Required Fields</h3>
+                    <div class="mt-2 text-sm text-yellow-700">
+                        <p>Please fill in the following required fields before importing:</p>
+                        <ul class="list-disc list-inside mt-1">
+                            {% for item in missing_fields %}
+                            <li>Row {{ item.row }}: {{ item.field }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Preview Data Display -->
         <div class="mb-6">
-            <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
+            <form id="importForm" action="{{ url_for('inventory.confirm_import') }}" method="POST" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="filename" value="{{ filename }}">
                 <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
-                <button type="submit" 
-                        class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                    Confirm and Process Import
-                </button>
-            </form>
-        </div>
-
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold mb-4">Preview Data ({{ total_rows }} rows)</h2>
-            <div class="space-y-4">
+                <input type="hidden" name="import_type" value="{{ import_type }}">
+                <input type="hidden" name="row_count" value="{{ preview_data|length }}">
+                
+                <!-- Add explicit fields for Asset Tag values -->
                 {% for row in preview_data %}
-                    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                        <div class="grid grid-cols-1 md:grid-cols-{% if import_type == 'tech_assets' %}4{% else %}3{% endif %} gap-6">
-                            {% if import_type == 'tech_assets' %}
-                            <!-- Tech Assets Preview -->
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Asset Type:</span> {{ row['Asset Type'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Asset Tag:</span> {{ row['Asset Tag'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Serial Number:</span> {{ row['Serial Number'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Product:</span> {{ row['Product'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Model:</span> {{ row['Model'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Hardware Type:</span> {{ row['Hardware Type'] }}</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Hardware Specifications</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">CPU:</span> {{ row['CPU Type'] }}, {{ row['CPU Cores'] }} cores</p>
-                                    <p class="text-sm"><span class="font-medium">GPU:</span> {{ row['GPU Cores'] }} cores</p>
-                                    <p class="text-sm"><span class="font-medium">Memory:</span> {{ row['Memory'] }}GB</p>
-                                    <p class="text-sm"><span class="font-medium">Storage:</span> {{ row['Hard Drive'] }}GB</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Status:</span> 
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                            {% if row['Status'] == 'IN STOCK' %}bg-green-100 text-green-800
-                                            {% elif row['Status'] == 'SHIPPED' %}bg-blue-100 text-blue-800
-                                            {% elif row['Status'] == 'DEPLOYED' %}bg-purple-100 text-purple-800
-                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                            {{ row['Status'] }}
-                                        </span>
-                                    </p>
-                                    <p class="text-sm"><span class="font-medium">Customer:</span> {{ row['Customer'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">PO Number:</span> {{ row['PO'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Receiving Date:</span> {{ row['Receiving Date'] }}</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Additional Details</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Condition:</span> {{ row['Condition'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Diagnostic:</span> {{ row['Diagnostic'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Erased:</span> {{ row['Erased'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Keyboard:</span> {{ row['Keyboard'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Charger:</span> {{ row['Charger'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Included Items:</span> {{ row['Included'] }}</p>
-                                </div>
-                            </div>
-                            {% else %}
-                            <!-- Accessories Preview -->
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Name:</span> {{ row['Name'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Category:</span> {{ row['Category'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Manufacturer:</span> {{ row['Manufacturer'] }}</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Details</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Model Number:</span> {{ row['Model Number'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Total Quantity:</span> {{ row['Total Quantity'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] }}</p>
-                                    <p class="text-sm"><span class="font-medium">Status:</span> 
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                            {{ row['Status'] }}
-                                        </span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 class="text-lg font-semibold mb-2 text-gray-800">Additional Information</h3>
-                                <div class="space-y-2">
-                                    <p class="text-sm"><span class="font-medium">Notes:</span> {{ row['Notes'] }}</p>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+                    {% if not row['Asset Tag'] %}
+                        <input type="hidden" name="asset_tag_{{ loop.index }}" id="direct_asset_tag_{{ loop.index0 }}" value="">
+                    {% else %}
+                        <input type="hidden" name="asset_tag_{{ loop.index }}" id="direct_asset_tag_{{ loop.index0 }}" value="{{ row['Asset Tag'] }}">
+                    {% endif %}
                 {% endfor %}
-            </div>
+                
+                <!-- Store the complete preview data -->
+                {% for row in preview_data %}
+                    <input type="hidden" name="preview_data[{{ loop.index0 }}]" id="preview_data_{{ loop.index0 }}" value='{{ row|tojson|safe }}'>
+                {% endfor %}
 
-            <!-- Bottom Confirm Button -->
-            <div class="mt-6">
-                <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="flex justify-end">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="filename" value="{{ filename }}">
-                    <input type="hidden" name="filepath" value="{{ session.get('import_filepath', '') }}">
+                <!-- Display and input fields for missing values -->
+                {% for row in preview_data %}
+                    {% if import_type == 'tech_assets' %}
+                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
+                                    <div class="space-y-2">
+                                        {% if not row['Asset Tag'] %}
+                                            <div class="bg-red-50 p-2 rounded border border-red-200">
+                                                <label class="text-sm font-medium">Asset Tag for Row {{ loop.index }}:</label>
+                                                <div class="flex space-x-2">
+                                                    <input type="text" 
+                                                           name="asset_tag_input_{{ loop.index0 }}" 
+                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
+                                                           placeholder="Required field"
+                                                           required>
+                                                    <button type="button"
+                                                            data-row="{{ loop.index0 }}"
+                                                            data-field="Asset Tag"
+                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
+                                                        Confirm
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="p-2">
+                                                <label class="text-sm font-medium">Asset Tag:</label>
+                                                <p class="text-sm">{{ row['Asset Tag'] }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        <p class="text-sm"><span class="font-medium">Serial Number:</span> {{ row['Serial Number'] }}</p>
+                                        <p class="text-sm"><span class="font-medium">Product:</span> {{ row['Product'] }}</p>
+                                        <p class="text-sm"><span class="font-medium">Model:</span> {{ row['Model'] }}</p>
+                                        <p class="text-sm"><span class="font-medium">Hardware Type:</span> {{ row['Hardware Type'] }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Rest of the preview sections -->
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Notes</h3>
+                                    <div class="space-y-2">
+                                        <p class="text-sm"><span class="font-medium">General Notes:</span> {{ row['Notes'] or 'N/A' }}</p>
+                                        <p class="text-sm"><span class="font-medium">Technical Notes:</span> {{ row['Tech Notes'] or 'N/A' }}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Hardware Specifications</h3>
+                                    <div class="space-y-2">
+                                        <p class="text-sm"><span class="font-medium">CPU:</span> {{ row['CPU Type'] }}, {{ row['CPU Cores'] }} cores</p>
+                                        <p class="text-sm"><span class="font-medium">GPU:</span> {{ row['GPU Cores'] }} cores</p>
+                                        <p class="text-sm"><span class="font-medium">Memory:</span> {{ row['Memory'] }}GB</p>
+                                        <p class="text-sm"><span class="font-medium">Storage:</span> {{ row['Hard Drive'] }}GB</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
+                                    <div class="space-y-2">
+                                        <p class="text-sm"><span class="font-medium">Status:</span> {{ row['Status'] }}</p>
+                                        <p class="text-sm"><span class="font-medium">Customer:</span> {{ row['Customer'] }}</p>
+                                        <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Accessories Preview Display -->
+                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
+                                    <div class="space-y-2">
+                                        {% if not row['Name'] %}
+                                            <div class="bg-red-50 p-2 rounded border border-red-200">
+                                                <label class="text-sm font-medium">Name for Row {{ loop.index }}:</label>
+                                                <div class="flex space-x-2">
+                                                    <input type="text" 
+                                                           name="name_input_{{ loop.index0 }}" 
+                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
+                                                           placeholder="Required field"
+                                                           required>
+                                                    <button type="button"
+                                                            data-row="{{ loop.index0 }}"
+                                                            data-field="Name"
+                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
+                                                        Confirm
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="p-2">
+                                                <label class="text-sm font-medium">Name:</label>
+                                                <p class="text-sm">{{ row['Name'] }}</p>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if not row['Category'] %}
+                                            <div class="bg-red-50 p-2 rounded border border-red-200">
+                                                <label class="text-sm font-medium">Category for Row {{ loop.index }}:</label>
+                                                <div class="flex space-x-2">
+                                                    <input type="text" 
+                                                           name="category_input_{{ loop.index0 }}" 
+                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
+                                                           placeholder="Required field"
+                                                           required>
+                                                    <button type="button"
+                                                            data-row="{{ loop.index0 }}"
+                                                            data-field="Category"
+                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
+                                                        Confirm
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="p-2">
+                                                <label class="text-sm font-medium">Category:</label>
+                                                <p class="text-sm">{{ row['Category'] }}</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Details</h3>
+                                    <div class="space-y-2">
+                                        <p class="text-sm"><span class="font-medium">Manufacturer:</span> {{ row['Manufacturer'] or 'N/A' }}</p>
+                                        <p class="text-sm"><span class="font-medium">Model Number:</span> {{ row['Model Number'] or 'N/A' }}</p>
+                                        <p class="text-sm"><span class="font-medium">Total Quantity:</span> {{ row['Total Quantity'] or '0' }}</p>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
+                                    <div class="space-y-2">
+                                        <p class="text-sm"><span class="font-medium">Status:</span> {{ row['Status'] or 'Available' }}</p>
+                                        <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] or 'N/A' }}</p>
+                                        <p class="text-sm"><span class="font-medium">Notes:</span> {{ row['Notes'] or 'N/A' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Extra debug element for the confirmations -->
+                <div id="debug_confirmation_status" style="display:none;">
+                    <h3>Debug Information:</h3>
+                    <div id="debug_values"></div>
+                </div>
+
+                <div class="flex justify-end mt-6">
                     <button type="submit" 
-                            class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                            id="submitButton"
+                            class="px-6 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 bg-gray-400 cursor-not-allowed"
+                            disabled>
                         Confirm and Process Import
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
-    {% endif %}
-
-    <div class="bg-white rounded-lg shadow-md p-6">
+    {% else %}
+        <!-- Upload Form -->
         <form method="POST" enctype="multipart/form-data" class="space-y-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <!-- Import Type Selection -->
+            
             <div>
                 <label for="import_type" class="block text-sm font-medium text-gray-700 mb-2">Import Type</label>
                 <select name="import_type" id="import_type" required
@@ -177,7 +282,8 @@
                 </div>
             </div>
 
-            <div>
+            <!-- File Upload Section -->
+            <div class="mt-4">
                 <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Choose CSV File</label>
                 <input type="file" name="file" id="file" accept=".csv" required
                        class="block w-full text-sm text-gray-500
@@ -201,21 +307,34 @@
                         <li>MODEL</li>
                         <li>HARDWARE TYPE</li>
                         <li>CPU TYPE</li>
+                        <li>CPU CORES</li>
+                        <li>GPU CORES</li>
                         <li>MEMORY</li>
-                        <li>HARDDRIVE</li>
+                        <li>HARD DRIVE</li>
                         <li>STATUS</li>
                         <li>CUSTOMER</li>
                         <li>COUNTRY</li>
+                        <li>PO</li>
+                        <li>RECEIVING DATE</li>
+                        <li>NOTES</li>
+                        <li>TECH NOTES</li>
+                        <li>CONDITION</li>
+                        <li>DIAGNOSTIC</li>
+                        <li>ERASED</li>
+                        <li>KEYBOARD</li>
+                        <li>CHARGER</li>
+                        <li>INCLUDED</li>
                     </ul>
                 </div>
                 <div id="accessories_format" class="hidden bg-gray-50 rounded-md p-4 text-sm text-gray-600">
                     <p class="font-medium mb-2">For Accessories:</p>
                     <ul class="list-disc list-inside space-y-1">
                         <li>NAME (required)</li>
-                        <li>CATEGORY</li>
+                        <li>CATEGORY (required)</li>
                         <li>MANUFACTURER</li>
-                        <li>MODEL NO</li>
-                        <li>QUANTITY</li>
+                        <li>MODEL NUMBER</li>
+                        <li>TOTAL QUANTITY</li>
+                        <li>COUNTRY</li>
                         <li>STATUS</li>
                         <li>NOTES</li>
                     </ul>
@@ -233,28 +352,322 @@
                 </button>
             </div>
         </form>
-    </div>
+    {% endif %}
+</div>
 
-    <!-- Update JavaScript to toggle template buttons -->
-    <script>
-        document.getElementById('import_type').addEventListener('change', function() {
+<!-- JavaScript for toggling template visibility -->
+<script>
+    // Only add import_type listener if the element exists
+    const importTypeSelect = document.getElementById('import_type');
+    if (importTypeSelect) {
+        importTypeSelect.addEventListener('change', function() {
+            const techAssetsTemplate = document.getElementById('tech_assets_template');
+            const accessoriesTemplate = document.getElementById('accessories_template');
             const techFormat = document.getElementById('tech_assets_format');
             const accessoryFormat = document.getElementById('accessories_format');
-            const techTemplate = document.getElementById('tech_assets_template');
-            const accessoryTemplate = document.getElementById('accessories_template');
             
             if (this.value === 'tech_assets') {
+                techAssetsTemplate.classList.remove('hidden');
+                accessoriesTemplate.classList.add('hidden');
                 techFormat.classList.remove('hidden');
                 accessoryFormat.classList.add('hidden');
-                techTemplate.classList.remove('hidden');
-                accessoryTemplate.classList.add('hidden');
             } else {
+                techAssetsTemplate.classList.add('hidden');
+                accessoriesTemplate.classList.remove('hidden');
                 techFormat.classList.add('hidden');
                 accessoryFormat.classList.remove('hidden');
-                techTemplate.classList.add('hidden');
-                accessoryTemplate.classList.remove('hidden');
             }
         });
-    </script>
-</div>
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('importForm');
+        const submitButton = document.getElementById('submitButton');
+        
+        if (!form || !submitButton) {
+            console.log('Form or submit button not found');
+            return;
+        }
+
+        // Function to update Asset Tag value
+        function updateAssetTag(rowIndex, value) {
+            // Get the direct Asset Tag input field
+            const assetTagInput = document.getElementById(`direct_asset_tag_${rowIndex}`);
+            
+            if (assetTagInput) {
+                // Update the value
+                assetTagInput.value = value;
+                console.log(`Set Asset Tag for row ${rowIndex} to:`, value);
+                return true;
+            }
+            
+            console.error(`Asset Tag input for row ${rowIndex} not found`);
+            return false;
+        }
+        
+        // Function to update preview data for both tech assets and accessories
+        function updatePreviewData(rowIndex, field, value) {
+            // Get the preview data input field
+            const previewDataInput = document.getElementById(`preview_data_${rowIndex}`);
+            
+            if (previewDataInput) {
+                try {
+                    // Parse the JSON data
+                    const rowData = JSON.parse(previewDataInput.value);
+                    
+                    // Update the field value
+                    rowData[field] = value;
+                    
+                    // Save the updated JSON data back to the input
+                    previewDataInput.value = JSON.stringify(rowData);
+                    console.log(`Updated preview data for row ${rowIndex}, field ${field} to:`, value);
+                    return true;
+                } catch (e) {
+                    console.error('Error updating preview data:', e);
+                    return false;
+                }
+            }
+            
+            console.error(`Preview data input for row ${rowIndex} not found`);
+            return false;
+        }
+
+        // Function to check if all required fields are filled
+        function checkAllFieldsConfirmed() {
+            const requiredFields = document.querySelectorAll('.required-field');
+            let allConfirmed = true;
+            
+            requiredFields.forEach(field => {
+                const isConfirmed = field.readOnly && field.value.trim() !== '';
+                if (!isConfirmed) {
+                    allConfirmed = false;
+                }
+                console.log(`Field ${field.name} confirmed:`, isConfirmed);
+            });
+            
+            if (submitButton) {
+                submitButton.disabled = !allConfirmed;
+                if (allConfirmed) {
+                    submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                } else {
+                    submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                }
+            }
+            return allConfirmed;
+        }
+
+        // Add click handlers to confirm buttons
+        document.querySelectorAll('.confirm-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const rowIndex = this.getAttribute('data-row');
+                const field = this.getAttribute('data-field');
+                
+                // Find the corresponding input field based on the field type
+                let input;
+                if (field === 'Asset Tag') {
+                    input = document.querySelector(`input[name="asset_tag_input_${rowIndex}"]`);
+                } else if (field === 'Name') {
+                    input = document.querySelector(`input[name="name_input_${rowIndex}"]`);
+                } else if (field === 'Category') {
+                    input = document.querySelector(`input[name="category_input_${rowIndex}"]`);
+                }
+                
+                if (!input || !input.value.trim()) {
+                    alert('Please enter a value before confirming.');
+                    return;
+                }
+
+                const value = input.value.trim();
+                
+                // Update the preview data
+                updatePreviewData(rowIndex, field, value);
+                
+                // For Asset Tag, also update the direct field
+                if (field === 'Asset Tag') {
+                    updateAssetTag(rowIndex, value);
+                }
+                
+                // Update input styling
+                input.readOnly = true;
+                input.style.backgroundColor = '#f0fdf4';
+                
+                // Update button styling
+                this.textContent = 'Confirmed ✓';
+                this.disabled = true;
+                this.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
+                this.classList.add('bg-green-100', 'text-green-700', 'confirmed');
+                
+                // Check if all fields are confirmed
+                checkAllFieldsConfirmed();
+            });
+        });
+
+        // Add form submit handler
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!checkAllFieldsConfirmed()) {
+                alert('Please confirm all required fields before submitting.');
+                return;
+            }
+
+            // Get the import type
+            const importType = document.querySelector('input[name="import_type"]').value;
+            
+            // Debug information
+            console.log('Form submission preparation:');
+            console.log('Import Type:', importType);
+            console.log('Row count:', document.querySelector('input[name="row_count"]').value);
+            
+            let allValid = true;
+            
+            if (importType === 'tech_assets') {
+                // Verify all Asset Tags are present for tech assets
+                const assetTagInputs = document.querySelectorAll('[id^="direct_asset_tag_"]');
+                console.log('Asset Tag inputs found:', assetTagInputs.length);
+                
+                // Create a summary of all form fields related to asset tags
+                const formData = new FormData(form);
+                console.log('All form fields for tech assets:');
+                for (let [name, value] of formData.entries()) {
+                    if (name.includes('asset_tag')) {
+                        console.log(`${name}: ${value}`);
+                    }
+                }
+
+                // Ensure that each asset tag is included
+                assetTagInputs.forEach((input, index) => {
+                    if (!input.value.trim()) {
+                        console.error(`Missing Asset Tag for input: ${input.id}`);
+                        allValid = false;
+                    } else {
+                        const rowNumber = index + 1; // Convert from 0-indexed to 1-indexed
+                        const value = input.value.trim();
+                        
+                        // Add additional fields with different name formats to ensure compatibility
+                        const additionalFormats = [
+                            `asset_tag_${rowNumber}`,    // Standard format from server code
+                            `asset_tags[${index}]`,      // Array format
+                            `Asset Tag_${rowNumber}`     // Another possible format
+                        ];
+                        
+                        additionalFormats.forEach(format => {
+                            // Only add if doesn't exist already
+                            if (!form.querySelector(`input[name="${format}"]`)) {
+                                const additionalInput = document.createElement('input');
+                                additionalInput.type = 'hidden';
+                                additionalInput.name = format;
+                                additionalInput.value = value;
+                                form.appendChild(additionalInput);
+                                console.log(`Added redundant field ${format} with value: ${value}`);
+                            }
+                        });
+                        
+                        console.log(`Asset Tag value for row ${rowNumber}:`, value);
+                    }
+                });
+            } else {
+                // For accessories, check required fields (Name and Category)
+                // Verify all preview data for accessories has required fields
+                const previewDataInputs = document.querySelectorAll('[id^="preview_data_"]');
+                console.log('Preview data inputs found:', previewDataInputs.length);
+                
+                previewDataInputs.forEach((input, index) => {
+                    try {
+                        const rowData = JSON.parse(input.value);
+                        const rowNumber = index + 1; // Convert from 0-indexed to 1-indexed
+                        
+                        // Check for Name
+                        if (!rowData['Name']) {
+                            console.error(`Missing Name for row ${rowNumber}`);
+                            allValid = false;
+                        }
+                        
+                        // Check for Category
+                        if (!rowData['Category']) {
+                            console.error(`Missing Category for row ${rowNumber}`);
+                            allValid = false;
+                        }
+                        
+                        // Add name and category as separate fields for compatibility
+                        if (rowData['Name']) {
+                            const nameFormats = [
+                                `name_${rowNumber}`,
+                                `names[${index}]`
+                            ];
+                            
+                            nameFormats.forEach(format => {
+                                if (!form.querySelector(`input[name="${format}"]`)) {
+                                    const nameInput = document.createElement('input');
+                                    nameInput.type = 'hidden';
+                                    nameInput.name = format;
+                                    nameInput.value = rowData['Name'];
+                                    form.appendChild(nameInput);
+                                    console.log(`Added Name field ${format} with value: ${rowData['Name']}`);
+                                }
+                            });
+                        }
+                        
+                        if (rowData['Category']) {
+                            const categoryFormats = [
+                                `category_${rowNumber}`,
+                                `categories[${index}]`
+                            ];
+                            
+                            categoryFormats.forEach(format => {
+                                if (!form.querySelector(`input[name="${format}"]`)) {
+                                    const categoryInput = document.createElement('input');
+                                    categoryInput.type = 'hidden';
+                                    categoryInput.name = format;
+                                    categoryInput.value = rowData['Category'];
+                                    form.appendChild(categoryInput);
+                                    console.log(`Added Category field ${format} with value: ${rowData['Category']}`);
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing preview data for row ${index + 1}:`, e);
+                        allValid = false;
+                    }
+                });
+            }
+
+            if (allValid) {
+                console.log('All required fields present, submitting form');
+                
+                // Add a debug hidden field to confirm we're actually submitting
+                const debugInput = document.createElement('input');
+                debugInput.type = 'hidden';
+                debugInput.name = 'debug_info';
+                debugInput.value = 'Form submission confirmed: ' + new Date().toISOString();
+                form.appendChild(debugInput);
+                
+                // Show debug area with the values being submitted
+                const debugArea = document.getElementById('debug_values');
+                if (debugArea) {
+                    debugArea.innerHTML = '';
+                    const previewDataInputs = document.querySelectorAll('[id^="preview_data_"]');
+                    previewDataInputs.forEach((input, index) => {
+                        try {
+                            const rowData = JSON.parse(input.value);
+                            debugArea.innerHTML += `<p>Row ${index + 1}: ${JSON.stringify(rowData)}</p>`;
+                        } catch (e) {
+                            debugArea.innerHTML += `<p>Row ${index + 1}: Error parsing data</p>`;
+                        }
+                    });
+                    document.getElementById('debug_confirmation_status').style.display = 'block';
+                }
+                
+                form.submit();
+            } else {
+                alert('Some required fields are missing. Please confirm all required fields.');
+            }
+        });
+
+        // Initial check
+        checkAllFieldsConfirmed();
+    });
+</script>
 {% endblock %} 

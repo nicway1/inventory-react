@@ -13,6 +13,7 @@ class AssetStatus(enum.Enum):
     DEPLOYED = "DEPLOYED"
     REPAIR = "REPAIR"
     ARCHIVED = "ARCHIVED"
+    DISPOSED = "DISPOSED"
 
 class Asset(Base):
     __tablename__ = 'assets'

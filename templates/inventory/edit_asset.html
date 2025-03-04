@@ -199,72 +199,87 @@
                 <!-- Additional Information -->
                 <div class="border-t pt-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 gap-6">
                         <div>
-                            <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
-                            <input type="text" 
-                                   id="condition" 
-                                   name="condition" 
-                                   value="{{ asset.condition or '' }}"
-                                   list="condition-list"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <datalist id="condition-list">
-                                {% for condition in conditions %}
-                                <option value="{{ condition }}">{{ condition }}</option>
-                                {% endfor %}
-                            </datalist>
+                            <label for="notes" class="block text-sm font-medium text-gray-700">General Notes</label>
+                            <textarea id="notes" 
+                                    name="notes" 
+                                    rows="4"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ asset.notes or '' }}</textarea>
+                            <p class="mt-1 text-sm text-gray-500">Add any general notes about this asset.</p>
                         </div>
 
                         <div>
-                            <label for="diag" class="block text-sm font-medium text-gray-700">Diagnostics</label>
-                            <input type="text" 
-                                   id="diag" 
-                                   name="diag" 
-                                   value="{{ asset.diag or '' }}"
-                                   list="diag-list"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <datalist id="diag-list">
-                                {% for diag in diags %}
-                                <option value="{{ diag }}">{{ diag }}</option>
-                                {% endfor %}
-                            </datalist>
+                            <label for="tech_notes" class="block text-sm font-medium text-gray-700">Technical Notes</label>
+                            <textarea id="tech_notes" 
+                                    name="tech_notes" 
+                                    rows="4"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ asset.tech_notes or '' }}</textarea>
+                            <p class="mt-1 text-sm text-gray-500">Add any technical notes, service history, or repair details.</p>
                         </div>
 
-                        <div>
-                            <label for="po" class="block text-sm font-medium text-gray-700">PO Number</label>
-                            <input type="text" 
-                                   id="po" 
-                                   name="po" 
-                                   value="{{ asset.po or '' }}"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
+                                <input type="text" 
+                                       id="condition" 
+                                       name="condition" 
+                                       value="{{ asset.condition or '' }}"
+                                       list="condition-list"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <datalist id="condition-list">
+                                    {% for condition in conditions %}
+                                    <option value="{{ condition }}">{{ condition }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
 
-                        <div>
-                            <label for="charger" class="block text-sm font-medium text-gray-700">Charger</label>
-                            <input type="text" 
-                                   id="charger" 
-                                   name="charger" 
-                                   value="{{ asset.charger or '' }}"
-                                   list="charger-list"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <datalist id="charger-list">
-                                {% for charger in chargers %}
-                                <option value="{{ charger }}">{{ charger }}</option>
-                                {% endfor %}
-                            </datalist>
-                        </div>
+                            <div>
+                                <label for="diag" class="block text-sm font-medium text-gray-700">Diagnostics</label>
+                                <input type="text" 
+                                       id="diag" 
+                                       name="diag" 
+                                       value="{{ asset.diag or '' }}"
+                                       list="diag-list"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <datalist id="diag-list">
+                                    {% for diag in diags %}
+                                    <option value="{{ diag }}">{{ diag }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
 
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Data Erased</label>
-                            <div class="mt-2 space-x-6">
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="erased" value="true" class="form-radio" {% if asset.erased is sameas true %}checked{% endif %}>
-                                    <span class="ml-2">Yes</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="erased" value="false" class="form-radio" {% if asset.erased is sameas false %}checked{% endif %}>
-                                    <span class="ml-2">No</span>
-                                </label>
+                            <div>
+                                <label for="po" class="block text-sm font-medium text-gray-700">PO Number</label>
+                                <input type="text" 
+                                       id="po" 
+                                       name="po" 
+                                       value="{{ asset.po or '' }}"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+
+                            <div>
+                                <label for="charger" class="block text-sm font-medium text-gray-700">Charger</label>
+                                <input type="text" 
+                                       id="charger" 
+                                       name="charger" 
+                                       value="{{ asset.charger or '' }}"
+                                       list="charger-list"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <datalist id="charger-list">
+                                    {% for charger in chargers %}
+                                    <option value="{{ charger }}">{{ charger }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+
+                            <div>
+                                <label for="erased" class="block text-sm font-medium text-gray-700">Data Erased</label>
+                                <input type="text" 
+                                       id="erased" 
+                                       name="erased" 
+                                       value="{{ asset.erased or '' }}"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                         </div>
                     </div>
