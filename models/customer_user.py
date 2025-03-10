@@ -21,6 +21,7 @@ class CustomerUser(Base):
     company = relationship("Company", back_populates="customer_users")
     assigned_assets = relationship("Asset", back_populates="customer_user")
     assigned_accessories = relationship("Accessory", back_populates="customer_user")
+    tickets = relationship("Ticket", back_populates="customer")
     
     def to_dict(self):
         return {

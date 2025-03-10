@@ -5,10 +5,8 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Add your project directory to the sys.path
-path = '/home/nicway2/inventory'
-if path not in sys.path:
-    sys.path.append(path)
+# Add the project directory to the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Set Python path and enable debugging
 os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
@@ -32,10 +30,11 @@ os.environ['SECRET_KEY'] = 'your-secret-key-here'
 os.environ['DATABASE_URL'] = 'sqlite:////home/nicway2/inventory/inventory.db'
 
 # Import your Flask app
-from app import app as application
+from app import create_app
 
 # Enable debug logging for Flask-Mail
-application.logger.setLevel(logging.DEBUG)
+app = create_app()
+app.logger.setLevel(logging.DEBUG)
 
 if __name__ == "__main__":
-    application.run() 
+    app.run() 

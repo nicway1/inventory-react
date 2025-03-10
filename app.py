@@ -31,6 +31,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import joinedload
+from flask_migrate import Migrate
 
 # Configure logging
 logging.basicConfig(
@@ -41,106 +42,112 @@ logging.basicConfig(
 # Create data directory if it doesn't exist
 os.makedirs('data', exist_ok=True)
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
 
-# Configure Flask app
-app.config.update(
-    SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-please-change'),
-    SESSION_COOKIE_SECURE=False,  # Set to False for development without HTTPS
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
-    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///inventory.db'),
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
-    WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
-    WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
-    # Email configuration for Gmail SMTP
-    MAIL_SERVER=os.environ.get('MAIL_SERVER', 'smtp.gmail.com'),
-    MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),
-    MAIL_USE_TLS=True,
-    MAIL_USERNAME=os.environ.get('MAIL_USERNAME', 'trueloginventory@gmail.com'),
-    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD', 'lfve nald ymnl vrzf'),  # Gmail App Password
-    MAIL_DEFAULT_SENDER=os.environ.get('MAIL_DEFAULT_SENDER', 'trueloginventory@gmail.com'),
-    MAIL_DEBUG=True  # Enable debug mode
-)
+    # Configure Flask app
+    app.config.update(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-please-change'),
+        SESSION_COOKIE_SECURE=False,  # Set to False for development without HTTPS
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
+        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///inventory.db'),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
+        WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
+        WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
+        # Email configuration for Gmail SMTP
+        MAIL_SERVER=os.environ.get('MAIL_SERVER', 'smtp.gmail.com'),
+        MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),
+        MAIL_USE_TLS=True,
+        MAIL_USERNAME=os.environ.get('MAIL_USERNAME', 'trueloginventory@gmail.com'),
+        MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD', 'lfve nald ymnl vrzf'),  # Gmail App Password
+        MAIL_DEFAULT_SENDER=os.environ.get('MAIL_DEFAULT_SENDER', 'trueloginventory@gmail.com'),
+        MAIL_DEBUG=True  # Enable debug mode
+    )
 
-# Initialize CORS
-CORS(app)
+    # Initialize CORS
+    CORS(app)
 
-# Initialize CSRF protection
-csrf = CSRFProtect(app)
+    # Initialize CSRF protection
+    csrf = CSRFProtect(app)
 
-@app.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    logging.error(f"CSRF Error: {str(e)}")
-    return render_template('error.html', 
-                         error="CSRF token validation failed. Please try again.",
-                         details=str(e)), 400
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        logging.error(f"CSRF Error: {str(e)}")
+        return render_template('error.html', 
+                             error="CSRF token validation failed. Please try again.",
+                             details=str(e)), 400
 
-# Initialize Flask-Mail
-mail.init_app(app)
+    # Initialize Flask-Mail
+    mail.init_app(app)
 
-# Log mail configuration
-logging.info("Mail Configuration:")
-logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
-logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
-logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
-logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
-logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
+    # Log mail configuration
+    logging.info("Mail Configuration:")
+    logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
+    logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
+    logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
+    logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+    logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
 
-# Initialize database
-db = SQLAlchemy(app)
+    # Initialize database
+    db = SQLAlchemy(app)
+    migrate = Migrate(app, db)
 
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
-login_manager.login_message_category = 'info'
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message_category = 'info'
 
-@login_manager.user_loader
-def load_user(user_id):
-    if user_id is None:
-        return None
-    try:
-        db_session = SessionLocal()
-        user = db_session.query(User).options(joinedload(User.permissions)).get(int(user_id))
-        if user:
-            # Expunge the user from the session but keep the permissions loaded
-            db_session.expunge(user)
-        db_session.close()
-        return user
-    except (ValueError, TypeError):
-        return None
+    @login_manager.user_loader
+    def load_user(user_id):
+        if user_id is None:
+            return None
+        try:
+            db_session = SessionLocal()
+            user = db_session.query(User).options(joinedload(User.permissions)).get(int(user_id))
+            if user:
+                # Expunge the user from the session but keep the permissions loaded
+                db_session.expunge(user)
+            db_session.close()
+            return user
+        except (ValueError, TypeError):
+            return None
 
-# Register blueprints with proper URL prefixes
-app.register_blueprint(main_bp, url_prefix='/')
-app.register_blueprint(auth_bp, url_prefix='/auth')
-app.register_blueprint(inventory_bp, url_prefix='/inventory')
-app.register_blueprint(tickets_bp, url_prefix='/tickets')
-app.register_blueprint(shipments_bp, url_prefix='/shipments')
-app.register_blueprint(users_bp, url_prefix='/users')
-app.register_blueprint(admin_bp, url_prefix='/admin')
-app.register_blueprint(api_bp)
+    # Register blueprints with proper URL prefixes
+    app.register_blueprint(main_bp, url_prefix='/')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(tickets_bp, url_prefix='/tickets')
+    app.register_blueprint(shipments_bp, url_prefix='/shipments')
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(api_bp)
 
-@app.context_processor
-def utility_processor():
-    """Make current_user available in all templates"""
-    return dict(current_user=current_user)
+    @app.context_processor
+    def utility_processor():
+        """Make current_user available in all templates"""
+        return dict(current_user=current_user)
 
-@app.route('/activity/<int:activity_id>/read', methods=['POST'])
-@login_required
-def mark_activity_read(activity_id):
-    activity_store.mark_as_read(activity_id)
-    return redirect(url_for('main.index'))
+    @app.route('/activity/<int:activity_id>/read', methods=['POST'])
+    @login_required
+    def mark_activity_read(activity_id):
+        activity_store.mark_as_read(activity_id)
+        return redirect(url_for('main.index'))
 
-@app.route('/health')
-def health_check():
-    return jsonify({"status": "healthy"}), 200
+    @app.route('/health')
+    def health_check():
+        return jsonify({"status": "healthy"}), 200
 
-@app.route('/')
-def hello():
-    return 'Hello, World!'
+    @app.route('/')
+    def hello():
+        return 'Hello, World!'
+
+    return app
+
+app = create_app()
 
 if __name__ == '__main__':
     print("Starting application...")

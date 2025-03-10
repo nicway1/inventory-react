@@ -1,136 +1,72 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8 max-w-5xl">
+<div class="w-full px-4 py-8">
     <h1 class="text-2xl font-bold mb-6">Data Import Tool</h1>
 
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">Preview Data (First 5 rows)</h2>
-        
+    {% if preview_data %}
+        <div class="mb-4 p-4 bg-white rounded-lg shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Import Summary</h2>
+                    <p class="mt-1 text-sm text-gray-600">Type: {{ import_type }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-blue-600">{{ total_rows }}</p>
+                    <p class="text-sm text-gray-600">Total Records</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow-lg">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        {% if import_type == 'tech_assets' %}
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b">
+                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">
+                            Row
+                        </th>
+                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">
                             Asset Type
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">
                             Product
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Asset Tag
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Serial Number
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Model
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Notes
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tech Notes
-                        </th>
-                        {% else %}
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Name
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Category
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Manufacturer
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Model Number
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Total Quantity
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Country
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Notes
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tech Notes
-                        </th>
-                        {% endif %}
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for row in preview_data %}
-                    <tr>
-                        {% if import_type == 'tech_assets' %}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Asset Type'] }}
+                <tbody>
+                    {% for record in preview_data %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="py-3 px-4 text-sm text-gray-900">
+                            {{ record.row_number }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Product'] }}
+                        <td class="py-3 px-4 text-sm text-gray-900">
+                            {{ record.basic_info.get('Hardware Type', '') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Asset Tag'] }}
+                        <td class="py-3 px-4 text-sm text-gray-900">
+                            {{ record.basic_info.get('Product', '') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Serial Number'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Model'] }}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title="{{ row['Notes'] }}">
-                            {{ row['Notes'] or 'N/A' }}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title="{{ row['Tech Notes'] }}">
-                            {{ row['Tech Notes'] or 'N/A' }}
-                        </td>
-                        {% else %}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Name'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Category'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Manufacturer'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Model Number'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Total Quantity'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Country'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Notes'] }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ row['Tech Notes'] }}
-                        </td>
-                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <div class="mt-6">
-            <p class="text-sm text-gray-600">Total rows to import: {{ total_rows }}</p>
-        </div>
-
-        <div class="mt-6 flex justify-end space-x-4">
-            <button onclick="window.location.href='{{ url_for('inventory.import_inventory') }}'"
-                    class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
-                Cancel
-            </button>
-            <button onclick="window.location.href='{{ url_for('inventory.confirm_import') }}'"
-                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                Confirm Import
-            </button>
+        <div class="p-4 border-t">
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('inventory.import_inventory') }}" 
+                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Cancel
+                </a>
+                <form action="{{ url_for('inventory.confirm_import') }}" method="POST" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                        Confirm Import
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

@@ -165,7 +165,7 @@
             </div>
         </div>
         
-        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -453,6 +453,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Select all assets
+    if (selectAllAssets) {
+        selectAllAssets.addEventListener('change', function() {
+            const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
+            assetCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                const assetId = parseInt(checkbox.dataset.id);
+                if (this.checked) {
+                    if (!selectedAssetIds.includes(assetId)) {
+                        selectedAssetIds.push(assetId);
+                    }
+                } else {
+                    selectedAssetIds = selectedAssetIds.filter(id => id !== assetId);
+                }
+            });
+            updateSelection();
+        });
+    }
+
     // Function to handle asset selection
     function handleAssetSelection(checkbox) {
         const assetId = parseInt(checkbox.dataset.id);
@@ -462,6 +481,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else {
             selectedAssetIds = selectedAssetIds.filter(id => id !== assetId);
+            // Update select all checkbox state
+            if (selectAllAssets) {
+                const allCheckboxes = document.querySelectorAll('.asset-checkbox');
+                selectAllAssets.checked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
+            }
         }
         updateSelection();
     }

@@ -384,87 +384,45 @@
         const form = document.getElementById('importForm');
         const submitButton = document.getElementById('submitButton');
         
-        if (!form || !submitButton) {
-            console.log('Form or submit button not found');
-            return;
-        }
+        if (!form || !submitButton) return;
 
         // Function to update Asset Tag value
         function updateAssetTag(rowIndex, value) {
-            // Get the direct Asset Tag input field
             const assetTagInput = document.getElementById(`direct_asset_tag_${rowIndex}`);
-            
             if (assetTagInput) {
-                // Update the value
                 assetTagInput.value = value;
-                console.log(`Set Asset Tag for row ${rowIndex} to:`, value);
                 return true;
             }
-            
-            console.error(`Asset Tag input for row ${rowIndex} not found`);
             return false;
         }
         
         // Function to update preview data for both tech assets and accessories
         function updatePreviewData(rowIndex, field, value) {
-            // Get the preview data input field
             const previewDataInput = document.getElementById(`preview_data_${rowIndex}`);
-            
             if (previewDataInput) {
                 try {
-                    // Parse the JSON data
                     const rowData = JSON.parse(previewDataInput.value);
-                    
-                    // Update the field value
                     rowData[field] = value;
-                    
-                    // Save the updated JSON data back to the input
                     previewDataInput.value = JSON.stringify(rowData);
-                    console.log(`Updated preview data for row ${rowIndex}, field ${field} to:`, value);
                     return true;
                 } catch (e) {
-                    console.error('Error updating preview data:', e);
                     return false;
                 }
             }
-            
-            console.error(`Preview data input for row ${rowIndex} not found`);
             return false;
         }
 
         // Function to check if all required fields are filled
         function checkAllFieldsConfirmed() {
-            const requiredFields = document.querySelectorAll('.required-field');
-            let allConfirmed = true;
-            
-            requiredFields.forEach(field => {
-                const isConfirmed = field.readOnly && field.value.trim() !== '';
-                if (!isConfirmed) {
-                    allConfirmed = false;
-                }
-                console.log(`Field ${field.name} confirmed:`, isConfirmed);
-            });
-            
-            if (submitButton) {
-                submitButton.disabled = !allConfirmed;
-                if (allConfirmed) {
-                    submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                    submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                } else {
-                    submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                    submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                }
-            }
-            return allConfirmed;
+            const unconfirmedButtons = document.querySelectorAll('.confirm-button:not(.confirmed)');
+            submitButton.disabled = unconfirmedButtons.length > 0;
         }
 
-        // Add click handlers to confirm buttons
         document.querySelectorAll('.confirm-button').forEach(button => {
             button.addEventListener('click', function() {
                 const rowIndex = this.getAttribute('data-row');
                 const field = this.getAttribute('data-field');
                 
-                // Find the corresponding input field based on the field type
                 let input;
                 if (field === 'Asset Tag') {
                     input = document.querySelector(`input[name="asset_tag_input_${rowIndex}"]`);
@@ -480,193 +438,56 @@
                 }
 
                 const value = input.value.trim();
-                
-                // Update the preview data
                 updatePreviewData(rowIndex, field, value);
                 
-                // For Asset Tag, also update the direct field
                 if (field === 'Asset Tag') {
                     updateAssetTag(rowIndex, value);
                 }
                 
-                // Update input styling
                 input.readOnly = true;
                 input.style.backgroundColor = '#f0fdf4';
                 
-                // Update button styling
                 this.textContent = 'Confirmed ✓';
                 this.disabled = true;
                 this.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
                 this.classList.add('bg-green-100', 'text-green-700', 'confirmed');
                 
-                // Check if all fields are confirmed
                 checkAllFieldsConfirmed();
             });
         });
 
-        // Add form submit handler
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            
-            if (!checkAllFieldsConfirmed()) {
-                alert('Please confirm all required fields before submitting.');
-                return;
-            }
-
-            // Get the import type
-            const importType = document.querySelector('input[name="import_type"]').value;
-            
-            // Debug information
-            console.log('Form submission preparation:');
-            console.log('Import Type:', importType);
-            console.log('Row count:', document.querySelector('input[name="row_count"]').value);
-            
             let allValid = true;
-            
-            if (importType === 'tech_assets') {
-                // Verify all Asset Tags are present for tech assets
-                const assetTagInputs = document.querySelectorAll('[id^="direct_asset_tag_"]');
-                console.log('Asset Tag inputs found:', assetTagInputs.length);
-                
-                // Create a summary of all form fields related to asset tags
-                const formData = new FormData(form);
-                console.log('All form fields for tech assets:');
-                for (let [name, value] of formData.entries()) {
-                    if (name.includes('asset_tag')) {
-                        console.log(`${name}: ${value}`);
-                    }
-                }
 
-                // Ensure that each asset tag is included
-                assetTagInputs.forEach((input, index) => {
+            if (form.getAttribute('data-type') === 'tech_assets') {
+                const assetTagInputs = document.querySelectorAll('[id^="direct_asset_tag_"]');
+                assetTagInputs.forEach(input => {
                     if (!input.value.trim()) {
-                        console.error(`Missing Asset Tag for input: ${input.id}`);
                         allValid = false;
-                    } else {
-                        const rowNumber = index + 1; // Convert from 0-indexed to 1-indexed
-                        const value = input.value.trim();
-                        
-                        // Add additional fields with different name formats to ensure compatibility
-                        const additionalFormats = [
-                            `asset_tag_${rowNumber}`,    // Standard format from server code
-                            `asset_tags[${index}]`,      // Array format
-                            `Asset Tag_${rowNumber}`     // Another possible format
-                        ];
-                        
-                        additionalFormats.forEach(format => {
-                            // Only add if doesn't exist already
-                            if (!form.querySelector(`input[name="${format}"]`)) {
-                                const additionalInput = document.createElement('input');
-                                additionalInput.type = 'hidden';
-                                additionalInput.name = format;
-                                additionalInput.value = value;
-                                form.appendChild(additionalInput);
-                                console.log(`Added redundant field ${format} with value: ${value}`);
-                            }
-                        });
-                        
-                        console.log(`Asset Tag value for row ${rowNumber}:`, value);
                     }
                 });
             } else {
-                // For accessories, check required fields (Name and Category)
-                // Verify all preview data for accessories has required fields
                 const previewDataInputs = document.querySelectorAll('[id^="preview_data_"]');
-                console.log('Preview data inputs found:', previewDataInputs.length);
-                
                 previewDataInputs.forEach((input, index) => {
                     try {
                         const rowData = JSON.parse(input.value);
-                        const rowNumber = index + 1; // Convert from 0-indexed to 1-indexed
-                        
-                        // Check for Name
-                        if (!rowData['Name']) {
-                            console.error(`Missing Name for row ${rowNumber}`);
+                        if (!rowData['Name'] || !rowData['Category']) {
                             allValid = false;
-                        }
-                        
-                        // Check for Category
-                        if (!rowData['Category']) {
-                            console.error(`Missing Category for row ${rowNumber}`);
-                            allValid = false;
-                        }
-                        
-                        // Add name and category as separate fields for compatibility
-                        if (rowData['Name']) {
-                            const nameFormats = [
-                                `name_${rowNumber}`,
-                                `names[${index}]`
-                            ];
-                            
-                            nameFormats.forEach(format => {
-                                if (!form.querySelector(`input[name="${format}"]`)) {
-                                    const nameInput = document.createElement('input');
-                                    nameInput.type = 'hidden';
-                                    nameInput.name = format;
-                                    nameInput.value = rowData['Name'];
-                                    form.appendChild(nameInput);
-                                    console.log(`Added Name field ${format} with value: ${rowData['Name']}`);
-                                }
-                            });
-                        }
-                        
-                        if (rowData['Category']) {
-                            const categoryFormats = [
-                                `category_${rowNumber}`,
-                                `categories[${index}]`
-                            ];
-                            
-                            categoryFormats.forEach(format => {
-                                if (!form.querySelector(`input[name="${format}"]`)) {
-                                    const categoryInput = document.createElement('input');
-                                    categoryInput.type = 'hidden';
-                                    categoryInput.name = format;
-                                    categoryInput.value = rowData['Category'];
-                                    form.appendChild(categoryInput);
-                                    console.log(`Added Category field ${format} with value: ${rowData['Category']}`);
-                                }
-                            });
                         }
                     } catch (e) {
-                        console.error(`Error parsing preview data for row ${index + 1}:`, e);
                         allValid = false;
                     }
                 });
             }
 
             if (allValid) {
-                console.log('All required fields present, submitting form');
-                
-                // Add a debug hidden field to confirm we're actually submitting
-                const debugInput = document.createElement('input');
-                debugInput.type = 'hidden';
-                debugInput.name = 'debug_info';
-                debugInput.value = 'Form submission confirmed: ' + new Date().toISOString();
-                form.appendChild(debugInput);
-                
-                // Show debug area with the values being submitted
-                const debugArea = document.getElementById('debug_values');
-                if (debugArea) {
-                    debugArea.innerHTML = '';
-                    const previewDataInputs = document.querySelectorAll('[id^="preview_data_"]');
-                    previewDataInputs.forEach((input, index) => {
-                        try {
-                            const rowData = JSON.parse(input.value);
-                            debugArea.innerHTML += `<p>Row ${index + 1}: ${JSON.stringify(rowData)}</p>`;
-                        } catch (e) {
-                            debugArea.innerHTML += `<p>Row ${index + 1}: Error parsing data</p>`;
-                        }
-                    });
-                    document.getElementById('debug_confirmation_status').style.display = 'block';
-                }
-                
                 form.submit();
             } else {
                 alert('Some required fields are missing. Please confirm all required fields.');
             }
         });
 
-        // Initial check
         checkAllFieldsConfirmed();
     });
 </script>

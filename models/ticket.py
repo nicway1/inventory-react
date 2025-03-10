@@ -22,6 +22,8 @@ class TicketCategory(enum.Enum):
     BULK_DELIVERY_QUOTATION = "Bulk Delivery Quotation"
     REPAIR_QUOTE = "Repair Quote"
     ITAD_QUOTE = "ITAD Quote"
+    ASSET_CHECKOUT = "Asset Checkout"
+    ASSET_CHECKOUT_SINGPOST = "Asset Checkout (SingPost)"
 
 class RMAStatus(enum.Enum):
     PENDING_APPROVAL = "Pending Approval"
@@ -67,8 +69,16 @@ class Ticket(Base):
     replacement_tracking = Column(String(100))
     warranty_number = Column(String(100))
     serial_number = Column(String(100))
+    shipping_address = Column(String(500))
+    shipping_tracking = Column(String(100))
+    customer_id = Column(Integer, ForeignKey('customer_users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    
+    # Add tracking status fields
+    shipping_status = Column(String(100), default='Pending')
+    return_status = Column(String(100), default='Pending')
+    replacement_status = Column(String(100), default='Pending')
 
     # Relationships
     requester = relationship("User", foreign_keys=[requester_id], back_populates="tickets_requested")
@@ -76,6 +86,7 @@ class Ticket(Base):
     asset = relationship("Asset", back_populates="tickets")
     queue = relationship("Queue", back_populates="tickets")
     accessory = relationship("Accessory", back_populates="tickets")
+    customer = relationship("CustomerUser", foreign_keys=[customer_id], back_populates="tickets")
 
     @property
     def display_id(self):

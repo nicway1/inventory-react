@@ -12,8 +12,9 @@ from utils.store_instances import (
     activity_store
 )
 from utils.db_manager import DatabaseManager
-from models.asset import Asset
+from models.asset import Asset, AssetStatus
 from werkzeug.utils import secure_filename
+from models.customer_user import CustomerUser
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 db_manager = DatabaseManager()
@@ -29,49 +30,186 @@ def list_tickets():
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_ticket():
-    if request.method == 'GET':
-        db_session = db_manager.get_session()
-        try:
-            # Get all assets for the dropdown
-            assets = db_session.query(Asset).all()
-            assets_data = [{
-                'id': asset.id,
-                'serial_number': asset.serial_num,
-                'model': asset.model,
-                'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
-                'asset_tag': asset.asset_tag
-            } for asset in assets if asset.serial_num]
-            
+    print("Entering create_ticket route")  # Debug log
+    db_session = db_manager.get_session()
+    try:
+        # Get all available assets for the dropdown
+        assets = db_session.query(Asset).filter(
+            Asset.status.in_([AssetStatus.IN_STOCK, AssetStatus.READY_TO_DEPLOY]),
+            Asset.serial_num != None
+        ).all()
+        
+        assets_data = [{
+            'id': asset.id,
+            'serial_number': asset.serial_num,
+            'model': asset.model,
+            'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
+            'asset_tag': asset.asset_tag
+        } for asset in assets]
+        
+        # Get all customers for the dropdown
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+
+        if request.method == 'GET':
+            print("Handling GET request")  # Debug log
             return render_template('tickets/create.html', 
-                                 assets=assets_data,
-                                 priorities=list(TicketPriority))
-        finally:
-            db_session.close()
+                                assets=assets_data,
+                                customers=customers,
+                                priorities=list(TicketPriority))
 
-    if request.method == 'POST':
-        # Get common form data
-        category = request.form.get('category')
-        subject = request.form.get('subject')
-        description = request.form.get('description')
-        priority = request.form.get('priority')
-        user_id = session['user_id']
+        if request.method == 'POST':
+            print("Handling POST request")  # Debug log
+            
+            # Log all form fields to debug
+            for key, value in request.form.items():
+                print(f"Form field: {key} = {value}")  # Debug log
+            
+            # Get common form data
+            category = request.form.get('category')
+            subject = request.form.get('subject')
+            description = request.form.get('description')
+            priority = request.form.get('priority')
+            user_id = session['user_id']
 
-        # Get category-specific data
-        country = request.form.get('country')
-        serial_number = request.form.get('serial_number')
-        notes = request.form.get('notes', '')
+            print(f"Category: {category}")  # Debug log
+            print(f"Subject: {subject}")  # Debug log
+            print(f"Priority: {priority}")  # Debug log
 
-        # Get asset details
-        db_session = db_manager.get_session()
-        try:
+            # Validate required fields
+            if not category:
+                flash('Please select a category', 'error')
+                return render_template('tickets/create.html',
+                                    assets=assets_data,
+                                    customers=customers,
+                                    priorities=list(TicketPriority),
+                                    form=request.form)
+
+            # Get serial number based on category
+            serial_number = None
+            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST':
+                serial_number = request.form.get('asset_checkout_serial')
+                print(f"Asset Checkout Serial Number: {serial_number}")  # Debug log
+            else:
+                serial_number = request.form.get('serial_number')
+                print(f"Standard Serial Number: {serial_number}")  # Debug log
+
+            # Validate asset selection
+            if not serial_number or serial_number == "":
+                flash('Please select an asset', 'error')
+                return render_template('tickets/create.html',
+                                    assets=assets_data,
+                                    customers=customers,
+                                    priorities=list(TicketPriority),
+                                    form=request.form)
+
+            # Find the asset
             asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
             if not asset:
-                flash('Asset not found with the provided serial number', 'error')
-                return redirect(url_for('tickets.create_ticket'))
+                flash(f'Asset not found with serial number: {serial_number}', 'error')
+                return render_template('tickets/create.html',
+                                    assets=assets_data,
+                                    customers=customers,
+                                    priorities=list(TicketPriority),
+                                    form=request.form)
+
+            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST':
+                customer_id = request.form.get('customer_id')
+                shipping_address = request.form.get('shipping_address')
+                shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
+                notes = request.form.get('notes', '')
+                
+                print(f"Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
+                
+                if not customer_id:
+                    flash('Please select a customer', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+
+                if not shipping_address:
+                    flash('Please provide a shipping address', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+                
+                # Get customer details
+                customer = db_session.query(CustomerUser).get(customer_id)
+                if not customer:
+                    flash('Customer not found', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+                
+                description = f"""Asset Checkout Details:
+Serial Number: {serial_number}
+Model: {asset.model}
+Asset Tag: {asset.asset_tag}
+
+Customer Information:
+Name: {customer.name}
+Company: {customer.company.name if customer.company else 'N/A'}
+Email: {customer.email}
+Contact: {customer.contact_number}
+
+Shipping Information:
+Address: {shipping_address}
+Tracking Number: {shipping_tracking if shipping_tracking else 'Not provided'}
+Shipping Method: {'SingPost' if category == 'ASSET_CHECKOUT_SINGPOST' else 'Standard'}
+
+Additional Notes:
+{notes}"""
+
+                print(f"Creating ticket with description: {description}")  # Debug log
+
+                try:
+                    # Create the ticket
+                    ticket_id = ticket_store.create_ticket(
+                        subject=subject,
+                        description=description,
+                        requester_id=user_id,
+                        category=TicketCategory.ASSET_CHECKOUT_SINGPOST if category == 'ASSET_CHECKOUT_SINGPOST' else TicketCategory.ASSET_CHECKOUT,
+                        priority=priority,
+                        asset_id=asset.id,
+                        customer_id=customer_id,
+                        shipping_address=shipping_address,
+                        shipping_tracking=shipping_tracking if shipping_tracking else None
+                    )
+
+                    # Update asset status and assign to customer
+                    asset.customer_user_id = customer_id
+                    asset.status = AssetStatus.DEPLOYED
+                    db_session.commit()
+
+                    print(f"Ticket created successfully with ID: {ticket_id}")  # Debug log
+                    flash('Asset checkout ticket created successfully')
+                    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+                except Exception as e:
+                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    db_session.rollback()
+                    flash('Error creating ticket: ' + str(e), 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
 
             # Handle category-specific logic
             if category == 'PIN_REQUEST':
                 lock_type = request.form.get('lock_type')
+                if not lock_type:
+                    flash('Please select a lock type', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+
                 description = f"""Serial Number: {serial_number}
 Model: {asset.model}
 Asset Tag: {asset.asset_tag}
@@ -79,13 +217,21 @@ Customer: {asset.customer_user.company.name if asset.customer_user and asset.cus
 Lock Type: {lock_type}
 
 Additional Information:
-- Country: {country}
+- Country: {request.form.get('country')}
 
 Notes:
-{notes}"""
+{request.form.get('notes', '')}"""
 
             elif category == 'ASSET_REPAIR':
                 damage_description = request.form.get('damage_description')
+                if not damage_description:
+                    flash('Please provide a damage description', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+
                 apple_diagnostics = request.form.get('apple_diagnostics')
                 quote_type = request.form.get('quote_type', 'assessment')
                 
@@ -98,7 +244,7 @@ Notes:
                             # Secure the filename
                             filename = secure_filename(image.filename)
                             # Create unique filename with timestamp
-                            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
                             unique_filename = f"{timestamp}_{filename}"
                             # Save the file
                             image_path = os.path.join('uploads', 'repairs', unique_filename)
@@ -106,19 +252,11 @@ Notes:
                             image.save(image_path)
                             image_paths.append(image_path)
 
-                # Determine ticket category based on quote type
-                if quote_type == 'repair':
-                    category = TicketCategory.REPAIR_QUOTE
-                elif quote_type == 'disposal':
-                    category = TicketCategory.ITAD_QUOTE
-                else:
-                    category = TicketCategory.ASSET_REPAIR
-
                 description = f"""Asset Details:
 Serial Number: {serial_number}
 Model: {asset.model}
 Customer: {asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer}
-Country: {country}
+Country: {request.form.get('country')}
 
 Damage Description:
 {damage_description}
@@ -126,11 +264,11 @@ Damage Description:
 Apple Diagnostics Code: {apple_diagnostics if apple_diagnostics else 'N/A'}
 
 Additional Notes:
-{notes}
+{request.form.get('notes', '')}
 
 Images Attached: {len(image_paths)} image(s)"""
 
-            # Create the ticket
+            # Create the ticket for other categories
             ticket_id = ticket_store.create_ticket(
                 subject=subject,
                 description=description,
@@ -138,20 +276,19 @@ Images Attached: {len(image_paths)} image(s)"""
                 category=category,
                 priority=priority,
                 asset_id=asset.id,
-                country=country,
-                damage_description=damage_description if category == 'ASSET_REPAIR' else None,
-                apple_diagnostics=apple_diagnostics if category == 'ASSET_REPAIR' else None,
-                image_path=','.join(image_paths) if category == 'ASSET_REPAIR' and image_paths else None,
-                repair_status=RepairStatus.PENDING_ASSESSMENT if category == 'ASSET_REPAIR' else None
+                country=request.form.get('country')
             )
 
             flash('Ticket created successfully')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
 
-        finally:
-            db_session.close()
+    finally:
+        db_session.close()
 
-    return render_template('tickets/create.html')
+    return render_template('tickets/create.html',
+                        assets=assets_data,
+                        customers=customers,
+                        priorities=list(TicketPriority))
 
 @tickets_bp.route('/<int:ticket_id>')
 @login_required
@@ -634,6 +771,70 @@ def clear_all_tickets():
     ticket_store.clear_all_tickets()
     flash('All tickets have been cleared successfully')
     return redirect(url_for('tickets.list_tickets'))
+
+@tickets_bp.route('/<int:ticket_id>/track/update', methods=['POST'])
+@login_required
+def update_tracking(ticket_id):
+    """Update tracking information from 17track widget"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+
+        tracking_info = data.get('track', {}).get('z0', {})
+        status = tracking_info.get('status', 'Unknown')
+        events = tracking_info.get('track', [])
+
+        status_changed = False
+        
+        # Update status based on tracking events
+        if events:
+            latest_event = events[0]  # Most recent event is first
+            event_status = latest_event.get('z', '')
+            
+            # Check if package is delivered
+            is_delivered = (
+                'delivered' in event_status.lower() or
+                status.lower() == 'delivered' or
+                event_status.lower().startswith('delivered')
+            )
+
+            if is_delivered and ticket.status != TicketStatus.RESOLVED:
+                ticket.status = TicketStatus.RESOLVED
+                status_changed = True
+
+            # Update ticket tracking information
+            if ticket.shipping_tracking:
+                ticket.shipping_status = status
+            elif ticket.return_tracking:
+                ticket.return_status = status
+                if is_delivered and ticket.rma_status == RMAStatus.ITEM_SHIPPED:
+                    ticket.rma_status = RMAStatus.ITEM_RECEIVED
+                    status_changed = True
+            elif ticket.replacement_tracking:
+                ticket.replacement_status = status
+                if is_delivered and ticket.rma_status == RMAStatus.REPLACEMENT_SHIPPED:
+                    ticket.rma_status = RMAStatus.COMPLETED
+                    ticket.status = TicketStatus.RESOLVED
+                    status_changed = True
+
+        db_session.commit()
+        return jsonify({
+            'success': True,
+            'status_changed': status_changed,
+            'status': status
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
 
 # Remove the create_repair_ticket route since it's now part of create_ticket
 

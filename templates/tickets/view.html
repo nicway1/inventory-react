@@ -1,7 +1,92 @@
 {% extends "base.html" %}
 
+{% block head %}
+<!-- Only load 17TRACK script if not a SingPost ticket -->
+{% if ticket.category != 'Asset Checkout (SingPost)' %}
+<!-- 17TRACK Widget Script -->
+<script>
+    (function(a,h,g,f,e,d,c,b){b=function(){d=h.createElement(g);c=h.getElementsByTagName(g)[0];d.src=e;d.charset="utf-8";d.async=1;c.parentNode.insertBefore(d,c)};a["YQV5"]=a["YQV5"]||[];a["YQV5"].push(function(){YQV5.track()});if(a.addEventListener){a.addEventListener("load",b,false)}else{a.attachEvent("onload",b)}})(window,document,"script","//www.17track.net/externalcall.js");
+</script>
+{% endif %}
+
+<style>
+#YQContainer, #YQContainer-rma_return, #YQContainer-rma_replacement {
+    width: 100%;
+    height: 560px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* Ensure tracking widgets are always visible */
+#YQContainer:not(.hidden),
+#YQContainer-rma_return:not(.hidden),
+#YQContainer-rma_replacement:not(.hidden) {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+}
+
+.mention-suggestions {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.mention-suggestion {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.mention-suggestion.selected {
+    background-color: #e5e7eb;
+}
+
+.tracking-iframe {
+    width: 100%;
+    height: 800px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.loading-indicator svg {
+    animation: spin 1s linear infinite;
+    height: 2rem;
+    width: 2rem;
+    color: #2563eb;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Ensure elements are always visible when not hidden */
+#YQContainer:not(.hidden),
+#loadingIndicator:not(.hidden),
+#customTrackingDisplay:not(.hidden) {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 max-w-[1920px]">
     <div class="mb-4">
         <a href="{{ url_for('tickets.list_tickets') }}" class="text-blue-500 hover:text-blue-700">
             &larr; Back to Tickets
@@ -9,10 +94,10 @@
     </div>
 
     <!-- Main content grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left column (2/3 width) - Ticket Details -->
-        <div class="lg:col-span-2">
-            <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <!-- Left column (3/5 width) - Ticket Details -->
+        <div class="lg:col-span-3">
+            <div class="bg-white shadow-lg rounded-lg overflow-hidden max-w-[1200px]">
                 <!-- Ticket Header -->
                 <div class="p-6 border-b">
                     <div class="flex justify-between items-start">
@@ -176,20 +261,36 @@
                     <div id="techAssetForm" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
                         <form action="{{ url_for('tickets.assign_asset', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Select Tech Asset</label>
-                                <select name="asset_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="">-- Select Asset --</option>
-                                    {% for asset in available_assets %}
-                                    <option value="{{ asset.id }}">
-                                        {{ asset.asset_tag }} - {{ asset.name }} ({{ asset.serial_num }})
-                                    </option>
-                                    {% endfor %}
-                                </select>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                                                <input type="checkbox" id="selectAllAssets" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for asset in available_assets %}
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap w-10">
+                                                <input type="checkbox" name="asset_id" value="{{ asset.id }}" 
+                                                       class="asset-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.asset_tag }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.name }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.serial_num }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                    Assign Asset
+                                    Assign Selected Assets
                                 </button>
                             </div>
                         </form>
@@ -283,12 +384,31 @@
                         {% for comment in comments %}
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <div class="flex justify-between items-start">
-                                <div class="font-medium">{{ comment.user_id }}</div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                                        <span class="text-white font-medium">
+                                            {% if comment.user %}
+                                                {{ comment.user.username[0].upper() }}
+                                            {% else %}
+                                                ?
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="font-medium text-gray-900">
+                                        {% if comment.user %}
+                                            {{ comment.user.username }}
+                                        {% else %}
+                                            Unknown User
+                                        {% endif %}
+                                    </div>
+                                </div>
                                 <div class="text-sm text-gray-500">
                                     {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
                                 </div>
                             </div>
-                            <div class="mt-2">{{ comment.content }}</div>
+                            <div class="mt-3 text-gray-700 prose">
+                                {{ comment.content|safe }}
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -354,66 +474,66 @@
                 </div>
                 {% endif %}
 
-                <!-- Add this section after ticket details -->
+                <!-- Tracking Information Section -->
                 <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Shipment Information</h3>
-                    {% if ticket.shipment %}
-                        <div class="bg-white p-4 rounded-lg shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="font-medium">Tracking Number: {{ ticket.shipment.tracking_number }}</p>
-                                    <p class="text-sm text-gray-600">Status: {{ ticket.shipment.status }}</p>
-                                    {% if ticket.shipment.description %}
-                                    <p class="text-sm text-gray-600 mt-2">{{ ticket.shipment.description }}</p>
-                                    {% endif %}
+                    <h3 class="text-lg font-semibold mb-4">Tracking Information</h3>
+                    
+                    <div class="mb-6">
+                        <h4 class="font-medium mb-2">Shipment Tracking</h4>
+                        <div class="bg-white p-4 rounded-lg shadow mb-4">
+                            <!-- Tracking input and button -->
+                            <form onsubmit="return doTrack(event)" class="mb-4">
+                                <div class="flex items-center space-x-4">
+                                    <input type="text" 
+                                           id="YQNum" 
+                                           maxlength="50"
+                                           value="{{ ticket.shipping_tracking if ticket.shipping_tracking else '' }}"
+                                           class="flex-1 min-w-0 block px-3 py-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                           placeholder="{% if ticket.category == 'Asset Checkout (SingPost)' %}Enter SingPost tracking number{% else %}Enter tracking number{% endif %}"
+                                           {% if ticket.category == 'Asset Checkout (SingPost)' %}pattern="^[A-Za-z]{2}[0-9]{9}[A-Za-z]{2}$"{% endif %}>
+                                    <button type="submit"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white {% if ticket.category == 'Asset Checkout (SingPost)' %}bg-orange-600 hover:bg-orange-700{% else %}bg-blue-600 hover:bg-blue-700{% endif %}">
+                                        TRACK
+                                    </button>
                                 </div>
-                                <span class="text-sm text-gray-500">
-                                    {{ ticket.shipment.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                </span>
-                            </div>
-
-                            <!-- Replace the 17TRACK widget section -->
-                            <div class="mt-4 border-t pt-4">
-                                <h4 class="text-sm font-medium mb-2">Track Shipment</h4>
-                                <div style="width: 100%; height: 600px;">
-                                    <div id="YQContainer_{{ ticket.id }}"></div>
-                                    <script>
-                                        window.addEventListener('load', function() {
-                                            YQV5.trackSingle({
-                                                YQ_ContainerId: "YQContainer_{{ ticket.id }}",
-                                                YQ_Height: 600,
-                                                YQ_Fc: "0",
-                                                YQ_Lang: "en",
-                                                YQ_Num: "{{ ticket.shipment.tracking_number }}"
-                                            });
-                                        });
-                                    </script>
+                                {% if ticket.category == 'Asset Checkout (SingPost)' %}
+                                <p class="mt-2 text-sm text-gray-500">Format: RBxxxxxxSG (SingPost tracking number format)</p>
+                                {% endif %}
+                            </form>
+                            
+                            <!-- Loading indicator -->
+                            <div id="loadingIndicator" class="hidden mb-4 text-center">
+                                <div class="inline-flex items-center px-4 py-2 font-semibold text-blue-900">
+                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Loading tracking information...
                                 </div>
                             </div>
-
-                            <!-- Rest of the tracking history section... -->
+                            
+                            <!-- Error message -->
+                            <div id="errorMessage" class="hidden mb-4 p-4 rounded-md bg-red-50 text-red-800">
+                            </div>
+                            
+                            <!-- Formatted tracking details display -->
+                            <div id="formattedTrackingDetails" class="mb-4 p-4 bg-gray-50 rounded-lg hidden">
+                                <h5 class="font-medium mb-2">Latest Status</h5>
+                                <div id="trackingStatus" class="text-sm"></div>
+                                <h5 class="font-medium mt-4 mb-2">Tracking History</h5>
+                                <div id="trackingHistory" class="text-sm space-y-2"></div>
+                            </div>
+                            
+                            <!-- Container to display the tracking result -->
+                            {% if ticket.category == 'Asset Checkout (SingPost)' %}
+                            <!-- SingPost tracking container -->
+                            <div id="singpostContainer" class="border rounded-lg overflow-hidden"></div>
+                            {% else %}
+                            <!-- 17TRACK container -->
+                            <div id="YQContainer" class="border rounded-lg overflow-hidden"></div>
+                            {% endif %}
                         </div>
-                    {% else %}
-                        {% if session.get('user_type') == 'admin' %}
-                        <form action="{{ url_for('tickets.add_shipment', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Tracking Number</label>
-                                <input type="text" name="tracking_number" required
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Description (Optional)</label>
-                                <textarea name="description" rows="2"
-                                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                            </div>
-                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                Add Shipment
-                            </button>
-                        </form>
-                        {% else %}
-                        <p class="text-gray-600">No shipment information available.</p>
-                        {% endif %}
-                    {% endif %}
+                    </div>
                 </div>
 
                 <!-- Replace the asset information section -->
@@ -519,6 +639,8 @@
                             bg-red-100 text-red-800
                         {% elif ticket.category == 'Service Request' %}
                             bg-indigo-100 text-indigo-800
+                        {% elif ticket.category == 'Asset Checkout (SingPost)' %}
+                            bg-orange-100 text-orange-800
                         {% else %}
                             bg-gray-100 text-gray-800
                         {% endif %}">
@@ -648,8 +770,8 @@
             </div>
         </div>
 
-        <!-- Right column (1/3 width) - Status and Chatter Feed -->
-        <div class="lg:col-span-1 space-y-6">
+        <!-- Right column (2/5 width) - Status and Chatter Feed -->
+        <div class="lg:col-span-2 space-y-6">
             <!-- Status Section -->
             {% if session.get('user_type') == 'admin' %}
             <div class="bg-white shadow rounded-lg">
@@ -739,9 +861,6 @@
                                     </span>
                                 </div>
                                 <div class="mt-1 text-sm text-gray-700">
-                                    {{ comment.content|safe }}
-                                </div>
-                                <div class="mt-2 text-sm text-gray-500">
                                     {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
                                 </div>
                             </div>
@@ -942,95 +1061,164 @@ function getCaretCoordinates(element, position) {
     
     return coordinates;
 }
+</script>
 
-function initializeTracking(trackingNumber, type) {
-    YQV5.trackSingle({
-        container: `YQContainer-${type}`,
-        number: trackingNumber,
-        lang: 'en',
-        crossBorder: true,
-        width: '100%',
-        height: '300px',
-        showCarrier: true,
-        showCarrierLogo: true,
-        showStatus: true,
-        showDetail: true,
-        showTimeline: true,
-        onUpdate: function(result) {
-            console.log('17track update:', result);  // Debug log
-            updateTrackingStatus(result, type);
-        }
-    });
+<!-- Replace the tracking script -->
+<script type="text/javascript" src="//www.17track.net/externalcall.js"></script>
+<script type="text/javascript">
+// Get ticket ID from the current URL
+const ticketId = window.location.pathname.split('/').pop();
+const isSingPost = document.querySelector('span.rounded-full')?.textContent.trim() === 'Asset Checkout (SingPost)';
+
+function showError(message) {
+    hideLoading();
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
 }
 
-function updateTrackingStatus(result, type) {
-    const ticketId = {{ ticket.id }};
+function hideError() {
+    document.getElementById('errorMessage').classList.add('hidden');
+}
+
+function showLoading() {
+    hideError();
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+    if (isSingPost) {
+        document.getElementById('singpostContainer').classList.add('hidden');
+    } else {
+        document.getElementById('YQContainer').classList.add('hidden');
+    }
+}
+
+function hideLoading() {
+    document.getElementById('loadingIndicator').classList.add('hidden');
+}
+
+function doTrack(event) {
+    if (event) {
+        event.preventDefault();
+    }
     
-    fetch(`/tickets/${ticketId}/track/${type}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(result)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Update response:', data);  // Debug log
-        if (data.error) {
-            console.error('Error updating tracking:', data.error);
-        } else if (data.success) {
-            // Refresh the page if status changed
-            if (data.ticket_status !== '{{ ticket.status }}' || 
-                (data.rma_status && data.rma_status !== '{{ ticket.rma_status }}')) {
-                location.reload();
-            }
+    const num = document.getElementById("YQNum").value.trim();
+    
+    if (!num) {
+        showError("Please enter a tracking number");
+        return false;
+    }
+    
+    // Validate SingPost tracking number format
+    if (isSingPost && !num.match(/^[A-Za-z]{2}[0-9]{9}[A-Za-z]{2}$/)) {
+        showError("Invalid SingPost tracking number format. Please use format: RBxxxxxxSG");
+        return false;
+    }
+    
+    showLoading();
+    
+    // Set a timeout to prevent endless loading
+    const loadingTimeout = setTimeout(() => {
+        hideLoading();
+        showError("Tracking information loading timeout. Please try again.");
+    }, 30000);
+    
+    try {
+        if (isSingPost) {
+            // Create an iframe for SingPost tracking
+            const trackingUrl = `https://www.singpost.com/track-items?track_number=${encodeURIComponent(num)}`;
+            const iframe = document.createElement('iframe');
+            iframe.src = trackingUrl;
+            iframe.className = 'w-full h-[600px] border-0';
+            
+            // Replace or append the iframe
+            const container = document.getElementById('singpostContainer');
+            container.innerHTML = '';
+            container.appendChild(iframe);
+            container.classList.remove('hidden');
+            
+            // Hide loading after iframe loads
+            iframe.onload = function() {
+                clearTimeout(loadingTimeout);
+                hideLoading();
+            };
+            
+            // Update tracking status in our system
+            fetch(`/tickets/${ticketId}/track/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tracking_number: num })
+            }).catch(console.error);
+        } else {
+            // Use 17TRACK for other carriers
+            YQV5.trackSingle({
+                YQ_ContainerId: "YQContainer",
+                YQ_Height: 560,
+                YQ_Fc: "0",
+                YQ_Lang: "en",
+                YQ_Num: num,
+                YQ_CompleteCallback: function(result) {
+                    clearTimeout(loadingTimeout);
+                    hideLoading();
+                    
+                    if (!result) {
+                        showError("Failed to load tracking information. Please try again.");
+                        return;
+                    }
+                    
+                    if (result.status !== 1) {
+                        showError(result.message || "Failed to load tracking information. Please try again.");
+                        return;
+                    }
+                    
+                    document.getElementById('YQContainer').classList.remove('hidden');
+                }
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
+    } catch (e) {
+        clearTimeout(loadingTimeout);
+        console.error('Error initializing tracking:', e);
+        hideLoading();
+        showError("Failed to initialize tracking. Please try again.");
+    }
+    
+    return false;
 }
 
-// Initialize tracking for regular shipment
-{% if ticket.shipment %}
-    initializeTracking('{{ ticket.shipment.tracking_number }}', 'regular');
-{% endif %}
-
-// Initialize tracking for RMA shipments
-{% if ticket.is_rma %}
-    {% if ticket.return_tracking %}
-        initializeTracking('{{ ticket.return_tracking.tracking_number }}', 'rma_return');
-    {% endif %}
-    {% if ticket.replacement_tracking %}
-        initializeTracking('{{ ticket.replacement_tracking.tracking_number }}', 'rma_replacement');
-    {% endif %}
-{% endif %}
-
-document.addEventListener('DOMContentLoaded', function() {
-    {% if ticket.is_rma %}
-        {% if ticket.return_tracking %}
-            console.log('Initializing return tracking...');
-            initializeTracking('{{ ticket.return_tracking.tracking_number }}', 'rma_return');
-        {% endif %}
-        {% if ticket.replacement_tracking %}
-            console.log('Initializing replacement tracking...');
-            initializeTracking('{{ ticket.replacement_tracking.tracking_number }}', 'rma_replacement');
-        {% endif %}
-    {% endif %}
+// Initialize tracking on page load if tracking number exists
+window.addEventListener('load', function() {
+    const trackingNumber = document.getElementById("YQNum");
+    if (trackingNumber && trackingNumber.value.trim()) {
+        setTimeout(doTrack, 1000);
+    }
 });
 </script>
 
-<!-- Add these divs where you want to show the tracking info -->
-{% if ticket.shipment %}
-<div id="YQContainer-regular"></div>
-{% endif %}
+<!-- Add this script at the end of the file, before the closing {% endblock %} -->
+<script>
+// Tech Assets select all functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllAssets = document.getElementById('selectAllAssets');
+    if (selectAllAssets) {
+        const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
+        
+        // Handle "select all" checkbox change
+        selectAllAssets.addEventListener('change', function() {
+            assetCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllAssets.checked;
+            });
+        });
 
-{% if ticket.is_rma %}
-    {% if ticket.return_tracking %}
-    <div id="YQContainer-rma_return"></div>
-    {% endif %}
-    {% if ticket.replacement_tracking %}
-    <div id="YQContainer-rma_replacement"></div>
-    {% endif %}
-{% endif %}
+        // Update "select all" checkbox when individual checkboxes change
+        assetCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const allChecked = Array.from(assetCheckboxes).every(cb => cb.checked);
+                const someChecked = Array.from(assetCheckboxes).some(cb => cb.checked);
+                selectAllAssets.checked = allChecked;
+                selectAllAssets.indeterminate = someChecked && !allChecked;
+            });
+        });
+    }
+});
+</script>
 {% endblock %} 

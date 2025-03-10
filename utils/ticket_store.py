@@ -84,8 +84,9 @@ class TicketStore:
             json.dump(tickets_data, f, indent=2)
 
     def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
-                    asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
-                    image_path=None, repair_status=None):
+                     asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
+                     image_path=None, repair_status=None, customer_id=None, shipping_address=None,
+                     shipping_tracking=None):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -109,7 +110,10 @@ class TicketStore:
                 damage_description=damage_description,
                 apple_diagnostics=apple_diagnostics,
                 image_path=image_path,
-                repair_status=repair_status
+                repair_status=repair_status,
+                customer_id=customer_id,
+                shipping_address=shipping_address,
+                shipping_tracking=shipping_tracking
             )
             db_session.add(ticket)
             db_session.commit()

@@ -30,9 +30,11 @@
                             onchange="toggleFormFields()"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a category...</option>
-                        <option value="PIN_REQUEST">PIN Request</option>
-                        <option value="ASSET_REPAIR">Asset Repair</option>
-                        <option value="BULK_DELIVERY_QUOTATION">Bulk Delivery Quotation</option>
+                        <option value="PIN_REQUEST" {% if form and form.category == 'PIN_REQUEST' %}selected{% endif %}>PIN Request</option>
+                        <option value="ASSET_REPAIR" {% if form and form.category == 'ASSET_REPAIR' %}selected{% endif %}>Asset Repair</option>
+                        <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
+                        <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout</option>
+                        <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
                     </select>
                 </div>
 
@@ -44,6 +46,7 @@
                         <input type="text" 
                                id="country" 
                                name="country" 
+                               value="{{ form.country if form else '' }}"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
 
@@ -58,7 +61,8 @@
                             <option value="{{ asset.serial_number }}" 
                                     data-model="{{ asset.model }}"
                                     data-customer="{{ asset.customer }}"
-                                    data-asset-tag="{{ asset.asset_tag }}">
+                                    data-asset-tag="{{ asset.asset_tag }}"
+                                    {% if form and form.serial_number == asset.serial_number %}selected{% endif %}>
                                 {{ asset.serial_number }} - {{ asset.model }} ({{ asset.asset_tag }})
                             </option>
                             {% endfor %}
@@ -71,6 +75,7 @@
                         <input type="text" 
                                id="model" 
                                name="model" 
+                               value="{{ form.model if form else '' }}"
                                readonly
                                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
                     </div>
@@ -80,6 +85,7 @@
                         <input type="text" 
                                id="customer_company" 
                                name="customer_company" 
+                               value="{{ form.customer_company if form else '' }}"
                                readonly
                                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm">
                     </div>
@@ -92,10 +98,10 @@
                                 required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">Select lock type...</option>
-                            <option value="ACTIVATION">Activation Lock</option>
-                            <option value="6_DIGIT">6 Digit Lock</option>
-                            <option value="BIOS">BIOS Lock</option>
-                            <option value="BITLOCKER">Bitlocker</option>
+                            <option value="ACTIVATION" {% if form and form.lock_type == 'ACTIVATION' %}selected{% endif %}>Activation Lock</option>
+                            <option value="6_DIGIT" {% if form and form.lock_type == '6_DIGIT' %}selected{% endif %}>6 Digit Lock</option>
+                            <option value="BIOS" {% if form and form.lock_type == 'BIOS' %}selected{% endif %}>BIOS Lock</option>
+                            <option value="BITLOCKER" {% if form and form.lock_type == 'BITLOCKER' %}selected{% endif %}>Bitlocker</option>
                         </select>
                     </div>
 
@@ -105,7 +111,7 @@
                         <textarea id="notes" 
                                   name="notes" 
                                   rows="3"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ form.notes if form else '' }}</textarea>
                     </div>
                 </div>
 
@@ -219,12 +225,89 @@
                     </div>
                 </div>
 
+                <!-- Asset Checkout Fields -->
+                <div id="assetCheckoutFields" class="hidden space-y-6">
+                    <!-- Customer Selection -->
+                    <div>
+                        <label for="customer_id" class="block text-sm font-medium text-gray-700">Select Customer</label>
+                        <select id="customer_id" 
+                                name="customer_id"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select a customer...</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}" 
+                                    data-address="{{ customer.address }}"
+                                    data-company="{{ customer.company.name if customer.company else '' }}">
+                                {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Hidden field for asset checkout serial number -->
+                    <input type="hidden" id="asset_checkout_serial" name="asset_checkout_serial" value="">
+
+                    <!-- Asset Selection -->
+                    <div>
+                        <label for="checkout_serial_number" class="block text-sm font-medium text-gray-700">Asset Selection</label>
+                        <select id="checkout_serial_number" 
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select an asset...</option>
+                            {% for asset in assets %}
+                            <option value="{{ asset.serial_number }}" 
+                                    data-model="{{ asset.model }}"
+                                    data-asset-tag="{{ asset.asset_tag }}">
+                                {{ asset.serial_number }} - {{ asset.model }} ({{ asset.asset_tag }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Shipping Address -->
+                    <div>
+                        <label for="shipping_address" class="block text-sm font-medium text-gray-700">Shipping Address</label>
+                        <textarea id="shipping_address" 
+                                  name="shipping_address" 
+                                  rows="3"
+                                  required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Tracking Number -->
+                    <div>
+                        <label for="shipping_tracking" class="block text-sm font-medium text-gray-700">
+                            <span id="trackingLabel">Tracking Number</span>
+                            <span id="singpostNote" class="text-sm text-gray-500 hidden">(Format: RR123456789SG)</span>
+                        </label>
+                        <input type="text" 
+                               id="shipping_tracking" 
+                               name="shipping_tracking" 
+                               pattern="" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p id="trackingHint" class="mt-1 text-sm text-gray-500 hidden">
+                            Please enter a valid SingPost tracking number (e.g., RR123456789SG)
+                        </p>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="checkout_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea id="checkout_notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+
                 <!-- Subject -->
                 <div>
                     <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
                     <input type="text" 
                            id="subject" 
                            name="subject" 
+                           value="{{ form.subject if form else '' }}"
                            required
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
@@ -238,7 +321,7 @@
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select priority...</option>
                         {% for priority in priorities %}
-                        <option value="{{ priority.name }}">{{ priority.value }}</option>
+                        <option value="{{ priority.name }}" {% if form and form.priority == priority.name %}selected{% endif %}>{{ priority.value }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -250,7 +333,7 @@
                               name="description" 
                               rows="5"
                               required
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ form.description if form else '' }}</textarea>
                 </div>
 
                 <!-- Submit Button -->
@@ -274,30 +357,55 @@ function toggleFormFields() {
     const category = document.getElementById('category').value;
     const pinRequestFields = document.getElementById('pinRequestFields');
     const repairFields = document.getElementById('repairFields');
+    const assetCheckoutFields = document.getElementById('assetCheckoutFields');
+    const trackingLabel = document.getElementById('trackingLabel');
+    const singpostNote = document.getElementById('singpostNote');
+    const trackingHint = document.getElementById('trackingHint');
+    const trackingInput = document.getElementById('shipping_tracking');
     
     // Hide all category-specific fields first
     pinRequestFields.classList.add('hidden');
     repairFields.classList.add('hidden');
+    assetCheckoutFields.classList.add('hidden');
     
-    // Remove required attributes
-    document.getElementById('country').required = false;
+    // Remove required attributes from all fields
     document.getElementById('serial_number').required = false;
     document.getElementById('lock_type').required = false;
-    document.getElementById('repair_country').required = false;
     document.getElementById('repair_serial_number').required = false;
     document.getElementById('damage_description').required = false;
+    document.getElementById('customer_id').required = false;
+    document.getElementById('checkout_serial_number').required = false;
+    document.getElementById('shipping_address').required = false;
     
     // Show and make required the appropriate fields
     if (category === 'PIN_REQUEST') {
         pinRequestFields.classList.remove('hidden');
-        document.getElementById('country').required = true;
         document.getElementById('serial_number').required = true;
         document.getElementById('lock_type').required = true;
     } else if (category === 'ASSET_REPAIR') {
         repairFields.classList.remove('hidden');
-        document.getElementById('repair_country').required = true;
         document.getElementById('repair_serial_number').required = true;
         document.getElementById('damage_description').required = true;
+    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST') {
+        assetCheckoutFields.classList.remove('hidden');
+        document.getElementById('customer_id').required = true;
+        document.getElementById('checkout_serial_number').required = true;
+        document.getElementById('shipping_address').required = true;
+        
+        // Update tracking field based on category
+        if (category === 'ASSET_CHECKOUT_SINGPOST') {
+            trackingLabel.textContent = 'SingPost Tracking Number';
+            singpostNote.classList.remove('hidden');
+            trackingHint.classList.remove('hidden');
+            trackingInput.pattern = '^[A-Z]{2}[0-9]{9}[A-Z]{2}$';
+            trackingInput.required = true;
+        } else {
+            trackingLabel.textContent = 'Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = '';
+            trackingInput.required = false;
+        }
     }
 }
 
@@ -311,88 +419,100 @@ function requestQuote(type) {
     form.submit();
 }
 
-// Initialize Select2
+// Initialize Select2 and form state
 $(document).ready(function() {
-    $('#serial_number, #repair_serial_number').select2({
+    // Initialize Select2 for all asset selection dropdowns
+    $('#serial_number, #repair_serial_number, #checkout_serial_number').select2({
         placeholder: 'Search by serial number, model, or asset tag...',
         allowClear: true,
         width: '100%'
     });
 
-    // Handle PIN request asset selection
-    $('#serial_number').on('change', function() {
+    // Initialize form state and show the correct category fields
+    toggleFormFields();
+    
+    // If there's form data, trigger the asset selection change event
+    if ($('#category').val()) {
+        const category = $('#category').val();
+        if (category === 'PIN_REQUEST' && $('#serial_number').val()) {
+            $('#serial_number').trigger('change');
+        } else if (category === 'ASSET_REPAIR' && $('#repair_serial_number').val()) {
+            $('#repair_serial_number').trigger('change');
+        } else if (category === 'ASSET_CHECKOUT' && $('#checkout_serial_number').val()) {
+            $('#checkout_serial_number').trigger('change');
+        }
+    }
+
+    // Handle asset selection changes
+    $('#serial_number, #repair_serial_number, #checkout_serial_number').on('change', function() {
         const selectedOption = $(this).find(':selected');
         if (selectedOption.val()) {
             const model = selectedOption.data('model');
             const customer = selectedOption.data('customer');
             const assetTag = selectedOption.data('asset-tag');
             
-            // Populate the fields
-            $('#model').val(model);
-            $('#customer_company').val(customer);
-            
-            // Auto-populate subject with a standard format
-            $('#subject').val(`PIN Request - ${model} - ${selectedOption.val()}`);
-            
-            // Auto-populate description with a template
-            const description = `Serial Number: ${selectedOption.val()}
-Model: ${model}
-Asset Tag: ${assetTag}
-Customer: ${customer}
-Lock Type: [To be selected]
-
-Additional Information:
-- Country: ${$('#country').val()}
-`;
-            $('#description').val(description);
-        } else {
-            // Clear the fields if no asset is selected
-            $('#model').val('');
-            $('#customer_company').val('');
+            // Update the appropriate fields based on which dropdown changed
+            if (this.id === 'serial_number') {
+                $('#model').val(model);
+                $('#customer_company').val(customer);
+                if (!$('#subject').val()) {
+                    $('#subject').val(`PIN Request - ${model} - ${selectedOption.val()}`);
+                }
+            } else if (this.id === 'repair_serial_number') {
+                $('#repair_model').val(model);
+                $('#repair_customer').val(customer);
+                if (!$('#subject').val()) {
+                    $('#subject').val(`Repair Request - ${model} - ${selectedOption.val()}`);
+                }
+            } else if (this.id === 'checkout_serial_number') {
+                // Update the hidden field with the selected serial number
+                $('#asset_checkout_serial').val(selectedOption.val());
+                console.log('Updated asset_checkout_serial to:', selectedOption.val());
+                
+                if (!$('#subject').val()) {
+                    $('#subject').val(`Asset Checkout - ${model} - ${selectedOption.val()}`);
+                }
+            }
         }
     });
 
-    // Handle repair asset selection
-    $('#repair_serial_number').on('change', function() {
+    // Handle customer selection for asset checkout
+    $('#customer_id').on('change', function() {
         const selectedOption = $(this).find(':selected');
         if (selectedOption.val()) {
-            const model = selectedOption.data('model');
-            const customer = selectedOption.data('customer');
-            const assetTag = selectedOption.data('asset-tag');
-            
-            // Populate the fields
-            $('#repair_model').val(model);
-            $('#repair_customer').val(customer);
-            
-            // Auto-populate subject with a standard format
-            $('#subject').val(`Repair Request - ${model} - ${selectedOption.val()}`);
-            
-            // Auto-populate description with a template
-            const description = `Asset Details:
-Serial Number: ${selectedOption.val()}
-Model: ${model}
-Asset Tag: ${assetTag}
-Customer: ${customer}
-Country: ${$('#repair_country').val()}
-
-Damage Description:
-${$('#damage_description').val()}
-
-Apple Diagnostics Code: ${$('#apple_diagnostics').val() || 'N/A'}
-
-Additional Notes:
-${$('#repair_notes').val()}
-`;
-            $('#description').val(description);
-        } else {
-            // Clear the fields if no asset is selected
-            $('#repair_model').val('');
-            $('#repair_customer').val('');
+            const address = selectedOption.data('address');
+            if (address) {
+                $('#shipping_address').val(address);
+            }
         }
+    });
+
+    // Add form submission debugging
+    $('form').on('submit', function(e) {
+        const category = $('#category').val();
+        if (category === 'ASSET_CHECKOUT') {
+            const serialNumber = $('#checkout_serial_number').val();
+            if (!serialNumber) {
+                e.preventDefault();
+                alert('Please select an asset');
+                return false;
+            }
+            
+            // Set the hidden field value again to ensure it's properly set
+            $('#asset_checkout_serial').val(serialNumber);
+            console.log('Form submitted with asset_checkout_serial:', $('#asset_checkout_serial').val());
+        }
+        
+        console.log('Form submitted');
+        console.log('Category:', $('#category').val());
+        console.log('Customer ID:', $('#customer_id').val());
+        console.log('Serial Number (checkout):', $('#checkout_serial_number').val());
+        console.log('Hidden Serial Number:', $('#asset_checkout_serial').val());
+        console.log('Shipping Address:', $('#shipping_address').val());
+        console.log('Subject:', $('#subject').val());
+        console.log('Priority:', $('#priority').val());
+        return true;
     });
 });
-
-// Initialize form state on page load
-document.addEventListener('DOMContentLoaded', toggleFormFields);
 </script>
 {% endblock %} 
