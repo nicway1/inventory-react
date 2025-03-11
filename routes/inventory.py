@@ -630,55 +630,57 @@ def import_inventory():
                         # Create preview data based on import type
                         preview_data = []
                         if import_type == 'tech_assets':
+                            # Create a case-insensitive column mapping
+                            column_mapping = {col.lower(): col for col in df.columns}
+                            
                             for _, row in df.iterrows():
                                 preview_row = {
-                                    'Asset Type': clean_value(row.get('Asset Type', '')),
-                                    'Asset Tag': clean_value(row.get('ASSET TAG', '')),
-                                    'Serial Number': clean_value(row.get('SERIAL NUMBER', '')),
-                                    'Product': clean_value(row.get('Product', '')),
-                                    'Model': clean_value(row.get('MODEL', '')),
-                                    'Hardware Type': clean_value(row.get('HARDWARE TYPE', '')),
-                                    'CPU Type': clean_value(row.get('CPU TYPE', '')),
-                                    'CPU Cores': clean_value(row.get('CPU CORES', '')),
-                                    'GPU Cores': clean_value(row.get('GPU CORES', '')),
-                                    'Memory': clean_value(row.get('MEMORY', '')),
-                                    'Hard Drive': clean_value(row.get('HARDDRIVE', '')),
-                                    'Status': clean_value(row.get('STATUS', 'IN STOCK')),
-                                    'Customer': clean_value(row.get('CUSTOMER', '')),
-                                    'Country': clean_value(row.get('country', '')),
-                                    'PO': clean_value(row.get('PO', '')),
-                                    'Receiving Date': clean_value(row.get('Receiving date', '')),
-                                    'Condition': clean_value(row.get('CONDITION', '')),
-                                    'Diagnostic': clean_value(row.get('DIAG', '')),
-                                    'Notes': clean_value(row.get('NOTES', '')),
-                                    'Tech Notes': clean_value(row.get('TECH NOTES', '')),
-                                    'Erased': clean_value(row.get('ERASED', '')),
-                                    'Keyboard': clean_value(row.get('Keyboard', '')),
-                                    'Charger': clean_value(row.get('CHARGER', '')),
-                                    'Included': clean_value(row.get('INCLUDED', ''))
+                                    'Asset Type': clean_value(row.get(column_mapping.get('asset type', 'Asset Type'), '')),
+                                    'Asset Tag': clean_value(row.get(column_mapping.get('asset tag', 'ASSET TAG'), '')),
+                                    'Serial Number': clean_value(row.get(column_mapping.get('serial number', 'SERIAL NUMBER'), '')),
+                                    'Product': clean_value(row.get(column_mapping.get('product', 'Product'), '')),
+                                    'Model': clean_value(row.get(column_mapping.get('model', 'MODEL'), '')),
+                                    'Hardware Type': clean_value(row.get(column_mapping.get('hardware type', 'HARDWARE TYPE'), '')),
+                                    'CPU Type': clean_value(row.get(column_mapping.get('cpu type', 'CPU TYPE'), '')),
+                                    'CPU Cores': clean_value(row.get(column_mapping.get('cpu cores', 'CPU CORES'), '')),
+                                    'GPU Cores': clean_value(row.get(column_mapping.get('gpu cores', 'GPU CORES'), '')),
+                                    'Memory': clean_value(row.get(column_mapping.get('memory', 'MEMORY'), '')),
+                                    'Hard Drive': clean_value(row.get(column_mapping.get('hard drive', 'HARDDRIVE'), '')),
+                                    'Status': clean_value(row.get(column_mapping.get('status', 'STATUS'), 'IN STOCK')),
+                                    'Customer': clean_value(row.get(column_mapping.get('customer', 'CUSTOMER'), '')),
+                                    'Country': clean_value(row.get(column_mapping.get('country', 'COUNTRY'), '')),
+                                    'PO': clean_value(row.get(column_mapping.get('po', 'PO'), '')),
+                                    'Receiving Date': clean_value(row.get(column_mapping.get('receiving date', 'Receiving date'), '')),
+                                    'Condition': clean_value(row.get(column_mapping.get('condition', 'CONDITION'), '')),
+                                    'Diagnostic': clean_value(row.get(column_mapping.get('diagnostic', 'DIAG'), '')),
+                                    'Notes': clean_value(row.get(column_mapping.get('notes', 'NOTES'), '')),
+                                    'Tech Notes': clean_value(row.get(column_mapping.get('tech notes', 'TECH NOTES'), '')),
+                                    'Erased': clean_value(row.get(column_mapping.get('erased', 'ERASED'), '')),
+                                    'Keyboard': clean_value(row.get(column_mapping.get('keyboard', 'Keyboard'), '')),
+                                    'Charger': clean_value(row.get(column_mapping.get('charger', 'CHARGER'), '')),
+                                    'Included': clean_value(row.get(column_mapping.get('included', 'INCLUDED'), ''))
                                 }
                                 preview_data.append(preview_row)
                         else:  # accessories
-                            # Read CSV file with headers
-                            df = pd.read_csv(filepath, encoding=encoding)
+                            # Create a case-insensitive column mapping for accessories
+                            column_mapping = {col.lower(): col for col in df.columns}
                             
-                            # Generate preview data
                             for _, row in df.iterrows():
                                 try:
-                                    quantity = str(row['TOTAL QUANTITY']).strip()
+                                    quantity = str(row.get(column_mapping.get('total quantity', 'TOTAL QUANTITY'), '')).strip()
                                     quantity = int(quantity) if quantity else 0
                                 except (ValueError, KeyError):
                                     quantity = 0
 
                                 preview_row = {
-                                    'Name': str(row['NAME']).strip(),
-                                    'Category': str(row['CATEGORY']).strip(),
-                                    'Manufacturer': str(row['MANUFACTURER']).strip(),
-                                    'Model Number': str(row['MODEL NO']).strip() if 'MODEL NO' in row else str(row.get('MODEL_NO', '')).strip(),
-                                    'Status': str(row['Status']).strip() if pd.notna(row['Status']) else 'Available',
+                                    'Name': clean_value(row.get(column_mapping.get('name', 'NAME'), '')),
+                                    'Category': clean_value(row.get(column_mapping.get('category', 'CATEGORY'), '')),
+                                    'Manufacturer': clean_value(row.get(column_mapping.get('manufacturer', 'MANUFACTURER'), '')),
+                                    'Model Number': clean_value(row.get(column_mapping.get('model no', 'MODEL NO'), '')),
+                                    'Status': clean_value(row.get(column_mapping.get('status', 'Status'), 'Available')),
                                     'Total Quantity': quantity,
-                                    'Country': str(row['COUNTRY']).strip(),
-                                    'Notes': str(row['NOTES']).strip()
+                                    'Country': clean_value(row.get(column_mapping.get('country', 'COUNTRY'), '')),
+                                    'Notes': clean_value(row.get(column_mapping.get('notes', 'NOTES'), ''))
                                 }
                                 preview_data.append(preview_row)
 

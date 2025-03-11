@@ -406,6 +406,7 @@
                     previewDataInput.value = JSON.stringify(rowData);
                     return true;
                 } catch (e) {
+                    console.error('Error updating preview data:', e);
                     return false;
                 }
             }
@@ -414,10 +415,50 @@
 
         // Function to check if all required fields are filled
         function checkAllFieldsConfirmed() {
-            const unconfirmedButtons = document.querySelectorAll('.confirm-button:not(.confirmed)');
-            submitButton.disabled = unconfirmedButtons.length > 0;
+            const importType = form.getAttribute('data-import-type') || '{{ import_type }}';
+            let allValid = true;
+
+            if (importType === 'tech_assets') {
+                // Check Asset Type and Asset Tag fields
+                document.querySelectorAll('[id^="preview_data_"]').forEach(input => {
+                    try {
+                        const rowData = JSON.parse(input.value);
+                        if (!rowData['Asset Type'] || !rowData['Asset Tag']) {
+                            allValid = false;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing preview data:', e);
+                        allValid = false;
+                    }
+                });
+            } else {
+                // Check Name and Category fields for accessories
+                document.querySelectorAll('[id^="preview_data_"]').forEach(input => {
+                    try {
+                        const rowData = JSON.parse(input.value);
+                        if (!rowData['Name'] || !rowData['Category']) {
+                            allValid = false;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing preview data:', e);
+                        allValid = false;
+                    }
+                });
+            }
+
+            // Enable/disable submit button based on validation
+            if (allValid) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                submitButton.disabled = true;
+                submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            }
         }
 
+        // Add event listeners to confirm buttons
         document.querySelectorAll('.confirm-button').forEach(button => {
             button.addEventListener('click', function() {
                 const rowIndex = this.getAttribute('data-row');
@@ -438,57 +479,53 @@
                 }
 
                 const value = input.value.trim();
-                updatePreviewData(rowIndex, field, value);
                 
-                if (field === 'Asset Tag') {
-                    updateAssetTag(rowIndex, value);
+                // Update both preview data and specific field
+                if (updatePreviewData(rowIndex, field, value)) {
+                    if (field === 'Asset Tag') {
+                        updateAssetTag(rowIndex, value);
+                    }
+                    
+                    // Update UI to show confirmation
+                    input.readOnly = true;
+                    input.style.backgroundColor = '#f0fdf4';
+                    this.textContent = 'Confirmed ✓';
+                    this.disabled = true;
+                    this.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
+                    this.classList.add('bg-green-100', 'text-green-700', 'confirmed');
+                    
+                    // Check if all fields are now valid
+                    checkAllFieldsConfirmed();
+                } else {
+                    alert('Error updating field. Please try again.');
                 }
-                
-                input.readOnly = true;
-                input.style.backgroundColor = '#f0fdf4';
-                
-                this.textContent = 'Confirmed ✓';
-                this.disabled = true;
-                this.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
-                this.classList.add('bg-green-100', 'text-green-700', 'confirmed');
-                
-                checkAllFieldsConfirmed();
             });
         });
 
+        // Add input event listeners to required fields
+        document.querySelectorAll('.required-field').forEach(input => {
+            input.addEventListener('input', () => {
+                const confirmButton = input.parentElement.querySelector('.confirm-button');
+                if (confirmButton && !confirmButton.disabled) {
+                    confirmButton.classList.toggle('bg-blue-200', input.value.trim() !== '');
+                }
+            });
+        });
+
+        // Initial check for all fields
+        checkAllFieldsConfirmed();
+
+        // Form submission handler
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            let allValid = true;
-
-            if (form.getAttribute('data-type') === 'tech_assets') {
-                const assetTagInputs = document.querySelectorAll('[id^="direct_asset_tag_"]');
-                assetTagInputs.forEach(input => {
-                    if (!input.value.trim()) {
-                        allValid = false;
-                    }
-                });
-            } else {
-                const previewDataInputs = document.querySelectorAll('[id^="preview_data_"]');
-                previewDataInputs.forEach((input, index) => {
-                    try {
-                        const rowData = JSON.parse(input.value);
-                        if (!rowData['Name'] || !rowData['Category']) {
-                            allValid = false;
-                        }
-                    } catch (e) {
-                        allValid = false;
-                    }
-                });
-            }
-
-            if (allValid) {
+            checkAllFieldsConfirmed();
+            
+            if (!submitButton.disabled) {
                 form.submit();
             } else {
                 alert('Some required fields are missing. Please confirm all required fields.');
             }
         });
-
-        checkAllFieldsConfirmed();
     });
 </script>
 {% endblock %} 
