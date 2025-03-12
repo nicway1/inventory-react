@@ -6,6 +6,7 @@ from utils.db_manager import DatabaseManager
 from flask_login import login_required, current_user, login_user, logout_user
 from datetime import datetime
 from models.user import User
+from models.permission import Permission
 
 auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
@@ -22,30 +23,41 @@ def login():
             flash('Please provide both username and password')
             return render_template('auth/login.html')
         
-        db_session = db_manager.get_session()
         try:
-            user = db_session.query(User).filter(User.username == username).first()
+            # Use DatabaseManager to get user with permissions
+            user = db_manager.get_user_by_username(username)
             if user and user.check_password(password):
-                # Make sure to load any necessary relationships before closing the session
-                if user.company:
-                    user.company
-                if user.permissions:
-                    user.permissions
-                    
+                # Initialize permissions if they don't exist
+                if not user.permissions:
+                    default_permissions = Permission.get_default_permissions(user.user_type)
+                    permission = Permission(user_type=user.user_type, **default_permissions)
+                    db_session = db_manager.get_session()
+                    try:
+                        db_session.add(permission)
+                        user.permissions = permission
+                        db_session.commit()
+                    finally:
+                        db_session.close()
+                
                 login_user(user)
                 session['user_id'] = user.id
                 session['user_type'] = user.user_type.value
                 session['username'] = user.username
                 
-                # Update last login time with datetime object
+                # Update last login time
                 user.last_login = datetime.utcnow()
-                db_session.commit()
+                db_session = db_manager.get_session()
+                try:
+                    db_session.commit()
+                finally:
+                    db_session.close()
                 
                 return redirect(url_for('main.index'))
                 
             flash('Invalid username or password')
-        finally:
-            db_session.close()
+        except Exception as e:
+            flash('An error occurred during login')
+            print(f"Login error: {str(e)}")
     
     return render_template('auth/login.html')
 
@@ -185,4 +197,4 @@ def change_password():
         except Exception as e:
             flash(f'Error changing password: {str(e)}', 'error')
             
-    return render_template('change_password.html') 
+    return render_template('change_password.html')

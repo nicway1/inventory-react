@@ -167,7 +167,8 @@ class DatabaseManager:
         session = self.get_session()
         try:
             return session.query(User).options(
-                joinedload(User.company)
+                joinedload(User.company),
+                joinedload(User.permissions)
             ).filter(User.id == user_id).first()
         finally:
             session.close()
@@ -241,9 +242,10 @@ class DatabaseManager:
     def get_user_by_id(self, user_id):
         session = self.get_session()
         try:
-            # Use joinedload to eagerly load the company relationship
+            # Use joinedload to eagerly load the company and permissions relationships
             return session.query(User).options(
-                joinedload(User.company)
+                joinedload(User.company),
+                joinedload(User.permissions)
             ).filter(User.id == user_id).first()
         finally:
             session.close()

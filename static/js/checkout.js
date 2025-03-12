@@ -109,6 +109,7 @@ class CheckoutListManager {
         const clearCheckoutList = document.getElementById('clearCheckoutList');
         const customerSelect = document.getElementById('customerSelect');
         const processCheckout = document.getElementById('processCheckout');
+        const removeSerialPrefixBtn = document.getElementById('removeSerialPrefix');
 
         if (viewCheckoutList) {
             viewCheckoutList.addEventListener('click', () => {
@@ -141,6 +142,22 @@ class CheckoutListManager {
 
         if (processCheckout) {
             processCheckout.addEventListener('click', () => this.processCheckout());
+        }
+
+        if (removeSerialPrefixBtn) {
+            removeSerialPrefixBtn.addEventListener('click', () => {
+                const selectedAssets = Array.from(document.querySelectorAll('input[name="selected_assets[]"]:checked'))
+                    .map(checkbox => parseInt(checkbox.value));
+                
+                if (selectedAssets.length === 0) {
+                    showError('Please select at least one asset');
+                    return;
+                }
+                
+                if (confirm('Are you sure you want to remove the S prefix from the selected asset serial numbers?')) {
+                    this.removeSerialPrefix(selectedAssets);
+                }
+            });
         }
 
         // Initial UI update
@@ -213,6 +230,35 @@ class CheckoutListManager {
             setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
             console.error('Error processing checkout:', error);
+            showError(error.message);
+        }
+    }
+
+    async removeSerialPrefix(selectedAssetIds) {
+        try {
+            const response = await fetch('/inventory/remove-serial-prefix', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    asset_ids: selectedAssetIds
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update serial numbers');
+            }
+
+            const result = await response.json();
+            showError(result.message, true);
+            
+            // Reload the page to show updated serial numbers
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+            console.error('Error updating serial numbers:', error);
             showError(error.message);
         }
     }

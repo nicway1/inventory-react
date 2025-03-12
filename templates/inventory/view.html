@@ -73,7 +73,7 @@
 
     <!-- Filter Button -->
     <div class="flex justify-end mb-6 space-x-2">
-        {% if current_user.is_authenticated and current_user.permissions.can_export_data %}
+        {% if user and user.permissions and user.permissions.can_export_data %}
         <a href="{{ url_for('inventory.export_inventory', item_type='assets') }}" 
            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@
             Export to CSV
         </a>
         {% endif %}
-        {% if current_user.is_admin %}
+        {% if is_admin %}
         <a href="{{ url_for('inventory.add_asset') }}" 
            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
             Add Asset
@@ -146,6 +146,12 @@
                         Delete Selected
                     </button>
                 </form>
+
+                <!-- Remove Serial Prefix Button -->
+                <button id="removeSerialPrefix" disabled
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Remove Serial Prefix
+                </button>
                 {% endif %}
                 
                 <!-- Checkout List Buttons -->
@@ -264,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllAccessories = document.getElementById('selectAllAccessories');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const isAdmin = techAssetsTable.dataset.isAdmin === 'true';
+    const removeSerialPrefixBtn = document.getElementById('removeSerialPrefix');
 
     // Initialize variables
     let selectedAssetIds = [];
@@ -280,6 +287,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const processCheckout = document.getElementById('processCheckout');
     const customerSelect = document.getElementById('customerSelect');
     const checkoutCount = document.getElementById('checkoutCount');
+
+    // Initialize button states
+    updateButtonStates();
 
     // Function to show error
     function showError(message, isSuccess = false) {
@@ -421,6 +431,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 checkbox.addEventListener('click', function(e) {
                     e.stopPropagation();
                     handleAssetSelection(this);
+                    updateButtonStates();
                 });
             });
         } else {
@@ -456,8 +467,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select all assets
     if (selectAllAssets) {
         selectAllAssets.addEventListener('change', function() {
-            const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
-            assetCheckboxes.forEach(checkbox => {
+            const checkboxes = document.querySelectorAll('.asset-checkbox');
+            checkboxes.forEach(checkbox => {
                 checkbox.checked = this.checked;
                 const assetId = parseInt(checkbox.dataset.id);
                 if (this.checked) {
@@ -469,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             updateSelection();
+            updateButtonStates();
         });
     }
 
@@ -488,6 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         updateSelection();
+        updateButtonStates();
     }
 
     // Handle accessory selection
@@ -663,6 +676,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load initial data
     loadTechAssets();
+
+    // Function to update button states based on selections
+    function updateButtonStates() {
+        const selectedAssets = document.querySelectorAll('.asset-checkbox:checked');
+        const selectedAccessories = document.querySelectorAll('.accessory-checkbox:checked');
+        
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = selectedAssets.length === 0 && selectedAccessories.length === 0;
+        }
+        if (addToCheckoutList) {
+            addToCheckoutList.disabled = selectedAssets.length === 0 && selectedAccessories.length === 0;
+        }
+        if (removeSerialPrefixBtn) {
+            removeSerialPrefixBtn.disabled = selectedAssets.length === 0;
+        }
+        
+        // Update hidden input for bulk delete
+        document.getElementById('selectedAssetIdsDelete').value = JSON.stringify(
+            Array.from(selectedAssets).map(cb => parseInt(cb.dataset.id))
+        );
+        document.getElementById('selectedAccessoryIdsDelete').value = JSON.stringify(
+            Array.from(selectedAccessories).map(cb => parseInt(cb.dataset.id))
+        );
+    }
+
+    // Add event listener for select all checkbox
+    const selectAllAssetsCheckbox = document.getElementById('selectAllAssets');
+    if (selectAllAssetsCheckbox) {
+        selectAllAssetsCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.asset-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                const assetId = parseInt(checkbox.dataset.id);
+                if (this.checked) {
+                    if (!selectedAssetIds.includes(assetId)) {
+                        selectedAssetIds.push(assetId);
+                    }
+                } else {
+                    selectedAssetIds = selectedAssetIds.filter(id => id !== assetId);
+                }
+            });
+            updateSelection();
+            updateButtonStates();
+        });
+    }
+
+    if (removeSerialPrefixBtn) {
+        removeSerialPrefixBtn.addEventListener('click', () => {
+            if (selectedAssetIds.length === 0) {
+                showError('Please select at least one asset');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to remove the S prefix from the selected asset serial numbers?')) {
+                window.checkoutManager.removeSerialPrefix(selectedAssetIds);
+            }
+        });
+    }
 });
 </script>
 {% endblock %} 

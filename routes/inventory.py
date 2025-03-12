@@ -102,7 +102,9 @@ def view_inventory():
             countries=countries,
             accessories=accessories_list,
             customers=customers,
-            user=user
+            user=user,
+            is_admin=user.is_admin,
+            is_country_admin=user.is_country_admin
         )
 
     finally:
@@ -2345,5 +2347,67 @@ def get_checkout_items():
             } for acc in accessories]
         }
         return jsonify(response)
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/remove-serial-prefix', methods=['POST'])
+@login_required
+@admin_required
+def remove_serial_prefix():
+    """Remove 'S' prefix from serial numbers of selected assets"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        asset_ids = data.get('asset_ids', [])
+        
+        if not asset_ids:
+            return jsonify({'error': 'No assets selected'}), 400
+            
+        updated_count = 0
+        for asset_id in asset_ids:
+            asset = db_session.query(Asset).get(asset_id)
+            if asset and asset.serial_num and asset.serial_num.startswith('S'):
+                # Store old value for history
+                old_serial = asset.serial_num
+                # Remove 'S' prefix
+                asset.serial_num = asset.serial_num[1:]
+                
+                # Track change
+                changes = {
+                    'serial_num': {
+                        'old': old_serial,
+                        'new': asset.serial_num
+                    }
+                }
+                
+                # Create history entry
+                history_entry = asset.track_change(
+                    user_id=current_user.id,
+                    action='update',
+                    changes=changes,
+                    notes='Removed S prefix from serial number'
+                )
+                db_session.add(history_entry)
+                updated_count += 1
+        
+        if updated_count > 0:
+            # Add activity record
+            activity = Activity(
+                user_id=current_user.id,
+                type='asset_updated',
+                content=f'Removed S prefix from {updated_count} asset serial numbers',
+                reference_id=0
+            )
+            db_session.add(activity)
+            
+        db_session.commit()
+        return jsonify({
+            'message': f'Successfully updated {updated_count} asset serial numbers',
+            'updated_count': updated_count
+        })
+        
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
