@@ -108,6 +108,7 @@ class CheckoutListManager {
         const closeCheckoutModal = document.getElementById('closeCheckoutModal');
         const clearCheckoutList = document.getElementById('clearCheckoutList');
         const customerSelect = document.getElementById('customerSelect');
+        const processCheckout = document.getElementById('processCheckout');
 
         if (viewCheckoutList) {
             viewCheckoutList.addEventListener('click', () => {
@@ -136,6 +137,10 @@ class CheckoutListManager {
 
         if (customerSelect) {
             customerSelect.addEventListener('change', () => this.updateUI());
+        }
+
+        if (processCheckout) {
+            processCheckout.addEventListener('click', () => this.processCheckout());
         }
 
         // Initial UI update
@@ -223,4 +228,6 @@ function showError(message, isSuccess = false) {
 }
 
 // Initialize the checkout manager when the script loads
-window.checkoutManager = new CheckoutListManager(); 
+window.addEventListener('DOMContentLoaded', () => {
+    window.checkoutManager = new CheckoutListManager();
+}); 
