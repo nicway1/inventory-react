@@ -29,10 +29,10 @@
     </div>
 
     <!-- Filters -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select id="statusFilter" class="w-full border rounded-lg p-2">
+            <select id="statusFilter" class="w-full border rounded-lg p-2 text-sm">
                 <option value="">All Statuses</option>
                 <option value="IN STOCK">IN STOCK</option>
                 <option value="Ready to Deploy">Ready to Deploy</option>
@@ -44,7 +44,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-            <select id="companyFilter" class="w-full border rounded-lg p-2">
+            <select id="companyFilter" class="w-full border rounded-lg p-2 text-sm">
                 <option value="">All Companies</option>
                 {% for company in companies %}
                 <option value="{{ company }}">{{ company }}</option>
@@ -53,7 +53,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-            <select id="modelFilter" class="w-full border rounded-lg p-2">
+            <select id="modelFilter" class="w-full border rounded-lg p-2 text-sm">
                 <option value="">All Models</option>
                 {% for model in models %}
                 <option value="{{ model }}">{{ model }}</option>
@@ -62,7 +62,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
-            <select id="countryFilter" class="w-full border rounded-lg p-2">
+            <select id="countryFilter" class="w-full border rounded-lg p-2 text-sm">
                 <option value="">All Countries</option>
                 {% for country in countries %}
                 <option value="{{ country }}">{{ country }}</option>
@@ -72,11 +72,11 @@
     </div>
 
     <!-- Filter Button -->
-    <div class="flex justify-end mb-6 space-x-2">
+    <div class="flex flex-wrap justify-end mb-6 gap-2">
         {% if user and user.permissions and user.permissions.can_export_data %}
         <a href="{{ url_for('inventory.export_inventory', item_type='assets') }}" 
-           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           class="bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600 transition-colors flex items-center text-sm">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Export to CSV
@@ -84,16 +84,16 @@
         {% endif %}
         {% if is_admin %}
         <a href="{{ url_for('inventory.add_asset') }}" 
-           class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
+           class="bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600 transition-colors text-sm">
             Add Asset
         </a>
         {% endif %}
         <button id="applyFiltersBtn" 
-                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+                class="bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition-colors text-sm">
             Apply Filters
         </button>
         <button id="clearFiltersBtn" 
-                class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+                class="bg-gray-500 text-white px-3 py-1.5 rounded hover:bg-gray-600 transition-colors text-sm">
             Clear Filters
         </button>
     </div>
@@ -131,9 +131,9 @@
 
     <!-- Tech Assets Table -->
     <div id="techAssetsTable" class="mb-8" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
             <h2 class="text-xl font-semibold">Tech Assets</h2>
-            <div class="flex space-x-4">
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                 <!-- Bulk Delete Form -->
                 {% if current_user.is_admin %}
                 <form id="bulkDeleteForm" action="{{ url_for('inventory.bulk_delete') }}" method="POST" class="flex items-center" onsubmit="return confirmDelete()">
@@ -142,14 +142,14 @@
                     <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete" value="[]">
                     
                     <button type="submit" id="bulkDeleteBtn" disabled
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
                         Delete Selected
                     </button>
                 </form>
 
                 <!-- Remove Serial Prefix Button -->
                 <button id="removeSerialPrefix" disabled
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     Remove Serial Prefix
                 </button>
                 {% endif %}
@@ -157,11 +157,11 @@
                 <!-- Checkout List Buttons -->
                 {% if current_user.is_admin %}
                 <button id="addToCheckoutList" disabled
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     Add to Checkout List
                 </button>
                 <button id="viewCheckoutList"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     View Checkout List
                     <span id="checkoutCount" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         0
@@ -173,23 +173,23 @@
         
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead class="bg-gray-50">
                         <tr>
                             {% if current_user.is_admin %}
-                            <th class="px-4 py-2">
+                            <th class="w-10 px-2 py-2">
                                 <input type="checkbox" id="selectAllAssets"
                                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                             </th>
                             {% endif %}
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Asset Tag</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Serial Number</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Product</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Model</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Company</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Country</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Erased</th>
+                            <th class="w-16 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                            <th class="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                            <th class="hidden md:table-cell w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                            <th class="hidden md:table-cell w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th class="hidden md:table-cell w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                            <th class="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="hidden md:table-cell w-16 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erased</th>
                         </tr>
                     </thead>
                     <tbody id="techAssetsBody" class="bg-white divide-y divide-gray-200">
@@ -368,9 +368,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('First asset object:', data.assets[0]); // Debug full asset object
             const rows = data.assets.map(asset => {
                 const checkboxCell = isAdmin ? 
-                    `<td class="px-4 py-2">
-                        <input type="checkbox" class="asset-checkbox" data-id="${asset.id}"
-                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    `<td class="px-2 py-2 w-10">
+                        <input type="checkbox" class="asset-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" data-id="${asset.id}">
                     </td>` : '';
                 
                 // Debug each asset's erased field
@@ -387,27 +386,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 return `
                     <tr class="hover:bg-gray-50 cursor-pointer" data-asset-id="${asset.id}">
                         ${checkboxCell}
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.asset_tag || ''}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.serial_num || ''}</td>
-                        <td class="px-4 py-2">
-                            <div class="text-sm text-gray-900 mb-1">${asset.product || ''}</div>
+                        <td class="px-2 py-2 text-sm text-gray-900 truncate">${asset.asset_tag || ''}</td>
+                        <td class="px-2 py-2 text-sm text-gray-900 truncate">${asset.serial_num || ''}</td>
+                        <td class="px-2 py-2">
+                            <div class="text-sm text-gray-900 font-medium mb-1 break-words">${asset.product || ''}</div>
                             <div class="text-xs text-gray-500">
-                                <div>CPU: ${asset.cpu_type}${asset.cpu_cores ? `, ${asset.cpu_cores} cores` : ''}</div>
-                                <div>GPU: ${asset.gpu_cores ? `${asset.gpu_cores} cores` : 'N/A'}</div>
-                                <div>RAM: ${asset.memory ? `${asset.memory}GB` : 'N/A'}</div>
-                                <div>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</div>
+                                <div class="flex flex-wrap gap-x-3">
+                                    <span>CPU: ${asset.cpu_type || 'N/A'}${asset.cpu_cores ? `, ${asset.cpu_cores} cores` : ''}</span>
+                                    <span>GPU: ${asset.gpu_cores ? `${asset.gpu_cores} cores` : 'N/A'}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-x-3">
+                                    <span>RAM: ${asset.memory ? `${asset.memory}GB` : 'N/A'}</span>
+                                    <span>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</span>
+                                </div>
+                                <div class="md:hidden mt-2 pt-1 border-t border-gray-100">
+                                    <div class="grid grid-cols-2 gap-1 text-xs text-gray-600">
+                                        <span>Model: ${asset.model || 'N/A'}</span>
+                                        <span>Company: ${asset.customer || 'N/A'}</span>
+                                        <span>Country: ${asset.country || 'N/A'}</span>
+                                        <span>Erased: ${asset.erased || 'N/A'}</span>
+                                    </div>
+                                </div>
                             </div>
                         </td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.model || ''}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.customer || ''}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${asset.country || ''}</td>
-                        <td class="px-4 py-2 whitespace-nowrap">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.model || ''}</td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.customer || ''}</td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.country || ''}</td>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
                                 ${getStatusClass(asset.inventory)}">
                                 ${asset.inventory}
                             </span>
                         </td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">
                             ${(() => {
                                 // Check if the property exists in the object
                                 if (!asset.hasOwnProperty('erased')) {
