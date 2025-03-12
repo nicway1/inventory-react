@@ -94,6 +94,14 @@ class CheckoutListManager {
         this.saveCheckoutList();
     }
 
+    showModal() {
+        const checkoutListModal = document.getElementById('checkoutListModal');
+        if (checkoutListModal) {
+            checkoutListModal.classList.remove('hidden');
+            this.updateUI();
+        }
+    }
+
     initializeUI() {
         const viewCheckoutList = document.getElementById('viewCheckoutList');
         const checkoutListModal = document.getElementById('checkoutListModal');
