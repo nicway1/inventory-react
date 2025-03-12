@@ -2090,6 +2090,7 @@ def bulk_checkout():
     try:
         data = request.get_json()
         customer_id = data.get('customer_id')
+        asset_ids = data.get('selected_asset_ids', [])
         accessory_items = data.get('selected_accessory_ids', [])
         warnings = []
 
@@ -2097,6 +2098,53 @@ def bulk_checkout():
         customer = db_session.query(CustomerUser).get(customer_id)
         if not customer:
             return jsonify({'error': 'Customer not found'}), 404
+
+        # Process assets
+        for asset_id in asset_ids:
+            asset = db_session.query(Asset).get(asset_id)
+            if asset:
+                # Store old values for history tracking
+                old_values = {
+                    'status': asset.status.value if asset.status else None,
+                    'customer_id': asset.customer_id
+                }
+
+                # Update asset
+                asset.status = AssetStatus.DEPLOYED
+                asset.customer_id = customer.id
+                asset.customer = customer.name
+                asset.customer_user = customer
+                asset.checkout_date = datetime.utcnow()
+
+                # Track changes
+                changes = {
+                    'status': {
+                        'old': old_values['status'],
+                        'new': AssetStatus.DEPLOYED.value
+                    },
+                    'customer_id': {
+                        'old': old_values['customer_id'],
+                        'new': customer.id
+                    }
+                }
+
+                # Create history entry
+                history_entry = asset.track_change(
+                    user_id=current_user.id,
+                    action='bulk_checkout',
+                    changes=changes,
+                    notes=f'Bulk checkout to {customer.name}'
+                )
+                db_session.add(history_entry)
+
+                # Add activity record
+                activity = Activity(
+                    user_id=current_user.id,
+                    type='asset_checked_out',
+                    content=f'Checked out asset {asset.asset_tag} to {customer.name}',
+                    reference_id=asset.id
+                )
+                db_session.add(activity)
 
         # Process accessories
         for accessory_item in accessory_items:
