@@ -1,7 +1,7 @@
 """fix all columns
 
 Revision ID: fix_all_columns
-Revises: add_user_role
+Revises: merge_heads
 Create Date: 2024-03-05 09:35:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'fix_all_columns'
-down_revision = 'add_user_role'
+down_revision = 'merge_heads'
 branch_labels = None
 depends_on = None
 

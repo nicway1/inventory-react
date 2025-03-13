@@ -56,12 +56,13 @@ class Asset(Base):
     harddrive = Column(String(100))
     charger = Column(String(100))
     
-    # Relationships with string references
+    # Relationships
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset", lazy="dynamic")
+    tickets = relationship("Ticket", back_populates="asset")
     assigned_to = relationship("User", back_populates="assigned_assets")
     customer_user = relationship("CustomerUser", back_populates="assigned_assets")
+    transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)")
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
 
     def track_change(self, user_id, action, changes, notes=None):

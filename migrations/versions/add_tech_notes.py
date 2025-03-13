@@ -1,7 +1,7 @@
 """add tech notes field
 
 Revision ID: add_tech_notes
-Revises: add_user_role
+Revises: 4973d2b3991d
 Create Date: 2024-02-28 16:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_tech_notes'
-down_revision = 'add_user_role'
+down_revision = '4973d2b3991d'
 branch_labels = None
 depends_on = None
 

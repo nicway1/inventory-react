@@ -22,6 +22,12 @@ class CustomerUser(Base):
     assigned_assets = relationship("Asset", back_populates="customer_user")
     assigned_accessories = relationship("Accessory", back_populates="customer_user")
     tickets = relationship("Ticket", back_populates="customer")
+    asset_transactions = relationship("AssetTransaction", back_populates="customer", order_by="desc(AssetTransaction.transaction_date)")
+    
+    @property
+    def full_name(self):
+        """Return the full name of the customer"""
+        return self.name
     
     def to_dict(self):
         return {

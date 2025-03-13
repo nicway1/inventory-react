@@ -11,6 +11,7 @@ from models.location import Location
 from models.permission import Permission
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
+from models.asset_transaction import AssetTransaction
 
 __all__ = [
     "Base",
@@ -28,5 +29,6 @@ __all__ = [
     "Location",
     "Permission",
     "AssetHistory",
-    "AccessoryHistory"
+    "AccessoryHistory",
+    "AssetTransaction"
 ]

@@ -1,7 +1,7 @@
 """final schema fix
 
 Revision ID: final_schema_fix
-Revises: merge_heads
+Revises: fix_tech_notes
 Create Date: 2024-03-05 10:15:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = 'final_schema_fix'
-down_revision = 'merge_heads'
+down_revision = 'fix_tech_notes'
 branch_labels = None
 depends_on = None
 

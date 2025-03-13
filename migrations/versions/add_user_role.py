@@ -1,7 +1,7 @@
 """add user role column
 
 Revision ID: add_user_role
-Revises: make_email_nullable
+Revises: add_tech_notes
 Create Date: 2024-02-21 09:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_user_role'
-down_revision = 'make_email_nullable'
+down_revision = 'add_tech_notes'
 branch_labels = None
 depends_on = None
 

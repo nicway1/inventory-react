@@ -11,6 +11,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <title>Asset Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>
         tailwind.config = {
             theme: {
@@ -147,6 +148,7 @@
     
     <!-- Common Scripts -->
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html> 

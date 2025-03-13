@@ -1,7 +1,7 @@
 """make email nullable
 
 Revision ID: make_email_nullable
-Revises: 5f33d8e62ace
+Revises: add_user_role
 Create Date: 2024-02-21 08:45:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'make_email_nullable'
-down_revision = '5f33d8e62ace'
+down_revision = 'add_user_role'
 branch_labels = None
 depends_on = None
 

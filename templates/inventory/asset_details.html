@@ -16,27 +16,46 @@
     <!-- Asset Header -->
     <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div class="w-full sm:w-auto">
-                <h1 class="text-xl sm:text-2xl font-bold text-gray-900 break-words">
-                    {{ asset.hardware_type or asset.model or "Unnamed Asset" }}
-                </h1>
-                <p class="text-sm text-gray-500 mt-1">Asset ID: {{ asset.asset_tag }}</p>
-                <div class="flex mt-2 sm:hidden">
-                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {% if asset.status and asset.status.value == 'IN_STOCK' %}
-                        bg-blue-100 text-blue-800
-                    {% elif asset.status and asset.status.value == 'DEPLOYED' %}
-                        bg-green-100 text-green-800
-                    {% elif asset.status and asset.status.value == 'SHIPPED' %}
-                        bg-yellow-100 text-yellow-800
-                    {% elif asset.status and asset.status.value == 'ARCHIVED' %}
-                        bg-red-100 text-red-800
-                    {% elif asset.status and asset.status.value == 'DISPOSED' %}
-                        bg-red-100 text-red-800
+            <div class="w-full sm:w-auto flex items-start">
+                <div class="mr-3 mt-1">
+                    <svg class="w-8 h-8 {% if asset.status and asset.status.name == 'IN_STOCK' %}
+                        text-blue-500
+                    {% elif asset.status and asset.status.name == 'DEPLOYED' %}
+                        text-green-500
+                    {% elif asset.status and asset.status.name == 'SHIPPED' %}
+                        text-yellow-500
+                    {% elif asset.status and asset.status.name == 'ARCHIVED' %}
+                        text-red-500
+                    {% elif asset.status and asset.status.name == 'DISPOSED' %}
+                        text-red-500
                     {% else %}
-                        bg-gray-100 text-gray-800
-                    {% endif %}">
-                        {{ asset.status.value if asset.status else 'Unknown' }}
-                    </span>
+                        text-gray-500
+                    {% endif %}" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-900 break-words">
+                        {{ asset.hardware_type or asset.model or "Unnamed Asset" }}
+                    </h1>
+                    <p class="text-sm text-gray-500 mt-1">Asset ID: {{ asset.asset_tag }}</p>
+                    <div class="flex mt-2 sm:hidden">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {% if asset.status and asset.status.value == 'IN_STOCK' %}
+                            bg-blue-100 text-blue-800
+                        {% elif asset.status and asset.status.value == 'DEPLOYED' %}
+                            bg-green-100 text-green-800
+                        {% elif asset.status and asset.status.value == 'SHIPPED' %}
+                            bg-yellow-100 text-yellow-800
+                        {% elif asset.status and asset.status.value == 'ARCHIVED' %}
+                            bg-red-100 text-red-800
+                        {% elif asset.status and asset.status.value == 'DISPOSED' %}
+                            bg-red-100 text-red-800
+                        {% else %}
+                            bg-gray-100 text-gray-800
+                        {% endif %}">
+                            {{ asset.status.value if asset.status else 'Unknown' }}
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="hidden sm:flex items-center">
@@ -64,15 +83,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     Add Customer
-                </a>
-                {% endif %}
-                {% if user.is_super_admin %}
-                <a href="{{ url_for('inventory.view_asset_history', asset_id=asset.id) }}"
-                   class="inline-flex items-center px-3 py-1 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    History
                 </a>
                 {% endif %}
                 {% if current_user.is_admin %}
@@ -388,6 +398,122 @@
                     <dd class="mt-2 text-sm text-gray-900 whitespace-pre-wrap">{{ asset.tech_notes or 'No technical notes available' }}</dd>
                 </div>
             </dl>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="mb-4 border-b border-gray-200">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" role="tablist">
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 tab-button active" 
+                        id="details-tab" 
+                        data-target="details-content"
+                        type="button" 
+                        role="tab">
+                    Details
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 tab-button" 
+                        id="history-tab" 
+                        data-target="history-content"
+                        type="button" 
+                        role="tab">
+                    History
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 tab-button" 
+                        id="transactions-tab" 
+                        data-target="transactions-content"
+                        type="button" 
+                        role="tab">
+                    Transactions
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Details Tab Content -->
+        <div id="details-content" class="tab-pane active">
+            <!-- Details Tab Content -->
+        </div>
+
+        <!-- History Tab Content -->
+        <div id="history-content" class="tab-pane hidden">
+            {% if asset.history %}
+            <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Date</th>
+                            <th scope="col" class="px-6 py-3">User</th>
+                            <th scope="col" class="px-6 py-3">Action</th>
+                            <th scope="col" class="px-6 py-3">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in asset.history %}
+                        <tr class="bg-white border-b hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if entry.created_at else 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4">
+                                {{ entry.user.username if entry.user else 'System' }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold 
+                                    {% if entry.action == 'status_change' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif entry.action == 'UPDATE' or entry.action == 'BULK_CHECKOUT' %}
+                                        bg-green-100 text-green-800
+                                    {% elif entry.action == 'CREATE' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ entry.action|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if entry.changes %}
+                                <div class="text-sm">
+                                    {% for key, value in entry.changes.items() %}
+                                    <div class="mb-1">
+                                        <span class="font-medium">{{ key|replace('_', ' ')|capitalize }}:</span> 
+                                        {% if value is mapping %}
+                                            <span class="line-through text-red-600">{{ value.from or 'None' }}</span> → 
+                                            <span class="text-green-600">{{ value.to or 'None' }}</span>
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if entry.notes %}
+                                <div class="mt-2 text-xs text-gray-500">
+                                    {{ entry.notes }}
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg" role="alert">
+                <span class="font-medium">No history found for this asset</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Transactions Tab Content -->
+        <div id="transactions-content" class="tab-pane hidden">
+            {% include 'inventory/asset_transactions.html' %}
         </div>
     </div>
 </div>

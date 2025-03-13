@@ -1,7 +1,7 @@
 """change_erased_to_string
 
 Revision ID: 4973d2b3991d
-Revises: add_tech_notes
+Revises: fix_all_columns
 Create Date: 2025-02-28 09:16:58.378776+00:00
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '4973d2b3991d'
-down_revision: Union[str, None] = 'add_tech_notes'
+down_revision: Union[str, None] = 'fix_all_columns'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

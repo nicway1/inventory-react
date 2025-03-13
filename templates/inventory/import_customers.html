@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('inventory.list_customer_users') }}" 
+           class="text-blue-600 hover:text-blue-800 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Customer Users
+        </a>
+    </div>
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Import Customer Users</h1>
+        <p class="mt-2 text-gray-600">Upload a CSV file with customer user data to import multiple customers at once.</p>
+    </div>
+
+    <!-- Template Download -->
+    <div class="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+        <h2 class="text-lg font-semibold text-blue-800 mb-4">Download Template</h2>
+        <p class="text-blue-700 mb-4">
+            Download our CSV template to ensure your import file has the correct format. 
+            The template includes example data and all required fields.
+        </p>
+        <a href="{{ url_for('inventory.download_customer_template') }}" 
+           class="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            Download Sample CSV
+        </a>
+    </div>
+
+    <!-- Import Form -->
+    <div class="bg-white shadow-lg rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Upload CSV File</h2>
+        <form action="{{ url_for('inventory.import_customers') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-6">
+                <label for="file" class="block text-sm font-medium text-gray-700 mb-2">
+                    Select CSV File
+                </label>
+                <div class="flex items-center">
+                    <input type="file" 
+                           id="file" 
+                           name="file" 
+                           accept=".csv" 
+                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                           required>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200 pt-4">
+                <button type="submit" 
+                        class="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Import Customers
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Guidelines -->
+    <div class="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Import Guidelines</h2>
+        <div class="text-gray-700 space-y-4">
+            <p>Please ensure your CSV file follows these guidelines:</p>
+            <ul class="list-disc pl-5 space-y-2">
+                <li>The file must be in CSV format with headers as in the template.</li>
+                <li>Required fields: <span class="font-medium">Name, Company, Country, Contact Number, Address</span>.</li>
+                <li>Email is optional but recommended.</li>
+                <li>Country must be one of the valid country codes (e.g., USA, UK, Singapore).</li>
+                <li>If a company doesn't exist in the system, it will be created automatically.</li>
+                <li>Large imports may take a few moments to process.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %} 

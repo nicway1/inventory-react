@@ -1,7 +1,7 @@
 """fix tech notes field
 
 Revision ID: fix_tech_notes
-Revises: 4973d2b3991d_change_erased_to_string
+Revises: rebuild_schema
 Create Date: 2024-03-05 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'fix_tech_notes'
-down_revision = '4973d2b3991d_change_erased_to_string'
+down_revision = 'rebuild_schema'
 branch_labels = None
 depends_on = None
 

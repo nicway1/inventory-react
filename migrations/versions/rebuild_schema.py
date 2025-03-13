@@ -1,7 +1,7 @@
 """rebuild schema
 
 Revision ID: rebuild_schema
-Revises: merge_heads
+Revises: 
 Create Date: 2024-03-05 10:30:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = 'rebuild_schema'
-down_revision = 'merge_heads'
+down_revision = None
 branch_labels = None
 depends_on = None
 

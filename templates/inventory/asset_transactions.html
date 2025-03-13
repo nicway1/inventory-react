@@ -1,0 +1,52 @@
+<!-- Asset Transactions Tab Content -->
+{% if asset.transactions %}
+<div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+    <table class="w-full text-sm text-left text-gray-500">
+        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+                <th scope="col" class="px-6 py-3">Transaction #</th>
+                <th scope="col" class="px-6 py-3">Customer</th>
+                <th scope="col" class="px-6 py-3">Type</th>
+                <th scope="col" class="px-6 py-3">Date</th>
+                <th scope="col" class="px-6 py-3">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in asset.transactions %}
+            <tr class="bg-white border-b hover:bg-gray-50">
+                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                    {{ transaction.transaction_number }}
+                </th>
+                <td class="px-6 py-4">
+                    {% if transaction.customer %}
+                        {{ transaction.customer.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold 
+                        {% if transaction.transaction_type == 'checkout' %}
+                            bg-green-100 text-green-800
+                        {% else %}
+                            bg-blue-100 text-blue-800
+                        {% endif %}">
+                        {{ transaction.transaction_type|capitalize }}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    {{ transaction.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if transaction.transaction_date else 'N/A' }}
+                </td>
+                <td class="px-6 py-4">
+                    {{ transaction.notes or 'No notes' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="p-4 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg" role="alert">
+    <span class="font-medium">No transactions found for this asset</span>
+</div>
+{% endif %} 

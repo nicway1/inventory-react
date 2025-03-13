@@ -5,6 +5,13 @@
     <div class="mb-6 flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">Customer Users</h1>
         <div class="flex space-x-4">
+            <a href="{{ url_for('inventory.import_customers') }}" 
+               class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+                Import Customers
+            </a>
             <a href="{{ url_for('inventory.export_customer_users') }}" 
                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
