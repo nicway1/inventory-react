@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file, abort
+from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file, abort, Response
 from datetime import datetime
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager
@@ -2425,5 +2425,61 @@ def remove_serial_prefix():
     except Exception as e:
         db_session.rollback()
         return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/export')
+@login_required
+def export_customer_users():
+    """Export customer users to CSV"""
+    db_session = db_manager.get_session()
+    try:
+        customers = db_session.query(CustomerUser)\
+            .options(joinedload(CustomerUser.company))\
+            .options(joinedload(CustomerUser.assigned_assets))\
+            .options(joinedload(CustomerUser.assigned_accessories))\
+            .order_by(CustomerUser.name).all()
+        
+        # Create a string buffer to write CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header row
+        writer.writerow([
+            'Name', 
+            'Company', 
+            'Country', 
+            'Contact Number', 
+            'Email', 
+            'Address',
+            'Number of Assigned Assets',
+            'Number of Assigned Accessories',
+            'Created At'
+        ])
+        
+        # Write data rows
+        for customer in customers:
+            writer.writerow([
+                customer.name,
+                customer.company.name if customer.company else 'N/A',
+                customer.country.value if customer.country else 'N/A',
+                customer.contact_number,
+                customer.email if customer.email else 'N/A',
+                customer.address,
+                len(customer.assigned_assets),
+                len(customer.assigned_accessories),
+                customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else 'N/A'
+            ])
+        
+        # Create the response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': 'attachment; filename=customer_users.csv',
+                'Content-Type': 'text/csv'
+            }
+        )
     finally:
         db_session.close()

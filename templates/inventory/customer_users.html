@@ -4,10 +4,19 @@
 <div class="container mx-auto px-4 py-8">
     <div class="mb-6 flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">Customer Users</h1>
-        <a href="{{ url_for('inventory.add_customer_user') }}" 
-           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            Add New Customer
-        </a>
+        <div class="flex space-x-4">
+            <a href="{{ url_for('inventory.export_customer_users') }}" 
+               class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Export CSV
+            </a>
+            <a href="{{ url_for('inventory.add_customer_user') }}" 
+               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add New Customer
+            </a>
+        </div>
     </div>
 
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
