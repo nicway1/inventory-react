@@ -89,6 +89,8 @@
                                    class="text-blue-600 hover:text-blue-900">View</a>
                                 <a href="{{ url_for('inventory.edit_accessory', id=accessory.id) }}"
                                    class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                <a href="{{ url_for('inventory.add_accessory_stock', id=accessory.id) }}"
+                                   class="text-green-600 hover:text-green-900">Add Stock</a>
                                 {% if is_admin %}
                                 <form action="{{ url_for('inventory.delete_accessory', id=accessory.id) }}" 
                                       method="POST" 
@@ -127,7 +129,9 @@ document.addEventListener('DOMContentLoaded', function() {
         can_export_data: {{ 'true' if user and user.permissions and user.permissions.can_export_data else 'false' }}
     });
     
-    // Add any additional JavaScript functionality here
+    window.showAddAccessoryModal = function() {
+        window.location.href = "{{ url_for('inventory.add_accessory') }}";
+    }
 });
 </script>
 {% endblock %} 
