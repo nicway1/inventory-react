@@ -33,7 +33,7 @@ db_manager = DatabaseManager()
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'csv'}
 
-if not os.path.exists(UPLOAD_FOLDER):
+if not os.path.exists(UPLOAD_FOLDER): 
     os.makedirs(UPLOAD_FOLDER)
 
 def allowed_file(filename):
@@ -47,11 +47,14 @@ def view_inventory():
         # Get the current user
         user = db_manager.get_user(session['user_id'])
         
+        # Debug info
+        print(f"DEBUG: User accessing inventory: ID={user.id}, Username={user.username}, Type={user.user_type}, Supervisor={user.user_type == UserType.SUPERVISOR}")
+        
         # Base query for tech assets
         tech_assets_query = db_session.query(Asset)
         
-        # Filter by country if user is Country Admin
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+        # Filter by country if user is Country Admin or Supervisor
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             tech_assets_query = tech_assets_query.filter(Asset.country == user.assigned_country.value)
         
         # Get counts
@@ -65,8 +68,8 @@ def view_inventory():
         models = tech_assets_query.with_entities(Asset.model).distinct().all()
         models = sorted(list(set([m[0] for m in models if m[0]])))
 
-        # For Country Admin, only show their assigned country
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+        # For Country Admin or Supervisor, only show their assigned country
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             countries = [user.assigned_country.value]
         else:
             countries = tech_assets_query.with_entities(Asset.country).distinct().all()
@@ -93,6 +96,10 @@ def view_inventory():
         # Get all customers for the checkout form
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
 
+        # Debug template data
+        is_supervisor = user.user_type == UserType.SUPERVISOR
+        print(f"DEBUG: Template vars - is_admin={user.is_admin}, is_country_admin={user.is_country_admin}, is_supervisor={is_supervisor}")
+        
         return render_template(
             'inventory/view.html',
             tech_assets_count=tech_assets_count,
@@ -104,7 +111,8 @@ def view_inventory():
             customers=customers,
             user=user,
             is_admin=user.is_admin,
-            is_country_admin=user.is_country_admin
+            is_country_admin=user.is_country_admin,
+            is_supervisor=is_supervisor
         )
 
     finally:
@@ -121,13 +129,20 @@ def view_tech_assets():
         # Base query for assets
         assets_query = db_session.query(Asset)
         
-        # Filter by country if user is Country Admin
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+        # Filter by country if user is Country Admin or Supervisor
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
         
+        # Execute query
         assets = assets_query.all()
+        
+        # Get total count
         total_count = len(assets)
         
+        # Log for debugging
+        print(f"User type: {user.user_type}, Assets returned: {total_count}")
+        
+        # Format response
         return jsonify({
             'total_count': total_count,
             'assets': [
@@ -144,7 +159,8 @@ def view_tech_assets():
                     'cpu_cores': asset.cpu_cores,
                     'gpu_cores': asset.gpu_cores,
                     'memory': asset.memory,
-                    'harddrive': asset.harddrive
+                    'harddrive': asset.harddrive,
+                    'erased': asset.erased
                 }
                 for asset in assets
             ]
@@ -157,13 +173,33 @@ def view_tech_assets():
 def view_accessories():
     db_session = db_manager.get_session()
     try:
-        accessories = db_session.query(Accessory).all()
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query for accessories
+        accessories_query = db_session.query(Accessory)
+        
+        # Filter by country if user is Country Admin or Supervisor
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
+            accessories_query = accessories_query.filter(Accessory.country == user.assigned_country.value)
+        
+        # Execute query and get accessories
+        accessories = accessories_query.all()
+        
+        # Log for debugging
+        print(f"User type: {user.user_type}, Accessories returned: {len(accessories)}")
+        
+        # Get customers for checkout
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        
+        # Render the template with appropriate context
         return render_template('inventory/accessories.html', 
                              accessories=accessories,
                              customers=customers,
-                             is_admin=current_user.is_admin,
-                             is_country_admin=current_user.is_country_admin)
+                             is_admin=user.is_admin,
+                             is_country_admin=user.is_country_admin,
+                             is_supervisor=user.user_type == UserType.SUPERVISOR,
+                             user=user)
     finally:
         db_session.close()
 
@@ -259,110 +295,79 @@ def add_accessory_stock(id):
 @inventory_bp.route('/filter', methods=['POST'])
 @login_required
 def filter_inventory():
+    db_session = db_manager.get_session()
     try:
-        data = request.json
-        print("Received filter data:", data)  # Debug log
-        
+        # Get JSON data
+        data = request.json or request.get_json()
         if not data:
-            return jsonify({
-                'error': 'No filter data received',
-                'total_count': 0,
-                'assets': []
-            }), 400
+            return jsonify({'error': 'No data provided'})
         
-        db_session = db_manager.get_session()
-        try:
-            # Get the current user
-            user = db_manager.get_user(session['user_id'])
-            
-            # Build query based on filters
-            assets_query = db_session.query(Asset)
-            
-            # Always apply country filter for Country Admin
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
-
-            if data.get('search'):
-                search = f"%{data['search']}%"
-                print(f"Applying search filter: {search}")  # Debug log
-                assets_query = assets_query.filter(
-                    or_(
-                        Asset.serial_num.ilike(search),
-                        Asset.asset_tag.ilike(search),
-                        Asset.model.ilike(search),
-                        Asset.country.ilike(search)
-                    )
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query
+        query = db_session.query(Asset)
+        
+        # Country filter for Country Admin or Supervisor
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
+            query = query.filter(Asset.country == user.assigned_country.value)
+        
+        # Apply filters from request
+        if 'country' in data and data['country']:
+            query = query.filter(Asset.country == data['country'])
+        
+        if 'status' in data and data['status'] or 'inventory_status' in data and data['inventory_status']:
+            status_value = data.get('status') or data.get('inventory_status')
+            query = query.filter(Asset.status == status_value)
+        
+        if 'customer' in data and data['customer'] or 'company' in data and data['company']:
+            company_value = data.get('customer') or data.get('company')
+            query = query.filter(Asset.customer == company_value)
+        
+        if 'model' in data and data['model']:
+            query = query.filter(Asset.model == data['model'])
+        
+        if 'search' in data and data['search']:
+            search = f"%{data['search']}%"
+            query = query.filter(
+                or_(
+                    Asset.asset_tag.ilike(search),
+                    Asset.serial_num.ilike(search),
+                    Asset.name.ilike(search),
+                    Asset.model.ilike(search),
+                    Asset.customer.ilike(search)
                 )
-
-            if data.get('inventory_status'):
-                print(f"Applying status filter: {data['inventory_status']}")  # Debug log
-                assets_query = assets_query.filter(Asset.status == data['inventory_status'])
-
-            if data.get('company'):
-                print(f"Applying company filter: {data['company']}")  # Debug log
-                assets_query = assets_query.filter(Asset.customer == data['company'])
-
-            if data.get('model'):
-                print(f"Applying model filter: {data['model']}")  # Debug log
-                assets_query = assets_query.filter(Asset.model == data['model'])
-
-            # Only apply country filter if user is not Country Admin
-            if data.get('country') and user.user_type != UserType.COUNTRY_ADMIN:
-                print(f"Applying country filter: {data['country']}")  # Debug log
-                assets_query = assets_query.filter(Asset.country == data['country'])
-
-            # Get results
-            try:
-                assets = assets_query.all()
-                tech_assets_count = len(assets)
-
-                print(f"Filtered Tech Assets Count: {tech_assets_count}")
-
-                response_data = {
-                    'total_count': tech_assets_count,
-                    'assets': [
-                        {
-                            'id': asset.id,
-                            'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
-                            'asset_tag': asset.asset_tag,
-                            'serial_num': asset.serial_num,
-                            'model': asset.model,
-                            'inventory': asset.status.value if asset.status else 'Unknown',
-                            'customer': asset.customer,
-                            'country': asset.country,
-                            'cpu_type': asset.cpu_type,
-                            'cpu_cores': asset.cpu_cores,
-                            'gpu_cores': asset.gpu_cores,
-                            'memory': asset.memory,
-                            'harddrive': asset.harddrive
-                        }
-                        for asset in assets
-                    ]
-                }
-                
-                print("Sending response data:", response_data)  # Debug log
-                return jsonify(response_data)
-            
-            except Exception as e:
-                print(f"Error processing query results: {str(e)}")
-                return jsonify({
-                    'error': 'Error processing query results',
-                    'message': str(e),
-                    'total_count': 0,
-                    'assets': []
-                }), 500
-
-        finally:
-            db_session.close()
-            
-    except Exception as e:
-        print(f"Error in filter_inventory: {str(e)}")
+            )
+        
+        # Execute query
+        assets = query.all()
+        
+        # Format response
         return jsonify({
-            'error': 'Server error',
-            'message': str(e),
-            'total_count': 0,
-            'assets': []
-        }), 500
+            'total_count': len(assets),
+            'assets': [
+                {
+                    'id': asset.id,
+                    'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'model': asset.model,
+                    'inventory': asset.status.value if asset.status else 'Unknown',
+                    'customer': asset.customer,
+                    'country': asset.country,
+                    'cpu_type': asset.cpu_type,
+                    'cpu_cores': asset.cpu_cores,
+                    'gpu_cores': asset.gpu_cores,
+                    'memory': asset.memory,
+                    'harddrive': asset.harddrive
+                }
+                for asset in assets
+            ]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/checkout/<int:id>', methods=['POST'])
 @login_required

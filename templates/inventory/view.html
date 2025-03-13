@@ -130,12 +130,12 @@
     </div>
 
     <!-- Tech Assets Table -->
-    <div id="techAssetsTable" class="mb-8" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}">
+    <div id="techAssetsTable" class="mb-8" data-is-admin="{{ 'true' if is_admin else 'false' }}" data-is-supervisor="{{ 'true' if is_supervisor else 'false' }}">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
             <h2 class="text-xl font-semibold">Tech Assets</h2>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                 <!-- Bulk Delete Form -->
-                {% if current_user.is_admin %}
+                {% if is_admin %}
                 <form id="bulkDeleteForm" action="{{ url_for('inventory.bulk_delete') }}" method="POST" class="flex items-center" onsubmit="return confirmDelete()">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="selected_asset_ids" id="selectedAssetIdsDelete" value="[]">
@@ -155,7 +155,7 @@
                 {% endif %}
                 
                 <!-- Checkout List Buttons -->
-                {% if current_user.is_admin %}
+                {% if is_admin %}
                 <button id="addToCheckoutList" disabled
                         class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     Add to Checkout List
@@ -176,7 +176,7 @@
                 <table class="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead class="bg-gray-50">
                         <tr>
-                            {% if current_user.is_admin %}
+                            {% if is_admin %}
                             <th class="w-10 px-2 py-2">
                                 <input type="checkbox" id="selectAllAssets"
                                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
@@ -269,8 +269,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllAssets = document.getElementById('selectAllAssets');
     const selectAllAccessories = document.getElementById('selectAllAccessories');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const isAdmin = techAssetsTable.dataset.isAdmin === 'true';
+    const isAdmin = techAssetsTable ? techAssetsTable.dataset.isAdmin === 'true' : false;
+    const isSupervisor = techAssetsTable ? techAssetsTable.dataset.isSupervisor === 'true' : false;
     const removeSerialPrefixBtn = document.getElementById('removeSerialPrefix');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectedAssetIdsDelete = document.getElementById('selectedAssetIdsDelete');
+    const selectedAccessoryIdsDelete = document.getElementById('selectedAccessoryIdsDelete');
 
     // Initialize variables
     let selectedAssetIds = [];
@@ -288,8 +292,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const customerSelect = document.getElementById('customerSelect');
     const checkoutCount = document.getElementById('checkoutCount');
 
-    // Initialize button states
-    updateButtonStates();
+    // Initialize button states if elements exist
+    if (bulkDeleteBtn || addToCheckoutList || removeSerialPrefixBtn) {
+        updateButtonStates();
+    }
 
     // Function to show error
     function showError(message, isSuccess = false) {
@@ -328,33 +334,51 @@ document.addEventListener('DOMContentLoaded', function() {
             setLoading(true);
             
             let url = '/inventory/tech-assets';
+            let method = 'GET';
+            let body = null;
+            
             if (Object.keys(filters).length > 0) {
-                const response = await fetchWithSession('/inventory/filter', {
-                    method: 'POST',
-                    body: JSON.stringify(filters)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                updateTable(data);
-            } else {
-                const response = await fetchWithSession(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                updateTable(data);
+                url = '/inventory/filter';
+                method = 'POST';
+                body = JSON.stringify(filters);
             }
+            
+            console.log(`Fetching data from ${url} with method ${method}`); // Debug log
+            
+            const response = await fetchWithSession(url, {
+                method: method,
+                body: body
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Data received:', data); // Debug log
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            updateTable(data);
         } catch (error) {
             console.error('Error loading tech assets:', error);
             showError(error.message || 'Error loading tech assets');
+            
+            // Show a friendly message in the table
+            const colSpan = isAdmin ? 9 : 8;
+            techAssetsBody.innerHTML = `<tr><td colspan="${colSpan}" class="px-4 py-4 text-center text-gray-500">
+                <div class="py-8">
+                    <p class="text-red-500 font-medium mb-2">There was a problem loading the data</p>
+                    <p class="text-gray-600">Please try refreshing the page or contact support.</p>
+                    <button onclick="loadTechAssets()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Try Again
+                    </button>
+                </div>
+            </td></tr>`;
         } finally {
             setLoading(false);
         }
@@ -365,23 +389,13 @@ document.addEventListener('DOMContentLoaded', function() {
         techAssetsCount.textContent = data.total_count;
         
         if (data.assets && data.assets.length > 0) {
-            console.log('First asset object:', data.assets[0]); // Debug full asset object
             const rows = data.assets.map(asset => {
-                const checkboxCell = isAdmin ? 
-                    `<td class="px-2 py-2 w-10">
+                let checkboxCell = '';
+                if (isAdmin) {
+                    checkboxCell = `<td class="px-2 py-2 w-10">
                         <input type="checkbox" class="asset-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" data-id="${asset.id}">
-                    </td>` : '';
-                
-                // Debug each asset's erased field
-                console.log('Asset ID:', asset.id, 'Erased:', asset.erased);
-                console.log('Asset ID:', asset.id, 'hasOwnProperty("erased"):', asset.hasOwnProperty('erased'));
-                console.log('Asset ID:', asset.id, 'Erased type:', typeof asset.erased);
-                console.log('Asset ID:', asset.id, 'Erased value check:', {
-                    'is null': asset.erased === null,
-                    'is undefined': asset.erased === undefined,
-                    'is empty string': asset.erased === '',
-                    'raw value': asset.erased
-                });
+                    </td>`;
+                }
                 
                 return `
                     <tr class="hover:bg-gray-50 cursor-pointer" data-asset-id="${asset.id}">
@@ -446,7 +460,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         } else {
-            techAssetsBody.innerHTML = '<tr><td colspan="8" class="px-4 py-2 text-center text-gray-500">No assets found</td></tr>';
+            // No assets found - ensure the colspan matches the actual number of columns
+            const colSpan = isAdmin ? 9 : 8;
+            techAssetsBody.innerHTML = `<tr><td colspan="${colSpan}" class="px-4 py-2 text-center text-gray-500">No assets found</td></tr>`;
         }
     }
 
@@ -539,14 +555,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update selected IDs and button state
     function updateSelection() {
         // Update delete form inputs
-        const selectedAssetIdsDelete = document.getElementById('selectedAssetIdsDelete');
-        const selectedAccessoryIdsDelete = document.getElementById('selectedAccessoryIdsDelete');
         if (selectedAssetIdsDelete) selectedAssetIdsDelete.value = JSON.stringify(selectedAssetIds);
         if (selectedAccessoryIdsDelete) selectedAccessoryIdsDelete.value = JSON.stringify(selectedAccessoryIds);
         
         // Enable/disable buttons based on selection
         const hasSelection = selectedAssetIds.length > 0 || selectedAccessoryIds.length > 0;
-        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
         if (bulkDeleteBtn) bulkDeleteBtn.disabled = !hasSelection;
         if (addToCheckoutList) addToCheckoutList.disabled = !hasSelection;
     }
@@ -667,25 +680,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Add click handler for accessories card
-    const accessoriesCard = document.getElementById('accessoriesCard');
-    if (accessoriesCard) {
-        accessoriesCard.addEventListener('click', function() {
-            window.location.href = '{{ url_for("inventory.view_accessories") }}';
-        });
-    }
-
-    // Add click handler for tech assets card
+    // Event listeners for clickable cards
     const techAssetsCard = document.getElementById('techAssetsCard');
     if (techAssetsCard) {
         techAssetsCard.addEventListener('click', function() {
-            // Show tech assets table
-            if (techAssetsTable) techAssetsTable.classList.remove('hidden');
-            if (accessoriesTable) accessoriesTable.classList.add('hidden');
+            // Show tech assets table and load data
+            if (techAssetsTable) {
+                techAssetsTable.classList.remove('hidden');
+            }
+            if (accessoriesTable) {
+                accessoriesTable.classList.add('hidden');
+            }
+            loadTechAssets();
         });
     }
 
-    // Load initial data
+    const accessoriesCard = document.getElementById('accessoriesCard');
+    if (accessoriesCard) {
+        accessoriesCard.addEventListener('click', function() {
+            console.log("Accessories card clicked"); // Debug log
+            window.location.href = "{{ url_for('inventory.view_accessories') }}";
+        });
+    }
+
+    // Initial load of tech assets
     loadTechAssets();
 
     // Function to update button states based on selections
@@ -696,20 +714,27 @@ document.addEventListener('DOMContentLoaded', function() {
         if (bulkDeleteBtn) {
             bulkDeleteBtn.disabled = selectedAssets.length === 0 && selectedAccessories.length === 0;
         }
+        
         if (addToCheckoutList) {
             addToCheckoutList.disabled = selectedAssets.length === 0 && selectedAccessories.length === 0;
         }
+        
         if (removeSerialPrefixBtn) {
             removeSerialPrefixBtn.disabled = selectedAssets.length === 0;
         }
         
         // Update hidden input for bulk delete
-        document.getElementById('selectedAssetIdsDelete').value = JSON.stringify(
-            Array.from(selectedAssets).map(cb => parseInt(cb.dataset.id))
-        );
-        document.getElementById('selectedAccessoryIdsDelete').value = JSON.stringify(
-            Array.from(selectedAccessories).map(cb => parseInt(cb.dataset.id))
-        );
+        if (selectedAssetIdsDelete) {
+            selectedAssetIdsDelete.value = JSON.stringify(
+                Array.from(selectedAssets).map(cb => parseInt(cb.dataset.id))
+            );
+        }
+        
+        if (selectedAccessoryIdsDelete) {
+            selectedAccessoryIdsDelete.value = JSON.stringify(
+                Array.from(selectedAccessories).map(cb => parseInt(cb.dataset.id))
+            );
+        }
     }
 
     // Add event listener for select all checkbox

@@ -85,6 +85,11 @@ class User(Base, UserMixin):
     def is_country_admin(self):
         return self.user_type == UserType.COUNTRY_ADMIN
 
+    @property
+    def is_supervisor(self):
+        """Check if user is a supervisor"""
+        return self.user_type == UserType.SUPERVISOR
+
     def to_dict(self):
         """Convert user to dictionary"""
         return {

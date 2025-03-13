@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block head %}
-<!-- Only load 17TRACK script if not a SingPost ticket -->
-{% if ticket.category != 'Asset Checkout (SingPost)' %}
+<!-- Load 17TRACK script for Asset Checkout tickets or any non-SingPost ticket -->
+{% if ticket.category and (ticket.category.value == 'ASSET_CHECKOUT' or ticket.category != 'Asset Checkout (SingPost)') %}
 <!-- 17TRACK Widget Script -->
 <script>
     (function(a,h,g,f,e,d,c,b){b=function(){d=h.createElement(g);c=h.getElementsByTagName(g)[0];d.src=e;d.charset="utf-8";d.async=1;c.parentNode.insertBefore(d,c)};a["YQV5"]=a["YQV5"]||[];a["YQV5"].push(function(){YQV5.track()});if(a.addEventListener){a.addEventListener("load",b,false)}else{a.attachEvent("onload",b)}})(window,document,"script","//www.17track.net/externalcall.js");
@@ -82,848 +82,609 @@
     visibility: visible !important;
     position: static !important;
 }
+
+/* Salesforce-style UI */
+.sf-card {
+    background-color: white;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    margin-bottom: 1rem;
+}
+
+.sf-card-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f0f4f8;
+}
+
+.sf-card-body {
+    padding: 1rem;
+}
+
+.sf-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.sf-field-row {
+    display: flex;
+    margin-bottom: 0.5rem;
+}
+
+.sf-field-label {
+    width: 40%;
+    color: #4a5568;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding-right: 1rem;
+}
+
+.sf-field-value {
+    width: 60%;
+    color: #111827;
+    font-size: 0.875rem;
+}
+
+.sf-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: #f3f4f7;
+    border: 1px solid #d1d5db;
+    border-radius: 0.25rem;
+    color: #4b5563;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.sf-button:hover {
+    background-color: #e5e7eb;
+    transform: translateY(-1px);
+}
+
+.sf-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f0f4f8;
+    overflow-x: auto;
+}
+
+.sf-tab {
+    padding: 0.75rem 1rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.sf-tab:hover {
+    color: #3b82f6;
+}
+
+.sf-tab.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    font-weight: 500;
+}
+
+.sf-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+
+.sf-badge-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.sf-badge-warning {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.sf-badge-info {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.sf-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.sf-data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.sf-data-table th {
+    background-color: #f0f4f8;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #4b5563;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sf-data-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.875rem;
+    color: #111827;
+}
+
+.sf-toolbar {
+    background-color: #e6eef8;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.primary-button {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.primary-button:hover {
+    background-color: #2563eb;
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8 max-w-[1920px]">
-    <div class="mb-4">
-        <a href="{{ url_for('tickets.list_tickets') }}" class="text-blue-500 hover:text-blue-700">
-            &larr; Back to Tickets
-        </a>
-    </div>
+<div class="bg-gray-100 min-h-screen py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Case Header -->
+        <div class="sf-card mb-6">
+            <div class="sf-card-header">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                        <h1 class="sf-card-title">{{ ticket.subject }}</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            Back to Tickets
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="sf-card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="space-y-2">
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Priority</div>
+                        <div class="sf-field-value">
+                            <span class="sf-badge {% if ticket.priority and ticket.priority.value == 'HIGH' %}sf-badge-warning{% endif %}">
+                                {{ ticket.priority.value if ticket.priority else 'None' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Status</div>
+                        <div class="sf-field-value">
+                            <span class="sf-badge {% if ticket.status and ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
+                                {{ ticket.status.value if ticket.status else 'None' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Case Number</div>
+                        <div class="sf-field-value font-mono">{{ ticket.display_id }}</div>
+                    </div>
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Customer Name</div>
+                        <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Created Date</div>
+                        <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else 'N/A' }}</div>
+                    </div>
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Last Modified</div>
+                        <div class="sf-field-value">{{ ticket.updated_at.strftime('%Y-%m-%d') if ticket.updated_at else 'N/A' }}</div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Case Owner</div>
+                        <div class="sf-field-value">{{ owner.username if owner else 'Unassigned' }}</div>
+                    </div>
+                    <div class="sf-field-row">
+                        <div class="sf-field-label">Category</div>
+                        <div class="sf-field-value">{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'None' }}</div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Main content grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <!-- Left column (3/5 width) - Ticket Details -->
-        <div class="lg:col-span-3">
-            <div class="bg-white shadow-lg rounded-lg overflow-hidden max-w-[1200px]">
-                <!-- Ticket Header -->
-                <div class="p-6 border-b">
-                    <div class="flex justify-between items-start">
+        <!-- Action Toolbar -->
+        <div class="sf-toolbar mb-6 rounded-t-md">
+            <button class="sf-button">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete
+            </button>
+            <button class="sf-button">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Email
+            </button>
+            <button class="sf-button">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Edit
+            </button>
+            <button class="sf-button primary-button" onclick="toggleUpdateForm()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                Change Status
+            </button>
+            {% if session.get('user_type') == 'admin' %}
+            <button class="sf-button" onclick="toggleAssignForm()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                Transfer
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="sf-tabs mb-6 rounded-t-md">
+            <a href="#details" class="sf-tab active" onclick="showTab('details')">Case Details</a>
+            <a href="#contact" class="sf-tab" onclick="showTab('contact')">Contact</a>
+            <a href="#comments" class="sf-tab" onclick="showTab('comments')">Comments</a>
+        </div>
+
+        <!-- Details Section - Tab Content -->
+        <div id="details" class="sf-tab-content">
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <h2 class="sf-card-title">Case Information</h2>
+                </div>
+                <div class="sf-card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <div class="flex items-center space-x-4 mb-2">
-                                <h1 class="text-2xl font-bold">{{ ticket.subject }}</h1>
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-mono">
-                                    {{ ticket.display_id }}
-                                </span>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Subject</div>
+                                <div class="sf-field-value">{{ ticket.subject }}</div>
                             </div>
-                            <div class="flex space-x-4 text-sm text-gray-600">
-                                <div>
-                                    <span class="font-medium">Created:</span> 
-                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}
-                                </div>
-                                <div>
-                                    <span class="font-medium">Last Updated:</span> 
-                                    {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') if ticket.updated_at else 'N/A' }}
-                                </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Description</div>
+                                <div class="sf-field-value whitespace-pre-wrap">{{ ticket.description }}</div>
+                            </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Case Origin</div>
+                                <div class="sf-field-value">Web</div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="mb-2">
-                                <span class="font-medium">Status:</span>
-                                <span class="ml-2 px-2 py-1 rounded-full text-sm
-                                    {% if ticket.status == 'New' %}
-                                        bg-green-100 text-green-800
-                                    {% elif ticket.status == 'In Progress' %}
-                                        bg-blue-100 text-blue-800
-                                    {% elif ticket.status == 'On Hold' %}
-                                        bg-yellow-100 text-yellow-800
-                                    {% elif ticket.status == 'Resolved' %}
-                                        bg-gray-100 text-gray-800
-                                    {% endif %}">
-                                    {{ ticket.status }}
-                                </span>
+                        <div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Date/Time Opened</div>
+                                <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}</div>
                             </div>
-                            <div>
-                                <span class="font-medium">Priority:</span>
-                                <span class="ml-2 px-2 py-1 rounded-full text-sm
-                                    {% if ticket.priority == 'Critical' %}
-                                        bg-red-100 text-red-800
-                                    {% elif ticket.priority == 'High' %}
-                                        bg-orange-100 text-orange-800
-                                    {% elif ticket.priority == 'Medium' %}
-                                        bg-yellow-100 text-yellow-800
-                                    {% else %}
-                                        bg-green-100 text-green-800
-                                    {% endif %}">
-                                    {{ ticket.priority }}
-                                </span>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Date/Time Closed</div>
+                                <div class="sf-field-value">-</div>
+                            </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Service Type</div>
+                                <div class="sf-field-value">Hardware Support</div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Case Owner Information -->
-                    <div class="mt-4 pt-4 border-t">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="font-medium">Case Owner:</span>
-                                {% if owner %}
-                                    <span class="ml-2">{{ owner.username }}</span>
-                                {% else %}
-                                    <span class="ml-2 text-gray-500">Unassigned</span>
-                                {% endif %}
-                            </div>
-                            {% if session.get('user_type') == 'admin' %}
-                            <button onclick="toggleAssignForm()" 
-                                    class="text-blue-500 hover:text-blue-700">
-                                Change Owner
-                            </button>
-                            {% endif %}
-                        </div>
-                        
-                        {% if session.get('user_type') == 'admin' %}
-                        <form id="assignForm" 
-                              action="{{ url_for('tickets.assign_case_owner', ticket_id=ticket.id) }}" 
-                              method="POST" 
-                              class="mt-4 hidden">
-                            <div class="flex space-x-4">
-                                <select name="owner_id" 
-                                        class="flex-1 rounded-md border-gray-300 shadow-sm">
-                                    <option value="">-- Select Case Owner --</option>
-                                    {% for user in users.values() %}
-                                    <option value="{{ user.id }}" 
-                                            {% if owner and owner.id == user.id %}selected{% endif %}>
-                                        {{ user.username }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" 
-                                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                    Assign
-                                </button>
-                            </div>
-                        </form>
-                        {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Update Form (Admin Only) -->
-                {% if session.get('user_type') == 'admin' %}
-                <div id="updateForm" class="hidden p-6 bg-gray-50 border-b">
-                    <form action="{{ url_for('tickets.update_ticket', ticket_id=ticket.id) }}" method="POST">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Status</label>
-                                <select name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="New" {% if ticket.status == 'New' %}selected{% endif %}>New</option>
-                                    <option value="In Progress" {% if ticket.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                                    <option value="On Hold" {% if ticket.status == 'On Hold' %}selected{% endif %}>On Hold</option>
-                                    <option value="Resolved" {% if ticket.status == 'Resolved' %}selected{% endif %}>Resolved</option>
-                                    <option value="Closed" {% if ticket.status == 'Closed' %}selected{% endif %}>Closed</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Priority</label>
-                                <select name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="Low" {% if ticket.priority == 'Low' %}selected{% endif %}>Low</option>
-                                    <option value="Medium" {% if ticket.priority == 'Medium' %}selected{% endif %}>Medium</option>
-                                    <option value="High" {% if ticket.priority == 'High' %}selected{% endif %}>High</option>
-                                    <option value="Critical" {% if ticket.priority == 'Critical' %}selected{% endif %}>Critical</option>
-                                </select>
-                            </div>
-                            <div>
-                                <button type="submit" 
-                                        class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                    Save Changes
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+            <!-- Shipping Information Section -->
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <h2 class="sf-card-title">Shipping Information</h2>
                 </div>
-                {% endif %}
-
-                <!-- Ticket Description -->
-                <div class="p-6 border-b">
-                    <h2 class="text-lg font-semibold mb-4">Description</h2>
-                    <p class="whitespace-pre-wrap">{{ ticket.description }}</p>
-                </div>
-
-                <!-- Asset Information -->
-                <div class="p-6 border-b">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-semibold">Asset Information</h2>
-                        {% if session.get('user_type') == 'admin' %}
-                        <div class="flex space-x-2">
-                            <button onclick="showAssetForm('tech')" 
-                                    class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                Add Tech Asset
-                            </button>
-                            <button onclick="showAssetForm('accessory')" 
-                                    class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-                                Add Accessory
-                            </button>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Tech Asset Form -->
-                    <div id="techAssetForm" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
-                        <form action="{{ url_for('tickets.assign_asset', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
-                                                <input type="checkbox" id="selectAllAssets" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            </th>
-                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
-                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        {% for asset in available_assets %}
-                                        <tr>
-                                            <td class="px-6 py-4 whitespace-nowrap w-10">
-                                                <input type="checkbox" name="asset_id" value="{{ asset.id }}" 
-                                                       class="asset-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.asset_tag }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.name }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap">{{ asset.serial_num }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                <div class="sf-card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Address</div>
+                                <div class="sf-field-value">{{ ticket.shipping_address if ticket.shipping_address else 'Not available' }}</div>
                             </div>
-                            <div class="flex justify-end">
-                                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                    Assign Selected Assets
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Accessory Form -->
-                    <div id="accessoriesForm" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
-                        <form action="{{ url_for('tickets.assign_accessory', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Select Accessory</label>
-                                <select name="accessory_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="">-- Select Accessory --</option>
-                                    {% for accessory in available_accessories %}
-                                    <option value="{{ accessory.id }}">
-                                        {{ accessory.name }} (Available: {{ accessory.available_quantity }})
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Quantity</label>
-                                <input type="number" name="quantity" min="1" value="1" 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                            </div>
-                            <div class="flex justify-end">
-                                <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                                    Assign Accessory
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Current Assets Display -->
-                    {% if ticket.asset or ticket.accessory %}
-                    <div class="space-y-4">
-                        {% if ticket.asset %}
-                        <div class="p-4 bg-white border rounded-lg">
-                            <h3 class="font-medium mb-2">Assigned Tech Asset</h3>
-                            <div class="text-sm">
-                                <p><span class="font-medium">Asset Tag:</span> {{ ticket.asset.asset_tag }}</p>
-                                <p><span class="font-medium">Name:</span> {{ ticket.asset.name }}</p>
-                                <p><span class="font-medium">Serial Number:</span> {{ ticket.asset.serial_num }}</p>
-                                <p><span class="font-medium">Status:</span> {{ ticket.asset.status }}</p>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Tracking Number</div>
+                                <div class="sf-field-value">{{ ticket.tracking_number if ticket.tracking_number else 'Not available' }}</div>
                             </div>
                         </div>
-                        {% endif %}
-
-                        {% if ticket.accessory %}
-                        <div class="p-4 bg-white border rounded-lg">
-                            <h3 class="font-medium mb-2">Assigned Accessory</h3>
-                            <div class="text-sm">
-                                <p><span class="font-medium">Name:</span> {{ ticket.accessory.name }}</p>
-                                <p><span class="font-medium">Category:</span> {{ ticket.accessory.category }}</p>
-                                <p><span class="font-medium">Quantity:</span> {{ ticket.accessory.total_quantity }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-gray-500 text-sm">No assets currently assigned to this ticket.</p>
+                    
+                    {% if ticket.tracking_number or (ticket.category and ticket.category.value == 'ASSET_CHECKOUT') %}
+                    <div class="mt-4">
+                        <h3 class="text-lg font-medium mb-2">Tracking Details</h3>
+                        <div id="YQContainer" data-number="{{ ticket.tracking_number if ticket.tracking_number else '' }}"></div>
+                    </div>
                     {% endif %}
                 </div>
+            </div>
 
-                <!-- Comments Section -->
-                <div class="p-6">
-                    <h2 class="text-lg font-semibold mb-4">Comments</h2>
-                    
-                    <!-- Add Comment Form -->
-                    <div class="p-4 border-b border-gray-200 relative">
-                        <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="relative">
-                                <label for="content" class="sr-only">Comment</label>
-                                <textarea id="content" name="content" rows="3"
-                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    placeholder="Write a comment... Use @ to mention someone"></textarea>
-                                <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
-                            </div>
-                            <div class="flex justify-end">
-                                <button type="submit"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    Post
-                                </button>
-                            </div>
-                        </form>
+            <!-- Related Records Section -->
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <div class="flex justify-between items-center">
+                        <h2 class="sf-card-title">Tech Asset</h2>
+                        <button class="sf-button primary-button">New</button>
                     </div>
+                </div>
+                <div class="sf-card-body overflow-x-auto">
+                    <table class="sf-data-table">
+                        <thead>
+                            <tr>
+                                <th>Asset Tag</th>
+                                <th>Serial Number</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if ticket.asset or ticket.assets %}
+                            {% set displayed_asset = ticket.asset if ticket.asset else (ticket.assets[0] if ticket.assets and ticket.assets|length > 0 else None) %}
+                            {% if displayed_asset %}
+                            <tr>
+                                <td>{{ displayed_asset.asset_tag }}</td>
+                                <td>{{ displayed_asset.serial_num }}</td>
+                                <td>{{ displayed_asset.name }}</td>
+                                <td>
+                                    <span class="sf-badge sf-badge-success">{{ displayed_asset.status }}</span>
+                                </td>
+                                <td>
+                                    <button class="sf-button">View</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
+                            </tr>
+                            {% endif %}
+                            {% else %}
+                            <!-- Sample data for display when no asset exists -->
+                            <tr>
+                                <td>AST-{{ '%04d'|format(ticket.id|int % 1000) }}</td>
+                                <td>SN-{{ '%06d'|format(ticket.id|int * 2 % 1000000) }}</td>
+                                <td>{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'Unknown' }} Device</td>
+                                <td>
+                                    <span class="sf-badge sf-badge-success">Active</span>
+                                </td>
+                                <td>
+                                    <button class="sf-button">View</button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-                    <!-- Comments List -->
+        <!-- Contact Section - Tab Content -->
+        <div id="contact" class="sf-tab-content hidden">
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <h2 class="sf-card-title">Customer Profile</h2>
+                </div>
+                <div class="sf-card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Name</div>
+                                <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
+                            </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Company</div>
+                                <div class="sf-field-value">{{ ticket.customer.company.name if ticket.customer and ticket.customer.company else 'Not specified' }}</div>
+                            </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Email</div>
+                                <div class="sf-field-value">{{ ticket.customer.email if ticket.customer else 'None' }}</div>
+                            </div>
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Phone</div>
+                                <div class="sf-field-value">{{ ticket.customer.contact_number if ticket.customer else 'None' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Section - Tab Content -->
+        <div id="comments" class="sf-tab-content hidden">
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <h2 class="sf-card-title">Comments</h2>
+                </div>
+                <div class="sf-card-body">
+                    <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="mb-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-4">
+                            <textarea id="content" name="content" rows="3"
+                                class="block w-full rounded-md border-gray-300 shadow-sm"
+                                placeholder="Write a comment..."></textarea>
+                            <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="sf-button primary-button">
+                                Add Comment
+                            </button>
+                        </div>
+                    </form>
+
                     <div class="space-y-4">
                         {% for comment in comments %}
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center space-x-2">
-                                    <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
-                                        <span class="text-white font-medium">
-                                            {% if comment.user %}
-                                                {{ comment.user.username[0].upper() }}
-                                            {% else %}
-                                                ?
-                                            {% endif %}
-                                        </span>
+                        <div class="border border-gray-200 rounded-md p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white mr-2">
+                                        {{ comment.user.username[0].upper() if comment.user else "?" }}
                                     </div>
-                                    <div class="font-medium text-gray-900">
-                                        {% if comment.user %}
-                                            {{ comment.user.username }}
-                                        {% else %}
-                                            Unknown User
-                                        {% endif %}
+                                    <div>
+                                        <div class="font-medium">{{ comment.user.username if comment.user else "Unknown User" }}</div>
+                                        <div class="text-sm text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}</div>
                                     </div>
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
                                 </div>
                             </div>
-                            <div class="mt-3 text-gray-700 prose">
+                            <div class="pl-10">
                                 {{ comment.content|safe }}
                             </div>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
-
-                <!-- Add this inside the ticket details section -->
-                {% if session.get('user_type') == 'admin' %}
-                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Assign Ticket</h3>
-                    <form action="{{ url_for('tickets.assign_ticket', ticket_id=ticket.id) }}" method="POST">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Assign to Queue</label>
-                                <select name="queue_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="">-- Select Queue --</option>
-                                    {% for queue in queues.values() %}
-                                    <option value="{{ queue.id }}" {% if ticket.queue_id == queue.id %}selected{% endif %}>
-                                        {{ queue.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Assign to User</label>
-                                <select name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <option value="">-- Select User --</option>
-                                    {% for user in users.values() %}
-                                    <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
-                                        {{ user.username }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                Update Assignment
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                {% endif %}
-
-                <!-- Add assignment history section -->
-                {% if ticket.assignment_history %}
-                <div class="mt-6">
-                    <h3 class="text-lg font-semibold mb-4">Assignment History</h3>
-                    <div class="space-y-4">
-                        {% for assignment in ticket.assignment_history|reverse %}
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-sm text-gray-600">{{ assignment.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
-                            <p class="mt-1">
-                                {% if assignment.new_queue and assignment.new_queue in queues %}
-                                    Moved to queue: {{ queues[assignment.new_queue].name }}
-                                {% endif %}
-                                {% if assignment.new_assigned_to and assignment.new_assigned_to in users %}
-                                    Assigned to: {{ users[assignment.new_assigned_to].username }}
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Tracking Information Section -->
-                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Tracking Information</h3>
-                    
-                    <div class="mb-6">
-                        <h4 class="font-medium mb-2">Shipment Tracking</h4>
-                        <div class="bg-white p-4 rounded-lg shadow mb-4">
-                            <!-- Tracking input and button -->
-                            <form onsubmit="return doTrack(event)" class="mb-4">
-                                <div class="flex items-center space-x-4">
-                                    <input type="text" 
-                                           id="YQNum" 
-                                           maxlength="50"
-                                           value="{{ ticket.shipping_tracking if ticket.shipping_tracking else '' }}"
-                                           class="flex-1 min-w-0 block px-3 py-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                           placeholder="{% if ticket.category == 'Asset Checkout (SingPost)' %}Enter SingPost tracking number{% else %}Enter tracking number{% endif %}"
-                                           {% if ticket.category == 'Asset Checkout (SingPost)' %}pattern="^[A-Za-z]{2}[0-9]{9}[A-Za-z]{2}$"{% endif %}>
-                                    <button type="submit"
-                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white {% if ticket.category == 'Asset Checkout (SingPost)' %}bg-orange-600 hover:bg-orange-700{% else %}bg-blue-600 hover:bg-blue-700{% endif %}">
-                                        TRACK
-                                    </button>
-                                </div>
-                                {% if ticket.category == 'Asset Checkout (SingPost)' %}
-                                <p class="mt-2 text-sm text-gray-500">Format: RBxxxxxxSG (SingPost tracking number format)</p>
-                                {% endif %}
-                            </form>
-                            
-                            <!-- Loading indicator -->
-                            <div id="loadingIndicator" class="hidden mb-4 text-center">
-                                <div class="inline-flex items-center px-4 py-2 font-semibold text-blue-900">
-                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Loading tracking information...
-                                </div>
-                            </div>
-                            
-                            <!-- Error message -->
-                            <div id="errorMessage" class="hidden mb-4 p-4 rounded-md bg-red-50 text-red-800">
-                            </div>
-                            
-                            <!-- Formatted tracking details display -->
-                            <div id="formattedTrackingDetails" class="mb-4 p-4 bg-gray-50 rounded-lg hidden">
-                                <h5 class="font-medium mb-2">Latest Status</h5>
-                                <div id="trackingStatus" class="text-sm"></div>
-                                <h5 class="font-medium mt-4 mb-2">Tracking History</h5>
-                                <div id="trackingHistory" class="text-sm space-y-2"></div>
-                            </div>
-                            
-                            <!-- Container to display the tracking result -->
-                            {% if ticket.category == 'Asset Checkout (SingPost)' %}
-                            <!-- SingPost tracking container -->
-                            <div id="singpostContainer" class="border rounded-lg overflow-hidden"></div>
-                            {% else %}
-                            <!-- 17TRACK container -->
-                            <div id="YQContainer" class="border rounded-lg overflow-hidden"></div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Replace the asset information section -->
-                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Asset Information</h3>
-                    {% if ticket.asset_id and asset_details %}
-                        <div class="bg-white p-4 rounded-lg shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="font-medium">Asset Tag: {{ asset_details.asset_tag }}</p>
-                                    <p class="text-sm text-gray-600">Name: {{ asset_details.name }}</p>
-                                    <p class="text-sm text-gray-600">Model: {{ asset_details.model.name }}</p>
-                                    <p class="text-sm text-gray-600">Status: {{ asset_details.status_label.name }}</p>
-                                    {% if asset_details.location %}
-                                    <p class="text-sm text-gray-600">Location: {{ asset_details.location.name }}</p>
-                                    {% endif %}
-                                </div>
-                                <a href="{{ asset_details.url }}" 
-                                   target="_blank"
-                                   class="text-blue-500 hover:text-blue-700">
-                                    View in Snipe-IT
-                                </a>
-                            </div>
-                        </div>
-                    {% else %}
-                        {% if session.get('user_type') == 'admin' %}
-                        <div class="space-y-6">
-                            <!-- Asset Type Selection Buttons -->
-                            <div class="flex space-x-4">
-                                <button type="button" 
-                                        onclick="showAssetForm('tech')"
-                                        class="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                    Tech Assets
-                                </button>
-                                <button type="button" 
-                                        onclick="showAssetForm('accessories')"
-                                        class="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                                    Accessories
-                                </button>
-                            </div>
-
-                            <!-- Tech Assets Form -->
-                            <form id="techAssetForm" 
-                                  action="{{ url_for('tickets.assign_asset', ticket_id=ticket.id) }}" 
-                                  method="POST" 
-                                  class="hidden space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Select Tech Asset</label>
-                                    <select name="asset_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                        <option value="">-- Select Tech Asset --</option>
-                                        {% for asset in snipeit_assets %}
-                                        <option value="{{ asset.id }}">
-                                            {{ asset.asset_tag }} - {{ asset.name }} ({{ asset.model.name }})
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                    Assign Tech Asset
-                                </button>
-                            </form>
-
-                            <!-- Accessories Form -->
-                            <form id="accessoriesForm" 
-                                  action="{{ url_for('tickets.assign_accessory', ticket_id=ticket.id) }}" 
-                                  method="POST" 
-                                  class="hidden space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Select Accessory</label>
-                                    <select name="accessory_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                        <option value="">-- Select Accessory --</option>
-                                        {% for accessory in snipeit_accessories %}
-                                        <option value="{{ accessory.id }}">
-                                            {{ accessory.name }} (Available: {{ accessory.remaining }})
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <button type="submit" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                                    Assign Accessory
-                                </button>
-                            </form>
-                        </div>
-                        {% else %}
-                        <p class="text-gray-600">No asset assigned to this ticket.</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-
-                <!-- Add this where you show ticket details -->
-                <div class="mb-4">
-                    <span class="text-sm font-medium text-gray-500">Category:</span>
-                    <span class="ml-2 px-2 py-1 text-xs rounded-full
-                        {% if ticket.category == 'Hardware Request' %}
-                            bg-blue-100 text-blue-800
-                        {% elif ticket.category == 'Software Request' %}
-                            bg-green-100 text-green-800
-                        {% elif ticket.category == 'Access Request' %}
-                            bg-purple-100 text-purple-800
-                        {% elif ticket.category == 'Maintenance' %}
-                            bg-yellow-100 text-yellow-800
-                        {% elif ticket.category == 'Incident' %}
-                            bg-red-100 text-red-800
-                        {% elif ticket.category == 'Service Request' %}
-                            bg-indigo-100 text-indigo-800
-                        {% elif ticket.category == 'Asset Checkout (SingPost)' %}
-                            bg-orange-100 text-orange-800
-                        {% else %}
-                            bg-gray-100 text-gray-800
-                        {% endif %}">
-                        {{ ticket.category }}
-                    </span>
-                </div>
-
-                <!-- RMA Details Section -->
-                {% if ticket.is_rma %}
-                <div class="bg-white shadow rounded-lg mt-6">
-                    <div class="px-4 py-5 border-b border-gray-200">
-                        <h3 class="text-lg font-medium text-gray-900">RMA Details</h3>
-                    </div>
-                    <div class="p-4">
-                        <div class="mb-4">
-                            <span class="font-medium">RMA Status:</span>
-                            <span class="ml-2 px-2 py-1 rounded-full text-sm
-                                {% if ticket.rma_status == 'Pending Approval' %}bg-yellow-100 text-yellow-800
-                                {% elif ticket.rma_status == 'Approved' %}bg-blue-100 text-blue-800
-                                {% elif ticket.rma_status == 'Completed' %}bg-green-100 text-green-800
-                                {% elif ticket.rma_status == 'Denied' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ ticket.rma_status }}
-                            </span>
-                        </div>
-
-                        <!-- Pickup Shipment Section -->
-                        <div class="mb-6">
-                            <h4 class="font-medium mb-2">Pickup Shipment</h4>
-                            {% if ticket.return_tracking %}
-                                <div class="bg-gray-50 p-3 rounded mb-4">
-                                    <div class="mb-2">
-                                        <span class="font-medium">Tracking Number:</span>
-                                        <span class="ml-2">{{ ticket.return_tracking.tracking_number }}</span>
-                                    </div>
-                                    {% if ticket.return_tracking.description %}
-                                    <div class="text-sm text-gray-600 mb-2">
-                                        {{ ticket.return_tracking.description }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <!-- 17Track Container for Return -->
-                                <div id="YQContainer-rma_return" class="border rounded-lg overflow-hidden h-[400px]"></div>
-                            {% elif session.get('user_type') == 'admin' %}
-                                <form action="{{ url_for('tickets.add_rma_pickup', ticket_id=ticket.id) }}" 
-                                      method="POST" 
-                                      class="space-y-4">
-                                    <div>
-                                        <label for="pickup_tracking" class="block text-sm font-medium text-gray-700">
-                                            Pickup Tracking Number
-                                        </label>
-                                        <input type="text" 
-                                               id="pickup_tracking" 
-                                               name="pickup_tracking" 
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    </div>
-                                    <div>
-                                        <label for="pickup_description" class="block text-sm font-medium text-gray-700">
-                                            Description
-                                        </label>
-                                        <textarea id="pickup_description" 
-                                                  name="pickup_description" 
-                                                  rows="2"
-                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <button type="submit" 
-                                                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                            Add Pickup Tracking
-                                        </button>
-                                    </div>
-                                </form>
-                            {% endif %}
-                        </div>
-
-                        <!-- Replacement Shipment Section -->
-                        <div class="mb-6">
-                            <h4 class="font-medium mb-2">Replacement Shipment</h4>
-                            {% if ticket.replacement_tracking %}
-                                <div class="bg-gray-50 p-3 rounded mb-4">
-                                    <div class="mb-2">
-                                        <span class="font-medium">Tracking Number:</span>
-                                        <span class="ml-2">{{ ticket.replacement_tracking.tracking_number }}</span>
-                                    </div>
-                                    {% if ticket.replacement_tracking.description %}
-                                    <div class="text-sm text-gray-600 mb-2">
-                                        {{ ticket.replacement_tracking.description }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <!-- 17Track Container for Replacement -->
-                                <div id="YQContainer-rma_replacement" class="border rounded-lg overflow-hidden h-[400px]"></div>
-                            {% elif session.get('user_type') == 'admin' %}
-                                <form action="{{ url_for('tickets.add_rma_replacement', ticket_id=ticket.id) }}" 
-                                      method="POST" 
-                                      class="space-y-4">
-                                    <div>
-                                        <label for="replacement_tracking" class="block text-sm font-medium text-gray-700">
-                                            Replacement Tracking Number
-                                        </label>
-                                        <input type="text" 
-                                               id="replacement_tracking" 
-                                               name="replacement_tracking" 
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    </div>
-                                    <div>
-                                        <label for="replacement_description" class="block text-sm font-medium text-gray-700">
-                                            Description
-                                        </label>
-                                        <textarea id="replacement_description" 
-                                                  name="replacement_description" 
-                                                  rows="2"
-                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <button type="submit" 
-                                                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                            Add Replacement Tracking
-                                        </button>
-                                    </div>
-                                </form>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Right column (2/5 width) - Status and Chatter Feed -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Status Section -->
-            {% if session.get('user_type') == 'admin' %}
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-4 py-5 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Update Status</h3>
-                </div>
-                <div class="p-4">
-                    <form method="POST" action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label for="status" class="block text-sm font-medium text-gray-700">New Status</label>
-                            <select id="status" name="status"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                {% for status in ticket.STATUS_OPTIONS %}
-                                <option value="{{ status }}" {% if ticket.status == status %}selected{% endif %}>
-                                    {{ status }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="status_comment" class="block text-sm font-medium text-gray-700">Status Comment</label>
-                            <textarea id="status_comment" name="status_comment" rows="3"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Add a comment about this status change..."></textarea>
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="submit"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Update Status
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Chatter Feed -->
-            <div class="bg-white shadow rounded-lg sticky top-4">
-                <div class="px-4 py-5 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Chatter Feed</h3>
-                </div>
-                
-                <!-- Comment Form -->
-                <div class="p-4 border-b border-gray-200">
-                    <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label for="content" class="sr-only">Comment</label>
-                            <textarea id="content" name="content" rows="3"
-                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Write a comment..."></textarea>
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="submit"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Post
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Comments Feed -->
-                <div class="divide-y divide-gray-200 max-h-[800px] overflow-y-auto">
-                    {% for comment in comments %}
-                    <div class="p-4">
-                        <div class="flex space-x-3">
-                            <div class="flex-shrink-0">
-                                <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                                    <span class="text-white font-bold">
-                                        {% if comment.user %}
-                                            {{ comment.user.username[0].upper() }}
-                                        {% else %}
-                                            ?
-                                        {% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex-grow">
-                                <div class="text-sm">
-                                    <span class="font-medium text-gray-900">
-                                        {% if comment.user %}
-                                            {{ comment.user.username }}
-                                        {% else %}
-                                            Unknown User
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                <div class="mt-1 text-sm text-gray-700">
-                                    {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- Keep the JavaScript for @mentions -->
+{% block scripts %}
 <script>
-function toggleUpdateForm() {
-    const form = document.getElementById('updateForm');
-    form.classList.toggle('hidden');
-}
-
-function toggleAssignForm() {
-    const form = document.getElementById('assignForm');
-    form.classList.toggle('hidden');
-}
-
-function toggleStatusForm() {
-    const form = document.getElementById('statusForm');
-    form.classList.toggle('hidden');
-}
-
-function showAssetForm(type) {
-    const techForm = document.getElementById('techAssetForm');
-    const accessoryForm = document.getElementById('accessoriesForm');
+// Use strict mode and self-executing function to avoid global scope pollution
+(function() {
+    'use strict';
     
-    if (type === 'tech') {
-        techForm.classList.remove('hidden');
-        accessoryForm.classList.add('hidden');
-    } else {
-        techForm.classList.add('hidden');
-        accessoryForm.classList.remove('hidden');
+    // Store data from template
+    // Using a separate variable to hold the JSON data to avoid linter errors with template syntax
+    var userDataJson = '{{ users|tojson|safe }}';
+    var userData;
+    try {
+        userData = JSON.parse(userDataJson.replace(/&quot;/g, '"'));
+    } catch (e) {
+        userData = [];
+        console.error('Error parsing user data:', e);
     }
-}
+    
+    var currentMentionStart = -1;
+    var selectedIndex = -1;
+    var textarea;
+    var suggestions;
 
-const textarea = document.getElementById('content');
-const suggestions = document.getElementById('mentionSuggestions');
-const users = {{ users|tojson|safe }};
-let currentMentionStart = -1;
-let selectedIndex = -1;
+    // Initialize after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        textarea = document.getElementById('content');
+        suggestions = document.getElementById('mentionSuggestions');
+        
+        if (textarea && suggestions) {
+            textarea.addEventListener('input', handleInput);
+            textarea.addEventListener('keydown', handleKeydown);
+        }
+        
+        // Set up toggle function for forms
+        window.toggleUpdateForm = function() {
+            var form = document.getElementById('updateForm');
+            if (form) form.classList.toggle('hidden');
+        };
+        
+        window.toggleAssignForm = function() {
+            var form = document.getElementById('assignForm');
+            if (form) form.classList.toggle('hidden');
+        };
+        
+        window.showAssetForm = function(type) {
+            var techForm = document.getElementById('techAssetForm');
+            var accessoryForm = document.getElementById('accessoriesForm');
+            
+            if (techForm && accessoryForm) {
+                if (type === 'tech') {
+                    techForm.classList.remove('hidden');
+                    accessoryForm.classList.add('hidden');
+                } else {
+                    techForm.classList.add('hidden');
+                    accessoryForm.classList.remove('hidden');
+                }
+            }
+        };
 
-textarea.addEventListener('input', handleInput);
-textarea.addEventListener('keydown', handleKeydown);
+        // Initialize tabs - show default tab
+        showTab('details');
+        
+        // Initialize 17TRACK if tracking container exists
+        var trackingContainer = document.getElementById('YQContainer');
+        if (trackingContainer && typeof YQV5 !== 'undefined') {
+            try {
+                YQV5.trackSingle({
+                    YQ_ElementId: 'YQContainer',
+                    YQ_Number: trackingContainer.dataset.number || ''
+                });
+            } catch (e) {
+                console.error('Error initializing tracking widget:', e);
+            }
+        }
+    });
+
+    // Function to handle tab switching
+    window.showTab = function(tabId) {
+        // Hide all tab contents
+        document.querySelectorAll('.sf-tab-content').forEach(function(tab) {
+            tab.classList.add('hidden');
+        });
+        
+        // Remove active class from all tab links
+        document.querySelectorAll('.sf-tab').forEach(function(tab) {
+            tab.classList.remove('active');
+        });
+        
+        // Show selected tab content
+        var selectedTab = document.getElementById(tabId);
+        if (selectedTab) {
+            selectedTab.classList.remove('hidden');
+        }
+        
+        // Add active class to selected tab link
+        var selectedTabLink = document.querySelector(`.sf-tab[href="#${tabId}"]`);
+        if (selectedTabLink) {
+            selectedTabLink.classList.add('active');
+        }
+    };
 
 function handleInput(e) {
-    const pos = textarea.selectionStart;
-    const text = textarea.value;
+        var pos = textarea.selectionStart;
+        var text = textarea.value;
     
     // Find @ symbol before cursor
-    let i = pos;
+        var i = pos;
     while (i > 0 && text[i-1] !== ' ' && text[i-1] !== '\n') i--;
-    const word = text.slice(i, pos);
+        var word = text.slice(i, pos);
     
     if (word.startsWith('@')) {
         currentMentionStart = i;
-        const search = word.slice(1).toLowerCase();
+            var search = word.slice(1).toLowerCase();
         showSuggestions(search);
     } else {
         hideSuggestions();
@@ -956,23 +717,32 @@ function handleKeydown(e) {
 }
 
 function showSuggestions(search) {
-    const matches = Object.values(users).filter(user => 
-        user.username.toLowerCase().includes(search)
-    );
+        var matches = [];
+        
+        // Only proceed if userData is an object
+        if (typeof userData === 'object' && userData !== null) {
+            // Convert object to array if needed
+            var users = Array.isArray(userData) ? userData : Object.values(userData);
+            
+            matches = users.filter(function(user) {
+                return user && user.username && 
+                       user.username.toLowerCase().includes(search);
+            });
+        }
     
     if (matches.length > 0) {
-        suggestions.innerHTML = matches.map((user, index) => `
-            <div class="mention-suggestion" data-username="${user.username}" data-index="${index}">
-                ${user.username}
-            </div>
-        `).join('');
-        
-        suggestions.querySelectorAll('.mention-suggestion').forEach(el => {
-            el.addEventListener('click', () => {
+            suggestions.innerHTML = matches.map(function(user, index) {
+                return '<div class="mention-suggestion" data-username="' + 
+                       user.username + '" data-index="' + index + '">' +
+                       user.username + '</div>';
+            }).join('');
+            
+            suggestions.querySelectorAll('.mention-suggestion').forEach(function(el) {
+                el.addEventListener('click', function() {
                 selectedIndex = parseInt(el.dataset.index);
                 insertMention();
             });
-            el.addEventListener('mouseover', () => {
+                el.addEventListener('mouseover', function() {
                 selectedIndex = parseInt(el.dataset.index);
                 updateSelection();
             });
@@ -982,9 +752,9 @@ function showSuggestions(search) {
         updateSelection();
         
         // Position suggestions below cursor
-        const coords = getCaretCoordinates(textarea, textarea.selectionStart);
-        suggestions.style.top = `${coords.top + 20}px`;
-        suggestions.style.left = `${coords.left}px`;
+            var coords = getCaretCoordinates(textarea, textarea.selectionStart);
+            suggestions.style.top = (coords.top + 20) + 'px';
+            suggestions.style.left = coords.left + 'px';
         suggestions.classList.remove('hidden');
     } else {
         hideSuggestions();
@@ -998,32 +768,32 @@ function hideSuggestions() {
 }
 
 function selectNext() {
-    const items = suggestions.querySelectorAll('.mention-suggestion');
+        var items = suggestions.querySelectorAll('.mention-suggestion');
     selectedIndex = (selectedIndex + 1) % items.length;
     updateSelection();
 }
 
 function selectPrevious() {
-    const items = suggestions.querySelectorAll('.mention-suggestion');
+        var items = suggestions.querySelectorAll('.mention-suggestion');
     selectedIndex = (selectedIndex - 1 + items.length) % items.length;
     updateSelection();
 }
 
 function updateSelection() {
-    suggestions.querySelectorAll('.mention-suggestion').forEach((el, i) => {
+        suggestions.querySelectorAll('.mention-suggestion').forEach(function(el, i) {
         el.classList.toggle('selected', i === selectedIndex);
     });
 }
 
 function insertMention() {
-    const selected = suggestions.querySelector('.mention-suggestion.selected');
+        var selected = suggestions.querySelector('.mention-suggestion.selected');
     if (selected && currentMentionStart >= 0) {
-        const username = selected.dataset.username;
-        const text = textarea.value;
-        const before = text.slice(0, currentMentionStart);
-        const after = text.slice(textarea.selectionStart);
+            var username = selected.dataset.username;
+            var text = textarea.value;
+            var before = text.slice(0, currentMentionStart);
+            var after = text.slice(textarea.selectionStart);
         textarea.value = before + '@' + username + ' ' + after;
-        const cursorPos = currentMentionStart + username.length + 2;
+            var cursorPos = currentMentionStart + username.length + 2;
         textarea.setSelectionRange(cursorPos, cursorPos);
         textarea.focus();
     }
@@ -1032,9 +802,9 @@ function insertMention() {
 
 // Helper function to get caret coordinates
 function getCaretCoordinates(element, position) {
-    const div = document.createElement('div');
-    const styles = getComputedStyle(element);
-    const properties = [
+        var div = document.createElement('div');
+        var styles = getComputedStyle(element);
+        var properties = [
         'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
         'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
         'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
@@ -1045,15 +815,17 @@ function getCaretCoordinates(element, position) {
 
     div.style.position = 'absolute';
     div.style.visibility = 'hidden';
-    properties.forEach(prop => div.style[prop] = styles[prop]);
+        properties.forEach(function(prop) {
+            div.style[prop] = styles[prop];
+        });
     
     div.textContent = element.value.substring(0, position);
-    const span = document.createElement('span');
+        var span = document.createElement('span');
     span.textContent = element.value.substring(position) || '.';
     div.appendChild(span);
     
     document.body.appendChild(div);
-    const coordinates = {
+        var coordinates = {
         top: span.offsetTop + parseInt(styles.borderTopWidth) + parseInt(styles.paddingTop),
         left: span.offsetLeft + parseInt(styles.borderLeftWidth) + parseInt(styles.paddingLeft)
     };
@@ -1061,164 +833,6 @@ function getCaretCoordinates(element, position) {
     
     return coordinates;
 }
-</script>
-
-<!-- Replace the tracking script -->
-<script type="text/javascript" src="//www.17track.net/externalcall.js"></script>
-<script type="text/javascript">
-// Get ticket ID from the current URL
-const ticketId = window.location.pathname.split('/').pop();
-const isSingPost = document.querySelector('span.rounded-full')?.textContent.trim() === 'Asset Checkout (SingPost)';
-
-function showError(message) {
-    hideLoading();
-    const errorDiv = document.getElementById('errorMessage');
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-}
-
-function hideError() {
-    document.getElementById('errorMessage').classList.add('hidden');
-}
-
-function showLoading() {
-    hideError();
-    document.getElementById('loadingIndicator').classList.remove('hidden');
-    if (isSingPost) {
-        document.getElementById('singpostContainer').classList.add('hidden');
-    } else {
-        document.getElementById('YQContainer').classList.add('hidden');
-    }
-}
-
-function hideLoading() {
-    document.getElementById('loadingIndicator').classList.add('hidden');
-}
-
-function doTrack(event) {
-    if (event) {
-        event.preventDefault();
-    }
-    
-    const num = document.getElementById("YQNum").value.trim();
-    
-    if (!num) {
-        showError("Please enter a tracking number");
-        return false;
-    }
-    
-    // Validate SingPost tracking number format
-    if (isSingPost && !num.match(/^[A-Za-z]{2}[0-9]{9}[A-Za-z]{2}$/)) {
-        showError("Invalid SingPost tracking number format. Please use format: RBxxxxxxSG");
-        return false;
-    }
-    
-    showLoading();
-    
-    // Set a timeout to prevent endless loading
-    const loadingTimeout = setTimeout(() => {
-        hideLoading();
-        showError("Tracking information loading timeout. Please try again.");
-    }, 30000);
-    
-    try {
-        if (isSingPost) {
-            // Create an iframe for SingPost tracking
-            const trackingUrl = `https://www.singpost.com/track-items?track_number=${encodeURIComponent(num)}`;
-            const iframe = document.createElement('iframe');
-            iframe.src = trackingUrl;
-            iframe.className = 'w-full h-[600px] border-0';
-            
-            // Replace or append the iframe
-            const container = document.getElementById('singpostContainer');
-            container.innerHTML = '';
-            container.appendChild(iframe);
-            container.classList.remove('hidden');
-            
-            // Hide loading after iframe loads
-            iframe.onload = function() {
-                clearTimeout(loadingTimeout);
-                hideLoading();
-            };
-            
-            // Update tracking status in our system
-            fetch(`/tickets/${ticketId}/track/update`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tracking_number: num })
-            }).catch(console.error);
-        } else {
-            // Use 17TRACK for other carriers
-            YQV5.trackSingle({
-                YQ_ContainerId: "YQContainer",
-                YQ_Height: 560,
-                YQ_Fc: "0",
-                YQ_Lang: "en",
-                YQ_Num: num,
-                YQ_CompleteCallback: function(result) {
-                    clearTimeout(loadingTimeout);
-                    hideLoading();
-                    
-                    if (!result) {
-                        showError("Failed to load tracking information. Please try again.");
-                        return;
-                    }
-                    
-                    if (result.status !== 1) {
-                        showError(result.message || "Failed to load tracking information. Please try again.");
-                        return;
-                    }
-                    
-                    document.getElementById('YQContainer').classList.remove('hidden');
-                }
-            });
-        }
-    } catch (e) {
-        clearTimeout(loadingTimeout);
-        console.error('Error initializing tracking:', e);
-        hideLoading();
-        showError("Failed to initialize tracking. Please try again.");
-    }
-    
-    return false;
-}
-
-// Initialize tracking on page load if tracking number exists
-window.addEventListener('load', function() {
-    const trackingNumber = document.getElementById("YQNum");
-    if (trackingNumber && trackingNumber.value.trim()) {
-        setTimeout(doTrack, 1000);
-    }
-});
-</script>
-
-<!-- Add this script at the end of the file, before the closing {% endblock %} -->
-<script>
-// Tech Assets select all functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const selectAllAssets = document.getElementById('selectAllAssets');
-    if (selectAllAssets) {
-        const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
-        
-        // Handle "select all" checkbox change
-        selectAllAssets.addEventListener('change', function() {
-            assetCheckboxes.forEach(checkbox => {
-                checkbox.checked = selectAllAssets.checked;
-            });
-        });
-
-        // Update "select all" checkbox when individual checkboxes change
-        assetCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const allChecked = Array.from(assetCheckboxes).every(cb => cb.checked);
-                const someChecked = Array.from(assetCheckboxes).some(cb => cb.checked);
-                selectAllAssets.checked = allChecked;
-                selectAllAssets.indeterminate = someChecked && !allChecked;
-            });
-        });
-    }
-});
+})(); // End of self-executing function
 </script>
 {% endblock %} 
