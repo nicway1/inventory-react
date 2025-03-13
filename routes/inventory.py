@@ -1747,16 +1747,8 @@ def add_customer_user():
             contact_number = request.form.get('contact_number')
             email = request.form.get('email')
             address = request.form.get('address')
-            company_name = request.form.get('company')
+            company_name = request.form.get('company')  # Get company name instead of ID
             country = Country[request.form.get('country')]
-
-            # Get or create the company
-            company = db_session.query(Company).filter_by(name=company_name).first()
-            if not company:
-                # Create new company if it doesn't exist
-                company = Company(name=company_name)
-                db_session.add(company)
-                db_session.flush()  # Get the company ID
 
             # Create new customer user
             customer = CustomerUser(
@@ -1764,25 +1756,44 @@ def add_customer_user():
                 contact_number=contact_number,
                 email=email if email else None,
                 address=address,
-                company=company,  # Assign the Company object
                 country=country
             )
-            
+
+            # Look for existing company by name
+            company = db_session.query(Company).filter(Company.name == company_name).first()
+            if not company:
+                # Create new company if it doesn't exist
+                company = Company(name=company_name)
+                db_session.add(company)
+                db_session.flush()
+
+            customer.company = company
             db_session.add(customer)
             db_session.commit()
             
             flash('Customer user added successfully!', 'success')
             return redirect(url_for('inventory.list_customer_users'))
         
-        # For GET request, get unique company names from assets
-        companies = db_session.query(Asset.customer)\
+        # For GET request, get unique company names from both assets and companies table
+        company_names_from_assets = db_session.query(Asset.customer)\
             .filter(Asset.customer.isnot(None))\
             .distinct()\
-            .order_by(Asset.customer)\
             .all()
-        
-        # Convert list of tuples to list of company names
-        companies = [company[0] for company in companies if company[0]]  # Filter out None/empty values
+        company_names_from_companies = db_session.query(Company.name)\
+            .distinct()\
+            .all()
+            
+        # Combine and deduplicate company names
+        all_companies = set()
+        for company in company_names_from_assets:
+            if company[0]:  # Check if the company name is not None
+                all_companies.add(company[0])
+        for company in company_names_from_companies:
+            if company[0]:  # Check if the company name is not None
+                all_companies.add(company[0])
+                
+        # Sort the company names
+        companies = sorted(list(all_companies))
         
         return render_template('inventory/add_customer_user.html', 
                              companies=companies,
