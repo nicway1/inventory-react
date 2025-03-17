@@ -12,6 +12,7 @@ from models.asset_transaction import AssetTransaction
 from models.location import Location
 from models.company import Company
 from models.activity import Activity
+from models.accessory_transaction import AccessoryTransaction
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -26,12 +27,14 @@ import csv
 from sqlalchemy.orm import joinedload
 from models.company import Company
 from io import StringIO, BytesIO
+import logging
+import random
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
 
 # Configure upload settings
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads'))
 ALLOWED_EXTENSIONS = {'csv'}
 
 if not os.path.exists(UPLOAD_FOLDER): 
@@ -423,7 +426,18 @@ def checkout_accessory(id):
         accessory.customer_id = customer_id
         accessory.customer_user = customer
 
-        # Track changes
+        # Create transaction record
+        transaction = AccessoryTransaction(
+            accessory_id=id,
+            customer_id=customer_id,
+            transaction_date=datetime.utcnow(),
+            transaction_type='Checkout',
+            quantity=quantity,
+            notes=f"Checked out {quantity} item(s) to {customer.name}"
+        )
+        db_session.add(transaction)
+        
+        # Create history record with proper changes format
         changes = {
             'available_quantity': {
                 'old': old_values['available_quantity'],
@@ -438,28 +452,20 @@ def checkout_accessory(id):
                 'new': customer_id
             }
         }
-
-        # Create history entry
-        history_entry = accessory.track_change(
+        
+        history = AccessoryHistory.create_history(
+            accessory_id=accessory.id,
             user_id=current_user.id,
-            action='checkout',
+            action='Checkout',
             changes=changes,
-            notes=f'Checked out {quantity} units to {customer.name}'
+            notes=f"Checked out {quantity} item(s) to {customer.name}"
         )
-        db_session.add(history_entry)
-
-        # Add activity record
-        activity = Activity(
-            user_id=current_user.id,
-            type='accessory_checked_out',
-            content=f'Checked out {quantity} {accessory.name}(s) to {customer.name}',
-            reference_id=accessory.id
-        )
-        db_session.add(activity)
-
+        db_session.add(history)
+        
         db_session.commit()
-        flash(f'Successfully checked out {quantity} {accessory.name}(s) to {customer.name}', 'success')
+        flash(f'Successfully checked out {quantity} item(s) to {customer.name}', 'success')
         return redirect(url_for('inventory.view_accessory', id=id))
+        
     except Exception as e:
         db_session.rollback()
         flash(f'Error checking out accessory: {str(e)}', 'error')
@@ -568,6 +574,7 @@ def unassign_item(item_id):
     return redirect(url_for('inventory.view_item', item_id=item_id))
 
 @inventory_bp.route('/import', methods=['GET', 'POST'])
+@login_required
 def import_inventory():
     if request.method == 'POST':
         db_session = db_manager.get_session()
@@ -1833,7 +1840,32 @@ def view_customer_user(id):
             flash('Customer not found', 'error')
             return redirect(url_for('inventory.list_customer_users'))
         
-        return render_template('inventory/view_customer_user.html', customer=customer)
+        # Get accessory quantities from transactions
+        accessory_quantities = {}
+        
+        # Find all transactions for this customer's accessories
+        transactions = db_session.query(AccessoryTransaction)\
+            .filter(AccessoryTransaction.customer_id == customer.id)\
+            .order_by(AccessoryTransaction.transaction_date.desc())\
+            .all()
+            
+        # Calculate net quantity per accessory
+        for transaction in transactions:
+            accessory_id = transaction.accessory_id
+            
+            # Initialize if not already in the dictionary
+            if accessory_id not in accessory_quantities:
+                accessory_quantities[accessory_id] = 0
+                
+            # Add or subtract quantity based on transaction type
+            if transaction.transaction_type.lower() == 'checkout':
+                accessory_quantities[accessory_id] += transaction.quantity
+            elif transaction.transaction_type.lower() == 'checkin':
+                accessory_quantities[accessory_id] -= transaction.quantity
+        
+        return render_template('inventory/view_customer_user.html', 
+                              customer=customer,
+                              accessory_quantities=accessory_quantities)
     finally:
         db_session.close()
 
@@ -2132,85 +2164,229 @@ def bulk_checkout():
     # Extract data from request
     customer_id = data.get('customer_id')
     asset_ids = data.get('asset_ids', [])
-    accessory_ids = data.get('accessory_ids', [])
+    accessory_items = data.get('accessory_ids', [])
+    
+    # Debug logging
+    logging.info(f"Bulk checkout request: customer_id={customer_id}, asset_ids={asset_ids}, accessory_items={accessory_items}")
+    
+    # Process accessories
+    accessory_quantities = {}
+    accessory_ids = []
+    for item in accessory_items:
+        # Handle case where accessory_ids contains objects with id and quantity
+        if isinstance(item, dict) and 'id' in item:
+            acc_id = str(item['id'])
+            accessory_ids.append(acc_id)
+            # Store the quantity if provided
+            if 'quantity' in item:
+                accessory_quantities[acc_id] = int(item['quantity'])
+        else:
+            # Handle case where accessory_ids is a simple list of IDs
+            accessory_ids.append(str(item))
     
     if not customer_id:
+        logging.warning("Bulk checkout failed: No customer ID provided")
         return jsonify({"error": "Customer ID is required"}), 400
     
     if not asset_ids and not accessory_ids:
+        logging.warning("Bulk checkout failed: No assets or accessories selected")
         return jsonify({"error": "No assets or accessories selected"}), 400
     
     db_session = db_manager.get_session()
+    processed_assets = 0
+    processed_accessories = 0
+    errors = []
+    warnings = []
+    
     try:
         # Get the user ID from session
-        user_id = session.get('user_id')
+        user_id = current_user.id if not session.get('user_id') else session.get('user_id')
         
         # Get the customer
         customer = db_session.query(CustomerUser).get(customer_id)
         if not customer:
+            logging.error(f"Bulk checkout failed: Customer not found with ID: {customer_id}")
             return jsonify({"error": "Customer not found"}), 404
         
         # Process assets
         for asset_id in asset_ids:
-            asset = db_session.query(Asset).get(asset_id)
-            if asset:
-                # Update asset status to DEPLOYED
-                original_status = asset.status
-                asset.status = AssetStatus.DEPLOYED
-                asset.customer_id = customer_id
-                
-                # Create transaction record
-                transaction = AssetTransaction(
-                    asset_id=asset_id,
-                    customer_id=customer_id,
-                    transaction_type='checkout',
-                    notes=f'Bulk checkout to {customer.name}'
-                )
-                db_session.add(transaction)
-                
-                # Create history entry
-                changes = {
-                    'status': {
-                        'from': original_status.value if original_status else None,
-                        'to': AssetStatus.DEPLOYED.value
-                    },
-                    'customer_id': {
-                        'from': None,
-                        'to': customer_id
+            try:
+                asset = db_session.query(Asset).get(int(asset_id))
+                if asset:
+                    # Update asset status to DEPLOYED
+                    original_status = asset.status
+                    asset.status = AssetStatus.DEPLOYED
+                    asset.customer_id = customer_id
+                    
+                    # Create transaction record
+                    transaction = AssetTransaction(
+                        asset_id=asset.id,
+                        customer_id=customer_id,
+                        transaction_type='checkout',
+                        notes=f'Bulk checkout to {customer.name}'
+                    )
+                    db_session.add(transaction)
+                    
+                    # Create history entry
+                    changes = {
+                        'status': {
+                            'from': original_status.value if original_status else None,
+                            'to': AssetStatus.DEPLOYED.value
+                        },
+                        'customer_id': {
+                            'from': None,
+                            'to': customer_id
+                        }
                     }
-                }
-                
-                # Track the change
-                history_entry = asset.track_change(
-                    user_id=user_id,
-                    action="BULK_CHECKOUT",
-                    changes=changes,
-                    notes=f"Bulk checkout to {customer.name}"
-                )
-                db_session.add(history_entry)
-                
-                # Create activity record
-                activity = Activity(
-                    user_id=user_id,
-                    action=f"Checked out asset {asset.asset_tag} to {customer.name}",
-                    timestamp=datetime.utcnow()
-                )
-                db_session.add(activity)
+                    
+                    # Track the change
+                    history_entry = asset.track_change(
+                        user_id=user_id,
+                        action="BULK_CHECKOUT",
+                        changes=changes,
+                        notes=f"Bulk checkout to {customer.name}"
+                    )
+                    db_session.add(history_entry)
+                    
+                    # Create activity record
+                    activity = Activity(
+                        user_id=user_id,
+                        type='asset_checkout',
+                        content=f"Checked out asset {asset.asset_tag} to {customer.name}",
+                        reference_id=asset.id
+                    )
+                    db_session.add(activity)
+                    processed_assets += 1
+                else:
+                    warnings.append(f"Asset with ID {asset_id} not found")
+            except (ValueError, TypeError) as e:
+                error_msg = f"Invalid asset ID format: {asset_id} - {str(e)}"
+                logging.error(error_msg)
+                errors.append(error_msg)
+                continue
         
         # Process accessories
-        # Similar logic for accessories would go here
+        for accessory_id in accessory_ids:
+            # Convert ID to integer to ensure proper primary key format
+            try:
+                # Get the numeric ID
+                acc_id = int(accessory_id)
+                
+                # Use a direct query with filter to avoid query.get() issues
+                accessory = db_session.query(Accessory).filter(Accessory.id == acc_id).first()
+                
+                if not accessory:
+                    warning_msg = f"Accessory not found with ID: {acc_id}"
+                    logging.warning(warning_msg)
+                    warnings.append(warning_msg)
+                    continue
+                
+                # Get the quantity for this accessory (default to 1)
+                checkout_quantity = accessory_quantities.get(str(accessory_id), 1)
+                
+                if accessory.available_quantity >= checkout_quantity:
+                    # Store original values for tracking changes
+                    original_available_qty = accessory.available_quantity
+                    original_status = accessory.status
+                    original_customer_id = accessory.customer_id
+                    
+                    # Update accessory - reduce available quantity by the checkout quantity
+                    accessory.available_quantity -= checkout_quantity
+                    
+                    # Update status if needed
+                    if accessory.available_quantity == 0:
+                        accessory.status = 'Out of Stock'
+                    
+                    # Assign to customer
+                    accessory.customer_id = customer_id
+                    accessory.checkout_date = datetime.utcnow()
+                    
+                    # Create transaction record
+                    transaction = AccessoryTransaction(
+                        accessory_id=acc_id,
+                        customer_id=customer_id,
+                        transaction_date=datetime.utcnow(),
+                        transaction_type='Checkout',
+                        quantity=checkout_quantity,
+                        notes=f"Bulk checkout to {customer.name}"
+                    )
+                    db_session.add(transaction)
+                    
+                    # Create history record
+                    changes = {
+                        'available_quantity': {
+                            'old': original_available_qty,
+                            'new': accessory.available_quantity
+                        },
+                        'status': {
+                            'old': original_status,
+                            'new': accessory.status
+                        },
+                        'customer_id': {
+                            'old': original_customer_id,
+                            'new': customer_id
+                        }
+                    }
+                    
+                    history = AccessoryHistory.create_history(
+                        accessory_id=accessory.id,
+                        user_id=user_id,
+                        action='Checkout',
+                        changes=changes,
+                        notes=f"Bulk checkout to {customer.name}"
+                    )
+                    db_session.add(history)
+                    
+                    # Create activity record
+                    activity = Activity(
+                        user_id=user_id,
+                        type='accessory_checkout',
+                        content=f"Checked out {checkout_quantity} of accessory {accessory.name} to {customer.name}",
+                        reference_id=accessory.id
+                    )
+                    db_session.add(activity)
+                    processed_accessories += 1
+                else:
+                    warning_msg = f"Insufficient quantity for accessory {accessory.name}: requested {checkout_quantity}, available {accessory.available_quantity}"
+                    logging.warning(warning_msg)
+                    warnings.append(warning_msg)
+            except (ValueError, TypeError) as e:
+                # Log invalid ID format but continue processing other accessories
+                error_msg = f"Invalid accessory ID format: {accessory_id} - {str(e)}"
+                logging.error(error_msg)
+                errors.append(error_msg)
+                continue
+            except Exception as e:
+                error_msg = f"Error processing accessory ID {accessory_id}: {str(e)}"
+                logging.error(error_msg)
+                errors.append(error_msg)
+                continue
         
-        # Commit all changes
-        db_session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Successfully checked out {len(asset_ids)} assets and {len(accessory_ids)} accessories to {customer.name}"
-        })
+        # Only commit if no errors occurred
+        if not errors:
+            db_session.commit()
+            logging.info(f"Bulk checkout successful: {processed_assets} assets and {processed_accessories} accessories checked out to customer {customer.name}")
+            
+            response_data = {
+                "success": True,
+                "message": f"Successfully checked out {processed_assets} assets and {processed_accessories} accessories to {customer.name}"
+            }
+            
+            if warnings:
+                response_data["warnings"] = warnings
+                
+            return jsonify(response_data)
+        else:
+            db_session.rollback()
+            error_message = "Errors occurred during checkout. No items were checked out."
+            logging.error(f"Bulk checkout failed: {error_message} - {errors}")
+            return jsonify({"error": error_message, "details": errors}), 500
         
     except Exception as e:
         db_session.rollback()
-        return jsonify({"error": str(e)}), 500
+        error_message = f"Unexpected error during checkout: {str(e)}"
+        logging.error(error_message, exc_info=True)
+        return jsonify({"error": error_message}), 500
     finally:
         db_session.close()
 
@@ -2700,3 +2876,117 @@ def import_customers():
     
     # For GET request, render the import form
     return render_template('inventory/import_customers.html')
+
+@inventory_bp.route('/api/accessories/<int:id>/transactions')
+@login_required
+def get_accessory_transactions(id):
+    current_app.logger.debug(f"Fetching transactions for accessory {id}")
+    db_session = db_manager.get_session()
+    try:
+        # First check if the accessory exists
+        accessory = db_session.query(Accessory).get(id)
+        if not accessory:
+            current_app.logger.error(f"Accessory {id} not found")
+            return jsonify({'error': 'Accessory not found'}), 404
+
+        current_app.logger.debug(f"Found accessory: {accessory.name}")
+        
+        # Get transactions
+        transactions = db_session.query(AccessoryTransaction).filter(
+            AccessoryTransaction.accessory_id == id
+        ).order_by(AccessoryTransaction.transaction_date.desc()).all()
+        
+        current_app.logger.debug(f"Found {len(transactions)} transactions")
+        
+        transaction_list = []
+        for t in transactions:
+            try:
+                transaction_data = {
+                    'id': t.id,
+                    'transaction_number': t.transaction_number,
+                    'transaction_date': t.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if t.transaction_date else None,
+                    'transaction_type': t.transaction_type,
+                    'quantity': t.quantity,
+                    'notes': t.notes,
+                    'customer': t.customer.name if t.customer else None
+                }
+                transaction_list.append(transaction_data)
+                current_app.logger.debug(f"Processed transaction: {t.transaction_number}")
+            except Exception as e:
+                current_app.logger.error(f"Error processing transaction {t.id}: {str(e)}")
+                continue
+        
+        current_app.logger.debug(f"Successfully processed {len(transaction_list)} transactions")
+        return jsonify(transaction_list)
+    except Exception as e:
+        current_app.logger.error(f"Error fetching transactions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/api/customer-users/<int:id>/transactions')
+@login_required
+def get_customer_transactions(id):
+    """API endpoint to get all transactions for a specific customer"""
+    db_session = db_manager.get_session()
+    try:
+        # First check if the customer exists
+        customer = db_session.query(CustomerUser).get(id)
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+        
+        # Get asset transactions
+        asset_transactions = db_session.query(AssetTransaction).filter(
+            AssetTransaction.customer_id == id
+        ).order_by(AssetTransaction.transaction_date.desc()).all()
+        
+        # Get accessory transactions
+        accessory_transactions = db_session.query(AccessoryTransaction).filter(
+            AccessoryTransaction.customer_id == id
+        ).order_by(AccessoryTransaction.transaction_date.desc()).all()
+        
+        # Prepare response data
+        asset_transaction_list = []
+        for t in asset_transactions:
+            try:
+                transaction_data = {
+                    'id': t.id,
+                    'transaction_number': t.transaction_number,
+                    'transaction_date': t.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if t.transaction_date else None,
+                    'transaction_type': t.transaction_type,
+                    'notes': t.notes,
+                    'asset_tag': t.asset.asset_tag if t.asset else None,
+                    'asset_name': t.asset.product if t.asset else None,
+                    'type': 'asset'
+                }
+                asset_transaction_list.append(transaction_data)
+            except Exception as e:
+                continue
+        
+        accessory_transaction_list = []
+        for t in accessory_transactions:
+            try:
+                transaction_data = {
+                    'id': t.id,
+                    'transaction_number': t.transaction_number,
+                    'transaction_date': t.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if t.transaction_date else None,
+                    'transaction_type': t.transaction_type,
+                    'quantity': t.quantity,
+                    'notes': t.notes,
+                    'accessory_name': t.accessory.name if t.accessory else None,
+                    'accessory_category': t.accessory.category if t.accessory else None,
+                    'type': 'accessory'
+                }
+                accessory_transaction_list.append(transaction_data)
+            except Exception as e:
+                continue
+        
+        # Combine and sort all transactions by date (newest first)
+        all_transactions = asset_transaction_list + accessory_transaction_list
+        all_transactions.sort(key=lambda x: x['transaction_date'] if x['transaction_date'] else '', reverse=True)
+        
+        return jsonify(all_transactions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()

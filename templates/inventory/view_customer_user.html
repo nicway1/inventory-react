@@ -90,184 +90,258 @@
         </div>
     </div>
 
-    <!-- Contact Information -->
-    <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <div class="flex items-center mb-4">
-            <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            <h2 class="text-xl font-semibold text-gray-900">Contact Information</h2>
-        </div>
-        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="flex">
-                <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    <!-- Tab Navigation -->
+    <div class="mb-4 border-b border-gray-200">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" role="tablist">
+            <li class="mr-2" role="presentation">
+                <button class="inline-flex items-center p-4 rounded-t-lg border-b-2 border-blue-600 text-blue-600 tab-button active" 
+                        id="details-tab" 
+                        data-target="details-content"
+                        type="button" 
+                        role="tab">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    Email
-                </dt>
-                <dd class="text-sm text-gray-900">{{ customer.email if customer.email else 'Not provided' }}</dd>
-            </div>
-            <div class="flex">
-                <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                    Details
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-flex items-center p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 tab-button" 
+                        id="transactions-tab" 
+                        data-target="transactions-content"
+                        type="button" 
+                        role="tab">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                     </svg>
-                    Contact Number
-                </dt>
-                <dd class="text-sm text-gray-900">{{ customer.contact_number }}</dd>
-            </div>
-            <div class="md:col-span-2 flex">
-                <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    Address
-                </dt>
-                <dd class="text-sm text-gray-900">{{ customer.address }}</dd>
-            </div>
-            <div class="flex">
-                <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    Created At
-                </dt>
-                <dd class="text-sm text-gray-900">{{ customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else 'Not available' }}</dd>
-            </div>
-            <div class="flex">
-                <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Last Updated
-                </dt>
-                <dd class="text-sm text-gray-900">{{ customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else 'Not available' }}</dd>
-            </div>
-        </dl>
+                    Transactions
+                </button>
+            </li>
+        </ul>
     </div>
 
-    <!-- Assigned Assets -->
-    <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <div class="flex items-center mb-4">
-            <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            <h2 class="text-xl font-semibold text-gray-900">Assigned Assets</h2>
+    <!-- Details Tab Content -->
+    <div id="details-content" class="tab-pane">
+        <!-- Contact Information -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <h2 class="text-xl font-semibold text-gray-900">Contact Information</h2>
+            </div>
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex">
+                    <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        Email
+                    </dt>
+                    <dd class="text-sm text-gray-900">{{ customer.email if customer.email else 'Not provided' }}</dd>
+                </div>
+                <div class="flex">
+                    <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                        </svg>
+                        Contact Number
+                    </dt>
+                    <dd class="text-sm text-gray-900">{{ customer.contact_number }}</dd>
+                </div>
+                <div class="md:col-span-2 flex">
+                    <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Address
+                    </dt>
+                    <dd class="text-sm text-gray-900">{{ customer.address }}</dd>
+                </div>
+                <div class="flex">
+                    <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Created At
+                    </dt>
+                    <dd class="text-sm text-gray-900">{{ customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else 'Not available' }}</dd>
+                </div>
+                <div class="flex">
+                    <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Last Updated
+                    </dt>
+                    <dd class="text-sm text-gray-900">{{ customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else 'Not available' }}</dd>
+                </div>
+            </dl>
         </div>
-        {% if customer.assigned_assets %}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for asset in customer.assigned_assets %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.asset_tag }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.model }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                {% if asset.status.value == 'DEPLOYED' %}
-                                    bg-green-100 text-green-800
-                                {% elif asset.status.value == 'IN_STOCK' %}
-                                    bg-blue-100 text-blue-800
+
+        <!-- Assigned Assets -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <h2 class="text-xl font-semibold text-gray-900">Assigned Assets</h2>
+            </div>
+            {% if customer.assigned_assets %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for asset in customer.assigned_assets %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.asset_tag }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.model }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                    {% if asset.status.value == 'DEPLOYED' %}
+                                        bg-green-100 text-green-800
+                                    {% elif asset.status.value == 'IN_STOCK' %}
+                                        bg-blue-100 text-blue-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ asset.status.value if asset.status else 'Unknown' }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" 
+                                   class="text-blue-600 hover:text-blue-900 flex items-center justify-end">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">No assets currently assigned.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Assigned Accessories -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <h2 class="text-xl font-semibold text-gray-900">Assigned Accessories</h2>
+            </div>
+            {% if customer.assigned_accessories %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for accessory in customer.assigned_accessories %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.model_no }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                {% if accessory.id in accessory_quantities %}
+                                    {{ accessory_quantities[accessory.id] }}
                                 {% else %}
-                                    bg-gray-100 text-gray-800
-                                {% endif %}">
-                                {{ asset.status.value if asset.status else 'Unknown' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" 
-                               class="text-blue-600 hover:text-blue-900 flex items-center justify-end">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                View Details
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                    1
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.status }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
+                                   class="text-blue-600 hover:text-blue-900 flex items-center justify-end">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">No accessories currently assigned.</p>
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="text-center py-8">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            <p class="mt-2 text-sm text-gray-500">No assets currently assigned.</p>
-        </div>
-        {% endif %}
     </div>
 
-    <!-- Assigned Accessories -->
-    <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <div class="flex items-center mb-4">
-            <svg class="w-6 h-6 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-            <h2 class="text-xl font-semibold text-gray-900">Assigned Accessories</h2>
+    <!-- Transactions Tab Content -->
+    <div id="transactions-content" class="tab-pane hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Transaction #</th>
+                            <th scope="col" class="px-6 py-3">Item</th>
+                            <th scope="col" class="px-6 py-3">Type</th>
+                            <th scope="col" class="px-6 py-3">Quantity</th>
+                            <th scope="col" class="px-6 py-3">Date</th>
+                            <th scope="col" class="px-6 py-3">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody">
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center">
+                                <div class="flex items-center justify-center">
+                                    <svg class="animate-spin h-5 w-5 mr-3 text-blue-600" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Loading transactions...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        {% if customer.assigned_accessories %}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for accessory in customer.assigned_accessories %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.model_no }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.status }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
-                               class="text-blue-600 hover:text-blue-900 flex items-center justify-end">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                View Details
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-center py-8">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-            <p class="mt-2 text-sm text-gray-500">No accessories currently assigned.</p>
-        </div>
-        {% endif %}
     </div>
-
-    <!-- Delete Confirmation Form -->
-    <form id="deleteForm" action="{{ url_for('inventory.delete_customer_user', id=customer.id) }}" method="POST" class="hidden">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    </form>
 </div>
+
+<!-- Delete Confirmation Form -->
+<form id="deleteForm" action="{{ url_for('inventory.delete_customer_user', id=customer.id) }}" method="POST" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
 
 <script>
 function confirmDelete() {
@@ -275,5 +349,134 @@ function confirmDelete() {
         document.getElementById('deleteForm').submit();
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching functionality
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons and panes
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active', 'border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent');
+            });
+            tabPanes.forEach(pane => pane.classList.add('hidden'));
+
+            // Add active class to clicked button and its target pane
+            button.classList.add('active', 'border-blue-600', 'text-blue-600');
+            const targetId = button.getAttribute('data-target');
+            const targetPane = document.getElementById(targetId);
+            targetPane.classList.remove('hidden');
+
+            // Load transactions if transactions tab is clicked
+            if (targetId === 'transactions-content') {
+                loadTransactions();
+            }
+        });
+    });
+
+    // Initialize the first tab as active
+    const activeTab = document.querySelector('.tab-button.active');
+    if (activeTab) {
+        activeTab.classList.add('border-blue-600', 'text-blue-600');
+        const targetId = activeTab.getAttribute('data-target');
+        const targetPane = document.getElementById(targetId);
+        targetPane.classList.remove('hidden');
+    }
+
+    // Function to load transactions
+    function loadTransactions() {
+        const transactionsTableBody = document.getElementById('transactionsTableBody');
+        
+        fetch(`/inventory/api/customer-users/{{ customer.id }}/transactions`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                transactionsTableBody.innerHTML = '';
+                if (!Array.isArray(data) || data.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                            No transactions found for this customer
+                        </td>
+                    `;
+                    transactionsTableBody.appendChild(emptyRow);
+                    return;
+                }
+                
+                data.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    
+                    // Determine item name based on transaction type
+                    let itemName = '';
+                    if (transaction.type === 'asset') {
+                        itemName = transaction.asset_name || 'Unknown Asset';
+                        if (transaction.asset_tag) {
+                            itemName += ` (${transaction.asset_tag})`;
+                        }
+                    } else {
+                        itemName = transaction.accessory_name || 'Unknown Accessory';
+                        if (transaction.accessory_category) {
+                            itemName += ` (${transaction.accessory_category})`;
+                        }
+                    }
+                    
+                    // Get transaction type color
+                    let typeColor = '';
+                    if (transaction.transaction_type.toLowerCase() === 'checkout') {
+                        typeColor = 'bg-green-100 text-green-800';
+                    } else if (transaction.transaction_type.toLowerCase() === 'checkin' || 
+                               transaction.transaction_type.toLowerCase() === 'return') {
+                        typeColor = 'bg-blue-100 text-blue-800';
+                    } else if (transaction.transaction_type.toLowerCase() === 'add_stock') {
+                        typeColor = 'bg-yellow-100 text-yellow-800';
+                    } else {
+                        typeColor = 'bg-gray-100 text-gray-800';
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                            ${transaction.transaction_number || 'N/A'}
+                        </td>
+                        <td class="px-6 py-4">
+                            ${itemName}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${typeColor}">
+                                ${transaction.transaction_type || 'Unknown'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            ${transaction.type === 'accessory' ? (transaction.quantity || '1') : 'N/A'}
+                        </td>
+                        <td class="px-6 py-4">
+                            ${transaction.transaction_date || 'N/A'}
+                        </td>
+                        <td class="px-6 py-4">
+                            ${transaction.notes || 'No notes'}
+                        </td>
+                    `;
+                    transactionsTableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching transactions:', error);
+                transactionsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-red-500">
+                            Error loading transactions: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+});
 </script>
 {% endblock %} 
