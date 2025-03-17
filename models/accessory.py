@@ -26,6 +26,7 @@ class Accessory(Base):
     tickets = relationship("Ticket", back_populates="accessory", lazy="dynamic")
     customer_user = relationship("CustomerUser", back_populates="assigned_accessories")
     history = relationship("AccessoryHistory", back_populates="accessory", order_by="desc(AccessoryHistory.created_at)")
+    transactions = relationship("AccessoryTransaction", back_populates="accessory", order_by="desc(AccessoryTransaction.transaction_date)")
 
     def track_change(self, user_id, action, changes, notes=None):
         """Track changes made to the accessory"""

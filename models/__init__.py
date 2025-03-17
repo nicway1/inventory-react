@@ -1,3 +1,4 @@
+# This file makes the models directory a Python package
 from models.base import Base
 from models.user import User, UserType, Country
 from models.company import Company
@@ -12,6 +13,7 @@ from models.permission import Permission
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 from models.asset_transaction import AssetTransaction
+from models.accessory_transaction import AccessoryTransaction
 
 __all__ = [
     "Base",
@@ -30,5 +32,6 @@ __all__ = [
     "Permission",
     "AssetHistory",
     "AccessoryHistory",
-    "AssetTransaction"
+    "AssetTransaction",
+    "AccessoryTransaction"
 ]

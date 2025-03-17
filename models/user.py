@@ -40,8 +40,12 @@ class User(Base, UserMixin):
     
     # Relationships
     company = relationship("Company", back_populates="users")
-    tickets_requested = relationship("Ticket", foreign_keys="[Ticket.requester_id]", back_populates="requester")
-    tickets_assigned = relationship("Ticket", foreign_keys="[Ticket.assigned_to_id]", back_populates="assigned_to")
+    tickets_requested = relationship('Ticket', foreign_keys='Ticket.requester_id', back_populates='requester')
+    tickets_assigned = relationship('Ticket', foreign_keys='Ticket.assigned_to_id', back_populates='assigned_to')
+    uploaded_attachments = relationship('TicketAttachment', back_populates='uploader')
+    uploaded_intake_attachments = relationship('IntakeAttachment', back_populates='uploader')
+    created_intake_tickets = relationship('IntakeTicket', foreign_keys='IntakeTicket.created_by', back_populates='creator')
+    assigned_intake_tickets = relationship('IntakeTicket', foreign_keys='IntakeTicket.assigned_to', back_populates='assignee')
 
     def set_password(self, password):
         """Set password hash"""

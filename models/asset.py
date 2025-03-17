@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 from models.base import Base
+from models.intake_ticket import IntakeTicket
 
 class AssetStatus(enum.Enum):
     IN_STOCK = "In Stock"
@@ -27,6 +28,7 @@ class Asset(Base):
     cost_price = Column(Float)
     location_id = Column(Integer, ForeignKey('locations.id'))
     company_id = Column(Integer, ForeignKey('companies.id'))
+    intake_ticket_id = Column(Integer, ForeignKey('intake_tickets.id'), nullable=True)
     specifications = Column(JSON)
     notes = Column(String(1000))
     tech_notes = Column(String(2000))  # Longer length for detailed technical notes
@@ -64,6 +66,7 @@ class Asset(Base):
     customer_user = relationship("CustomerUser", back_populates="assigned_assets")
     transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)")
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
+    intake_ticket = relationship("IntakeTicket", back_populates="assets")
 
     def track_change(self, user_id, action, changes, notes=None):
         """Track changes made to the asset"""
