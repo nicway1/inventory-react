@@ -14,6 +14,8 @@ from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
+from models.ticket_attachment import TicketAttachment
+from models.intake_ticket import IntakeTicket
 
 __all__ = [
     "Base",
@@ -33,5 +35,7 @@ __all__ = [
     "AssetHistory",
     "AccessoryHistory",
     "AssetTransaction",
-    "AccessoryTransaction"
+    "AccessoryTransaction",
+    "TicketAttachment",
+    "IntakeTicket"
 ]
