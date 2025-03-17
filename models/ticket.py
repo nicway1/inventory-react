@@ -4,6 +4,10 @@ from datetime import datetime
 import enum
 from models.base import Base
 
+# Import models after class definition to avoid circular imports
+from models.comment import Comment
+from models.ticket_attachment import TicketAttachment
+
 class TicketStatus(enum.Enum):
     NEW = "New"
     IN_PROGRESS = "In Progress"
@@ -24,6 +28,7 @@ class TicketCategory(enum.Enum):
     ITAD_QUOTE = "ITAD Quote"
     ASSET_CHECKOUT = "Asset Checkout"
     ASSET_CHECKOUT_SINGPOST = "Asset Checkout (SingPost)"
+    ASSET_INTAKE = "Asset Intake"
 
 class RMAStatus(enum.Enum):
     PENDING_APPROVAL = "Pending Approval"
@@ -81,12 +86,14 @@ class Ticket(Base):
     replacement_status = Column(String(100), default='Pending')
 
     # Relationships
-    requester = relationship("User", foreign_keys=[requester_id], back_populates="tickets_requested")
-    assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned")
-    asset = relationship("Asset", back_populates="tickets")
+    requester = relationship('User', foreign_keys=[requester_id], back_populates='tickets_requested')
+    assigned_to = relationship('User', foreign_keys=[assigned_to_id], back_populates='tickets_assigned')
+    comments = relationship('Comment', back_populates='ticket', cascade='all, delete-orphan')
+    asset = relationship('Asset', back_populates='tickets')
     queue = relationship("Queue", back_populates="tickets")
     accessory = relationship("Accessory", back_populates="tickets")
-    customer = relationship("CustomerUser", foreign_keys=[customer_id], back_populates="tickets")
+    customer = relationship('CustomerUser', back_populates='tickets')
+    attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
 
     @property
     def display_id(self):

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Intake Ticket: {{ ticket.ticket_number }}</h1>
+            <a href="{{ url_for('intake.list_tickets') }}" class="text-gray-600 hover:text-gray-800">
+                Back to List
+            </a>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-gray-800">{{ ticket.title }}</h2>
+                    <span class="px-3 py-1 rounded-full text-sm font-semibold
+                        {% if ticket.status.value == 'Pending' %}
+                            bg-yellow-100 text-yellow-800
+                        {% elif ticket.status.value == 'In Progress' %}
+                            bg-blue-100 text-blue-800
+                        {% elif ticket.status.value == 'Completed' %}
+                            bg-green-100 text-green-800
+                        {% else %}
+                            bg-red-100 text-red-800
+                        {% endif %}">
+                        {{ ticket.status.value }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="px-6 py-4">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Created By</p>
+                        <p class="font-medium">{{ ticket.creator.username }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Created At</p>
+                        <p class="font-medium">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                    {% if ticket.assigned_to %}
+                    <div>
+                        <p class="text-sm text-gray-600">Assigned To</p>
+                        <p class="font-medium">{{ ticket.assignee.username }}</p>
+                    </div>
+                    {% endif %}
+                    {% if ticket.completed_at %}
+                    <div>
+                        <p class="text-sm text-gray-600">Completed At</p>
+                        <p class="font-medium">{{ ticket.completed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Description</p>
+                    <p class="mt-1">{{ ticket.description }}</p>
+                </div>
+
+                {% if ticket.status.value != 'Completed' %}
+                <form method="POST" action="{{ url_for('intake.update_ticket_status', ticket_id=ticket.id) }}" class="mb-4">
+                    <div class="flex items-center space-x-4">
+                        <select name="status" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            {% for status in ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] %}
+                            <option value="{{ status }}" {% if ticket.status.value == status %}selected{% endif %}>
+                                {{ status }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Update Status
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Attachments Section -->
+        <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Attachments</h2>
+            </div>
+            
+            <div class="px-6 py-4">
+                {% if ticket.attachments %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for attachment in ticket.attachments %}
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded">
+                        <div>
+                            <p class="font-medium">{{ attachment.filename }}</p>
+                            <p class="text-sm text-gray-500">Uploaded by {{ attachment.uploader.username }}</p>
+                        </div>
+                        <a href="{{ url_for('intake.download_attachment', attachment_id=attachment.id) }}" 
+                           class="text-blue-600 hover:text-blue-900">
+                            Download
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500">No attachments uploaded yet.</p>
+                {% endif %}
+
+                {% if ticket.status.value != 'Completed' %}
+                <form method="POST" action="{{ url_for('intake.upload_attachment', ticket_id=ticket.id) }}" 
+                      enctype="multipart/form-data" class="mt-4">
+                    <div class="flex items-center space-x-4">
+                        <input type="file" name="attachment" 
+                               class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               accept=".pdf,.jpg,.jpeg,.png">
+                        <button type="submit" 
+                                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Upload
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Asset Import Section -->
+        {% if ticket.status.value != 'Completed' %}
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Import Assets</h2>
+            </div>
+            
+            <div class="px-6 py-4">
+                <form method="POST" action="{{ url_for('intake.import_assets', ticket_id=ticket.id) }}" 
+                      enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="asset_file">
+                            Upload Asset CSV File
+                        </label>
+                        <input type="file" 
+                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="asset_file" name="asset_file" accept=".csv">
+                        <p class="text-sm text-gray-500 mt-1">Upload a CSV file containing asset details</p>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Import Assets
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

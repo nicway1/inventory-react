@@ -2,8 +2,20 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold mb-2">Data Import Tool</h1>
+    <!-- Header Section -->
+    <div class="mb-8">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="{{ url_for('inventory.view_inventory') }}" 
+               class="text-blue-600 hover:text-blue-800 transition-colors duration-200 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Inventory
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800">Data Import Tool</h1>
+        </div>
+
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -15,9 +27,164 @@
         {% endwith %}
     </div>
 
+    <!-- Import Guidelines Section -->
+    <div class="mb-8 bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+            <h2 class="text-lg font-semibold text-gray-800">Import Guidelines</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- File Requirements -->
+                <div>
+                    <h3 class="text-md font-semibold text-gray-700 mb-3">File Requirements</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>File must be in CSV format</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>First row must contain column headers</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>UTF-8 encoding is recommended</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Required Fields -->
+                <div>
+                    <h3 class="text-md font-semibold text-gray-700 mb-3">Required Fields</h3>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-medium text-gray-700 mb-2">For Tech Assets:</h4>
+                            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                <li>Asset Tag</li>
+                                <li>Asset Type</li>
+                                <li>Serial Number</li>
+                                <li>Status</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-medium text-gray-700 mb-2">For Accessories:</h4>
+                            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                <li>Name</li>
+                                <li>Category</li>
+                                <li>Total Quantity</li>
+                                <li>Status</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Download Template Section -->
+            <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <div>
+                        <h4 class="font-medium text-blue-800">Download Templates</h4>
+                        <p class="text-sm text-blue-600 mt-1">Use our pre-formatted templates for easy import:</p>
+                        <div class="mt-2 flex gap-4">
+                            <a href="#" class="inline-flex items-center text-sm text-blue-700 hover:text-blue-900">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                Tech Assets Template
+                            </a>
+                            <a href="#" class="inline-flex items-center text-sm text-blue-700 hover:text-blue-900">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                Accessories Template
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not preview_data %}
+    <!-- File Upload Section -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+            <h2 class="text-lg font-semibold text-gray-800">Upload Data</h2>
+        </div>
+        <div class="p-6">
+            <form action="{{ url_for('inventory.import_inventory') }}" method="POST" enctype="multipart/form-data" class="space-y-6" id="uploadForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="space-y-4">
+                    <!-- Import Type Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">What are you importing?</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="relative flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="import_type" value="tech_assets" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked required>
+                                <div class="ml-3">
+                                    <span class="block text-sm font-medium text-gray-900">Tech Assets</span>
+                                    <span class="block text-sm text-gray-500">Computers, laptops, and other devices</span>
+                                </div>
+                            </label>
+                            <label class="relative flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="import_type" value="accessories" class="h-4 w-4 text-blue-600 focus:ring-blue-500" required>
+                                <div class="ml-3">
+                                    <span class="block text-sm font-medium text-gray-900">Accessories</span>
+                                    <span class="block text-sm text-gray-500">Peripherals, components, and supplies</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="col-span-full">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors duration-200" id="dropZone">
+                            <div class="space-y-2 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <div class="flex text-sm text-gray-600">
+                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                        <span>Upload a file</span>
+                                        <input id="file-upload" name="file" type="file" class="sr-only" accept=".csv" required>
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500" id="fileInfo">CSV file up to 10MB</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center" id="submitButton">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4 4m0 0l4-4m-4 4V4"/>
+                        </svg>
+                        Upload and Preview
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     {% if preview_data %}
+    <!-- Preview Section -->
+    <div class="space-y-6">
         <!-- Asset Count Display -->
-        <div class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -54,7 +221,7 @@
         {% endfor %}
 
         {% if missing_fields %}
-        <div class="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -76,8 +243,9 @@
         </div>
         {% endif %}
 
-        <!-- Preview Data Display -->
-        <div class="mb-6">
+        <!-- Preview Data Cards -->
+        <div class="space-y-4">
+            <h2 class="text-lg font-semibold text-gray-800">Data Preview</h2>
             <form id="importForm" action="{{ url_for('inventory.confirm_import') }}" method="POST" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="filename" value="{{ filename }}">
@@ -85,464 +253,138 @@
                 <input type="hidden" name="import_type" value="{{ import_type }}">
                 <input type="hidden" name="row_count" value="{{ preview_data|length }}">
                 
-                <!-- Add explicit fields for Asset Tag values -->
-                {% for row in preview_data %}
-                    {% if not row['Asset Tag'] %}
-                        <input type="hidden" name="asset_tag_{{ loop.index }}" id="direct_asset_tag_{{ loop.index0 }}" value="">
-                    {% else %}
-                        <input type="hidden" name="asset_tag_{{ loop.index }}" id="direct_asset_tag_{{ loop.index0 }}" value="{{ row['Asset Tag'] }}">
-                    {% endif %}
-                {% endfor %}
-                
-                <!-- Store the complete preview data -->
                 {% for row in preview_data %}
                     <input type="hidden" name="preview_data[{{ loop.index0 }}]" id="preview_data_{{ loop.index0 }}" value='{{ row|tojson|safe }}'>
                 {% endfor %}
 
-                <!-- Display and input fields for missing values -->
+                <!-- Preview Cards -->
                 {% for row in preview_data %}
+                    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div class="grid grid-cols-1 md:grid-cols-{% if import_type == 'tech_assets' %}4{% else %}3{% endif %} gap-6">
+                            <!-- Content varies based on import type -->
                     {% if import_type == 'tech_assets' %}
-                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
-                                    <div class="space-y-2">
-                                        {% if not row['Asset Tag'] %}
-                                            <div class="bg-red-50 p-2 rounded border border-red-200">
-                                                <label class="text-sm font-medium">Asset Tag for Row {{ loop.index }}:</label>
-                                                <div class="flex space-x-2">
-                                                    <input type="text" 
-                                                           name="asset_tag_input_{{ loop.index0 }}" 
-                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
-                                                           placeholder="Required field"
-                                                           required>
-                                                    <button type="button"
-                                                            data-row="{{ loop.index0 }}"
-                                                            data-field="Asset Tag"
-                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
-                                                        Confirm
-                                                    </button>
-                                                </div>
-                                            </div>
+                                {% include 'inventory/_tech_asset_preview.html' %}
                                         {% else %}
-                                            <div class="p-2">
-                                                <label class="text-sm font-medium">Asset Tag:</label>
-                                                <p class="text-sm">{{ row['Asset Tag'] }}</p>
-                                            </div>
+                                {% include 'inventory/_accessory_preview.html' %}
                                         {% endif %}
-
-                                        <p class="text-sm"><span class="font-medium">Serial Number:</span> {{ row['Serial Number'] }}</p>
-                                        <p class="text-sm"><span class="font-medium">Product:</span> {{ row['Product'] }}</p>
-                                        <p class="text-sm"><span class="font-medium">Model:</span> {{ row['Model'] }}</p>
-                                        <p class="text-sm"><span class="font-medium">Hardware Type:</span> {{ row['Hardware Type'] }}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Rest of the preview sections -->
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Notes</h3>
-                                    <div class="space-y-2">
-                                        <p class="text-sm"><span class="font-medium">General Notes:</span> {{ row['Notes'] or 'N/A' }}</p>
-                                        <p class="text-sm"><span class="font-medium">Technical Notes:</span> {{ row['Tech Notes'] or 'N/A' }}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Hardware Specifications</h3>
-                                    <div class="space-y-2">
-                                        <p class="text-sm"><span class="font-medium">CPU:</span> {{ row['CPU Type'] }}, {{ row['CPU Cores'] }} cores</p>
-                                        <p class="text-sm"><span class="font-medium">GPU:</span> {{ row['GPU Cores'] }} cores</p>
-                                        <p class="text-sm"><span class="font-medium">Memory:</span> {{ row['Memory'] }}GB</p>
-                                        <p class="text-sm"><span class="font-medium">Storage:</span> {{ row['Hard Drive'] }}GB</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
-                                    <div class="space-y-2">
-                                        <p class="text-sm"><span class="font-medium">Status:</span> {{ row['Status'] }}</p>
-                                        <p class="text-sm"><span class="font-medium">Customer:</span> {{ row['Customer'] }}</p>
-                                        <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] }}</p>
-                                    </div>
-                                </div>
                             </div>
                         </div>
-                    {% else %}
-                        <!-- Accessories Preview Display -->
-                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
-                                    <div class="space-y-2">
-                                        {% if not row['Name'] %}
-                                            <div class="bg-red-50 p-2 rounded border border-red-200">
-                                                <label class="text-sm font-medium">Name for Row {{ loop.index }}:</label>
-                                                <div class="flex space-x-2">
-                                                    <input type="text" 
-                                                           name="name_input_{{ loop.index0 }}" 
-                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
-                                                           placeholder="Required field"
-                                                           required>
-                                                    <button type="button"
-                                                            data-row="{{ loop.index0 }}"
-                                                            data-field="Name"
-                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
-                                                        Confirm
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        {% else %}
-                                            <div class="p-2">
-                                                <label class="text-sm font-medium">Name:</label>
-                                                <p class="text-sm">{{ row['Name'] }}</p>
-                                            </div>
-                                        {% endif %}
-                                        
-                                        {% if not row['Category'] %}
-                                            <div class="bg-red-50 p-2 rounded border border-red-200">
-                                                <label class="text-sm font-medium">Category for Row {{ loop.index }}:</label>
-                                                <div class="flex space-x-2">
-                                                    <input type="text" 
-                                                           name="category_input_{{ loop.index0 }}" 
-                                                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 required-field"
-                                                           placeholder="Required field"
-                                                           required>
-                                                    <button type="button"
-                                                            data-row="{{ loop.index0 }}"
-                                                            data-field="Category"
-                                                            class="confirm-button mt-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
-                                                        Confirm
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        {% else %}
-                                            <div class="p-2">
-                                                <label class="text-sm font-medium">Category:</label>
-                                                <p class="text-sm">{{ row['Category'] }}</p>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Details</h3>
-                                    <div class="space-y-2">
-                                        <p class="text-sm"><span class="font-medium">Manufacturer:</span> {{ row['Manufacturer'] or 'N/A' }}</p>
-                                        <p class="text-sm"><span class="font-medium">Model Number:</span> {{ row['Model Number'] or 'N/A' }}</p>
-                                        <p class="text-sm"><span class="font-medium">Total Quantity:</span> {{ row['Total Quantity'] or '0' }}</p>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Status & Location</h3>
-                                    <div class="space-y-2">
-                                        <p class="text-sm"><span class="font-medium">Status:</span> {{ row['Status'] or 'Available' }}</p>
-                                        <p class="text-sm"><span class="font-medium">Country:</span> {{ row['Country'] or 'N/A' }}</p>
-                                        <p class="text-sm"><span class="font-medium">Notes:</span> {{ row['Notes'] or 'N/A' }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
                 {% endfor %}
 
-                <!-- Extra debug element for the confirmations -->
-                <div id="debug_confirmation_status" style="display:none;">
-                    <h3>Debug Information:</h3>
-                    <div id="debug_values"></div>
-                </div>
-
-                <div class="flex justify-end mt-6">
+                <!-- Action Buttons -->
+                <div class="flex justify-end space-x-4 mt-6">
+                    <a href="{{ url_for('inventory.import_inventory') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </a>
                     <button type="submit" 
-                            id="submitButton"
-                            class="px-6 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 bg-gray-400 cursor-not-allowed"
-                            disabled>
-                        Confirm and Process Import
+                            class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
+                            {% if missing_fields %}disabled{% endif %}>
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Confirm Import
                     </button>
                 </div>
             </form>
         </div>
-    {% else %}
-        <!-- Upload Form -->
-        <form method="POST" enctype="multipart/form-data" class="space-y-6">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <div>
-                <label for="import_type" class="block text-sm font-medium text-gray-700 mb-2">Import Type</label>
-                <select name="import_type" id="import_type" required
-                       class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option value="tech_assets">Tech Assets</option>
-                    <option value="accessories">Accessories</option>
-                </select>
-                <p class="mt-2 text-sm text-gray-500">Select the type of items you want to import.</p>
             </div>
-
-            <!-- Download Template Buttons -->
-            <div class="flex space-x-4">
-                <div id="tech_assets_template">
-                    <a href="{{ url_for('inventory.download_template', template_type='tech_assets') }}"
-                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                        Download Tech Assets Template
-                    </a>
-                </div>
-                <div id="accessories_template" class="hidden">
-                    <a href="{{ url_for('inventory.download_template', template_type='accessories') }}"
-                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                        Download Accessories Template
-                    </a>
-                </div>
-            </div>
-
-            <!-- File Upload Section -->
-            <div class="mt-4">
-                <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Choose CSV File</label>
-                <input type="file" name="file" id="file" accept=".csv" required
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-full file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100">
-                <p class="mt-2 text-sm text-gray-500">Upload a CSV file with the required columns.</p>
-            </div>
-
-            <!-- CSV Format Guide -->
-            <div class="mt-4 border-t pt-4">
-                <h3 class="text-sm font-medium text-gray-700 mb-2">Required CSV Columns:</h3>
-                <div id="tech_assets_format" class="bg-gray-50 rounded-md p-4 text-sm text-gray-600">
-                    <p class="font-medium mb-2">For Tech Assets:</p>
-                    <ul class="list-disc list-inside space-y-1">
-                        <li>ASSET TYPE (required)</li>
-                        <li>ASSET TAG (required)</li>
-                        <li>SERIAL NUMBER</li>
-                        <li>MODEL</li>
-                        <li>HARDWARE TYPE</li>
-                        <li>CPU TYPE</li>
-                        <li>CPU CORES</li>
-                        <li>GPU CORES</li>
-                        <li>MEMORY</li>
-                        <li>HARD DRIVE</li>
-                        <li>STATUS</li>
-                        <li>CUSTOMER</li>
-                        <li>COUNTRY</li>
-                        <li>PO</li>
-                        <li>RECEIVING DATE</li>
-                        <li>NOTES</li>
-                        <li>TECH NOTES</li>
-                        <li>CONDITION</li>
-                        <li>DIAGNOSTIC</li>
-                        <li>ERASED</li>
-                        <li>KEYBOARD</li>
-                        <li>CHARGER</li>
-                        <li>INCLUDED</li>
-                    </ul>
-                </div>
-                <div id="accessories_format" class="hidden bg-gray-50 rounded-md p-4 text-sm text-gray-600">
-                    <p class="font-medium mb-2">For Accessories:</p>
-                    <ul class="list-disc list-inside space-y-1">
-                        <li>NAME (required)</li>
-                        <li>CATEGORY (required)</li>
-                        <li>MANUFACTURER</li>
-                        <li>MODEL NUMBER</li>
-                        <li>TOTAL QUANTITY</li>
-                        <li>COUNTRY</li>
-                        <li>STATUS</li>
-                        <li>NOTES</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="flex justify-end space-x-4">
-                <a href="{{ url_for('inventory.view_inventory') }}"
-                   class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Cancel
-                </a>
-                <button type="submit"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Upload and Preview
-                </button>
-            </div>
-        </form>
     {% endif %}
 </div>
 
-<!-- JavaScript for toggling template visibility -->
+<!-- JavaScript for file upload preview -->
 <script>
-    // Only add import_type listener if the element exists
-    const importTypeSelect = document.getElementById('import_type');
-    if (importTypeSelect) {
-        importTypeSelect.addEventListener('change', function() {
-            const techAssetsTemplate = document.getElementById('tech_assets_template');
-            const accessoriesTemplate = document.getElementById('accessories_template');
-            const techFormat = document.getElementById('tech_assets_format');
-            const accessoryFormat = document.getElementById('accessories_format');
-            
-            if (this.value === 'tech_assets') {
-                techAssetsTemplate.classList.remove('hidden');
-                accessoriesTemplate.classList.add('hidden');
-                techFormat.classList.remove('hidden');
-                accessoryFormat.classList.add('hidden');
-            } else {
-                techAssetsTemplate.classList.add('hidden');
-                accessoriesTemplate.classList.remove('hidden');
-                techFormat.classList.add('hidden');
-                accessoryFormat.classList.remove('hidden');
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('file-upload');
+    const dropZone = document.getElementById('dropZone');
+    const fileInfo = document.getElementById('fileInfo');
+    const submitButton = document.getElementById('submitButton');
+
+    if (form && fileInput && dropZone) {
+        // Drag and drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('border-blue-300', 'bg-blue-50');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-blue-300', 'bg-blue-50');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileInfo(files[0]);
+            }
+        }
+
+        // File input change handler
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                updateFileInfo(file);
             }
         });
-    }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('importForm');
-        const submitButton = document.getElementById('submitButton');
-        
-        if (!form || !submitButton) return;
-
-        // Function to update Asset Tag value
-        function updateAssetTag(rowIndex, value) {
-            const assetTagInput = document.getElementById(`direct_asset_tag_${rowIndex}`);
-            if (assetTagInput) {
-                assetTagInput.value = value;
-                return true;
-            }
-            return false;
-        }
-        
-        // Function to update preview data for both tech assets and accessories
-        function updatePreviewData(rowIndex, field, value) {
-            const previewDataInput = document.getElementById(`preview_data_${rowIndex}`);
-            if (previewDataInput) {
-                try {
-                    const rowData = JSON.parse(previewDataInput.value);
-                    rowData[field] = value;
-                    previewDataInput.value = JSON.stringify(rowData);
-                    return true;
-                } catch (e) {
-                    console.error('Error updating preview data:', e);
-                    return false;
-                }
-            }
-            return false;
-        }
-
-        // Function to check if all required fields are filled
-        function checkAllFieldsConfirmed() {
-            const importType = form.getAttribute('data-import-type') || '{{ import_type }}';
-            let allValid = true;
-
-            if (importType === 'tech_assets') {
-                // Check Asset Type and Asset Tag fields
-                document.querySelectorAll('[id^="preview_data_"]').forEach(input => {
-                    try {
-                        const rowData = JSON.parse(input.value);
-                        if (!rowData['Asset Type'] || !rowData['Asset Tag']) {
-                            allValid = false;
-                        }
-                    } catch (e) {
-                        console.error('Error parsing preview data:', e);
-                        allValid = false;
-                    }
-                });
-            } else {
-                // Check Name and Category fields for accessories
-                document.querySelectorAll('[id^="preview_data_"]').forEach(input => {
-                    try {
-                        const rowData = JSON.parse(input.value);
-                        if (!rowData['Name'] || !rowData['Category']) {
-                            allValid = false;
-                        }
-                    } catch (e) {
-                        console.error('Error parsing preview data:', e);
-                        allValid = false;
-                    }
-                });
-            }
-
-            // Enable/disable submit button based on validation
-            if (allValid) {
-                submitButton.disabled = false;
-                submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
-            } else {
-                submitButton.disabled = true;
-                submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-            }
-        }
-
-        // Add event listeners to confirm buttons
-        document.querySelectorAll('.confirm-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const rowIndex = this.getAttribute('data-row');
-                const field = this.getAttribute('data-field');
-                
-                let input;
-                if (field === 'Asset Tag') {
-                    input = document.querySelector(`input[name="asset_tag_input_${rowIndex}"]`);
-                } else if (field === 'Name') {
-                    input = document.querySelector(`input[name="name_input_${rowIndex}"]`);
-                } else if (field === 'Category') {
-                    input = document.querySelector(`input[name="category_input_${rowIndex}"]`);
-                }
-                
-                if (!input || !input.value.trim()) {
-                    alert('Please enter a value before confirming.');
-                    return;
-                }
-
-                const value = input.value.trim();
-                
-                // Update both preview data and specific field
-                if (updatePreviewData(rowIndex, field, value)) {
-                    if (field === 'Asset Tag') {
-                        updateAssetTag(rowIndex, value);
-                    }
-                    
-                    // Update UI to show confirmation
-                    input.readOnly = true;
-                    input.style.backgroundColor = '#f0fdf4';
-                    this.textContent = 'Confirmed ✓';
-                    this.disabled = true;
-                    this.classList.remove('bg-blue-100', 'text-blue-700', 'hover:bg-blue-200');
-                    this.classList.add('bg-green-100', 'text-green-700', 'confirmed');
-                    
-                    // Check if all fields are now valid
-                    checkAllFieldsConfirmed();
+        function updateFileInfo(file) {
+            if (file) {
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxSize) {
+                    fileInfo.textContent = 'File is too large. Maximum size is 10MB';
+                    fileInfo.classList.add('text-red-500');
+                    submitButton.disabled = true;
+                } else if (!file.name.toLowerCase().endsWith('.csv')) {
+                    fileInfo.textContent = 'Please select a CSV file';
+                    fileInfo.classList.add('text-red-500');
+                    submitButton.disabled = true;
                 } else {
-                    alert('Error updating field. Please try again.');
+                    fileInfo.textContent = `Selected: ${file.name}`;
+                    fileInfo.classList.remove('text-red-500');
+                    submitButton.disabled = false;
                 }
-            });
-        });
-
-        // Add input event listeners to required fields
-        document.querySelectorAll('.required-field').forEach(input => {
-            input.addEventListener('input', () => {
-                const confirmButton = input.parentElement.querySelector('.confirm-button');
-                if (confirmButton && !confirmButton.disabled) {
-                    confirmButton.classList.toggle('bg-blue-200', input.value.trim() !== '');
-                }
-            });
-        });
-
-        // Initial check for all fields
-        checkAllFieldsConfirmed();
+            }
+        }
 
         // Form submission handler
         form.addEventListener('submit', function(e) {
+            const file = fileInput.files[0];
+            if (!file) {
             e.preventDefault();
-            checkAllFieldsConfirmed();
-            
-            if (!submitButton.disabled) {
-                form.submit();
-            } else {
-                alert('Some required fields are missing. Please confirm all required fields.');
+                fileInfo.textContent = 'Please select a file';
+                fileInfo.classList.add('text-red-500');
+                return;
             }
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = `
+                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Uploading...
+            `;
         });
+    }
     });
 </script>
 {% endblock %} 

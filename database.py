@@ -40,4 +40,13 @@ def get_db():
     try:
         yield db
     finally:
-        db.close() 
+        db.close()
+
+# Create database engine
+engine = create_engine('sqlite:///inventory.db')
+
+# Create session factory
+Session = sessionmaker(bind=engine)
+
+# Create a session
+db_session = Session() 

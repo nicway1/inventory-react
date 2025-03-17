@@ -1,0 +1,97 @@
+<!-- Basic Information -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Basic Information</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Name -->
+        {% if not row['Name'] %}
+        <div class="bg-red-50 p-3 rounded">
+            <label class="text-sm font-medium text-red-800">Name (Required):</label>
+            <div class="mt-1 flex">
+                <input type="text" 
+                       name="name_{{ loop.index }}" 
+                       class="flex-1 border-red-300 rounded-l-md focus:ring-red-500 focus:border-red-500 text-sm"
+                       placeholder="Enter Name">
+                <button type="button"
+                        data-row="{{ loop.index0 }}"
+                        data-field="Name"
+                        class="confirm-button bg-red-100 px-3 rounded-r-md text-red-700 hover:bg-red-200 border border-l-0 border-red-300">
+                    Confirm
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div>
+            <label class="text-sm font-medium">Name:</label>
+            <p class="text-sm">{{ row['Name'] }}</p>
+            <input type="hidden" name="name_{{ loop.index }}" value="{{ row['Name'] }}">
+        </div>
+        {% endif %}
+
+        <!-- Category -->
+        {% if not row['Category'] %}
+        <div class="bg-red-50 p-3 rounded">
+            <label class="text-sm font-medium text-red-800">Category (Required):</label>
+            <div class="mt-1 flex">
+                <input type="text" 
+                       name="category_{{ loop.index }}" 
+                       class="flex-1 border-red-300 rounded-l-md focus:ring-red-500 focus:border-red-500 text-sm"
+                       placeholder="Enter Category">
+                <button type="button"
+                        data-row="{{ loop.index0 }}"
+                        data-field="Category"
+                        class="confirm-button bg-red-100 px-3 rounded-r-md text-red-700 hover:bg-red-200 border border-l-0 border-red-300">
+                    Confirm
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div>
+            <label class="text-sm font-medium">Category:</label>
+            <p class="text-sm">{{ row['Category'] }}</p>
+            <input type="hidden" name="category_{{ loop.index }}" value="{{ row['Category'] }}">
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Details -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Details</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Manufacturer -->
+        <div>
+            <label class="text-sm font-medium">Manufacturer:</label>
+            <p class="text-sm">{{ row['Manufacturer']|default('N/A') }}</p>
+        </div>
+
+        <!-- Model Number -->
+        <div>
+            <label class="text-sm font-medium">Model Number:</label>
+            <p class="text-sm">{{ row['Model Number']|default('N/A') }}</p>
+        </div>
+
+        <!-- Total Quantity -->
+        <div>
+            <label class="text-sm font-medium">Total Quantity:</label>
+            <p class="text-sm">{{ row['Total Quantity']|default('0') }}</p>
+        </div>
+
+        <!-- Status -->
+        <div>
+            <label class="text-sm font-medium">Status:</label>
+            <p class="text-sm">{{ row['Status']|default('Available') }}</p>
+        </div>
+
+        <!-- Country -->
+        <div>
+            <label class="text-sm font-medium">Country:</label>
+            <p class="text-sm">{{ row['Country']|default('N/A') }}</p>
+        </div>
+
+        <!-- Notes -->
+        <div class="col-span-2">
+            <label class="text-sm font-medium">Notes:</label>
+            <p class="text-sm">{{ row['Notes']|default('N/A') }}</p>
+        </div>
+    </div>
+</div> 

@@ -43,11 +43,11 @@ class CheckoutListManager {
 
         const checkoutListContent = document.getElementById('checkoutListContent');
         if (checkoutListContent) {
-            checkoutListContent.innerHTML = this.checkoutList.map(item => {
+            checkoutListContent.innerHTML = this.checkoutList.map((item, index) => {
                 const isAsset = item.type === 'asset';
                 return `
-                    <div class="flex justify-between items-center p-4 ${isAsset ? 'bg-blue-50' : 'bg-green-50'} rounded-lg">
-                        <div>
+                    <div class="flex justify-between items-center p-4 ${isAsset ? 'bg-blue-50' : 'bg-green-50'} rounded-lg mb-2">
+                        <div class="flex-grow">
                             <div class="font-medium flex items-center">
                                 <span class="inline-block w-20 text-xs ${isAsset ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'} px-2 py-1 rounded mr-2">
                                     ${isAsset ? 'Tech Asset' : 'Accessory'}
@@ -57,12 +57,29 @@ class CheckoutListManager {
                             <div class="text-sm text-gray-500">
                                 ${isAsset ? 
                                     `Asset Tag: ${item.asset_tag || 'N/A'} | Serial: ${item.serial_num || 'N/A'}` :
-                                    `Category: ${item.category || 'N/A'} | Quantity: ${item.quantity || 1}`
+                                    `Category: ${item.category || 'N/A'}`
                                 }
                             </div>
                         </div>
-                        <button onclick="window.checkoutManager.removeItem(${item.id}, '${item.type}')" class="text-red-600 hover:text-red-800">
-                            Remove
+                        
+                        ${isAsset ? `` : `
+                        <div class="mx-4 flex items-center">
+                            <label for="quantity_${index}" class="text-sm font-medium text-gray-700 mr-2">Quantity:</label>
+                            <input 
+                                type="number" 
+                                id="quantity_${index}" 
+                                class="w-16 rounded border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" 
+                                min="1"
+                                value="${item.quantity || 1}"
+                                onchange="window.checkoutManager.updateQuantity(${item.id}, '${item.type}', this.value)"
+                            >
+                        </div>
+                        `}
+                        
+                        <button onclick="window.checkoutManager.removeItem(${item.id}, '${item.type}')" class="text-red-600 hover:text-red-800 flex-shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </button>
                     </div>
                 `;
@@ -87,6 +104,24 @@ class CheckoutListManager {
     removeItem(itemId, itemType) {
         this.checkoutList = this.checkoutList.filter(item => !(item.id === itemId && item.type === itemType));
         this.saveCheckoutList();
+    }
+
+    updateQuantity(itemId, itemType, quantity) {
+        // Find the item
+        const existingIndex = this.checkoutList.findIndex(i => i.id === itemId && i.type === itemType);
+        
+        if (existingIndex !== -1 && itemType === 'accessory') {
+            // Validate quantity
+            const newQuantity = parseInt(quantity, 10);
+            if (isNaN(newQuantity) || newQuantity < 1) {
+                // Reset to 1 if invalid
+                this.checkoutList[existingIndex].quantity = 1;
+            } else {
+                this.checkoutList[existingIndex].quantity = newQuantity;
+            }
+            
+            this.saveCheckoutList();
+        }
     }
 
     clearList() {
@@ -166,16 +201,17 @@ class CheckoutListManager {
 
     async processCheckout() {
         const customerSelect = document.getElementById('customerSelect');
+        
         if (!customerSelect || !customerSelect.value) {
-            showError('Please select a customer');
+            showError('Please select a customer before proceeding');
             return;
         }
-
+        
         if (this.checkoutList.length === 0) {
-            showError('No items in checkout list');
+            showError('Your checkout list is empty');
             return;
         }
-
+        
         try {
             const accessoryItems = this.checkoutList
                 .filter(item => item.type === 'accessory')
@@ -196,20 +232,27 @@ class CheckoutListManager {
                 },
                 body: JSON.stringify({
                     customer_id: customerSelect.value,
-                    selected_asset_ids: assetIds,
-                    selected_accessory_ids: accessoryItems
+                    asset_ids: assetIds,
+                    accessory_ids: accessoryItems
                 })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to process checkout');
-            }
-
-            const result = await response.json();
+            const responseData = await response.json();
             
-            if (result.warnings && result.warnings.length > 0) {
-                showError(result.warnings.join('\n'), false);
+            if (!response.ok) {
+                // Handle detailed error response
+                if (responseData.details && Array.isArray(responseData.details)) {
+                    throw new Error(`${responseData.error}\n\n${responseData.details.join('\n')}`);
+                } else {
+                    throw new Error(responseData.error || 'Failed to process checkout');
+                }
+            }
+            
+            // Success path - continue with normal flow
+            
+            // Handle warnings
+            if (responseData.warnings && responseData.warnings.length > 0) {
+                showError(`Warning(s):\n${responseData.warnings.join('\n')}`, false);
             }
             
             // Clear the checkout list
@@ -224,13 +267,14 @@ class CheckoutListManager {
             }
             
             // Show success message
-            showError(result.message || 'Checkout processed successfully', true);
+            showError(responseData.message || 'Checkout processed successfully', true);
             
             // Reload the page to refresh the inventory
-            setTimeout(() => window.location.reload(), 1500);
+            setTimeout(() => window.location.reload(), 2000);
         } catch (error) {
             console.error('Error processing checkout:', error);
-            showError(error.message);
+            showError(error.message || 'An unexpected error occurred during checkout');
+            // Don't reload the page on error - let user see the message
         }
     }
 
@@ -267,10 +311,32 @@ class CheckoutListManager {
 // Helper function to show error/success messages
 function showError(message, isSuccess = false) {
     const alertDiv = document.createElement('div');
-    alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg ${isSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} z-50`;
-    alertDiv.textContent = message;
+    alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg ${isSuccess ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'} z-50`;
+    alertDiv.style.minWidth = '300px';
+    
+    // Create a close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '&times;';
+    closeButton.className = 'absolute top-1 right-2 text-lg font-bold';
+    closeButton.addEventListener('click', () => alertDiv.remove());
+    
+    // Create message container
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = message;
+    messageDiv.className = 'pr-4'; // Add padding for close button
+    
+    // Add elements to alert
+    alertDiv.appendChild(closeButton);
+    alertDiv.appendChild(messageDiv);
     document.body.appendChild(alertDiv);
-    setTimeout(() => alertDiv.remove(), 3000);
+    
+    // Only set a timeout for success messages, errors stay until dismissed
+    let timeoutId = null;
+    if (isSuccess) {
+        timeoutId = setTimeout(() => alertDiv.remove(), 3000);
+        // Clear timeout if user manually closes the alert
+        closeButton.addEventListener('click', () => clearTimeout(timeoutId));
+    }
 }
 
 // Initialize the checkout manager when the script loads

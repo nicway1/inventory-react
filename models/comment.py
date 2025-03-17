@@ -1,7 +1,23 @@
 from datetime import datetime
 import re
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from utils.db_manager import Base
 
-class Comment:
+class Comment(Base):
+    __tablename__ = 'comments'
+
+    id = Column(Integer, primary_key=True)
+    content = Column(String(2000), nullable=False)
+    ticket_id = Column(Integer, ForeignKey('tickets.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    ticket = relationship('Ticket', back_populates='comments')
+    user = relationship('User', backref='comments')
+
     def __init__(self, id, ticket_id, user_id, content, created_at=None):
         self.id = id
         self.ticket_id = ticket_id

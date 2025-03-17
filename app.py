@@ -32,6 +32,7 @@ from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
+from routes.intake import intake_bp
 
 # Configure logging
 logging.basicConfig(
@@ -125,6 +126,7 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp)
+    app.register_blueprint(intake_bp)
 
     @app.context_processor
     def utility_processor():

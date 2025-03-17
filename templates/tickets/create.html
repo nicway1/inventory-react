@@ -35,6 +35,7 @@
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
                         <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout</option>
                         <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
+                        <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
                     </select>
                 </div>
 
@@ -301,15 +302,77 @@
                     </div>
                 </div>
 
-                <!-- Subject -->
-                <div>
-                    <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
-                    <input type="text" 
-                           id="subject" 
-                           name="subject" 
-                           value="{{ form.subject if form else '' }}"
-                           required
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <!-- Asset Intake Fields -->
+                <div id="assetIntakeFields" class="hidden space-y-6">
+                    <!-- Title -->
+                    <div>
+                        <label for="intake_title" class="block text-sm font-medium text-gray-700">Title</label>
+                        <div class="flex gap-2">
+                            <input type="text" 
+                                   id="intake_title" 
+                                   name="title" 
+                                   required
+                                   placeholder="e.g., New Laptop Batch - March 2024"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <button type="button" 
+                                    onclick="generateTitle()"
+                                    class="mt-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                Auto
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="intake_description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="intake_description" 
+                                  name="description" 
+                                  required
+                                  rows="4"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Packing List Upload -->
+                    <div>
+                        <label for="packing_list" class="block text-sm font-medium text-gray-700">Upload Packing List (PDF)</label>
+                        <input type="file" 
+                               id="packing_list" 
+                               name="packing_list" 
+                               accept=".pdf"
+                               class="mt-1 block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                        <p class="mt-1 text-sm text-gray-500">Upload a PDF file containing the packing list</p>
+                    </div>
+
+                    <!-- Asset CSV Upload -->
+                    <div>
+                        <label for="asset_csv" class="block text-sm font-medium text-gray-700">Upload Asset List (CSV)</label>
+                        <input type="file" 
+                               id="asset_csv" 
+                               name="asset_csv" 
+                               accept=".csv"
+                               class="mt-1 block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                        <p class="mt-1 text-sm text-gray-500">Upload a CSV file containing the asset details</p>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="intake_notes" class="block text-sm font-medium text-gray-700">Additional Notes</label>
+                        <textarea id="intake_notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  placeholder="Any additional information about this intake..."></textarea>
+                    </div>
                 </div>
 
                 <!-- Priority -->
@@ -358,6 +421,7 @@ function toggleFormFields() {
     const pinRequestFields = document.getElementById('pinRequestFields');
     const repairFields = document.getElementById('repairFields');
     const assetCheckoutFields = document.getElementById('assetCheckoutFields');
+    const assetIntakeFields = document.getElementById('assetIntakeFields');
     const trackingLabel = document.getElementById('trackingLabel');
     const singpostNote = document.getElementById('singpostNote');
     const trackingHint = document.getElementById('trackingHint');
@@ -367,6 +431,7 @@ function toggleFormFields() {
     pinRequestFields.classList.add('hidden');
     repairFields.classList.add('hidden');
     assetCheckoutFields.classList.add('hidden');
+    assetIntakeFields.classList.add('hidden');
     
     // Remove required attributes from all fields
     document.getElementById('serial_number').required = false;
@@ -406,6 +471,8 @@ function toggleFormFields() {
             trackingInput.pattern = '';
             trackingInput.required = false;
         }
+    } else if (category === 'ASSET_INTAKE') {
+        assetIntakeFields.classList.remove('hidden');
     }
 }
 
@@ -417,6 +484,55 @@ function requestQuote(type) {
     quoteTypeInput.value = type;
     form.appendChild(quoteTypeInput);
     form.submit();
+}
+
+function generateTitle() {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    const title = `Asset Intake - ${dateStr}`;
+    document.getElementById('intake_title').value = title;
+}
+
+function updateSubject() {
+    const ticketType = document.getElementById('ticket_type').value;
+    const subjectField = document.getElementById('subject');
+    const intakeTitleField = document.getElementById('intake_title');
+    
+    if (ticketType === 'asset_intake') {
+        // For Asset Intake, use the title field as subject
+        if (intakeTitleField) {
+            subjectField.value = intakeTitleField.value;
+        }
+    } else {
+        // For other ticket types, generate subject based on selected asset
+        const assetSelect = document.getElementById('asset_id');
+        if (assetSelect && assetSelect.value) {
+            const selectedOption = assetSelect.options[assetSelect.selectedIndex];
+            const model = selectedOption.getAttribute('data-model');
+            const serialNumber = selectedOption.getAttribute('data-serial');
+            
+            let prefix = '';
+            switch(ticketType) {
+                case 'pin_request':
+                    prefix = 'PIN Request';
+                    break;
+                case 'repair_request':
+                    prefix = 'Repair Request';
+                    break;
+                case 'asset_checkout':
+                    prefix = 'Asset Checkout';
+                    break;
+            }
+            
+            subjectField.value = `${prefix} - ${model} - ${serialNumber}`;
+        } else {
+            subjectField.value = '';
+        }
+    }
 }
 
 // Initialize Select2 and form state
@@ -490,7 +606,9 @@ $(document).ready(function() {
     // Add form submission debugging
     $('form').on('submit', function(e) {
         const category = $('#category').val();
-        if (category === 'ASSET_CHECKOUT') {
+        
+        // Only validate asset selection for specific categories
+        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST') {
             const serialNumber = $('#checkout_serial_number').val();
             if (!serialNumber) {
                 e.preventDefault();
@@ -501,6 +619,20 @@ $(document).ready(function() {
             // Set the hidden field value again to ensure it's properly set
             $('#asset_checkout_serial').val(serialNumber);
             console.log('Form submitted with asset_checkout_serial:', $('#asset_checkout_serial').val());
+        } else if (category === 'PIN_REQUEST') {
+            const serialNumber = $('#serial_number').val();
+            if (!serialNumber) {
+                e.preventDefault();
+                alert('Please select an asset');
+                return false;
+            }
+        } else if (category === 'ASSET_REPAIR') {
+            const serialNumber = $('#repair_serial_number').val();
+            if (!serialNumber) {
+                e.preventDefault();
+                alert('Please select an asset');
+                return false;
+            }
         }
         
         console.log('Form submitted');
@@ -512,6 +644,19 @@ $(document).ready(function() {
         console.log('Subject:', $('#subject').val());
         console.log('Priority:', $('#priority').val());
         return true;
+    });
+
+    // Add event listener for intake title changes
+    document.addEventListener('DOMContentLoaded', function() {
+        const intakeTitleField = document.getElementById('intake_title');
+        if (intakeTitleField) {
+            intakeTitleField.addEventListener('input', function() {
+                const subjectField = document.getElementById('subject');
+                if (subjectField) {
+                    subjectField.value = this.value;
+                }
+            });
+        }
     });
 });
 </script>

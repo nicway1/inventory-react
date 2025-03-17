@@ -245,6 +245,18 @@
 .primary-button:hover {
     background-color: #2563eb;
 }
+
+.pdf-viewer {
+    margin-top: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.pdf-viewer.hidden {
+    display: none;
+}
 </style>
 {% endblock %}
 
@@ -295,10 +307,12 @@
                         <div class="sf-field-label">Case Number</div>
                         <div class="sf-field-value font-mono">{{ ticket.display_id }}</div>
                     </div>
+                    {% if ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
                     <div class="sf-field-row">
                         <div class="sf-field-label">Customer Name</div>
                         <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="space-y-2">
                     <div class="sf-field-row">
@@ -361,8 +375,8 @@
         <!-- Tabs Navigation -->
         <div class="sf-tabs mb-6 rounded-t-md">
             <a href="#details" class="sf-tab active" onclick="showTab('details')">Case Details</a>
-            <a href="#contact" class="sf-tab" onclick="showTab('contact')">Contact</a>
             <a href="#comments" class="sf-tab" onclick="showTab('comments')">Comments</a>
+            <a href="#documents" class="sf-tab" onclick="showTab('documents')">Documents</a>
         </div>
 
         <!-- Details Section - Tab Content -->
@@ -382,6 +396,12 @@
                                 <div class="sf-field-label">Description</div>
                                 <div class="sf-field-value whitespace-pre-wrap">{{ ticket.description }}</div>
                             </div>
+                            {% if ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Notes</div>
+                                <div class="sf-field-value whitespace-pre-wrap">{{ ticket.notes if ticket.notes else 'No notes available' }}</div>
+                            </div>
+                            {% endif %}
                             <div class="sf-field-row">
                                 <div class="sf-field-label">Case Origin</div>
                                 <div class="sf-field-value">Web</div>
@@ -405,119 +425,191 @@
                 </div>
             </div>
 
-            <!-- Shipping Information Section -->
-            <div class="sf-card mb-6">
-                <div class="sf-card-header">
-                    <h2 class="sf-card-title">Shipping Information</h2>
-                </div>
-                <div class="sf-card-body">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Address</div>
-                                <div class="sf-field-value">{{ ticket.shipping_address if ticket.shipping_address else 'Not available' }}</div>
-                            </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Tracking Number</div>
-                                <div class="sf-field-value">{{ ticket.tracking_number if ticket.tracking_number else 'Not available' }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {% if ticket.tracking_number or (ticket.category and ticket.category.value == 'ASSET_CHECKOUT') %}
-                    <div class="mt-4">
-                        <h3 class="text-lg font-medium mb-2">Tracking Details</h3>
-                        <div id="YQContainer" data-number="{{ ticket.tracking_number if ticket.tracking_number else '' }}"></div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
             <!-- Related Records Section -->
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
                     <div class="flex justify-between items-center">
                         <h2 class="sf-card-title">Tech Asset</h2>
-                        <button class="sf-button primary-button">New</button>
+                        <div class="flex gap-2">
+                            <button class="sf-button primary-button" onclick="showAssetTab('add-asset')">Add New Tech Asset</button>
+                            <button class="sf-button" onclick="showAssetTab('import-asset')">Import Tech Asset</button>
+                        </div>
                     </div>
                 </div>
-                <div class="sf-card-body overflow-x-auto">
-                    <table class="sf-data-table">
-                        <thead>
-                            <tr>
-                                <th>Asset Tag</th>
-                                <th>Serial Number</th>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if ticket.asset or ticket.assets %}
-                            {% set displayed_asset = ticket.asset if ticket.asset else (ticket.assets[0] if ticket.assets and ticket.assets|length > 0 else None) %}
-                            {% if displayed_asset %}
-                            <tr>
-                                <td>{{ displayed_asset.asset_tag }}</td>
-                                <td>{{ displayed_asset.serial_num }}</td>
-                                <td>{{ displayed_asset.name }}</td>
-                                <td>
-                                    <span class="sf-badge sf-badge-success">{{ displayed_asset.status }}</span>
-                                </td>
-                                <td>
-                                    <button class="sf-button">View</button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
-                            </tr>
-                            {% endif %}
-                            {% else %}
-                            <!-- Sample data for display when no asset exists -->
-                            <tr>
-                                <td>AST-{{ '%04d'|format(ticket.id|int % 1000) }}</td>
-                                <td>SN-{{ '%06d'|format(ticket.id|int * 2 % 1000000) }}</td>
-                                <td>{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'Unknown' }} Device</td>
-                                <td>
-                                    <span class="sf-badge sf-badge-success">Active</span>
-                                </td>
-                                <td>
-                                    <button class="sf-button">View</button>
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
+                <div class="sf-card-body">
+                    <!-- Asset Tabs Content -->
+                    <div id="add-asset" class="asset-tab">
+                        <form class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Asset Tag</label>
+                                <input type="text" class="sf-input w-full" placeholder="Enter asset tag">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
+                                <input type="text" class="sf-input w-full" placeholder="Enter serial number">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <input type="text" class="sf-input w-full" placeholder="Enter asset name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select class="sf-input w-full">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="maintenance">Maintenance</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <button type="submit" class="sf-button primary-button">Add Asset</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="import-asset" class="asset-tab hidden">
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <div class="mb-4">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    Drag and drop your CSV file here, or
+                                    <button class="text-blue-600 hover:text-blue-800" onclick="document.getElementById('fileImport').click()">browse</button>
+                                </p>
+                                <p class="text-xs text-gray-500 mt-2">CSV files only</p>
+                            </div>
+                            <input id="fileImport" type="file" accept=".csv" class="hidden">
+                            <button class="sf-button primary-button mt-4">Import Assets</button>
+                        </div>
+                        <div class="mt-4">
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">CSV Format Requirements:</h3>
+                            <ul class="text-xs text-gray-600 list-disc list-inside">
+                                <li>Required columns: Asset Tag, Serial Number, Name, Status</li>
+                                <li>Status must be one of: Active, Inactive, Maintenance</li>
+                                <li>Maximum file size: 5MB</li>
+                            </ul>
+                            <a href="#" class="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-block">Download template CSV</a>
+                        </div>
+                    </div>
+
+                    <!-- Existing Assets Table -->
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Existing Assets</h3>
+                        <div class="overflow-x-auto">
+                            <table class="sf-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Asset Tag</th>
+                                        <th>Serial Number</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if ticket.asset or ticket.assets %}
+                                    {% set displayed_asset = ticket.asset if ticket.asset else (ticket.assets[0] if ticket.assets and ticket.assets|length > 0 else None) %}
+                                    {% if displayed_asset %}
+                                    <tr>
+                                        <td>{{ displayed_asset.asset_tag }}</td>
+                                        <td>{{ displayed_asset.serial_num }}</td>
+                                        <td>{{ displayed_asset.name }}</td>
+                                        <td>
+                                            <span class="sf-badge sf-badge-success">{{ displayed_asset.status }}</span>
+                                        </td>
+                                        <td>
+                                            <button class="sf-button">View</button>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Contact Section - Tab Content -->
-        <div id="contact" class="sf-tab-content hidden">
+        <!-- Removing entire contact section -->
+
+        <!-- Documents Section - Tab Content -->
+        <div id="documents" class="sf-tab-content hidden">
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
-                    <h2 class="sf-card-title">Customer Profile</h2>
+                    <h2 class="sf-card-title">Documents</h2>
+                    <button class="sf-button" onclick="document.getElementById('documentUpload').click()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Upload Document
+                    </button>
+                    <input type="file" id="documentUpload" class="hidden" multiple>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 </div>
                 <div class="sf-card-body">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Name</div>
-                                <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% if ticket.attachments %}
+                            {% for attachment in ticket.attachments %}
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center">
+                                        <svg class="w-6 h-6 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                        <span class="font-medium truncate">{{ attachment.filename }}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" 
+                                           class="text-blue-600 hover:text-blue-800">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                            </svg>
+                                        </a>
+                                        <button class="text-red-600 hover:text-red-800" onclick="deleteAttachment({{ attachment.id }}, {{ ticket.id }})">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-500 mb-2">
+                                    Uploaded by {{ attachment.uploader.username }} on {{ attachment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                                {% if attachment.filename.lower().endswith('.pdf') %}
+                                <div class="mt-4">
+                                    <button class="sf-button mb-2" onclick="togglePdfViewer('viewer-{{ attachment.id }}')">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        View PDF
+                                    </button>
+                                    <div id="viewer-{{ attachment.id }}" class="pdf-viewer hidden">
+                                        <iframe
+                                            src="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}"
+                                            class="w-full h-[600px] border border-gray-200 rounded"
+                                            type="application/pdf"
+                                        ></iframe>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Company</div>
-                                <div class="sf-field-value">{{ ticket.customer.company.name if ticket.customer and ticket.customer.company else 'Not specified' }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-span-full text-center py-8 text-gray-500">
+                                No documents uploaded yet.
                             </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Email</div>
-                                <div class="sf-field-value">{{ ticket.customer.email if ticket.customer else 'None' }}</div>
-                            </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Phone</div>
-                                <div class="sf-field-value">{{ ticket.customer.contact_number if ticket.customer else 'None' }}</div>
-                            </div>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -834,5 +926,159 @@ function getCaretCoordinates(element, position) {
     return coordinates;
 }
 })(); // End of self-executing function
+
+// Document handling functions
+document.getElementById('documentUpload').addEventListener('change', function(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+        const formData = new FormData();
+        
+        // Add files to form data
+        for (let i = 0; i < files.length; i++) {
+            formData.append('attachments', files[i]);
+        }
+        
+        // Get CSRF token from the hidden input
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        formData.append('csrf_token', csrfToken);
+        
+        // Show loading indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = `
+            <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-2">Uploading files...</span>
+        `;
+        document.querySelector('.sf-card-body').appendChild(loadingIndicator);
+        
+        fetch('{{ url_for("tickets.upload_attachment", ticket_id=ticket.id) }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        throw new Error(data.error || 'Upload failed');
+                    } catch (e) {
+                        console.error('Server response:', text);
+                        throw new Error('Server error: ' + text);
+                    }
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                throw new Error(data.error || 'Upload failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error uploading documents: ' + error.message);
+        })
+        .finally(() => {
+            // Remove loading indicator
+            loadingIndicator.remove();
+            // Reset file input
+            e.target.value = '';
+        });
+    }
+});
+
+function deleteAttachment(attachmentId, ticketId) {
+    if (confirm('Are you sure you want to delete this document?')) {
+        fetch(`/tickets/${ticketId}/attachment/${attachmentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error deleting document: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document');
+        });
+    }
+}
+
+function togglePdfViewer(viewerId) {
+    const viewer = document.getElementById(viewerId);
+    if (viewer) {
+        viewer.classList.toggle('hidden');
+    }
+}
+
+function showAssetTab(tabId) {
+    // Hide all asset tabs
+    document.querySelectorAll('.asset-tab').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(tabId);
+    if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+    }
+    
+    // Update button styles
+    const buttons = document.querySelectorAll('.sf-card-header .sf-button');
+    buttons.forEach(button => {
+        if (button.getAttribute('onclick').includes(tabId)) {
+            button.classList.add('primary-button');
+        } else {
+            button.classList.remove('primary-button');
+        }
+    });
+}
+
+// Add drag and drop functionality for import
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.querySelector('.border-dashed');
+    const fileInput = document.getElementById('fileImport');
+
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-500');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-blue-500');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'text/csv') {
+                fileInput.files = files;
+            } else {
+                alert('Please upload a CSV file');
+            }
+        });
+    }
+});
 </script>
 {% endblock %} 

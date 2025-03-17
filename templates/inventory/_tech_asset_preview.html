@@ -1,0 +1,151 @@
+<!-- Asset Information -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Asset Information</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Asset Tag -->
+        {% if not row['Asset Tag'] %}
+        <div class="bg-red-50 p-3 rounded">
+            <label class="text-sm font-medium text-red-800">Asset Tag (Required):</label>
+            <div class="mt-1 flex">
+                <input type="text" 
+                       name="asset_tag_{{ loop.index }}" 
+                       class="flex-1 border-red-300 rounded-l-md focus:ring-red-500 focus:border-red-500 text-sm"
+                       placeholder="Enter Asset Tag">
+                <button type="button" 
+                        data-row="{{ loop.index0 }}"
+                        data-field="Asset Tag"
+                        class="confirm-button bg-red-100 px-3 rounded-r-md text-red-700 hover:bg-red-200 border border-l-0 border-red-300">
+                    Confirm
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div>
+            <label class="text-sm font-medium">Asset Tag:</label>
+            <p class="text-sm">{{ row['Asset Tag'] }}</p>
+            <input type="hidden" name="asset_tag_{{ loop.index }}" value="{{ row['Asset Tag'] }}">
+        </div>
+        {% endif %}
+
+        <!-- Asset Type -->
+        {% if not row['Asset Type'] %}
+        <div class="bg-red-50 p-3 rounded">
+            <label class="text-sm font-medium text-red-800">Asset Type (Required):</label>
+            <div class="mt-1 flex">
+                <input type="text" 
+                       name="asset_type_{{ loop.index }}" 
+                       class="flex-1 border-red-300 rounded-l-md focus:ring-red-500 focus:border-red-500 text-sm"
+                       placeholder="Enter Asset Type">
+                <button type="button"
+                        data-row="{{ loop.index0 }}"
+                        data-field="Asset Type"
+                        class="confirm-button bg-red-100 px-3 rounded-r-md text-red-700 hover:bg-red-200 border border-l-0 border-red-300">
+                    Confirm
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div>
+            <label class="text-sm font-medium">Asset Type:</label>
+            <p class="text-sm">{{ row['Asset Type'] }}</p>
+            <input type="hidden" name="asset_type_{{ loop.index }}" value="{{ row['Asset Type'] }}">
+        </div>
+        {% endif %}
+
+        <!-- Serial Number -->
+        <div>
+            <label class="text-sm font-medium">Serial Number:</label>
+            <p class="text-sm">{{ row['Serial Number']|default('N/A') }}</p>
+        </div>
+
+        <!-- Model -->
+        <div>
+            <label class="text-sm font-medium">Model:</label>
+            <p class="text-sm">{{ row['Model']|default('N/A') }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Hardware Details -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Hardware Details</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Hardware Type -->
+        <div>
+            <label class="text-sm font-medium">Hardware Type:</label>
+            <p class="text-sm">{{ row['Hardware Type']|default('N/A') }}</p>
+        </div>
+
+        <!-- CPU Type -->
+        <div>
+            <label class="text-sm font-medium">CPU Type:</label>
+            <p class="text-sm">{{ row['CPU Type']|default('N/A') }}</p>
+        </div>
+
+        <!-- Memory -->
+        <div>
+            <label class="text-sm font-medium">Memory:</label>
+            <p class="text-sm">{{ row['Memory']|default('N/A') }}</p>
+        </div>
+
+        <!-- Hard Drive -->
+        <div>
+            <label class="text-sm font-medium">Hard Drive:</label>
+            <p class="text-sm">{{ row['Hard Drive']|default('N/A') }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Status Information -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Status Information</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Status -->
+        <div>
+            <label class="text-sm font-medium">Status:</label>
+            <p class="text-sm">{{ row['Status']|default('IN STOCK') }}</p>
+        </div>
+
+        <!-- Condition -->
+        <div>
+            <label class="text-sm font-medium">Condition:</label>
+            <p class="text-sm">{{ row['Condition']|default('N/A') }}</p>
+        </div>
+
+        <!-- Customer -->
+        <div>
+            <label class="text-sm font-medium">Customer:</label>
+            <p class="text-sm">{{ row['Customer']|default('N/A') }}</p>
+        </div>
+
+        <!-- Country -->
+        <div>
+            <label class="text-sm font-medium">Country:</label>
+            <p class="text-sm">{{ row['Country']|default('N/A') }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Details -->
+<div class="space-y-3">
+    <h3 class="font-medium text-gray-900">Additional Details</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <!-- PO Number -->
+        <div>
+            <label class="text-sm font-medium">PO Number:</label>
+            <p class="text-sm">{{ row['PO']|default('N/A') }}</p>
+        </div>
+
+        <!-- Receiving Date -->
+        <div>
+            <label class="text-sm font-medium">Receiving Date:</label>
+            <p class="text-sm">{{ row['Receiving Date']|default('N/A') }}</p>
+        </div>
+
+        <!-- Notes -->
+        <div class="col-span-2">
+            <label class="text-sm font-medium">Notes:</label>
+            <p class="text-sm">{{ row['Notes']|default('N/A') }}</p>
+        </div>
+    </div>
+</div> 

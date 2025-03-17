@@ -1,6 +1,6 @@
 import datetime
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from utils.auth_decorators import login_required, admin_required
 from models.ticket import Ticket, TicketCategory, TicketPriority
 from utils.store_instances import (
@@ -15,6 +15,10 @@ from utils.db_manager import DatabaseManager
 from models.asset import Asset, AssetStatus
 from werkzeug.utils import secure_filename
 from models.customer_user import CustomerUser
+from models.ticket_attachment import TicketAttachment
+
+# Define allowed file extensions
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'gif'}
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 db_manager = DatabaseManager()
@@ -93,8 +97,8 @@ def create_ticket():
                 serial_number = request.form.get('serial_number')
                 print(f"Standard Serial Number: {serial_number}")  # Debug log
 
-            # Validate asset selection
-            if not serial_number or serial_number == "":
+            # Validate asset selection (skip for Asset Intake)
+            if category != 'ASSET_INTAKE' and (not serial_number or serial_number == ""):
                 flash('Please select an asset', 'error')
                 return render_template('tickets/create.html',
                                     assets=assets_data,
@@ -102,15 +106,17 @@ def create_ticket():
                                     priorities=list(TicketPriority),
                                     form=request.form)
 
-            # Find the asset
-            asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
-            if not asset:
-                flash(f'Asset not found with serial number: {serial_number}', 'error')
-                return render_template('tickets/create.html',
-                                    assets=assets_data,
-                                    customers=customers,
-                                    priorities=list(TicketPriority),
-                                    form=request.form)
+            # Find the asset (skip for Asset Intake)
+            asset = None
+            if category != 'ASSET_INTAKE':
+                asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+                if not asset:
+                    flash(f'Asset not found with serial number: {serial_number}', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
 
             if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST':
                 customer_id = request.form.get('customer_id')
@@ -267,6 +273,85 @@ Additional Notes:
 {request.form.get('notes', '')}
 
 Images Attached: {len(image_paths)} image(s)"""
+
+            elif category == 'ASSET_INTAKE':
+                title = request.form.get('title')
+                description = request.form.get('description')
+                notes = request.form.get('notes', '')
+
+                if not title or not description:
+                    flash('Please provide both title and description', 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
+
+                # Handle file uploads
+                packing_list_path = None
+                if 'packing_list' in request.files:
+                    packing_list = request.files['packing_list']
+                    if packing_list and packing_list.filename:
+                        # Secure the filename
+                        filename = secure_filename(packing_list.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                        unique_filename = f"{timestamp}_{filename}"
+                        # Create uploads/intake directory if it doesn't exist
+                        os.makedirs('uploads/intake', exist_ok=True)
+                        # Save the file
+                        packing_list_path = os.path.join('uploads', 'intake', unique_filename)
+                        packing_list.save(packing_list_path)
+
+                asset_csv_path = None
+                if 'asset_csv' in request.files:
+                    asset_csv = request.files['asset_csv']
+                    if asset_csv and asset_csv.filename:
+                        # Secure the filename
+                        filename = secure_filename(asset_csv.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                        unique_filename = f"{timestamp}_{filename}"
+                        # Create uploads/intake directory if it doesn't exist
+                        os.makedirs('uploads/intake', exist_ok=True)
+                        # Save the file
+                        asset_csv_path = os.path.join('uploads', 'intake', unique_filename)
+                        asset_csv.save(asset_csv_path)
+
+                description = f"""Asset Intake Details:
+Title: {title}
+
+Description:
+{description}
+
+Files:
+- Packing List: {os.path.basename(packing_list_path) if packing_list_path else 'Not provided'}
+- Asset CSV: {os.path.basename(asset_csv_path) if asset_csv_path else 'Not provided'}
+
+Additional Notes:
+{notes}"""
+
+                try:
+                    # Create the ticket
+                    ticket_id = ticket_store.create_ticket(
+                        subject=title,
+                        description=description,
+                        requester_id=user_id,
+                        category=TicketCategory.ASSET_INTAKE,
+                        priority=priority
+                    )
+
+                    flash('Asset intake ticket created successfully')
+                    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+                except Exception as e:
+                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    db_session.rollback()
+                    flash('Error creating ticket: ' + str(e), 'error')
+                    return render_template('tickets/create.html',
+                                        assets=assets_data,
+                                        customers=customers,
+                                        priorities=list(TicketPriority),
+                                        form=request.form)
 
             # Create the ticket for other categories
             ticket_id = ticket_store.create_ticket(
@@ -835,6 +920,146 @@ def update_tracking(ticket_id):
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/upload', methods=['POST'])
+@login_required
+def upload_attachment(ticket_id):
+    db_session = db_manager.get_session()
+    try:
+        # Debug logging
+        print("Received upload request for ticket:", ticket_id)
+        print("Files in request:", request.files)
+        print("Form data:", request.form)
+        
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        if 'attachments' not in request.files:
+            print("No attachments found in request.files")
+            return jsonify({'success': False, 'error': 'No files uploaded'}), 400
+
+        files = request.files.getlist('attachments')
+        if not files or all(not f.filename for f in files):
+            print("No valid files found in request")
+            return jsonify({'success': False, 'error': 'No files selected'}), 400
+
+        uploaded_files = []
+        base_upload_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads', 'tickets')
+        os.makedirs(base_upload_path, exist_ok=True)
+        print(f"Upload path: {base_upload_path}")
+
+        for file in files:
+            if not file or not file.filename:
+                continue
+
+            if not allowed_file(file.filename):
+                print(f"Invalid file type: {file.filename}")
+                return jsonify({
+                    'success': False, 
+                    'error': f'File type not allowed for {file.filename}. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+                }), 400
+
+            try:
+                filename = secure_filename(file.filename)
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                unique_filename = f"{ticket_id}_{timestamp}_{filename}"
+                file_path = os.path.join(base_upload_path, unique_filename)
+                
+                print(f"Saving file to: {file_path}")
+                file.save(file_path)
+                
+                attachment = TicketAttachment(
+                    ticket_id=ticket_id,
+                    filename=filename,
+                    file_path=file_path,
+                    file_type=file.content_type if hasattr(file, 'content_type') else None,
+                    uploaded_by=session['user_id']
+                )
+                db_session.add(attachment)
+                uploaded_files.append(filename)
+                print(f"Successfully saved file: {filename}")
+                
+            except Exception as e:
+                print(f"Error uploading {filename}: {str(e)}")
+                continue
+        
+        if not uploaded_files:
+            return jsonify({'success': False, 'error': 'No files were successfully uploaded'}), 400
+        
+        db_session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Successfully uploaded {len(uploaded_files)} file(s)',
+            'files': uploaded_files
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        print(f"Upload error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/attachment/<int:attachment_id>/delete', methods=['POST'])
+@login_required
+def delete_attachment(ticket_id, attachment_id):
+    db_session = db_manager.get_session()
+    try:
+        attachment = db_session.query(TicketAttachment).get(attachment_id)
+        if not attachment or attachment.ticket_id != ticket_id:
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+        # Delete the file from disk
+        if os.path.exists(attachment.file_path):
+            os.remove(attachment.file_path)
+
+        # Delete the attachment record
+        db_session.delete(attachment)
+        db_session.commit()
+
+        return jsonify({'success': True, 'message': 'Attachment deleted successfully'})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/attachment/<int:attachment_id>/download')
+@login_required
+def download_attachment(ticket_id, attachment_id):
+    db_session = db_manager.get_session()
+    try:
+        attachment = db_session.query(TicketAttachment).get(attachment_id)
+        if not attachment or attachment.ticket_id != ticket_id:
+            flash('Attachment not found', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('File not found on server', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+        # Determine if this is a PDF and if we should display it inline
+        is_pdf = attachment.filename.lower().endswith('.pdf')
+        as_attachment = not is_pdf or request.args.get('download') == 'true'
+
+        return send_file(
+            attachment.file_path,
+            as_attachment=as_attachment,
+            download_name=attachment.filename,
+            mimetype='application/pdf' if is_pdf else None
+        )
+
+    except Exception as e:
+        flash(f'Error downloading attachment: {str(e)}', 'error')
+        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+    finally:
+        db_session.close()
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Remove the create_repair_ticket route since it's now part of create_ticket
 
