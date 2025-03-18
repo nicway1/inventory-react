@@ -123,5 +123,202 @@
         <p class="text-gray-500">No recent activities</p>
         {% endif %}
     </div>
+    
+    <!-- SingPost Tickets -->
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+                <svg class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                </svg>
+                <h2 class="text-xl font-semibold">SingPost Shipments</h2>
+            </div>
+            <div class="flex space-x-2">
+                <button id="refresh-all-btn" class="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh All
+                </button>
+                <a href="{{ url_for('tickets.list_tickets') }}" class="text-sm text-red-600 hover:text-red-800">View All →</a>
+            </div>
+        </div>
+        
+        {% if singpost_tickets %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking Number</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for ticket in singpost_tickets %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ ticket.display_id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ticket.subject }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if ticket.shipping_tracking %}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                {{ ticket.shipping_tracking }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-400">Not Available</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if ticket.shipping_status %}
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                    {% if 'delivered' in ticket.shipping_status.lower() %}
+                                        bg-green-100 text-green-800
+                                    {% elif 'out for delivery' in ticket.shipping_status.lower() %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ ticket.shipping_status }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">View</a>
+                            {% if ticket.shipping_tracking %}
+                            <button 
+                                data-ticket-id="{{ ticket.id }}"
+                                class="refresh-tracking text-blue-600 hover:text-blue-900 mr-3">
+                                Refresh Tracking
+                            </button>
+                            <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="text-green-600 hover:text-green-800">
+                                Track on SingPost
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 py-4">No SingPost shipments available</p>
+        {% endif %}
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listeners to all refresh tracking buttons
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('refresh-tracking')) {
+                refreshTracking(event.target);
+            }
+        });
+        
+        // Add event listener for refresh all button
+        const refreshAllBtn = document.getElementById('refresh-all-btn');
+        if (refreshAllBtn) {
+            refreshAllBtn.addEventListener('click', refreshAllTrackings);
+        }
+    });
+    
+    function refreshAllTrackings() {
+        const button = document.getElementById('refresh-all-btn');
+        const originalText = button.textContent.trim();
+        
+        // Show loading state
+        button.innerHTML = `
+            <svg class="w-4 h-4 inline-block mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Refreshing...
+        `;
+        button.disabled = true;
+        
+        // Get all ticket IDs
+        const tickets = document.querySelectorAll('[data-ticket-id]');
+        const ticketIds = Array.from(tickets).map(el => el.getAttribute('data-ticket-id'));
+        
+        // Create a counter to keep track of completed requests
+        let completed = 0;
+        
+        // If no tickets, reload the page
+        if (ticketIds.length === 0) {
+            // Reload the page to show updated status but prevent refresh loop
+            const separator = window.location.href.includes('?') ? '&' : '?';
+            window.location.href = window.location.href + separator + 'refreshed=true';
+            return;
+        }
+        
+        // Process each ticket
+        ticketIds.forEach(ticketId => {
+            fetch(`/tickets/${ticketId}/track_singpost`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch tracking information for ticket ${ticketId}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Updated ticket ${ticketId}:`, data);
+                })
+                .catch(error => {
+                    console.error(`Error updating ticket ${ticketId}:`, error);
+                })
+                .finally(() => {
+                    completed++;
+                    if (completed === ticketIds.length) {
+                        // Reload the page after all requests are completed
+                        const separator = window.location.href.includes('?') ? '&' : '?';
+                        window.location.href = window.location.href + separator + 'refreshed=true';
+                    }
+                });
+        });
+    }
+    
+    function refreshTracking(button) {
+        const ticketId = button.getAttribute('data-ticket-id');
+        const originalText = button.textContent.trim();
+        
+        // Show loading state
+        button.textContent = 'Refreshing...';
+        button.disabled = true;
+        
+        // Make API request to our backend endpoint
+        fetch(`/tickets/${ticketId}/track_singpost`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch tracking information');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show updated status but prevent refresh loop
+                    const separator = window.location.href.includes('?') ? '&' : '?';
+                    window.location.href = window.location.href + separator + 'refreshed=true';
+                } else {
+                    throw new Error(data.error || 'No tracking information available');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Restore button state
+                button.textContent = originalText;
+                button.disabled = false;
+                alert('Error refreshing tracking: ' + error.message);
+            });
+    }
+</script>
 {% endblock %}

@@ -248,6 +248,8 @@
 
                     <!-- Hidden field for asset checkout serial number -->
                     <input type="hidden" id="asset_checkout_serial" name="asset_checkout_serial" value="">
+                    <!-- Hidden subject field -->
+                    <input type="hidden" id="subject" name="subject" value="">
 
                     <!-- Asset Selection -->
                     <div>
@@ -280,15 +282,15 @@
                     <div>
                         <label for="shipping_tracking" class="block text-sm font-medium text-gray-700">
                             <span id="trackingLabel">Tracking Number</span>
-                            <span id="singpostNote" class="text-sm text-gray-500 hidden">(Format: RR123456789SG)</span>
+                            <span id="singpostNote" class="text-sm text-gray-500 hidden">(Format: XZD or XZB followed by numbers)</span>
                         </label>
                         <input type="text" 
                                id="shipping_tracking" 
                                name="shipping_tracking" 
-                               pattern="" 
+                               pattern="^(XZD|XZB)[0-9]+$" 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <p id="trackingHint" class="mt-1 text-sm text-gray-500 hidden">
-                            Please enter a valid SingPost tracking number (e.g., RR123456789SG)
+                            Please enter a valid tracking number starting with XZD or XZB followed by numbers
                         </p>
                     </div>
 
@@ -311,7 +313,6 @@
                             <input type="text" 
                                    id="intake_title" 
                                    name="title" 
-                                   required
                                    placeholder="e.g., New Laptop Batch - March 2024"
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <button type="button" 
@@ -327,7 +328,6 @@
                         <label for="intake_description" class="block text-sm font-medium text-gray-700">Description</label>
                         <textarea id="intake_description" 
                                   name="description" 
-                                  required
                                   rows="4"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
@@ -426,6 +426,8 @@ function toggleFormFields() {
     const singpostNote = document.getElementById('singpostNote');
     const trackingHint = document.getElementById('trackingHint');
     const trackingInput = document.getElementById('shipping_tracking');
+    const intakeTitle = document.getElementById('intake_title');
+    const intakeDescription = document.getElementById('intake_description');
     
     // Hide all category-specific fields first
     pinRequestFields.classList.add('hidden');
@@ -441,6 +443,8 @@ function toggleFormFields() {
     document.getElementById('customer_id').required = false;
     document.getElementById('checkout_serial_number').required = false;
     document.getElementById('shipping_address').required = false;
+    if (intakeTitle) intakeTitle.required = false;
+    if (intakeDescription) intakeDescription.required = false;
     
     // Show and make required the appropriate fields
     if (category === 'PIN_REQUEST') {
@@ -462,7 +466,7 @@ function toggleFormFields() {
             trackingLabel.textContent = 'SingPost Tracking Number';
             singpostNote.classList.remove('hidden');
             trackingHint.classList.remove('hidden');
-            trackingInput.pattern = '^[A-Z]{2}[0-9]{9}[A-Z]{2}$';
+            trackingInput.pattern = '^(XZD|XZB)[0-9]+$';
             trackingInput.required = true;
         } else {
             trackingLabel.textContent = 'Tracking Number';
@@ -473,6 +477,8 @@ function toggleFormFields() {
         }
     } else if (category === 'ASSET_INTAKE') {
         assetIntakeFields.classList.remove('hidden');
+        if (intakeTitle) intakeTitle.required = true;
+        if (intakeDescription) intakeDescription.required = true;
     }
 }
 
@@ -585,9 +591,10 @@ $(document).ready(function() {
                 $('#asset_checkout_serial').val(selectedOption.val());
                 console.log('Updated asset_checkout_serial to:', selectedOption.val());
                 
-                if (!$('#subject').val()) {
-                    $('#subject').val(`Asset Checkout - ${model} - ${selectedOption.val()}`);
-                }
+                // Set the subject for the ticket
+                const ticketSubject = `Asset Checkout - ${model} (${assetTag}) - ${selectedOption.val()}`;
+                $('#subject').val(ticketSubject);
+                console.log('Updated subject to:', ticketSubject);
             }
         }
     });

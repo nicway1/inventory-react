@@ -49,6 +49,13 @@ class TicketStore:
                         ticket.return_tracking = Shipment.from_dict(ticket_data['return_tracking'])
                     if ticket_data.get('replacement_tracking'):
                         ticket.replacement_tracking = Shipment.from_dict(ticket_data['replacement_tracking'])
+                    
+                    # Load shipping information
+                    ticket.shipping_tracking = ticket_data.get('shipping_tracking')
+                    ticket.shipping_address = ticket_data.get('shipping_address')
+                    ticket.shipping_status = ticket_data.get('shipping_status')
+                    ticket.shipping_history = ticket_data.get('shipping_history', [])
+                    ticket.customer_id = ticket_data.get('customer_id')
 
                     self.tickets[ticket.id] = ticket
 
@@ -76,7 +83,12 @@ class TicketStore:
                 'warranty_number': ticket.warranty_number,
                 'serial_number': ticket.serial_number,
                 'return_tracking': ticket.return_tracking.to_dict() if ticket.return_tracking else None,
-                'replacement_tracking': ticket.replacement_tracking.to_dict() if ticket.replacement_tracking else None
+                'replacement_tracking': ticket.replacement_tracking.to_dict() if ticket.replacement_tracking else None,
+                'shipping_tracking': ticket.shipping_tracking,
+                'shipping_address': ticket.shipping_address,
+                'shipping_status': ticket.shipping_status,
+                'shipping_history': ticket.shipping_history,
+                'customer_id': ticket.customer_id
             }
             tickets_data.append(ticket_data)
 

@@ -6,7 +6,7 @@ from utils.store_instances import (
 )
 from utils.db_manager import DatabaseManager
 from models.company import Company
-from models.ticket import Ticket
+from models.ticket import Ticket, TicketCategory
 import os
 from werkzeug.utils import secure_filename
 from models.asset import Asset
@@ -79,6 +79,11 @@ def index():
         total_inventory = tech_assets_count + accessories_count
         total_customers = db_session.query(CustomerUser).count()
         total_tickets = db_session.query(Ticket).count()
+        
+        # Get SingPost tickets
+        singpost_tickets = db_session.query(Ticket).filter(
+            Ticket.category == TicketCategory.ASSET_CHECKOUT_SINGPOST
+        ).order_by(Ticket.created_at.desc()).limit(5).all()
     finally:
         db_session.close()
 
@@ -97,5 +102,6 @@ def index():
         queues=queues,
         stats=stats,
         activities=activities,
-        user=user
+        user=user,
+        singpost_tickets=singpost_tickets
     )

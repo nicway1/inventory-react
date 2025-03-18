@@ -1,11 +1,35 @@
 {% extends "base.html" %}
 
 {% block head %}
-<!-- Load 17TRACK script for Asset Checkout tickets or any non-SingPost ticket -->
-{% if ticket.category and (ticket.category.value == 'ASSET_CHECKOUT' or ticket.category != 'Asset Checkout (SingPost)') %}
-<!-- 17TRACK Widget Script -->
-<script>
-    (function(a,h,g,f,e,d,c,b){b=function(){d=h.createElement(g);c=h.getElementsByTagName(g)[0];d.src=e;d.charset="utf-8";d.async=1;c.parentNode.insertBefore(d,c)};a["YQV5"]=a["YQV5"]||[];a["YQV5"].push(function(){YQV5.track()});if(a.addEventListener){a.addEventListener("load",b,false)}else{a.attachEvent("onload",b)}})(window,document,"script","//www.17track.net/externalcall.js");
+<!-- Load 17TRACK script only for SingPost tickets -->
+{% if ticket.shipping_tracking and (ticket.shipping_tracking.startswith('XZD') or ticket.shipping_tracking.startswith('XZB')) %}
+<!-- SingPost Tracking Widget Script -->
+<script type="text/javascript" src="//www.17track.net/externalcall.js"></script>
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        var attempts = 0;
+        var maxAttempts = 10;
+        
+        function initializeTracker() {
+            if (typeof YQV5 !== 'undefined') {
+                var trackingContainer = document.getElementById('YQContainer');
+                if (trackingContainer) {
+                    YQV5.trackSingle({
+                        YQ_ContainerId: "YQContainer",
+                        YQ_Height: 560,
+                        YQ_Fc: "0",
+                        YQ_Lang: "en",
+                        YQ_Num: "{{ ticket.shipping_tracking }}"
+                    });
+                }
+            } else if (attempts < maxAttempts) {
+                attempts++;
+                setTimeout(initializeTracker, 1000); // Try again in 1 second
+            }
+        }
+        
+        initializeTracker();
+    });
 </script>
 {% endif %}
 
@@ -256,6 +280,21 @@
 
 .pdf-viewer.hidden {
     display: none;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
 {% endblock %}
@@ -539,128 +578,165 @@
             </div>
         </div>
 
-        <!-- Contact Section - Tab Content -->
-        <!-- Removing entire contact section -->
-
-        <!-- Documents Section - Tab Content -->
-        <div id="documents" class="sf-tab-content hidden">
-            <div class="sf-card mb-6">
-                <div class="sf-card-header">
-                    <h2 class="sf-card-title">Documents</h2>
-                    <button class="sf-button" onclick="document.getElementById('documentUpload').click()">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        <!-- Tracking Information Section -->
+        {% if ticket.shipping_tracking %}
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Tracking Information</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                                {{ ticket.shipping_tracking }}
+                            </span>
+                            {% if ticket.shipping_status %}
+                            <span class="px-3 py-1 text-sm font-medium rounded-full ticket-status
+                                {% if 'delivered' in ticket.shipping_status.lower() %}
+                                    bg-green-100 text-green-800
+                                {% elif 'out for delivery' in ticket.shipping_status.lower() %}
+                                    bg-yellow-100 text-yellow-800
+                                {% else %}
+                                    bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {{ ticket.shipping_status }}
+                            </span>
+                            {% endif %}
+                            <span id="data-source-indicator" class="hidden px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                                Simulated Data
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="refreshSingPostTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Upload Document
+                        Refresh
                     </button>
-                    <input type="file" id="documentUpload" class="hidden" multiple>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="inline-flex items-center ml-2 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Track on SingPost
+                    </a>
                 </div>
-                <div class="sf-card-body">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {% if ticket.attachments %}
-                            {% for attachment in ticket.attachments %}
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center">
-                                        <svg class="w-6 h-6 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                        </svg>
-                                        <span class="font-medium truncate">{{ attachment.filename }}</span>
-                                    </div>
-                                    <div class="flex items-center space-x-2">
-                                        <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" 
-                                           class="text-blue-600 hover:text-blue-800">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                            </svg>
-                                        </a>
-                                        <button class="text-red-600 hover:text-red-800" onclick="deleteAttachment({{ attachment.id }}, {{ ticket.id }})">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="text-sm text-gray-500 mb-2">
-                                    Uploaded by {{ attachment.uploader.username }} on {{ attachment.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                </div>
-                                {% if attachment.filename.lower().endswith('.pdf') %}
-                                <div class="mt-4">
-                                    <button class="sf-button mb-2" onclick="togglePdfViewer('viewer-{{ attachment.id }}')">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        </svg>
-                                        View PDF
-                                    </button>
-                                    <div id="viewer-{{ attachment.id }}" class="pdf-viewer hidden">
-                                        <iframe
-                                            src="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}"
-                                            class="w-full h-[600px] border border-gray-200 rounded"
-                                            type="application/pdf"
-                                        ></iframe>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="col-span-full text-center py-8 text-gray-500">
-                                No documents uploaded yet.
-                            </div>
-                        {% endif %}
+            </div>
+            
+            <!-- Loading State -->
+            <div id="trackingLoading" class="hidden">
+                <div class="flex flex-col items-center justify-center p-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <p class="mt-4 text-sm text-gray-500">Fetching latest tracking information...</p>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="trackingError" class="hidden">
+                <div class="flex flex-col items-center justify-center p-8 bg-red-50">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
+                    <h3 class="mt-2 text-sm font-medium text-red-800">Unable to load tracking information</h3>
+                    <p class="mt-1 text-sm text-red-600"><span></span></p>
                 </div>
+            </div>
+
+            <!-- Tracking Info -->
+            <div id="trackingInfo" class="divide-y divide-gray-200">
+                <!-- Content will be populated by JavaScript -->
             </div>
         </div>
 
-        <!-- Comments Section - Tab Content -->
-        <div id="comments" class="sf-tab-content hidden">
-            <div class="sf-card mb-6">
-                <div class="sf-card-header">
-                    <h2 class="sf-card-title">Comments</h2>
-                </div>
-                <div class="sf-card-body">
-                    <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="mb-6">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-4">
-                            <textarea id="content" name="content" rows="3"
-                                class="block w-full rounded-md border-gray-300 shadow-sm"
-                                placeholder="Write a comment..."></textarea>
-                            <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="submit"
-                                class="sf-button primary-button">
-                                Add Comment
-                            </button>
-                        </div>
-                    </form>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshSingPostTracking();
+        });
 
-                    <div class="space-y-4">
-                        {% for comment in comments %}
-                        <div class="border border-gray-200 rounded-md p-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white mr-2">
-                                        {{ comment.user.username[0].upper() if comment.user else "?" }}
+        function refreshSingPostTracking() {
+            const trackingInfo = document.getElementById('trackingInfo');
+            const dataSourceIndicator = document.getElementById('data-source-indicator');
+            const refreshButton = document.querySelector('.refresh-tracking');
+            
+            if (!trackingInfo) return;
+            
+            // Show loading state
+            trackingInfo.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            if (refreshButton) refreshButton.disabled = true;
+            
+            fetch(`/tickets/track_singpost/{{ ticket.id }}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.tracking_info) {
+                        const info = data.tracking_info;
+                        let html = '';
+                        
+                        // Update data source indicator
+                        if (dataSourceIndicator) {
+                            dataSourceIndicator.textContent = info.is_mock_data ? 'Simulated Data' : 'Live API Data';
+                            dataSourceIndicator.className = info.is_mock_data ? 'badge bg-warning' : 'badge bg-success';
+                        }
+                        
+                        // Add status badge
+                        html += `<div class="mb-3">
+                            <span class="badge ${getStatusBadgeClass(info.status)}">${info.status}</span>
+                        </div>`;
+                        
+                        // Add tracking events
+                        if (info.events && info.events.length > 0) {
+                            html += '<div class="tracking-events">';
+                            info.events.forEach(event => {
+                                html += `
+                                    <div class="tracking-event">
+                                        <div class="event-time">${event.date || event.timestamp}</div>
+                                        <div class="event-status">${event.status}</div>
+                                        ${event.location ? `<div class="event-location">${event.location}</div>` : ''}
                                     </div>
-                                    <div>
-                                        <div class="font-medium">{{ comment.user.username if comment.user else "Unknown User" }}</div>
-                                        <div class="text-sm text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'N/A' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="pl-10">
-                                {{ comment.content|safe }}
-                            </div>
+                                `;
+                            });
+                            html += '</div>';
+                        } else {
+                            html += '<div class="text-center text-muted">No tracking events available</div>';
+                        }
+                        
+                        trackingInfo.innerHTML = html;
+                    } else {
+                        throw new Error('Invalid tracking data');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching tracking info:', error);
+                    trackingInfo.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Unable to load tracking information. Please try again later.
                         </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
+                    `;
+                })
+                .finally(() => {
+                    if (refreshButton) refreshButton.disabled = false;
+                });
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status.toLowerCase()) {
+                case 'delivered':
+                    return 'bg-success';
+                case 'out for delivery':
+                    return 'bg-primary';
+                case 'error':
+                    return 'bg-danger';
+                default:
+                    return 'bg-secondary';
+            }
+        }
+        </script>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -731,8 +807,11 @@
         if (trackingContainer && typeof YQV5 !== 'undefined') {
             try {
                 YQV5.trackSingle({
-                    YQ_ElementId: 'YQContainer',
-                    YQ_Number: trackingContainer.dataset.number || ''
+                    YQ_ContainerId: "YQContainer",
+                    YQ_Height: 560,
+                    YQ_Fc: "0",
+                    YQ_Lang: "en",
+                    YQ_Num: trackingContainer.dataset.number || ''
                 });
             } catch (e) {
                 console.error('Error initializing tracking widget:', e);
@@ -979,7 +1058,9 @@ document.getElementById('documentUpload').addEventListener('change', function(e)
         })
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                // Add a parameter to prevent infinite refreshes
+                const separator = window.location.href.includes('?') ? '&' : '?';
+                window.location.href = window.location.href + separator + 'refreshed=true';
             } else {
                 throw new Error(data.error || 'Upload failed');
             }
@@ -1010,7 +1091,9 @@ function deleteAttachment(attachmentId, ticketId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                // Add a parameter to prevent infinite refreshes
+                const separator = window.location.href.includes('?') ? '&' : '?';
+                window.location.href = window.location.href + separator + 'refreshed=true';
             } else {
                 alert('Error deleting document: ' + data.error);
             }

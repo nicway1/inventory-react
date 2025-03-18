@@ -84,6 +84,11 @@ class Ticket(Base):
     shipping_status = Column(String(100), default='Pending')
     return_status = Column(String(100), default='Pending')
     replacement_status = Column(String(100), default='Pending')
+    
+    # Non-DB fields for tracking history
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.shipping_history = []  # Initialize shipping history as empty list
 
     # Relationships
     requester = relationship('User', foreign_keys=[requester_id], back_populates='tickets_requested')
