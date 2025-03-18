@@ -317,11 +317,12 @@
                             <th scope="col" class="px-6 py-3">Quantity</th>
                             <th scope="col" class="px-6 py-3">Date</th>
                             <th scope="col" class="px-6 py-3">Notes</th>
+                            <th scope="col" class="px-6 py-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="transactionsTableBody">
                         <tr>
-                            <td colspan="6" class="px-6 py-4 text-center">
+                            <td colspan="7" class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center">
                                     <svg class="animate-spin h-5 w-5 mr-3 text-blue-600" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -402,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!Array.isArray(data) || data.length === 0) {
                     const emptyRow = document.createElement('tr');
                     emptyRow.innerHTML = `
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
                             No transactions found for this customer
                         </td>
                     `;
@@ -441,6 +442,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         typeColor = 'bg-gray-100 text-gray-800';
                     }
                     
+                    // Escape special characters in item name for JavaScript string safety
+                    const safeItemName = itemName.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    
                     row.innerHTML = `
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                             ${transaction.transaction_number || 'N/A'}
@@ -462,6 +466,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td class="px-6 py-4">
                             ${transaction.notes || 'No notes'}
                         </td>
+                        <td class="px-6 py-4">
+                            ${transaction.transaction_type.toLowerCase() === 'checkout' ? 
+                            `<button 
+                                class="return-transaction-btn text-green-600 hover:text-green-800 mr-2"
+                                data-id="${transaction.id}"
+                                data-type="${transaction.type}"
+                                onclick="returnTransaction(${transaction.id}, '${transaction.type}', '${safeItemName}')">
+                                <svg class="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                                Return
+                            </button>` : ''}
+                        </td>
                     `;
                     transactionsTableBody.appendChild(row);
                 });
@@ -470,12 +487,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching transactions:', error);
                 transactionsTableBody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-red-500">
+                        <td colspan="7" class="px-6 py-4 text-center text-red-500">
                             Error loading transactions: ${error.message}
                         </td>
                     </tr>
                 `;
             });
+    }
+
+    // Function to handle transaction returns
+    function returnTransaction(transactionId, type, itemName) {
+        if (!confirm(`Are you sure you want to return ${itemName}?`)) {
+            return;
+        }
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Send request to close the transaction
+        fetch(`/inventory/api/transactions/${transactionId}/close`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                type: type
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'fixed top-4 right-4 p-4 bg-green-100 text-green-800 rounded-md shadow-md';
+            alertDiv.textContent = data.message;
+            document.body.appendChild(alertDiv);
+            
+            // Remove alert after 3 seconds
+            setTimeout(() => alertDiv.remove(), 3000);
+            
+            // Reload transactions
+            loadTransactions();
+            
+            // Reload the page after a delay to refresh asset/accessory lists
+            setTimeout(() => location.reload(), 1000);
+        })
+        .catch(error => {
+            console.error('Error returning item:', error);
+            
+            // Show error message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'fixed top-4 right-4 p-4 bg-red-100 text-red-800 rounded-md shadow-md';
+            alertDiv.textContent = 'Error returning item: ' + error.message;
+            document.body.appendChild(alertDiv);
+            
+            // Remove alert after 3 seconds
+            setTimeout(() => alertDiv.remove(), 3000);
+        });
     }
 });
 </script>
