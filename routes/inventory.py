@@ -331,6 +331,10 @@ def filter_inventory():
         if 'model' in data and data['model']:
             query = query.filter(Asset.model == data['model'])
         
+        if 'erased' in data and data['erased']:
+            # Use case-insensitive comparison for erased field
+            query = query.filter(func.lower(Asset.erased) == func.lower(data['erased']))
+        
         if 'search' in data and data['search']:
             search = f"%{data['search']}%"
             query = query.filter(
@@ -363,7 +367,8 @@ def filter_inventory():
                     'cpu_cores': asset.cpu_cores,
                     'gpu_cores': asset.gpu_cores,
                     'memory': asset.memory,
-                    'harddrive': asset.harddrive
+                    'harddrive': asset.harddrive,
+                    'erased': asset.erased
                 }
                 for asset in assets
             ]
