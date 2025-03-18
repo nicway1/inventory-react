@@ -2860,19 +2860,33 @@ def get_customer_transactions(id):
         if not customer:
             return jsonify({'error': 'Customer not found'}), 404
         
-        # Get asset transactions
-        asset_transactions = db_session.query(AssetTransaction).filter(
+        # Get asset transactions - ensure customer_id matches exactly
+        asset_transactions_query = db_session.query(AssetTransaction).filter(
             AssetTransaction.customer_id == id
-        ).order_by(AssetTransaction.transaction_date.desc()).all()
+        )
         
-        # Get accessory transactions
-        accessory_transactions = db_session.query(AccessoryTransaction).filter(
+        # Debug the SQL query
+        # print(str(asset_transactions_query))
+        
+        asset_transactions = asset_transactions_query.order_by(AssetTransaction.transaction_date.desc()).all()
+        
+        # Get accessory transactions - ensure customer_id matches exactly
+        accessory_transactions_query = db_session.query(AccessoryTransaction).filter(
             AccessoryTransaction.customer_id == id
-        ).order_by(AccessoryTransaction.transaction_date.desc()).all()
+        )
+        
+        # Debug the SQL query
+        # print(str(accessory_transactions_query))
+        
+        accessory_transactions = accessory_transactions_query.order_by(AccessoryTransaction.transaction_date.desc()).all()
         
         # Prepare response data
         asset_transaction_list = []
         for t in asset_transactions:
+            # Double check that customer_id matches
+            if t.customer_id != id:
+                continue
+                
             try:
                 transaction_data = {
                     'id': t.id,
@@ -2883,7 +2897,8 @@ def get_customer_transactions(id):
                     'asset_tag': t.asset.asset_tag if t.asset else None,
                     'asset_name': t.asset.product if t.asset else None,
                     'type': 'asset',
-                    'asset_id': t.asset_id
+                    'asset_id': t.asset_id,
+                    'customer_id': t.customer_id  # Add customer_id for debugging
                 }
                 asset_transaction_list.append(transaction_data)
             except Exception as e:
@@ -2891,6 +2906,10 @@ def get_customer_transactions(id):
         
         accessory_transaction_list = []
         for t in accessory_transactions:
+            # Double check that customer_id matches
+            if t.customer_id != id:
+                continue
+                
             try:
                 transaction_data = {
                     'id': t.id,
@@ -2902,7 +2921,8 @@ def get_customer_transactions(id):
                     'accessory_name': t.accessory.name if t.accessory else None,
                     'accessory_category': t.accessory.category if t.accessory else None,
                     'type': 'accessory',
-                    'accessory_id': t.accessory_id
+                    'accessory_id': t.accessory_id,
+                    'customer_id': t.customer_id  # Add customer_id for debugging
                 }
                 accessory_transaction_list.append(transaction_data)
             except Exception as e:

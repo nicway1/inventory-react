@@ -411,7 +411,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                data.forEach(transaction => {
+                // Verify all transactions belong to this customer
+                const customerId = parseInt("{{ customer.id }}");
+                const filteredData = data.filter(transaction => {
+                    // If customer_id is provided, verify it matches
+                    return !transaction.customer_id || transaction.customer_id === customerId;
+                });
+                
+                if (filteredData.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                            No transactions found for this customer
+                        </td>
+                    `;
+                    transactionsTableBody.appendChild(emptyRow);
+                    return;
+                }
+                
+                filteredData.forEach(transaction => {
                     const row = document.createElement('tr');
                     row.className = 'bg-white border-b hover:bg-gray-50';
                     
