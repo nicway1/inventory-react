@@ -1069,67 +1069,111 @@ def download_attachment(ticket_id, attachment_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@tickets_bp.route('/track_singpost/<int:ticket_id>', methods=['GET'])
+@tickets_bp.route('/<int:ticket_id>/track_singpost', methods=['GET'])
 @login_required
 def track_singpost(ticket_id):
-    """Track a SingPost shipment using TrackingMore API"""
+    """Track SingPost package and return tracking data"""
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket or not ticket.shipping_tracking:
+        return jsonify({'error': 'Invalid ticket or no tracking number'}), 404
+
     try:
-        # Get ticket
-        ticket = ticket_store.get_ticket(ticket_id)
-        if not ticket or not ticket.shipping_tracking_number:
-            return jsonify({'error': 'Ticket not found or no tracking number'}), 404
+        import trackingmore
 
-        # Initialize TrackingMore API
-        trackingmore.api_key = os.environ.get('TRACKINGMORE_API_KEY', 'your_api_key_here')
+        # Use API key from config
+        trackingmore.api_key = TRACKINGMORE_API_KEY
         
-        # Try to get existing tracking data
+        tracking_number = ticket.shipping_tracking
+        
+        # First try to get existing tracking data
         try:
-            result = trackingmore.tracking.get_tracking_info(
-                tracking_number=ticket.shipping_tracking_number,
-                courier_code='singpost'
-            )
+            params = {
+                'tracking_numbers': tracking_number,
+                'courier_code': 'singapore-post'
+            }
+            result = trackingmore.tracking.get_tracking_results(params)
             
-            if result and isinstance(result, dict) and result.get('success'):
-                tracking_info = result.get('tracking_info', [])
-                if tracking_info:
-                    # Update ticket with tracking information
-                    ticket.shipping_status = result.get('shipping_status', 'pending')
-                    ticket.shipping_history = tracking_info
-                    ticket_store.save_tickets()
-
-                    return jsonify({
-                        'success': True,
-                        'tracking_info': {
-                            'status': ticket.shipping_status,
-                            'events': tracking_info,
-                            'is_mock_data': False
-                        }
-                    })
-            
-            # If we get here, the API call failed or returned no data
-            return jsonify(generate_mock_tracking_data(ticket))
-            
-        except Exception as e:
-            print(f"TrackingMore API Error: {str(e)}")
-            # If API fails, fall back to mock data
-            return jsonify(generate_mock_tracking_data(ticket))
-
-    except Exception as e:
-        print(f"Error tracking SingPost package: {str(e)}")
+            if 'data' in result and 'items' in result['data'] and len(result['data']['items']) > 0:
+                tracking_data = result['data']['items'][0]
+            else:
+                # If no existing tracking, create a new tracking
+                create_params = {
+                    'tracking_number': tracking_number,
+                    'courier_code': 'singapore-post'
+                }
+                create_result = trackingmore.tracking.create_tracking(create_params)
+                
+                # Try to get results again
+                params = {
+                    'tracking_numbers': tracking_number,
+                    'courier_code': 'singapore-post'
+                }
+                result = trackingmore.tracking.get_tracking_results(params)
+                if 'data' in result and 'items' in result['data'] and len(result['data']['items']) > 0:
+                    tracking_data = result['data']['items'][0]
+                else:
+                    raise Exception("Failed to retrieve tracking data")
+        except Exception as api_error:
+            print(f"TrackingMore API Error: {str(api_error)}")
+            # Fallback to our mock data in case of API issues
+            return generate_mock_tracking_data(ticket)
+        
+        # Parse tracking events from the API response
+        tracking_info = []
+        
+        # Extract delivery status and events
+        delivery_status = tracking_data.get('delivery_status', 'unknown')
+        
+        # Get tracking events - these are in reverse order (newest first)
+        tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
+        
+        for event in tracking_events:
+            tracking_info.append({
+                'date': event.get('Date', ''),
+                'status': event.get('StatusDescription', ''),
+                'location': event.get('Details', '')
+            })
+        
+        # If no events but we have a status, create at least one event
+        if not tracking_info and 'tracking_status' in tracking_data:
+            tracking_info.append({
+                'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'status': tracking_data.get('tracking_status', {}).get('description', 'In Transit'),
+                'location': 'Singapore'
+            })
+        
+        # If still no events, fall back to mock data
+        if not tracking_info:
+            return generate_mock_tracking_data(ticket)
+        
+        # Update ticket tracking status
+        latest = tracking_info[0] if tracking_info else None  # Most recent event is first
+        if latest:
+            ticket.shipping_status = latest['status']
+            ticket.shipping_history = tracking_info
+            ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+            ticket_store.save_tickets()
+        
+        print(f"Real tracking info retrieved for {tracking_number}: {tracking_info}")
+        print(f"Updated shipping status to: {ticket.shipping_status}")
+        
         return jsonify({
             'success': True,
-            'tracking_info': {
-                'status': 'error',
-                'events': [],
-                'is_mock_data': True
-            }
+            'tracking_info': tracking_info,
+            'shipping_status': ticket.shipping_status,
+            'is_real_data': True
         })
+        
+    except Exception as e:
+        print(f"Error tracking SingPost package: {str(e)}")
+        # Fall back to mock data
+        return generate_mock_tracking_data(ticket)
 
 def generate_mock_tracking_data(ticket):
     """Generate mock tracking data as fallback"""
     try:
         base_date = ticket.created_at or datetime.datetime.now()
-        tracking_number = ticket.shipping_tracking_number
+        tracking_number = ticket.shipping_tracking
         
         # Different tracking pattern for XZB numbers vs XZD numbers
         if tracking_number.startswith('XZB'):
@@ -1175,7 +1219,11 @@ def generate_mock_tracking_data(ticket):
                 'location': 'Singapore'
             })
         else:
-            # XZD or other tracking pattern
+            # XZD or other tracking pattern (original implementation)
+            # Generate a unique seed based on the tracking number
+            seed = sum(ord(c) for c in tracking_number)
+            
+            # Generate tracking events with dates relative to the ticket creation
             tracking_info = []
             
             # Initial event (most recent)
@@ -1224,25 +1272,19 @@ def generate_mock_tracking_data(ticket):
         ticket.updated_at = datetime.datetime.now()  # Update the timestamp
         ticket_store.save_tickets()
         
-        return {
+        print(f"Mock tracking info generated for {tracking_number}: {tracking_info}")
+        print(f"Updated shipping status to: {ticket.shipping_status}")
+        
+        return jsonify({
             'success': True,
-            'tracking_info': {
-                'status': latest['status'],
-                'events': tracking_info,
-                'is_mock_data': True
-            }
-        }
+            'tracking_info': tracking_info,
+            'shipping_status': ticket.shipping_status,
+            'is_real_data': False  # Indicate this is mock data
+        })
         
     except Exception as e:
         print(f"Error generating mock tracking: {str(e)}")
-        return {
-            'success': True,
-            'tracking_info': {
-                'status': 'error',
-                'events': [],
-                'is_mock_data': True
-            }
-        }
+        return jsonify({'error': f"Internal server error: {str(e)}"}), 500
 
 # Remove the create_repair_ticket route since it's now part of create_ticket
 

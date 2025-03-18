@@ -655,85 +655,125 @@
 
         function refreshSingPostTracking() {
             const trackingInfo = document.getElementById('trackingInfo');
-            const dataSourceIndicator = document.getElementById('data-source-indicator');
-            const refreshButton = document.querySelector('.refresh-tracking');
+            const trackingLoading = document.getElementById('trackingLoading');
+            const trackingError = document.getElementById('trackingError');
             
-            if (!trackingInfo) return;
+            if (!trackingInfo || !trackingLoading || !trackingError) {
+                console.error('Required tracking elements not found');
+                return;
+            }
             
             // Show loading state
-            trackingInfo.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-            if (refreshButton) refreshButton.disabled = true;
+            trackingInfo.classList.add('hidden');
+            trackingError.classList.add('hidden');
+            trackingLoading.classList.remove('hidden');
             
-            fetch(`/tickets/track_singpost/{{ ticket.id }}`)
+            console.log('Refreshing tracking for ticket {{ ticket.id }} with tracking number {{ ticket.shipping_tracking }}');
+            
+            // Make API request to our backend endpoint
+            fetch(`/tickets/{{ ticket.id }}/track_singpost`)
                 .then(response => {
+                    console.log('Received response:', response.status);
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error('Failed to fetch tracking information');
                     }
                     return response.json();
                 })
                 .then(data => {
-                    if (data.success && data.tracking_info) {
-                        const info = data.tracking_info;
-                        let html = '';
-                        
-                        // Update data source indicator
+                    console.log('Received data:', data);
+                    if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                        // Update the data source indicator
+                        const dataSourceIndicator = document.getElementById('data-source-indicator');
                         if (dataSourceIndicator) {
-                            dataSourceIndicator.textContent = info.is_mock_data ? 'Simulated Data' : 'Live API Data';
-                            dataSourceIndicator.className = info.is_mock_data ? 'badge bg-warning' : 'badge bg-success';
+                            dataSourceIndicator.classList.remove('hidden');
+                            if (data.is_real_data) {
+                                dataSourceIndicator.textContent = 'Live API Data';
+                                dataSourceIndicator.classList.remove('bg-gray-100', 'text-gray-800');
+                                dataSourceIndicator.classList.add('bg-green-100', 'text-green-800');
+                            } else {
+                                dataSourceIndicator.textContent = 'Simulated Data';
+                                dataSourceIndicator.classList.remove('bg-green-100', 'text-green-800');
+                                dataSourceIndicator.classList.add('bg-gray-100', 'text-gray-800');
+                            }
                         }
                         
-                        // Add status badge
-                        html += `<div class="mb-3">
-                            <span class="badge ${getStatusBadgeClass(info.status)}">${info.status}</span>
-                        </div>`;
-                        
-                        // Add tracking events
-                        if (info.events && info.events.length > 0) {
-                            html += '<div class="tracking-events">';
-                            info.events.forEach(event => {
-                                html += `
-                                    <div class="tracking-event">
-                                        <div class="event-time">${event.date || event.timestamp}</div>
-                                        <div class="event-status">${event.status}</div>
-                                        ${event.location ? `<div class="event-location">${event.location}</div>` : ''}
+                        // Update tracking information
+                        const trackingHtml = data.tracking_info.map((entry, index) => `
+                            <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
+                                <div class="flex items-start space-x-4">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 rounded-full ${index === 0 ? 'bg-blue-100' : 'bg-gray-100'} flex items-center justify-center">
+                                            <svg class="w-5 h-5 ${index === 0 ? 'text-blue-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
                                     </div>
-                                `;
-                            });
-                            html += '</div>';
-                        } else {
-                            html += '<div class="text-center text-muted">No tracking events available</div>';
-                        }
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <p class="${index === 0 ? 'text-blue-900 font-medium' : 'text-gray-900'} text-sm">
+                                                    ${entry.status}
+                                                </p>
+                                                <p class="mt-1 text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'}">
+                                                    ${entry.location || 'Singapore'}
+                                                </p>
+                                            </div>
+                                            <time class="text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'} whitespace-nowrap ml-4">
+                                                ${entry.date}
+                                            </time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
                         
-                        trackingInfo.innerHTML = html;
+                        // Update tracking info container
+                        trackingInfo.innerHTML = trackingHtml;
+                        
+                        // Show tracking info
+                        trackingInfo.classList.remove('hidden');
+                        trackingLoading.classList.add('hidden');
+                        trackingError.classList.add('hidden');
+                        
+                        // Update ticket status if needed
+                        const statusElement = document.querySelector('.ticket-status');
+                        if (statusElement) {
+                            const latestStatus = data.tracking_info[0].status;
+                            if (latestStatus) {
+                                statusElement.textContent = latestStatus;
+                                
+                                // Update status styling based on the new status
+                                statusElement.className = 'px-3 py-1 text-sm font-medium rounded-full ticket-status';
+                                
+                                if (latestStatus.toLowerCase().includes('delivered')) {
+                                    statusElement.classList.add('bg-green-100', 'text-green-800');
+                                } else if (latestStatus.toLowerCase().includes('out for delivery')) {
+                                    statusElement.classList.add('bg-yellow-100', 'text-yellow-800');
+                                } else {
+                                    statusElement.classList.add('bg-gray-100', 'text-gray-800');
+                                }
+                                
+                                // Force reload the page to ensure server data is updated
+                                if (!window.location.href.includes('refreshed=true')) {
+                                    // Only reload if this isn't already a post-refresh page
+                                    const separator = window.location.href.includes('?') ? '&' : '?';
+                                    setTimeout(() => {
+                                        window.location.href = window.location.href + separator + 'refreshed=true';
+                                    }, 2000);
+                                }
+                            }
+                        }
                     } else {
-                        throw new Error('Invalid tracking data');
+                        throw new Error(data.error || 'No tracking information available');
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching tracking info:', error);
-                    trackingInfo.innerHTML = `
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i>
-                            Unable to load tracking information. Please try again later.
-                        </div>
-                    `;
-                })
-                .finally(() => {
-                    if (refreshButton) refreshButton.disabled = false;
+                    console.error('Error:', error);
+                    trackingError.querySelector('span').textContent = error.message || 'Error loading tracking information. Please try again.';
+                    trackingError.classList.remove('hidden');
+                    trackingLoading.classList.add('hidden');
+                    trackingInfo.classList.add('hidden');
                 });
-        }
-
-        function getStatusBadgeClass(status) {
-            switch (status.toLowerCase()) {
-                case 'delivered':
-                    return 'bg-success';
-                case 'out for delivery':
-                    return 'bg-primary';
-                case 'error':
-                    return 'bg-danger';
-                default:
-                    return 'bg-secondary';
-            }
         }
         </script>
         {% endif %}

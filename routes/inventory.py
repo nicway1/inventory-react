@@ -2860,33 +2860,19 @@ def get_customer_transactions(id):
         if not customer:
             return jsonify({'error': 'Customer not found'}), 404
         
-        # Get asset transactions - ensure customer_id matches exactly
-        asset_transactions_query = db_session.query(AssetTransaction).filter(
+        # Get asset transactions
+        asset_transactions = db_session.query(AssetTransaction).filter(
             AssetTransaction.customer_id == id
-        )
+        ).order_by(AssetTransaction.transaction_date.desc()).all()
         
-        # Debug the SQL query
-        # print(str(asset_transactions_query))
-        
-        asset_transactions = asset_transactions_query.order_by(AssetTransaction.transaction_date.desc()).all()
-        
-        # Get accessory transactions - ensure customer_id matches exactly
-        accessory_transactions_query = db_session.query(AccessoryTransaction).filter(
+        # Get accessory transactions
+        accessory_transactions = db_session.query(AccessoryTransaction).filter(
             AccessoryTransaction.customer_id == id
-        )
-        
-        # Debug the SQL query
-        # print(str(accessory_transactions_query))
-        
-        accessory_transactions = accessory_transactions_query.order_by(AccessoryTransaction.transaction_date.desc()).all()
+        ).order_by(AccessoryTransaction.transaction_date.desc()).all()
         
         # Prepare response data
         asset_transaction_list = []
         for t in asset_transactions:
-            # Double check that customer_id matches
-            if t.customer_id != id:
-                continue
-                
             try:
                 transaction_data = {
                     'id': t.id,
@@ -2896,9 +2882,7 @@ def get_customer_transactions(id):
                     'notes': t.notes,
                     'asset_tag': t.asset.asset_tag if t.asset else None,
                     'asset_name': t.asset.product if t.asset else None,
-                    'type': 'asset',
-                    'asset_id': t.asset_id,
-                    'customer_id': t.customer_id  # Add customer_id for debugging
+                    'type': 'asset'
                 }
                 asset_transaction_list.append(transaction_data)
             except Exception as e:
@@ -2906,10 +2890,6 @@ def get_customer_transactions(id):
         
         accessory_transaction_list = []
         for t in accessory_transactions:
-            # Double check that customer_id matches
-            if t.customer_id != id:
-                continue
-                
             try:
                 transaction_data = {
                     'id': t.id,
@@ -2920,9 +2900,7 @@ def get_customer_transactions(id):
                     'notes': t.notes,
                     'accessory_name': t.accessory.name if t.accessory else None,
                     'accessory_category': t.accessory.category if t.accessory else None,
-                    'type': 'accessory',
-                    'accessory_id': t.accessory_id,
-                    'customer_id': t.customer_id  # Add customer_id for debugging
+                    'type': 'accessory'
                 }
                 accessory_transaction_list.append(transaction_data)
             except Exception as e:
@@ -2934,93 +2912,6 @@ def get_customer_transactions(id):
         
         return jsonify(all_transactions)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        db_session.close()
-
-@inventory_bp.route('/api/transactions/<int:transaction_id>/close', methods=['POST'])
-@login_required
-def close_transaction(transaction_id):
-    """API endpoint to close a transaction (return an asset or accessory)"""
-    db_session = db_manager.get_session()
-    try:
-        data = request.get_json()
-        transaction_type = data.get('type')
-        
-        if not transaction_type:
-            return jsonify({'error': 'Transaction type is required'}), 400
-            
-        if transaction_type == 'asset':
-            # Get the asset transaction
-            transaction = db_session.query(AssetTransaction).get(transaction_id)
-            if not transaction:
-                return jsonify({'error': 'Asset transaction not found'}), 404
-                
-            # Get the asset
-            asset = db_session.query(Asset).get(transaction.asset_id)
-            if not asset:
-                return jsonify({'error': 'Asset not found'}), 404
-                
-            # Update asset status to IN_STOCK
-            asset.status = AssetStatus.IN_STOCK
-            # Remove customer assignment
-            asset.customer_id = None
-            
-            # Create a new return transaction
-            return_transaction = AssetTransaction(
-                asset_id=asset.id,
-                transaction_type='return',
-                customer_id=transaction.customer_id,
-                notes=f"Return from transaction {transaction.transaction_number}"
-            )
-            
-            # Add and commit changes
-            db_session.add(return_transaction)
-            db_session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': f'Asset {asset.asset_tag} has been returned to stock'
-            })
-            
-        elif transaction_type == 'accessory':
-            # Get the accessory transaction
-            transaction = db_session.query(AccessoryTransaction).get(transaction_id)
-            if not transaction:
-                return jsonify({'error': 'Accessory transaction not found'}), 404
-                
-            # Get the accessory
-            accessory = db_session.query(Accessory).get(transaction.accessory_id)
-            if not accessory:
-                return jsonify({'error': 'Accessory not found'}), 404
-                
-            # Update accessory available quantity
-            quantity = transaction.quantity
-            accessory.available_quantity += quantity
-            
-            # Create a return transaction
-            return_transaction = AccessoryTransaction(
-                accessory_id=accessory.id,
-                transaction_type='checkin',
-                quantity=quantity,
-                customer_id=transaction.customer_id,
-                notes=f"Return from transaction {transaction.transaction_number}"
-            )
-            
-            # Add and commit changes
-            db_session.add(return_transaction)
-            db_session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': f'Returned {quantity} of {accessory.name} to inventory'
-            })
-        
-        else:
-            return jsonify({'error': 'Invalid transaction type'}), 400
-            
-    except Exception as e:
-        db_session.rollback()
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
