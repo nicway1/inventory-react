@@ -2087,7 +2087,7 @@ def export_inventory(item_type):
                     asset.serial_num or '',
                     asset.po or '',
                     asset.model or '',
-                    'Yes' if asset.erased else 'No',
+                    asset.erased or '',
                     asset.customer or '',
                     asset.condition or '',
                     asset.diag or '',
