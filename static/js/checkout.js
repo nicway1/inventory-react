@@ -232,8 +232,8 @@ class CheckoutListManager {
                 },
                 body: JSON.stringify({
                     customer_id: customerSelect.value,
-                    asset_ids: assetIds,
-                    accessory_ids: accessoryItems
+                    assets: assetIds,
+                    accessories: accessoryItems
                 })
             });
 
@@ -267,10 +267,17 @@ class CheckoutListManager {
             }
             
             // Show success message
-            showError(responseData.message || 'Checkout processed successfully', true);
+            if (responseData.message) {
+                showError(responseData.message, true);
+            } else {
+                showError('Checkout processed successfully', true);
+            }
             
-            // Reload the page to refresh the inventory
-            setTimeout(() => window.location.reload(), 2000);
+            // Wait for the message to be displayed before reloading
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Reload the page after the message has been displayed
+            window.location.reload();
         } catch (error) {
             console.error('Error processing checkout:', error);
             showError(error.message || 'An unexpected error occurred during checkout');

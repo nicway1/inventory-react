@@ -627,20 +627,22 @@ def import_inventory():
 
                         for encoding in encodings:
                             try:
-                                if import_type == 'tech_assets':
-                                    # Read with original headers
-                                    df = pd.read_csv(filepath, encoding=encoding)
-                                    # Remove any unnamed index column if present
-                                    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-                                else:
-                                    df = pd.read_csv(filepath, encoding=encoding)
+                                # Read CSV file with the current encoding
+                                df = pd.read_csv(filepath, encoding=encoding)
+                                
+                                # Check if the DataFrame has any data
+                                if df.empty:
+                                    raise Exception("CSV file is empty")
+                                
+                                # If successful, break the loop
                                 break
                             except Exception as e:
-                                last_error = e
+                                last_error = str(e)
+                                print(f"Failed to read CSV with encoding {encoding}: {last_error}")
                                 continue
 
                         if df is None:
-                            raise Exception(f"Failed to read CSV with any encoding. Last error: {str(last_error)}")
+                            raise Exception(f"Failed to read CSV with any encoding. Please check the file format.")
 
                         # Create preview data based on import type
                         preview_data = []
@@ -665,13 +667,13 @@ def import_inventory():
                                     'Customer': clean_value(row.get(column_mapping.get('customer', 'CUSTOMER'), '')),
                                     'Country': clean_value(row.get(column_mapping.get('country', 'COUNTRY'), '')),
                                     'PO': clean_value(row.get(column_mapping.get('po', 'PO'), '')),
-                                    'Receiving Date': clean_value(row.get(column_mapping.get('receiving date', 'Receiving date'), '')),
+                                    'Receiving Date': clean_value(row.get(column_mapping.get('receiving date', 'RECEIVING DATE'), '')),
                                     'Condition': clean_value(row.get(column_mapping.get('condition', 'CONDITION'), '')),
-                                    'Diagnostic': clean_value(row.get(column_mapping.get('diagnostic', 'DIAG'), '')),
+                                    'Diagnostic': clean_value(row.get(column_mapping.get('diagnostic', 'DIAGNOSTIC'), '')),
                                     'Notes': clean_value(row.get(column_mapping.get('notes', 'NOTES'), '')),
                                     'Tech Notes': clean_value(row.get(column_mapping.get('tech notes', 'TECH NOTES'), '')),
                                     'Erased': clean_value(row.get(column_mapping.get('erased', 'ERASED'), '')),
-                                    'Keyboard': clean_value(row.get(column_mapping.get('keyboard', 'Keyboard'), '')),
+                                    'Keyboard': clean_value(row.get(column_mapping.get('keyboard', 'KEYBOARD'), '')),
                                     'Charger': clean_value(row.get(column_mapping.get('charger', 'CHARGER'), '')),
                                     'Included': clean_value(row.get(column_mapping.get('included', 'INCLUDED'), ''))
                                 }
@@ -790,6 +792,10 @@ def confirm_import():
         errors = []
 
         # Start a transaction
+        if not isinstance(preview_data['data'], list):
+            flash('Invalid preview data format. Please upload a file again.', 'error')
+            return redirect(url_for('inventory.import_inventory'))
+            
         for index, row in enumerate(preview_data['data'], start=1):
             try:
                 if preview_data['import_type'] == 'tech_assets':
@@ -2156,156 +2162,151 @@ def add_csrf_token_to_response(response):
 @inventory_bp.route('/bulk-checkout', methods=['POST'])
 @login_required
 def bulk_checkout():
-    """Bulk checkout assets and accessories to a customer"""
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    # Extract data from request
-    customer_id = data.get('customer_id')
-    asset_ids = data.get('asset_ids', [])
-    accessory_items = data.get('accessory_ids', [])
-    
-    # Debug logging
-    logging.info(f"Bulk checkout request: customer_id={customer_id}, asset_ids={asset_ids}, accessory_items={accessory_items}")
-    
-    # Process accessories
-    accessory_quantities = {}
-    accessory_ids = []
-    for item in accessory_items:
-        # Handle case where accessory_ids contains objects with id and quantity
-        if isinstance(item, dict) and 'id' in item:
-            acc_id = str(item['id'])
-            accessory_ids.append(acc_id)
-            # Store the quantity if provided
-            if 'quantity' in item:
-                accessory_quantities[acc_id] = int(item['quantity'])
-        else:
-            # Handle case where accessory_ids is a simple list of IDs
-            accessory_ids.append(str(item))
-    
-    if not customer_id:
-        logging.warning("Bulk checkout failed: No customer ID provided")
-        return jsonify({"error": "Customer ID is required"}), 400
-    
-    if not asset_ids and not accessory_ids:
-        logging.warning("Bulk checkout failed: No assets or accessories selected")
-        return jsonify({"error": "No assets or accessories selected"}), 400
-    
+    """Handle bulk checkout of assets and accessories"""
     db_session = db_manager.get_session()
-    processed_assets = 0
-    processed_accessories = 0
-    errors = []
-    warnings = []
-    
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        customer_id = data.get('customer_id')
+        if not customer_id:
+            return jsonify({'error': 'Customer ID is required'}), 400
+
+        # Get selected items
+        selected_assets = data.get('assets', [])
+        selected_accessories = data.get('accessories', [])
+        
+        if not selected_assets and not selected_accessories:
+            return jsonify({'error': 'No items selected for checkout'}), 400
+
         # Get customer
         customer = db_session.query(CustomerUser).get(customer_id)
         if not customer:
-            return jsonify({"error": "Customer not found"}), 404
+            return jsonify({'error': 'Customer not found'}), 404
+
+        # Start transaction
+        db_session.begin_nested()
         
-        # Process assets first
-        for asset_id in asset_ids:
+        processed_items = []
+        errors = []
+        processed_assets = 0
+        processed_accessories = 0
+
+        # Process assets
+        for asset_id in selected_assets:
             try:
                 asset = db_session.query(Asset).get(asset_id)
                 if not asset:
                     errors.append(f"Asset {asset_id} not found")
                     continue
-                
-                if asset.status != AssetStatus.IN_STOCK:
-                    errors.append(f"Asset {asset.asset_tag} is not available for checkout")
+
+                # Check if asset is available based on its status
+                if asset.status not in [AssetStatus.IN_STOCK, AssetStatus.READY_TO_DEPLOY]:
+                    errors.append(f"Asset {asset.name} is not available for checkout (current status: {asset.status.value})")
                     continue
-                
-                # Generate unique transaction number
-                timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
-                transaction_number = f"TRX-{timestamp}-{asset_id}"
-                
-                # Create transaction record
+
+                # Generate unique transaction number with random component
+                random_component = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
+                transaction_number = f"TRX-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random_component}-{asset_id}"
+
+                # Create transaction
                 transaction = AssetTransaction(
                     transaction_number=transaction_number,
                     asset_id=asset_id,
                     customer_id=customer_id,
-                    transaction_date=datetime.now(),
                     transaction_type='checkout',
                     notes=f"Bulk checkout to {customer.name}"
                 )
                 db_session.add(transaction)
-                
+
                 # Update asset status
                 asset.status = AssetStatus.DEPLOYED
                 asset.customer_id = customer_id
-                asset.checkout_date = datetime.now()
-                
+                asset.last_checkout_date = datetime.now()
+
+                processed_items.append({
+                    'type': 'asset',
+                    'id': asset_id,
+                    'name': asset.name,
+                    'transaction_number': transaction_number
+                })
                 processed_assets += 1
-                
+
             except Exception as e:
-                errors.append(f"Error processing asset ID {asset_id}: {str(e)}")
+                errors.append(f"Error processing asset {asset_id}: {str(e)}")
                 continue
-        
+
         # Process accessories
-        for accessory_id in accessory_ids:
+        for accessory_data in selected_accessories:
             try:
+                accessory_id = accessory_data.get('id')
+                quantity = accessory_data.get('quantity', 1)
+                
                 accessory = db_session.query(Accessory).get(accessory_id)
                 if not accessory:
                     errors.append(f"Accessory {accessory_id} not found")
                     continue
-                
-                quantity = accessory_quantities.get(accessory_id, 1)
-                if quantity > accessory.available_quantity:
-                    errors.append(f"Insufficient quantity available for accessory {accessory.name}")
+
+                if accessory.available_quantity < quantity:
+                    errors.append(f"Accessory {accessory.name} does not have enough quantity available")
                     continue
-                
-                # Generate unique transaction number
-                timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
-                transaction_number = f"TRX-{timestamp}-{accessory_id}"
-                
-                # Create transaction record
+
+                # Generate unique transaction number with random component
+                random_component = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=4))
+                transaction_number = f"TRX-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random_component}-{accessory_id}"
+
+                # Create transaction
                 transaction = AccessoryTransaction(
+                    transaction_number=transaction_number,
                     accessory_id=accessory_id,
                     customer_id=customer_id,
-                    transaction_date=datetime.now(),
-                    transaction_type='Checkout',
+                    transaction_type='checkout',
                     quantity=quantity,
                     notes=f"Bulk checkout to {customer.name}"
                 )
                 db_session.add(transaction)
-                
-                # Update accessory
+
+                # Update accessory quantity
                 accessory.available_quantity -= quantity
-                accessory.customer_id = customer_id
-                accessory.checkout_date = datetime.now()
-                accessory.status = 'Checked Out'
-                
+                accessory.total_quantity -= quantity
+
+                processed_items.append({
+                    'type': 'accessory',
+                    'id': accessory_id,
+                    'name': accessory.name,
+                    'quantity': quantity,
+                    'transaction_number': transaction_number
+                })
                 processed_accessories += 1
-                
+
             except Exception as e:
-                errors.append(f"Error processing accessory ID {accessory_id}: {str(e)}")
+                errors.append(f"Error processing accessory {accessory_id}: {str(e)}")
                 continue
-        
-        # Commit all changes
+
+        # Commit the transaction
         db_session.commit()
+
+        # Create a detailed success message
+        message_parts = []
+        if processed_assets > 0:
+            message_parts.append(f"{processed_assets} asset{'s' if processed_assets != 1 else ''}")
+        if processed_accessories > 0:
+            message_parts.append(f"{processed_accessories} accessor{'ies' if processed_accessories > 1 else 'y'}")
         
-        # Prepare response
-        response = {
-            "success": True,
-            "message": f"Successfully processed {processed_assets} assets and {processed_accessories} accessories",
-            "processed_assets": processed_assets,
-            "processed_accessories": processed_accessories
-        }
-        
-        if errors:
-            response["warnings"] = errors
-        
-        return jsonify(response)
-        
+        success_message = f"Successfully checked out {' and '.join(message_parts)}"
+
+        return jsonify({
+            'success': True,
+            'message': success_message,
+            'processed_items': processed_items,
+            'errors': errors if errors else None
+        })
+
     except Exception as e:
         db_session.rollback()
-        logging.error(f"Bulk checkout failed: {str(e)}")
-        return jsonify({
-            "error": "Errors occurred during checkout. No items were checked out.",
-            "details": [str(e)]
-        }), 500
-        
+        current_app.logger.error(f"Error in bulk_checkout: {str(e)}")
+        return jsonify({'error': f"Unexpected error during checkout: {str(e)}"}), 500
     finally:
         db_session.close()
 
