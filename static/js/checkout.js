@@ -2,7 +2,28 @@
 class CheckoutListManager {
     constructor() {
         this.checkoutList = [];
+        
+        // First, try to load from our storage key
         this.loadCheckoutList();
+        
+        // Check for items in the other storage key ('checkoutItems')
+        const otherStorageItems = localStorage.getItem('checkoutItems');
+        if (otherStorageItems) {
+            try {
+                const parsedItems = JSON.parse(otherStorageItems);
+                // If we have items in the other storage, and none in ours, migrate them
+                if (parsedItems && parsedItems.length > 0 && this.checkoutList.length === 0) {
+                    console.log('Migrating items from checkoutItems to checkoutList storage');
+                    this.checkoutList = parsedItems;
+                    this.saveCheckoutList();
+                    // Clear the other storage to avoid confusion
+                    localStorage.removeItem('checkoutItems');
+                }
+            } catch (e) {
+                console.error('Error loading items from checkoutItems storage:', e);
+            }
+        }
+        
         this.initializeUI();
         
         // Add event listener for page unload to ensure data is saved
@@ -33,6 +54,12 @@ class CheckoutListManager {
         const checkoutCount = document.getElementById('checkoutCount');
         if (checkoutCount) {
             checkoutCount.textContent = this.checkoutList.length;
+        }
+        
+        // Add this code to update the accessories checkout count
+        const checkoutCountAccessories = document.getElementById('checkoutCountAccessories');
+        if (checkoutCountAccessories) {
+            checkoutCountAccessories.textContent = this.checkoutList.length;
         }
 
         const processCheckout = document.getElementById('processCheckout');
@@ -90,15 +117,30 @@ class CheckoutListManager {
     addItem(item) {
         // Check if item already exists
         const existingIndex = this.checkoutList.findIndex(i => i.id === item.id && i.type === item.type);
+        
+        console.log("Adding item to checkout list:", item);
+        console.log("Current checkout list before add:", JSON.parse(JSON.stringify(this.checkoutList)));
+        
         if (existingIndex !== -1) {
             // Update quantity if it's an accessory
             if (item.type === 'accessory') {
                 this.checkoutList[existingIndex].quantity = (this.checkoutList[existingIndex].quantity || 1) + (item.quantity || 1);
+                console.log("Updated quantity for existing item:", this.checkoutList[existingIndex]);
             }
         } else {
             this.checkoutList.push(item);
+            console.log("Added new item to list. New length:", this.checkoutList.length);
         }
+        
+        // Save to localStorage and update the UI
         this.saveCheckoutList();
+        
+        // Log for debugging
+        console.log(`Added item to checkout list. Current count: ${this.checkoutList.length}`);
+        console.log(`Item:`, item);
+        
+        // Ensure UI is updated
+        this.updateUI();
     }
 
     removeItem(itemId, itemType) {

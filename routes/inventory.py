@@ -65,6 +65,16 @@ def view_inventory():
         tech_assets_count = tech_assets_query.count()
         accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
 
+        # Get maintenance assets (assets where ERASED is not COMPLETED)
+        maintenance_query = tech_assets_query.filter(
+            or_(
+                Asset.erased.is_(None),
+                Asset.erased == '',
+                func.lower(Asset.erased) != 'completed'
+            )
+        )
+        maintenance_assets_count = maintenance_query.count()
+
         # Get unique values for filters from filtered assets only
         companies = tech_assets_query.with_entities(Asset.customer).distinct().all()
         companies = sorted(list(set([c[0] for c in companies if c[0]])))
@@ -81,18 +91,20 @@ def view_inventory():
 
         # Get accessories with counts
         accessories = db_session.query(
+            Accessory.id,
             Accessory.name,
             Accessory.category,
-            func.count(Accessory.id).label('total_count'),
-            func.sum(case([(Accessory.status == 'Available', 1)], else_=0)).label('available_count')
-        ).group_by(Accessory.name, Accessory.category).all()
+            Accessory.total_quantity,
+            Accessory.available_quantity
+        ).order_by(Accessory.name).all()
 
         accessories_list = [
             {
+                'id': acc.id,
                 'name': acc.name,
                 'category': acc.category,
-                'total_count': acc.total_count,
-                'available_count': acc.available_count
+                'total_count': acc.total_quantity,
+                'available_count': acc.available_quantity
             }
             for acc in accessories
         ]
@@ -108,6 +120,7 @@ def view_inventory():
             'inventory/view.html',
             tech_assets_count=tech_assets_count,
             accessories_count=accessories_count,
+            maintenance_assets_count=maintenance_assets_count,
             companies=companies,
             models=models,
             countries=countries,
@@ -2275,6 +2288,11 @@ def bulk_checkout():
                 # Update accessory quantity
                 accessory.available_quantity -= quantity
                 accessory.total_quantity -= quantity
+                
+                # Update the customer_id field for the accessory to link it to this customer
+                accessory.customer_id = customer_id
+                accessory.checkout_date = datetime.now()
+                accessory.status = 'Checked Out'
 
                 processed_items.append({
                     'type': 'accessory',
@@ -2915,3 +2933,259 @@ def get_customer_transactions(id):
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+
+@inventory_bp.route('/delete-accessory-transaction', methods=['POST'])
+@login_required
+@admin_required
+def delete_accessory_transaction():
+    """Delete an accessory transaction and update inventory counts"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        
+        if not transaction_id:
+            return jsonify({'success': False, 'error': 'Transaction ID is required'}), 400
+        
+        # Get the transaction
+        transaction = db_session.query(AccessoryTransaction).filter_by(transaction_id=transaction_id).first()
+        
+        if not transaction:
+            return jsonify({'success': False, 'error': 'Transaction not found'}), 404
+        
+        # Get the accessory
+        accessory = db_session.query(Accessory).filter_by(id=transaction.accessory_id).first()
+        
+        if not accessory:
+            return jsonify({'success': False, 'error': 'Associated accessory not found'}), 404
+        
+        # Update accessory quantity if it was a checkout
+        if transaction.transaction_type == 'Checkout':
+            # Increase available quantity
+            accessory.available_quantity += transaction.quantity
+            db_session.add(accessory)
+            
+            # Create activity log
+            activity = Activity(
+                user_id=current_user.id,
+                type='transaction_deleted',
+                content=f'Deleted checkout transaction {transaction_id} for {accessory.name} (Quantity: {transaction.quantity})',
+                reference_id=transaction.accessory_id
+            )
+            db_session.add(activity)
+        
+        # Delete the transaction
+        db_session.delete(transaction)
+        db_session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Transaction {transaction_id} deleted successfully',
+            'transaction_type': transaction.transaction_type,
+            'accessory_name': accessory.name,
+            'quantity': transaction.quantity
+        })
+        
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error deleting transaction: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/delete-asset-transaction', methods=['POST'])
+@login_required
+@admin_required
+def delete_asset_transaction():
+    """Delete an asset transaction and update asset status if needed"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        
+        if not transaction_id:
+            return jsonify({'success': False, 'error': 'Transaction ID is required'}), 400
+        
+        # Get the transaction
+        transaction = db_session.query(AssetTransaction).filter_by(transaction_id=transaction_id).first()
+        
+        if not transaction:
+            return jsonify({'success': False, 'error': 'Transaction not found'}), 404
+        
+        # Get the asset
+        asset = db_session.query(Asset).filter_by(id=transaction.asset_id).first()
+        
+        if not asset:
+            return jsonify({'success': False, 'error': 'Associated asset not found'}), 404
+        
+        # Update asset status if it was a checkout and it's the latest transaction
+        if transaction.transaction_type == 'Checkout':
+            # Check if this is the latest transaction
+            latest_transaction = db_session.query(AssetTransaction)\
+                .filter_by(asset_id=transaction.asset_id)\
+                .order_by(AssetTransaction.transaction_date.desc())\
+                .first()
+            
+            if latest_transaction and latest_transaction.transaction_id == transaction_id:
+                # This is the latest transaction, reset to IN_STOCK or previous status
+                asset.status = AssetStatus.IN_STOCK
+                asset.customer_id = None
+                db_session.add(asset)
+            
+            # Create activity log
+            activity = Activity(
+                user_id=current_user.id,
+                type='transaction_deleted',
+                content=f'Deleted checkout transaction {transaction_id} for {asset.serial_num} ({asset.name})',
+                reference_id=transaction.asset_id
+            )
+            db_session.add(activity)
+        
+        # Delete the transaction
+        db_session.delete(transaction)
+        db_session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Transaction {transaction_id} deleted successfully',
+            'transaction_type': transaction.transaction_type,
+            'asset_name': asset.name,
+            'serial_num': asset.serial_num
+        })
+        
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error deleting transaction: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/maintenance-assets', methods=['GET'])
+@login_required
+def get_maintenance_assets():
+    """API endpoint to get assets that need maintenance (ERASED not COMPLETED)"""
+    db_session = db_manager.get_session()
+    try:
+        # Get filter params (if any)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 1000, type=int)
+        search_term = request.args.get('search', '')
+        
+        # Get the current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query
+        query = db_session.query(Asset).filter(
+            or_(
+                Asset.erased.is_(None),
+                Asset.erased == '',
+                func.lower(Asset.erased) != 'completed'
+            )
+        )
+        
+        # Filter by country if user is Country Admin or Supervisor
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
+            query = query.filter(Asset.country == user.assigned_country.value)
+        
+        # Apply search if provided
+        if search_term:
+            search_term = f"%{search_term}%"
+            query = query.filter(
+                or_(
+                    Asset.serial_num.ilike(search_term),
+                    Asset.asset_tag.ilike(search_term),
+                    Asset.product.ilike(search_term),
+                    Asset.model.ilike(search_term),
+                    Asset.cpu_type.ilike(search_term)
+                )
+            )
+        
+        # Get total count
+        total_count = query.count()
+        
+        # Manual pagination (fix for SQLAlchemy versions without paginate)
+        offset = (page - 1) * per_page
+        items = query.order_by(Asset.id.desc()).offset(offset).limit(per_page).all()
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        
+        # Format response
+        assets = []
+        for asset in items:
+            customer_name = None
+            if asset.customer_id:
+                customer = db_session.query(Customer).filter_by(id=asset.customer_id).first()
+                if customer:
+                    customer_name = customer.name
+                    
+            assets.append({
+                'id': asset.id,
+                'asset_tag': asset.asset_tag,
+                'serial_num': asset.serial_num,
+                'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
+                'model': asset.model,
+                'cpu_type': asset.cpu_type,
+                'cpu_cores': asset.cpu_cores,
+                'gpu_cores': asset.gpu_cores,
+                'memory': asset.memory,
+                'harddrive': asset.harddrive,
+                'inventory': asset.status.value if asset.status else 'Unknown',
+                'customer': asset.customer or customer_name,
+                'customer_id': asset.customer_id,
+                'country': asset.country,
+                'erased': asset.erased
+            })
+        
+        return jsonify({
+            'assets': assets,
+            'total_count': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving maintenance assets: {str(e)}")
+        return jsonify({'error': f"Error retrieving maintenance assets: {str(e)}"}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/bulk-update-erased', methods=['POST'])
+@login_required
+@admin_required
+def bulk_update_erased():
+    """API endpoint to bulk update the ERASED status of multiple assets"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        asset_ids = data.get('asset_ids', [])
+        erased_status = data.get('erased_status')
+        
+        if not asset_ids:
+            return jsonify({'error': 'No asset IDs provided'}), 400
+            
+        if not erased_status:
+            return jsonify({'error': 'No erased status provided'}), 400
+        
+        # Update assets
+        updated_count = 0
+        for asset_id in asset_ids:
+            asset = db_session.query(Asset).filter_by(id=asset_id).first()
+            if asset:
+                asset.erased = erased_status
+                updated_count += 1
+        
+        # Commit changes
+        db_session.commit()
+        
+        return jsonify({
+            'message': f'Successfully updated {updated_count} asset(s) to {erased_status}',
+            'updated_count': updated_count
+        })
+        
+    except Exception as e:
+        db_session.rollback()
+        app.logger.error(f"Error updating assets: {str(e)}")
+        return jsonify({'error': f"Error updating assets: {str(e)}"}), 500

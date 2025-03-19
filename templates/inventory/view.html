@@ -111,7 +111,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <!-- Tech Assets Card -->
         <div id="techAssetsCard" 
              class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors">
@@ -126,6 +126,14 @@
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
+        </div>
+        
+        <!-- Maintenance Card -->
+        <div id="maintenanceCard"
+             class="bg-orange-500 text-white rounded-lg p-6 cursor-pointer hover:bg-orange-600 transition-colors">
+            <h2 class="text-xl font-semibold mb-2">Maintenance</h2>
+            <p class="text-sm opacity-80 mb-4">Assets needing erasure attention</p>
+            <p class="text-3xl font-bold" id="maintenanceCount">{{ maintenance_assets_count }}</p>
         </div>
     </div>
 
@@ -202,39 +210,109 @@
 
     <!-- Accessories Table -->
     <div id="accessoriesTable" class="mb-8 hidden">
-        <h2 class="text-xl font-semibold mb-4">Accessories</h2>
-        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+            <h2 class="text-xl font-semibold">Accessories</h2>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                <!-- Bulk Delete Form -->
+                {% if is_admin %}
+                <form id="bulkDeleteAccessoriesForm" action="{{ url_for('inventory.bulk_delete') }}" method="POST" class="flex items-center" onsubmit="return confirmDelete()">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete2" value="[]">
+                    
+                    <button type="submit" id="bulkDeleteAccessoriesBtn" disabled
+                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Delete Selected
+                    </button>
+                </form>
+                
+                <!-- Checkout List Buttons for Accessories -->
+                <button id="addToCheckoutListAccessories" disabled
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Add to Checkout List
+                </button>
+                <button id="viewCheckoutListAccessories"
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    View Checkout List
+                    <span id="checkoutCountAccessories" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        0
+                    </span>
+                </button>
+                
+                <!-- Add New Accessory Button -->
+                <a href="{{ url_for('inventory.add_accessory') }}" 
+                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Add New Accessory
+                </a>
+                
+                <!-- Export Accessories Button -->
+                <a href="{{ url_for('inventory.export_inventory', item_type='accessories') }}" 
+                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export Accessories
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-2">
+                            <th class="w-10 px-2 py-2">
                                 <input type="checkbox" id="selectAllAccessories"
                                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                             </th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Category</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Available</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Total</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                            <th class="w-32 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                            <th class="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                            <th class="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for accessory in accessories %}
-                        <tr>
-                            <td class="px-4 py-2">
-                                <input type="checkbox" class="accessory-checkbox" data-id="{{ accessory.id }}"
-                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-2 py-2">
+                                <input type="checkbox" class="accessory-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" data-id="{{ accessory.id }}">
                             </td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ accessory.available_count }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ accessory.total_count }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-2 py-2 text-sm font-medium text-gray-900 truncate">{{ accessory.name }}</td>
+                            <td class="px-2 py-2 text-sm text-gray-500 truncate">{{ accessory.category }}</td>
+                            <td class="px-2 py-2">
+                                <div class="text-sm text-gray-900 mb-1">
+                                    <span class="font-medium">{{ accessory.name }}</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    <span>Category: {{ accessory.category }}</span>
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full {% if accessory.available_count > 0 %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ accessory.available_count }}
+                                </span>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    {{ accessory.total_count }}
+                                </span>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap">
                                 {% if accessory.available_count > 0 %}
-                                <button class="text-blue-600 hover:text-blue-800">Checkout</button>
+                                <button data-id="{{ accessory.id }}"
+                                        data-name="{{ accessory.name|tojson|safe }}"
+                                        data-category="{{ accessory.category|tojson|safe }}"
+                                        data-available="{{ accessory.available_count }}"
+                                        onclick="event.stopPropagation(); addAccessoryToCheckout(this.dataset)"
+                                        class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400">
+                                    Add to Checkout
+                                </button>
                                 {% else %}
-                                <span class="text-gray-400">None Available</span>
+                                <span class="inline-flex items-center px-2 py-1 border border-gray-200 text-xs font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">
+                                    None Available
+                                </span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -244,18 +322,183 @@
             </div>
         </div>
     </div>
+
+    <!-- Maintenance Assets Table -->
+    <div id="maintenanceTable" class="mb-8 hidden">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+            <h2 class="text-xl font-semibold">Maintenance Assets</h2>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                <!-- Bulk Update Form -->
+                {% if is_admin %}
+                <button id="bulkEraseBtn" disabled
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Mark as Completed
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 table-fixed">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            {% if is_admin %}
+                            <th class="w-10 px-2 py-2">
+                                <input type="checkbox" id="selectAllMaintenance"
+                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            </th>
+                            {% endif %}
+                            <th class="w-16 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                            <th class="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                            <th class="hidden md:table-cell w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                            <th class="hidden md:table-cell w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th class="hidden md:table-cell w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                            <th class="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="hidden md:table-cell w-16 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erased</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenanceAssetsBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Table rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Include the checkout modal -->
-{% include 'inventory/includes/checkout_modal.html' %}
+<!-- Checkout List Modal -->
+<div id="checkoutListModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                            Checkout List
+                        </h3>
+                        <div id="checkoutListContent" class="mt-2">
+                            <!-- Content will be dynamically inserted -->
+                        </div>
+                        
+                        <!-- Customer Selection -->
+                        <div class="mt-4 border-t pt-4">
+                            <label for="customerSelect" class="block text-sm font-medium text-gray-700 mb-2">Select Customer:</label>
+                            <select id="customerSelect" class="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Select a Customer --</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="processCheckout" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Proceed to Checkout
+                </button>
+                <button type="button" id="clearCheckoutList" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Clear List
+                </button>
+                <button type="button" id="closeCheckoutModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add the Erase Status Action Modal -->
+<div id="eraseStatusModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                            Update Erase Status
+                        </h3>
+                        <input type="hidden" id="eraseStatusAssetId" value="">
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 mb-4">Select the new erase status for this asset:</p>
+                            <div class="space-y-4">
+                                <button onclick="updateEraseStatus('COMPLETED')" 
+                                        class="w-full text-left px-4 py-2 border rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span class="font-medium">COMPLETED</span>
+                                    <p class="text-sm text-gray-500">Asset has been successfully erased</p>
+                                </button>
+                                <button onclick="updateEraseStatus('EWASTE')"
+                                        class="w-full text-left px-4 py-2 border rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span class="font-medium">EWASTE</span>
+                                    <p class="text-sm text-gray-500">Asset cannot be erased and should be disposed</p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="closeEraseStatusModal"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Debug info about CheckoutListManager
+    console.log('CheckoutListManager exists:', typeof CheckoutListManager === 'function');
+    if (typeof CheckoutListManager === 'function') {
+        console.log('CheckoutListManager methods:', 
+            Object.getOwnPropertyNames(CheckoutListManager.prototype)
+                .filter(item => typeof CheckoutListManager.prototype[item] === 'function'));
+    }
+    
+    // First thing: Initialize checkout count display directly
+    const checkoutCount = document.getElementById('checkoutCount');
+    const checkoutCountAccessories = document.getElementById('checkoutCountAccessories');
+    
+    // Load items from localStorage immediately
+    let storedItems = [];
+    try {
+        const savedItems = localStorage.getItem('checkoutItems');
+        if (savedItems) {
+            storedItems = JSON.parse(savedItems);
+            console.log('Loaded checkout items from storage:', storedItems.length);
+            
+            // Update count displays immediately
+            if (checkoutCount) checkoutCount.textContent = storedItems.length;
+            if (checkoutCountAccessories) checkoutCountAccessories.textContent = storedItems.length;
+        }
+    } catch (e) {
+        console.error('Error loading checkout items from storage:', e);
+    }
+    
     const techAssetsTable = document.getElementById('techAssetsTable');
     const accessoriesTable = document.getElementById('accessoriesTable');
+    const maintenanceTable = document.getElementById('maintenanceTable');
     const techAssetsBody = document.getElementById('techAssetsBody');
+    const maintenanceAssetsBody = document.getElementById('maintenanceAssetsBody');
     const techAssetsCount = document.getElementById('techAssetsCount');
     const accessoriesCount = document.getElementById('accessoriesCount');
+    const maintenanceCount = document.getElementById('maintenanceCount');
     const errorAlert = document.getElementById('errorAlert');
     const errorMessage = document.getElementById('errorMessage');
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -264,33 +507,251 @@ document.addEventListener('DOMContentLoaded', function() {
     const companyFilter = document.getElementById('companyFilter');
     const modelFilter = document.getElementById('modelFilter');
     const countryFilter = document.getElementById('countryFilter');
+    const erasedFilter = document.getElementById('erasedFilter');
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const selectAllAssets = document.getElementById('selectAllAssets');
     const selectAllAccessories = document.getElementById('selectAllAccessories');
+    const selectAllMaintenance = document.getElementById('selectAllMaintenance');
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const isAdmin = techAssetsTable ? techAssetsTable.dataset.isAdmin === 'true' : false;
     const isSupervisor = techAssetsTable ? techAssetsTable.dataset.isSupervisor === 'true' : false;
     const removeSerialPrefixBtn = document.getElementById('removeSerialPrefix');
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const bulkEraseBtn = document.getElementById('bulkEraseBtn');
     const selectedAssetIdsDelete = document.getElementById('selectedAssetIdsDelete');
     const selectedAccessoryIdsDelete = document.getElementById('selectedAccessoryIdsDelete');
+    
+    // Checkout related elements
+    const checkoutListModal = document.getElementById('checkoutListModal');
+    const closeCheckoutModal = document.getElementById('closeCheckoutModal');
+    const clearCheckoutList = document.getElementById('clearCheckoutList');
+    const processCheckout = document.getElementById('processCheckout');
+    const checkoutListContent = document.getElementById('checkoutListContent');
+    const addToCheckoutList = document.getElementById('addToCheckoutList');
+    const viewCheckoutList = document.getElementById('viewCheckoutList');
+    const addToCheckoutListAccessories = document.getElementById('addToCheckoutListAccessories');
+    const viewCheckoutListAccessories = document.getElementById('viewCheckoutListAccessories');
 
     // Initialize variables
     let selectedAssetIds = [];
     let selectedAccessoryIds = [];
+    let selectedMaintenanceIds = [];
 
-    // Initialize checkout list
-    let checkoutList = [];
-    const addToCheckoutList = document.getElementById('addToCheckoutList');
-    const viewCheckoutList = document.getElementById('viewCheckoutList');
-    const checkoutListModal = document.getElementById('checkoutListModal');
-    const closeCheckoutModal = document.getElementById('closeCheckoutModal');
-    const checkoutListContent = document.getElementById('checkoutListContent');
-    const clearCheckoutList = document.getElementById('clearCheckoutList');
-    const processCheckout = document.getElementById('processCheckout');
-    const customerSelect = document.getElementById('customerSelect');
-    const checkoutCount = document.getElementById('checkoutCount');
+    // Initialize checkoutManager object if not already initialized
+    if (!window.checkoutManager) {
+        // Check if CheckoutListManager exists
+        if (typeof CheckoutListManager === 'function') {
+            // Use the CheckoutListManager class
+            window.checkoutManager = new CheckoutListManager();
+            console.log('Initialized window.checkoutManager using CheckoutListManager');
+        } else {
+            // Fallback to the local implementation
+            window.checkoutManager = {
+                items: [],
+                
+                init: function() {
+                    // Try to load items from localStorage
+                    try {
+                        const savedItems = localStorage.getItem('checkoutItems');
+                        if (savedItems) {
+                            this.items = JSON.parse(savedItems);
+                            console.log('Loaded checkout items from storage:', this.items.length);
+                            this.updateCountDisplay();
+                        }
+                    } catch (e) {
+                        console.error('Error loading checkout items from storage:', e);
+                        this.items = [];
+                    }
+                },
+                
+                saveItems: function() {
+                    // Save items to localStorage
+                    try {
+                        localStorage.setItem('checkoutItems', JSON.stringify(this.items));
+                    } catch (e) {
+                        console.error('Error saving checkout items to storage:', e);
+                    }
+                },
+                
+                addItem: function(item) {
+                    // Check if item already exists
+                    const existingIndex = this.items.findIndex(i => 
+                        i.id === item.id && i.type === item.type
+                    );
+                    
+                    if (existingIndex >= 0) {
+                        // Update quantity if item exists
+                        this.items[existingIndex].quantity++;
+                    } else {
+                        // Add new item
+                        this.items.push(item);
+                    }
+                    
+                    // Update checkout count displays
+                    this.updateCountDisplay();
+                    this.saveItems();
+                    console.log("Added item, count is now:", this.getItemCount());
+                },
+                
+                removeItem: function(id, type) {
+                    this.items = this.items.filter(item => 
+                        !(item.id === id && item.type === type)
+                    );
+                    this.updateCountDisplay();
+                    this.saveItems();
+                    console.log("Removed item, count is now:", this.getItemCount());
+                },
+                
+                clearItems: function() {
+                    this.items = [];
+                    this.updateCountDisplay();
+                    this.saveItems();
+                    console.log("Cleared items, count is now:", this.getItemCount());
+                },
+                
+                getItemCount: function() {
+                    return this.items.length;
+                },
+                
+                updateCountDisplay: function() {
+                    // Update both checkout count displays
+                    const count = this.getItemCount();
+                    const techCount = document.getElementById('checkoutCount');
+                    const accessoriesCount = document.getElementById('checkoutCountAccessories');
+                    
+                    if (techCount) techCount.textContent = count;
+                    if (accessoriesCount) accessoriesCount.textContent = count;
+                    
+                    console.log("Updated count displays to:", count);
+                },
+                
+                showModal: function() {
+                    const modal = document.getElementById('checkoutListModal');
+                    if (modal) {
+                        // Update items in modal
+                        const content = document.getElementById('checkoutListContent');
+                        if (content) {
+                            content.innerHTML = this.renderItems();
+                            
+                            // Set up event listeners for remove buttons in the modal
+                            const removeButtons = content.querySelectorAll('.remove-item');
+                            removeButtons.forEach(button => {
+                                button.addEventListener('click', () => {
+                                    const id = parseInt(button.dataset.id);
+                                    const type = button.dataset.type;
+                                    this.removeItem(id, type);
+                                    this.showModal(); // Refresh the modal
+                                });
+                            });
+                            
+                            // Set up event listeners for quantity inputs
+                            const quantityInputs = content.querySelectorAll('.checkout-quantity');
+                            quantityInputs.forEach(input => {
+                                input.addEventListener('change', () => {
+                                    const id = parseInt(input.dataset.id);
+                                    const type = input.dataset.type;
+                                    const quantity = parseInt(input.value);
+                                    
+                                    const item = this.items.find(i => i.id === id && i.type === type);
+                                    if (item) {
+                                        item.quantity = quantity;
+                                        this.updateCountDisplay();
+                                    }
+                                });
+                            });
+                        }
+                        
+                        modal.classList.remove('hidden');
+                    }
+                },
+                
+                renderItems: function() {
+                    if (this.items.length === 0) {
+                        return '<p class="text-gray-500 py-4">No items in checkout list.</p>';
+                    }
+                    
+                    return `
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                                    <th class="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${this.items.map(item => `
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-900">${item.type === 'asset' ? 'Tech Asset' : 'Accessory'}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-900">${item.name}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-900">
+                                            <input type="number" 
+                                                   class="checkout-quantity border rounded w-16 px-2 py-1"
+                                                   value="${item.quantity}" 
+                                                   min="1"
+                                                   max="${item.available_quantity || 1}"
+                                                   data-id="${item.id}"
+                                                   data-type="${item.type}">
+                                        </td>
+                                        <td class="px-4 py-2 text-sm text-gray-900">
+                                            <button class="remove-item text-red-600 hover:text-red-800"
+                                                    data-id="${item.id}"
+                                                    data-type="${item.type}">
+                                                Remove
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            };
+        }
+    }
+    
+    // Initialize the checkout manager
+    if (window.checkoutManager) {
+        if (window.checkoutManager instanceof CheckoutListManager) {
+            // If it's the Class version, it's already initialized in the constructor
+            console.log('CheckoutListManager is already initialized');
+            
+            // Add compatibility method if needed
+            if (typeof window.checkoutManager.updateCountDisplay !== 'function' && 
+                typeof window.checkoutManager.updateUI === 'function') {
+                window.checkoutManager.updateCountDisplay = window.checkoutManager.updateUI;
+                console.log('Added compatibility method updateCountDisplay');
+            }
+        } else if (typeof window.checkoutManager.init === 'function') {
+            // If it's the object version, initialize it manually
+            window.checkoutManager.init();
+        }
+    }
+    
+    // Initialize checkout count displays at page load
+    setTimeout(() => {
+        if (window.checkoutManager) {
+            // Different implementations may have different method names
+            if (typeof window.checkoutManager.updateCountDisplay === 'function') {
+                window.checkoutManager.updateCountDisplay();
+            } else if (typeof window.checkoutManager.updateUI === 'function') {
+                window.checkoutManager.updateUI();
+            } else {
+                // Fallback: manually update the count displays
+                const count = window.checkoutManager.items ? window.checkoutManager.items.length : 0;
+                const techCount = document.getElementById('checkoutCount');
+                const accessoriesCount = document.getElementById('checkoutCountAccessories');
+                
+                if (techCount) techCount.textContent = count;
+                if (accessoriesCount) accessoriesCount.textContent = count;
+                
+                console.log("Manually updated count displays to:", count);
+            }
+            console.log("Initial count update triggered");
+        }
+    }, 100);
 
     // Initialize button states if elements exist
     if (bulkDeleteBtn || addToCheckoutList || removeSerialPrefixBtn) {
@@ -433,17 +894,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             </span>
                         </td>
                         <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">
-                            ${(() => {
-                                // Check if the property exists in the object
-                                if (!asset.hasOwnProperty('erased')) {
-                                    return '-';
-                                }
-                                // If it exists but is null/undefined/empty
-                                if (asset.erased === null || asset.erased === undefined || asset.erased === '') {
-                                    return '-';
-                                }
-                                return asset.erased;
-                            })()}
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
+                                    ${getErasedClass(asset.erased)}">
+                                    ${asset.erased || 'Not completed'}
+                                </span>
+                                ${asset.erased !== 'COMPLETED' ? `
+                                    <button onclick="event.stopPropagation(); showEraseStatusModal(${asset.id})"
+                                            class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 focus:outline-none">
+                                        Set Status
+                                    </button>
+                                ` : ''}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -668,7 +1130,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to remove item from checkout list
     window.removeFromCheckoutList = function(itemId, itemType) {
-        window.checkoutManager.removeItem(itemId, itemType);
+        if (!window.checkoutManager) {
+            console.error('checkoutManager not initialized');
+            return;
+        }
+        
+        // Handle different implementations
+        if (typeof window.checkoutManager.removeItem === 'function') {
+            window.checkoutManager.removeItem(itemId, itemType);
+        } else if (typeof window.checkoutManager.remove === 'function') {
+            window.checkoutManager.remove(itemId, itemType);
+        } else {
+            console.error('No suitable remove method found on checkoutManager');
+        }
     };
 
     // Add event delegation for row clicks and checkboxes
@@ -677,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if a checkbox was clicked
             if (e.target.classList.contains('asset-checkbox')) {
                 e.stopPropagation(); // Prevent row click
-                handleAssetSelection(e.target);
+                handleAssetSelection(this);
                 return;
             }
             
@@ -714,8 +1188,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const accessoriesCard = document.getElementById('accessoriesCard');
     if (accessoriesCard) {
         accessoriesCard.addEventListener('click', function() {
-            console.log("Accessories card clicked"); // Debug log
-            window.location.href = "{{ url_for('inventory.view_accessories') }}";
+            showTable('accessoriesTable');
+            loadAccessories(); // Make sure to load accessories data
         });
     }
 
@@ -786,6 +1260,712 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Function to load maintenance assets
+    async function loadMaintenanceAssets() {
+        try {
+            setLoading(true);
+            
+            const url = '/inventory/maintenance-assets';
+            
+            console.log(`Fetching maintenance data from ${url}`); // Debug log
+            
+            const response = await fetchWithSession(url);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Maintenance data received:', data); // Debug log
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            updateMaintenanceTable(data);
+        } catch (error) {
+            console.error('Error loading maintenance assets:', error);
+            showError(error.message || 'Error loading maintenance assets');
+            
+            // Show a friendly message in the table
+            const colSpan = isAdmin ? 9 : 8;
+            maintenanceAssetsBody.innerHTML = `<tr><td colspan="${colSpan}" class="px-4 py-4 text-center text-gray-500">
+                <div class="py-8">
+                    <p class="text-red-500 font-medium mb-2">There was a problem loading the data</p>
+                    <p class="text-gray-600">Please try refreshing the page or contact support.</p>
+                    <button onclick="loadMaintenanceAssets()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Try Again
+                    </button>
+                </div>
+            </td></tr>`;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Function to update the maintenance table with data
+    function updateMaintenanceTable(data) {
+        maintenanceCount.textContent = data.total_count;
+        
+        if (data.assets && data.assets.length > 0) {
+            const rows = data.assets.map(asset => {
+                let checkboxCell = '';
+                if (isAdmin) {
+                    checkboxCell = `<td class="px-2 py-2 w-10">
+                        <input type="checkbox" class="maintenance-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" data-id="${asset.id}">
+                    </td>`;
+                }
+                
+                return `
+                    <tr class="hover:bg-gray-50 cursor-pointer" data-asset-id="${asset.id}">
+                        ${checkboxCell}
+                        <td class="px-2 py-2 text-sm text-gray-900 truncate">${asset.asset_tag || ''}</td>
+                        <td class="px-2 py-2 text-sm text-gray-900 truncate">${asset.serial_num || ''}</td>
+                        <td class="px-2 py-2">
+                            <div class="text-sm text-gray-900 font-medium mb-1 break-words">${asset.product || ''}</div>
+                            <div class="text-xs text-gray-500">
+                                <div class="flex flex-wrap gap-x-3">
+                                    <span>CPU: ${asset.cpu_type || 'N/A'}${asset.cpu_cores ? `, ${asset.cpu_cores} cores` : ''}</span>
+                                    <span>GPU: ${asset.gpu_cores ? `${asset.gpu_cores} cores` : 'N/A'}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-x-3">
+                                    <span>RAM: ${asset.memory ? `${asset.memory}GB` : 'N/A'}</span>
+                                    <span>SSD: ${asset.harddrive ? `${asset.harddrive}GB` : 'N/A'}</span>
+                                </div>
+                                <div class="md:hidden mt-2 pt-1 border-t border-gray-100">
+                                    <div class="grid grid-cols-2 gap-1 text-xs text-gray-600">
+                                        <span>Model: ${asset.model || 'N/A'}</span>
+                                        <span>Company: ${asset.customer || 'N/A'}</span>
+                                        <span>Country: ${asset.country || 'N/A'}</span>
+                                        <span>Erased: ${asset.erased || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.model || ''}</td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.customer || ''}</td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">${asset.country || ''}</td>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
+                                ${getStatusClass(asset.inventory)}">
+                                ${asset.inventory}
+                            </span>
+                        </td>
+                        <td class="hidden md:table-cell px-2 py-2 text-sm text-gray-900 truncate">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
+                                    ${getErasedClass(asset.erased)}">
+                                    ${asset.erased || 'Not completed'}
+                                </span>
+                                ${asset.erased !== 'COMPLETED' ? `
+                                    <button onclick="event.stopPropagation(); showEraseStatusModal(${asset.id})"
+                                            class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 focus:outline-none">
+                                        Set Status
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            maintenanceAssetsBody.innerHTML = rows;
+            
+            // Add event listeners to maintenance checkboxes
+            document.querySelectorAll('.maintenance-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    handleMaintenanceSelection(checkbox);
+                });
+            });
+            
+            // Add event listeners to maintenance rows
+            document.querySelectorAll('#maintenanceAssetsBody tr').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    // Only handle click if not clicking a checkbox
+                    if (!e.target.matches('input[type="checkbox"]')) {
+                        const assetId = row.dataset.assetId;
+                        window.location.href = `/inventory/asset/${assetId}`;
+                    }
+                });
+            });
+        } else {
+            maintenanceAssetsBody.innerHTML = `<tr><td colspan="${isAdmin ? 9 : 8}" class="px-4 py-4 text-center text-gray-500">No assets requiring maintenance found</td></tr>`;
+        }
+    }
+
+    // Function to handle maintenance asset selection
+    function handleMaintenanceSelection(checkbox) {
+        const assetId = parseInt(checkbox.dataset.id);
+        if (checkbox.checked) {
+            if (!selectedMaintenanceIds.includes(assetId)) {
+                selectedMaintenanceIds.push(assetId);
+            }
+        } else {
+            selectedMaintenanceIds = selectedMaintenanceIds.filter(id => id !== assetId);
+            // Update select all checkbox state
+            if (selectAllMaintenance) {
+                const allCheckboxes = document.querySelectorAll('.maintenance-checkbox');
+                selectAllMaintenance.checked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
+            }
+        }
+        updateMaintenanceButtonStates();
+    }
+
+    // Select all maintenance assets
+    if (selectAllMaintenance) {
+        selectAllMaintenance.addEventListener('change', function() {
+            const maintenanceCheckboxes = document.querySelectorAll('.maintenance-checkbox');
+            maintenanceCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                handleMaintenanceSelection(checkbox);
+            });
+        });
+    }
+
+    // Function to update maintenance button states
+    function updateMaintenanceButtonStates() {
+        if (bulkEraseBtn) {
+            bulkEraseBtn.disabled = selectedMaintenanceIds.length === 0;
+        }
+    }
+
+    // Get class for erased status
+    function getErasedClass(erased) {
+        if (!erased) return 'bg-red-100 text-red-800';
+        
+        const erasedLower = erased.toLowerCase();
+        if (erasedLower === 'completed') return 'bg-green-100 text-green-800';
+        if (erasedLower === 'physically defective') return 'bg-gray-100 text-gray-800';
+        if (erasedLower === 'in progress') return 'bg-yellow-100 text-yellow-800';
+        return 'bg-orange-100 text-orange-800';
+    }
+
+    // Handle bulk erase button click
+    if (bulkEraseBtn) {
+        bulkEraseBtn.addEventListener('click', async function() {
+            if (selectedMaintenanceIds.length === 0) return;
+            
+            if (!confirm(`Are you sure you want to mark ${selectedMaintenanceIds.length} asset(s) as COMPLETED?`)) {
+                return;
+            }
+            
+            try {
+                setLoading(true);
+                
+                const response = await fetchWithSession('/inventory/bulk-update-erased', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        asset_ids: selectedMaintenanceIds,
+                        erased_status: 'COMPLETED'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                showError(data.message || 'Assets have been marked as COMPLETED', 'success');
+                
+                // Reset selection
+                selectedMaintenanceIds = [];
+                updateMaintenanceButtonStates();
+                
+                // Reload the data
+                loadMaintenanceAssets();
+            } catch (error) {
+                console.error('Error updating assets:', error);
+                showError(error.message || 'Error updating assets');
+            } finally {
+                setLoading(false);
+            }
+        });
+    }
+
+    // Initial setup for tabs
+    function showTable(tableId) {
+        // Hide all tables
+        techAssetsTable.classList.add('hidden');
+        accessoriesTable.classList.add('hidden');
+        maintenanceTable.classList.add('hidden');
+        
+        // Show selected table
+        document.getElementById(tableId).classList.remove('hidden');
+        
+        // Highlight the selected card
+        techAssetsCard.classList.remove('ring-4', 'ring-blue-300');
+        accessoriesCard.classList.remove('ring-4', 'ring-blue-300');
+        maintenanceCard.classList.remove('ring-4', 'ring-orange-300');
+        
+        if (tableId === 'techAssetsTable') {
+            techAssetsCard.classList.add('ring-4', 'ring-blue-300');
+        } else if (tableId === 'accessoriesTable') {
+            accessoriesCard.classList.add('ring-4', 'ring-blue-300');
+        } else if (tableId === 'maintenanceTable') {
+            maintenanceCard.classList.add('ring-4', 'ring-orange-300');
+        }
+    }
+
+    // Handle tab navigation with the card clicks
+    techAssetsCard.addEventListener('click', function() {
+        showTable('techAssetsTable');
+    });
+
+    accessoriesCard.addEventListener('click', function() {
+        showTable('accessoriesTable');
+    });
+
+    maintenanceCard.addEventListener('click', function() {
+        console.log("Maintenance card clicked"); // Add debug log
+        showTable('maintenanceTable');
+        loadMaintenanceAssets(); // Load the maintenance data when tab is clicked
+    });
+
+    // Show tech assets tab by default
+    showTable('techAssetsTable');
+    
+    // Load initial data
+    loadTechAssets();
+    
+    // Function to load accessories
+    async function loadAccessories() {
+        try {
+            setLoading(true);
+            
+            // Show the accessories table
+            showTable('accessoriesTable');
+            
+            // The accessories count is already loaded from the server
+            // We just need to update the checkout count and setup event listeners
+            
+            // After showing the table, set up event listeners for checkboxes
+            document.querySelectorAll('.accessory-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const accessoryId = parseInt(this.dataset.id);
+                    if (this.checked) {
+                        if (!selectedAccessoryIds.includes(accessoryId)) {
+                            selectedAccessoryIds.push(accessoryId);
+                        }
+                    } else {
+                        selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
+                    }
+                    updateAccessorySelection();
+                });
+            });
+            
+            // Re-initialize the selectAllAccessories checkbox
+            if (selectAllAccessories) {
+                selectAllAccessories.addEventListener('change', function() {
+                    const accessoryCheckboxes = document.querySelectorAll('.accessory-checkbox');
+                    accessoryCheckboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                        const accessoryId = parseInt(checkbox.dataset.id);
+                        if (this.checked) {
+                            if (!selectedAccessoryIds.includes(accessoryId)) {
+                                selectedAccessoryIds.push(accessoryId);
+                            }
+                        } else {
+                            selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
+                        }
+                    });
+                    updateAccessorySelection();
+                });
+            }
+            
+            // Reset state
+            selectedAccessoryIds = [];
+            updateAccessorySelection();
+            
+            console.log('Accessories tab initialized');
+        } catch (error) {
+            console.error('Error initializing accessories tab:', error);
+            showError(error.message || 'Error initializing accessories');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Event listeners for checkout list buttons on accessories tab
+    if (addToCheckoutListAccessories) {
+        addToCheckoutListAccessories.addEventListener('click', async () => {
+            try {
+                setLoading(true);
+                console.log("Adding to checkout list:", selectedAccessoryIds);
+                
+                if (selectedAccessoryIds.length === 0) {
+                    showError("No accessories selected");
+                    return;
+                }
+                
+                const response = await fetchWithSession('/inventory/get-checkout-items', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        asset_ids: [],
+                        accessory_ids: selectedAccessoryIds
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch item details');
+                
+                const data = await response.json();
+                
+                // Add accessories to checkout manager
+                if (data.accessories && Array.isArray(data.accessories)) {
+                    data.accessories.forEach(acc => {
+                        if (window.checkoutManager) {
+                            window.checkoutManager.addItem({
+                                id: acc.id,
+                                type: 'accessory',
+                                name: acc.name,
+                                category: acc.category,
+                                available_quantity: acc.available_quantity,
+                                quantity: 1
+                            });
+                        }
+                    });
+                    
+                    showError(`Added ${data.accessories.length} items to checkout list`, true);
+                } else {
+                    showError('No accessories found');
+                }
+                
+                // Clear selections
+                selectedAccessoryIds = [];
+                document.querySelectorAll('.accessory-checkbox').forEach(cb => cb.checked = false);
+                if (selectAllAccessories) selectAllAccessories.checked = false;
+                updateAccessorySelection();
+            } catch (error) {
+                console.error('Error adding to checkout list:', error);
+                showError(error.message || 'Error adding accessories to checkout list');
+            } finally {
+                setLoading(false);
+            }
+        });
+    }
+
+    if (viewCheckoutListAccessories) {
+        viewCheckoutListAccessories.addEventListener('click', () => {
+            window.checkoutManager.showModal();
+        });
+    }
+
+    if (closeCheckoutModal && checkoutListModal) {
+        closeCheckoutModal.addEventListener('click', () => {
+            checkoutListModal.classList.add('hidden');
+        });
+    }
+
+    if (clearCheckoutList && window.checkoutManager) {
+        clearCheckoutList.addEventListener('click', () => {
+            window.checkoutManager.clearItems();
+        });
+    }
+
+    if (processCheckout && window.checkoutManager) {
+        processCheckout.addEventListener('click', () => {
+            const items = window.checkoutManager.items;
+            if (items.length === 0) {
+                showError('No items in checkout list');
+                return;
+            }
+            
+            // Get the selected customer
+            const customerSelect = document.getElementById('customerSelect');
+            const customerId = customerSelect ? customerSelect.value : '';
+            
+            if (!customerId) {
+                showError('Please select a customer');
+                return;
+            }
+            
+            // Redirect to checkout page with items and customer ID
+            window.location.href = "/inventory/bulk-checkout?items=" + 
+                encodeURIComponent(JSON.stringify(items)) + 
+                "&customer_id=" + customerId;
+        });
+    }
+
+    // Initialize tab management
+    let currentTab = 'techAssets';
+    try {
+        // Check URL hash and activate appropriate tab
+        if (window.location.hash === '#accessories') {
+            initAccessoriesTab();
+            currentTab = 'accessories';
+        } else if (window.location.hash === '#maintenance') {
+            initMaintenanceTab();
+            currentTab = 'maintenance';
+        } else {
+            initTechAssetsTab();
+            currentTab = 'techAssets';
+        }
+
+        // Setup tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+                
+                // Deactivate all tabs
+                document.querySelectorAll('.tab-button').forEach(b => {
+                    b.classList.remove('text-blue-600', 'border-blue-600');
+                    b.classList.add('text-gray-500', 'border-transparent');
+                });
+                
+                // Hide all tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                
+                // Activate selected tab
+                this.classList.remove('text-gray-500', 'border-transparent');
+                this.classList.add('text-blue-600', 'border-blue-600');
+                
+                // Show selected tab content
+                if (tabName === 'techAssets') {
+                    initTechAssetsTab();
+                    currentTab = 'techAssets';
+                    window.location.hash = '';
+                } else if (tabName === 'accessories') {
+                    initAccessoriesTab();
+                    currentTab = 'accessories';
+                    window.location.hash = '#accessories';
+                } else if (tabName === 'maintenance') {
+                    initMaintenanceTab();
+                    currentTab = 'maintenance';
+                    window.location.hash = '#maintenance';
+                }
+            });
+        });
+
+        // Initialize checkout counts when page loads
+        if (window.checkoutManager) {
+            window.checkoutManager.updateCountDisplay();
+        }
+        
+    } catch (error) {
+        console.error('Error initializing tabs:', error);
+        showError(error.message || 'Error initializing page');
+    }
+
+    // Function to update accessory selection
+    function updateAccessorySelection() {
+        // Update delete form inputs for accessories
+        if (selectedAccessoryIdsDelete2) {
+            selectedAccessoryIdsDelete2.value = JSON.stringify(selectedAccessoryIds);
+        }
+        
+        // Enable/disable buttons based on selection
+        if (bulkDeleteAccessoriesBtn) {
+            bulkDeleteAccessoriesBtn.disabled = selectedAccessoryIds.length === 0;
+        }
+        
+        if (addToCheckoutListAccessories) {
+            addToCheckoutListAccessories.disabled = selectedAccessoryIds.length === 0;
+        }
+        
+        // Update checkout count display in the accessories tab
+        if (checkoutCountAccessories && window.checkoutManager) {
+            if (typeof window.checkoutManager.getItemCount === 'function') {
+                checkoutCountAccessories.textContent = window.checkoutManager.getItemCount();
+            } else if (window.checkoutManager.checkoutList) {
+                checkoutCountAccessories.textContent = window.checkoutManager.checkoutList.length;
+            }
+        }
+    }
+
+    // Setup event listeners for checkout buttons
+    if (viewCheckoutList) {
+        viewCheckoutList.addEventListener('click', () => {
+            window.checkoutManager.showModal();
+        });
+    }
+
+    // Load initial data
+    loadTechAssets();
+    
+    // Function to initialize the tech assets tab
+    function initTechAssetsTab() {
+        // Reset selected assets
+        selectedAssetIds = [];
+        
+        // Update UI to reflect current state
+        updateSelection();
+        
+        // Show the tech assets table
+        showTable('techAssetsTable');
+        
+        // Reload tech assets data
+        loadTechAssets();
+        
+        console.log("Tech Assets tab initialized");
+    }
+    
+    // Function to initialize accessories tab
+    function initAccessoriesTab() {
+        // Show accessories table and load data
+        loadAccessories();
+        console.log("Accessories tab initialized");
+    }
+    
+    // Function to initialize maintenance tab
+    function initMaintenanceTab() {
+        // Show maintenance table and load data
+        showTable('maintenanceTable');
+        loadMaintenanceAssets();
+        console.log("Maintenance tab initialized");
+    }
+    
+    // Function to load accessories
+    async function loadAccessories() {
+        try {
+            setLoading(true);
+            
+            // Show the accessories table
+            showTable('accessoriesTable');
+            
+            // The accessories count is already loaded from the server
+            // We just need to update the checkout count and setup event listeners
+            
+            // After showing the table, set up event listeners for checkboxes
+            document.querySelectorAll('.accessory-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const accessoryId = parseInt(this.dataset.id);
+                    if (this.checked) {
+                        if (!selectedAccessoryIds.includes(accessoryId)) {
+                            selectedAccessoryIds.push(accessoryId);
+                        }
+                    } else {
+                        selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
+                    }
+                    updateAccessorySelection();
+                });
+            });
+            
+            // Re-initialize the selectAllAccessories checkbox
+            if (selectAllAccessories) {
+                selectAllAccessories.addEventListener('change', function() {
+                    const accessoryCheckboxes = document.querySelectorAll('.accessory-checkbox');
+                    accessoryCheckboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                        const accessoryId = parseInt(checkbox.dataset.id);
+                        if (this.checked) {
+                            if (!selectedAccessoryIds.includes(accessoryId)) {
+                                selectedAccessoryIds.push(accessoryId);
+                            }
+                        } else {
+                            selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
+                        }
+                    });
+                    updateAccessorySelection();
+                });
+            }
+            
+            // Reset state
+            selectedAccessoryIds = [];
+            updateAccessorySelection();
+            
+            console.log('Accessories tab initialized');
+        } catch (error) {
+            console.error('Error initializing accessories tab:', error);
+            showError(error.message || 'Error initializing accessories');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Function to add accessory to checkout
+    window.addAccessoryToCheckout = function(dataset) {
+        if (window.checkoutManager) {
+            window.checkoutManager.addItem({
+                id: parseInt(dataset.id),
+                type: 'accessory',
+                name: dataset.name,
+                category: dataset.category,
+                available_quantity: parseInt(dataset.available),
+                quantity: 1
+            });
+            showError('Added to checkout list', true);
+        } else {
+            console.error('Checkout manager not initialized');
+            showError('Error adding to checkout list');
+        }
+    };
+
+    // Make accessory rows clickable
+    document.querySelectorAll('#accessoriesTable tbody tr').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking checkbox or button
+            if (e.target.matches('input[type="checkbox"]') || 
+                e.target.matches('button') || 
+                e.target.closest('button')) {
+                return;
+            }
+            const accessoryId = this.querySelector('.accessory-checkbox').dataset.id;
+            window.location.href = `/inventory/accessory/${accessoryId}`;
+        });
+    });
+
+    // Add these new functions for erase status handling
+    window.showEraseStatusModal = function(assetId) {
+        document.getElementById('eraseStatusAssetId').value = assetId;
+        document.getElementById('eraseStatusModal').classList.remove('hidden');
+    };
+
+    window.updateEraseStatus = async function(status) {
+        const assetId = document.getElementById('eraseStatusAssetId').value;
+        try {
+            setLoading(true);
+            
+            const response = await fetchWithSession('/inventory/update-erase-status', {
+                method: 'POST',
+                body: JSON.stringify({
+                    asset_id: assetId,
+                    erased_status: status
+                })
+            });
+            
+            if (!response.ok) throw new Error('Failed to update erase status');
+            
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            showError('Erase status updated successfully', true);
+            
+            // Close the modal
+            document.getElementById('eraseStatusModal').classList.add('hidden');
+            
+            // Reload the current table based on which tab is active
+            if (currentTab === 'techAssets') {
+                loadTechAssets();
+            } else if (currentTab === 'maintenance') {
+                loadMaintenanceAssets();
+            }
+        } catch (error) {
+            console.error('Error updating erase status:', error);
+            showError(error.message || 'Error updating erase status');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Add close modal handler
+    document.getElementById('closeEraseStatusModal').addEventListener('click', function() {
+        document.getElementById('eraseStatusModal').classList.add('hidden');
+    });
 });
 </script>
 {% endblock %} 
