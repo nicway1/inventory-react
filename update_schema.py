@@ -47,6 +47,13 @@ def update_schema():
         except Exception as e:
             print(f"replacement_status column might already exist: {e}")
 
+        try:
+            # Add shipping_carrier column
+            connection.execute('ALTER TABLE tickets ADD COLUMN shipping_carrier VARCHAR(50) DEFAULT \'singpost\'')
+            print("Added shipping_carrier column")
+        except Exception as e:
+            print(f"shipping_carrier column might already exist: {e}")
+
 if __name__ == '__main__':
     print("Updating database schema...")
     update_schema()

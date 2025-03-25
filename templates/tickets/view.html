@@ -604,14 +604,32 @@
                             <span id="data-source-indicator" class="hidden px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                                 Simulated Data
                             </span>
+                            
+                            <!-- Carrier Selection -->
+                            <div class="ml-4">
+                                <form id="carrierForm" class="inline-flex items-center gap-2">
+                                    <label for="carrier" class="text-sm text-gray-700">Carrier:</label>
+                                    <select id="carrier" name="carrier" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" onchange="updateCarrier()">
+                                        <option value="singpost" {% if ticket.shipping_carrier == 'singpost' %}selected{% endif %}>SingPost</option>
+                                        <option value="dhl" {% if ticket.shipping_carrier == 'dhl' %}selected{% endif %}>DHL</option>
+                                        <option value="ups" {% if ticket.shipping_carrier == 'ups' %}selected{% endif %}>UPS</option>
+                                    </select>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                    <button onclick="refreshSingPostTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                    <button onclick="refreshTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                         Refresh
                     </button>
+                    <a href="{{ url_for('tickets.debug_tracking', ticket_id=ticket.id) }}" target="_blank" class="inline-flex items-center ml-2 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Debug
+                    </a>
                     <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="inline-flex items-center ml-2 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -649,11 +667,16 @@
         </div>
 
         <script>
+        // Store carrier and endpoint information for JavaScript to use
+        var TICKET_ID = {{ ticket.id }};
+        var CARRIER = "{{ ticket.shipping_carrier|default('singpost', true) }}";
+        var TRACKING_NUMBER = "{{ ticket.shipping_tracking }}";
+        
         document.addEventListener('DOMContentLoaded', function() {
-            refreshSingPostTracking();
+            refreshTracking();
         });
 
-        function refreshSingPostTracking() {
+        function refreshTracking() {
             const trackingInfo = document.getElementById('trackingInfo');
             const trackingLoading = document.getElementById('trackingLoading');
             const trackingError = document.getElementById('trackingError');
@@ -668,10 +691,20 @@
             trackingError.classList.add('hidden');
             trackingLoading.classList.remove('hidden');
             
-            console.log('Refreshing tracking for ticket {{ ticket.id }} with tracking number {{ ticket.shipping_tracking }}');
+            console.log(`Refreshing tracking for ticket ${TICKET_ID} with tracking number ${TRACKING_NUMBER}`);
+            
+            // Determine the right endpoint based on carrier
+            let trackingEndpoint = `/tickets/${TICKET_ID}/track_singpost`;
+            if (CARRIER === 'dhl') {
+                trackingEndpoint = `/tickets/${TICKET_ID}/track_dhl`;
+            } else if (CARRIER === 'ups') {
+                trackingEndpoint = `/tickets/${TICKET_ID}/track_ups`;
+            }
+            
+            console.log('Using tracking endpoint:', trackingEndpoint);
             
             // Make API request to our backend endpoint
-            fetch(`/tickets/{{ ticket.id }}/track_singpost`)
+            fetch(trackingEndpoint)
                 .then(response => {
                     console.log('Received response:', response.status);
                     if (!response.ok) {
@@ -694,6 +727,41 @@
                                 dataSourceIndicator.textContent = 'Simulated Data';
                                 dataSourceIndicator.classList.remove('bg-green-100', 'text-green-800');
                                 dataSourceIndicator.classList.add('bg-gray-100', 'text-gray-800');
+                            }
+                            
+                            // Add debug info if available
+                            if (data.debug_info) {
+                                const debugInfo = data.debug_info;
+                                let debugTooltip = '';
+                                
+                                if (debugInfo.carrier_code) {
+                                    debugTooltip += `Carrier: ${debugInfo.carrier_code} | `;
+                                }
+                                
+                                if (debugInfo.status) {
+                                    debugTooltip += `Status: ${debugInfo.status} | `;
+                                }
+                                
+                                if (debugInfo.substatus) {
+                                    debugTooltip += `Substatus: ${debugInfo.substatus} | `;
+                                }
+                                
+                                if (debugInfo.no_events) {
+                                    debugTooltip += 'No Events | ';
+                                } else if (debugInfo.has_events) {
+                                    debugTooltip += `${debugInfo.event_count} Events | `;
+                                }
+                                
+                                if (debugInfo.mock_data) {
+                                    debugTooltip += 'Mock Data | ';
+                                }
+                                
+                                // Remove trailing separator
+                                debugTooltip = debugTooltip.replace(/ \| $/, '');
+                                
+                                // Set the tooltip
+                                dataSourceIndicator.title = debugTooltip;
+                                dataSourceIndicator.style.cursor = 'help';
                             }
                         }
                         
@@ -773,6 +841,26 @@
                     trackingError.classList.remove('hidden');
                     trackingLoading.classList.add('hidden');
                     trackingInfo.classList.add('hidden');
+                });
+        }
+
+        function updateCarrier() {
+            const carrier = document.getElementById('carrier').value;
+            fetch(`/tickets/{{ ticket.id }}/set_carrier/${carrier}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success notification
+                        alert(`Carrier updated to ${data.shipping_carrier}`);
+                        // Refresh page to update tracking
+                        location.reload();
+                    } else {
+                        alert(`Error: ${data.error || 'Failed to update carrier'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while updating the carrier');
                 });
         }
         </script>

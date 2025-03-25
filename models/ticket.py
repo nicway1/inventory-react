@@ -28,6 +28,8 @@ class TicketCategory(enum.Enum):
     ITAD_QUOTE = "ITAD Quote"
     ASSET_CHECKOUT = "Asset Checkout"
     ASSET_CHECKOUT_SINGPOST = "Asset Checkout (SingPost)"
+    ASSET_CHECKOUT_DHL = "Asset Checkout (DHL)"
+    ASSET_CHECKOUT_UPS = "Asset Checkout (UPS)"
     ASSET_INTAKE = "Asset Intake"
 
 class RMAStatus(enum.Enum):
@@ -76,6 +78,7 @@ class Ticket(Base):
     serial_number = Column(String(100))
     shipping_address = Column(String(500))
     shipping_tracking = Column(String(100))
+    shipping_carrier = Column(String(50), default='singpost')  # Default to SingPost carrier
     customer_id = Column(Integer, ForeignKey('customer_users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
@@ -89,6 +92,12 @@ class Ticket(Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shipping_history = []  # Initialize shipping history as empty list
+        
+    def __getattr__(self, name):
+        """Handle attributes that might not be initialized"""
+        if name == 'shipping_history':
+            return []
+        raise AttributeError(f"'Ticket' object has no attribute '{name}'")
 
     # Relationships
     requester = relationship('User', foreign_keys=[requester_id], back_populates='tickets_requested')

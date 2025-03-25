@@ -347,7 +347,21 @@
                                 </svg>
                                 Erased
                             </dt>
-                            <dd class="text-sm text-gray-900">{{ asset.erased or 'N/A' }}</dd>
+                            <dd class="text-sm text-gray-900 flex items-center gap-2">
+                                <span>{{ asset.erased or 'N/A' }}</span>
+                                {% if not asset.erased or asset.erased.upper() not in ['COMPLETED', 'EWASTE'] %}
+                                <div class="flex gap-2">
+                                    <button onclick="updateEraseStatus('COMPLETED')" 
+                                            class="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                        Set COMPLETED
+                                    </button>
+                                    <button onclick="updateEraseStatus('EWASTE')" 
+                                            class="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                        Set EWASTE
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </dd>
                         </div>
                         <div class="grid grid-cols-[180px,1fr] items-center">
                             <dt class="flex items-center text-sm font-medium text-gray-500">
@@ -700,4 +714,87 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Add the Erase Status Action Modal -->
+<div id="eraseStatusModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                            Update Erase Status
+                        </h3>
+                        <input type="hidden" id="eraseStatusAssetId" value="{{ asset.id }}">
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 mb-4">Are you sure you want to update the erase status?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="confirmEraseStatus"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Confirm
+                </button>
+                <button type="button" id="closeEraseStatusModal"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add JavaScript for handling erase status updates -->
+<script>
+    let selectedEraseStatus = null;
+
+    function updateEraseStatus(status) {
+        selectedEraseStatus = status;
+        document.getElementById('eraseStatusModal').classList.remove('hidden');
+    }
+
+    document.getElementById('closeEraseStatusModal').addEventListener('click', function() {
+        document.getElementById('eraseStatusModal').classList.add('hidden');
+        selectedEraseStatus = null;
+    });
+
+    document.getElementById('confirmEraseStatus').addEventListener('click', async function() {
+        if (!selectedEraseStatus) return;
+        
+        try {
+            const response = await fetch('/inventory/update-erase-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    asset_id: {{ asset.id }},
+                    erased_status: selectedEraseStatus
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update erase status');
+            }
+
+            // Reload the page to show the updated status
+            window.location.reload();
+        } catch (error) {
+            console.error('Error updating erase status:', error);
+            alert('Failed to update erase status. Please try again.');
+        } finally {
+            document.getElementById('eraseStatusModal').classList.add('hidden');
+            selectedEraseStatus = null;
+        }
+    });
+</script>
 {% endblock %} 

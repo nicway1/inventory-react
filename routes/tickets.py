@@ -20,6 +20,7 @@ import requests
 from bs4 import BeautifulSoup
 import trackingmore
 import sys
+from config import TRACKINGMORE_API_KEY
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Define allowed file extensions
@@ -29,7 +30,9 @@ tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 db_manager = DatabaseManager()
 
 # Initialize TrackingMore API key
-trackingmore.api_key = os.environ.get('TRACKINGMORE_API_KEY', 'your_api_key_here')
+# Force the new API key
+TRACKINGMORE_API_KEY = "7yyp17vj-t0bh-jtg0-xjf0-v9m3335cjbtc"
+trackingmore.set_api_key(TRACKINGMORE_API_KEY)
 
 @tickets_bp.route('/')
 @login_required
@@ -98,7 +101,7 @@ def create_ticket():
 
             # Get serial number based on category
             serial_number = None
-            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST':
+            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST' or category == 'ASSET_CHECKOUT_DHL':
                 serial_number = request.form.get('asset_checkout_serial')
                 print(f"Asset Checkout Serial Number: {serial_number}")  # Debug log
             else:
@@ -126,7 +129,7 @@ def create_ticket():
                                         priorities=list(TicketPriority),
                                         form=request.form)
 
-            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST':
+            if category == 'ASSET_CHECKOUT' or category == 'ASSET_CHECKOUT_SINGPOST' or category == 'ASSET_CHECKOUT_DHL':
                 customer_id = request.form.get('customer_id')
                 shipping_address = request.form.get('shipping_address')
                 shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
@@ -160,6 +163,13 @@ def create_ticket():
                                         priorities=list(TicketPriority),
                                         form=request.form)
                 
+                # Determine shipping method based on category
+                shipping_method = "Standard"
+                if category == 'ASSET_CHECKOUT_SINGPOST':
+                    shipping_method = "SingPost"
+                elif category == 'ASSET_CHECKOUT_DHL':
+                    shipping_method = "DHL"
+                
                 description = f"""Asset Checkout Details:
 Serial Number: {serial_number}
 Model: {asset.model}
@@ -174,7 +184,7 @@ Contact: {customer.contact_number}
 Shipping Information:
 Address: {shipping_address}
 Tracking Number: {shipping_tracking if shipping_tracking else 'Not provided'}
-Shipping Method: {'SingPost' if category == 'ASSET_CHECKOUT_SINGPOST' else 'Standard'}
+Shipping Method: {shipping_method}
 
 Additional Notes:
 {notes}"""
@@ -182,17 +192,34 @@ Additional Notes:
                 print(f"Creating ticket with description: {description}")  # Debug log
 
                 try:
+                    # Determine appropriate ticket category enum value based on shipping method
+                    ticket_category = None
+                    shipping_carrier = 'singpost'  # Default carrier
+                    
+                    if shipping_method == "SingPost":
+                        ticket_category = TicketCategory.ASSET_CHECKOUT_SINGPOST
+                        shipping_carrier = 'singpost'
+                    elif shipping_method == "DHL":
+                        ticket_category = TicketCategory.ASSET_CHECKOUT_DHL
+                        shipping_carrier = 'dhl'
+                    elif shipping_method == "UPS":
+                        ticket_category = TicketCategory.ASSET_CHECKOUT_UPS
+                        shipping_carrier = 'ups'
+                    else:
+                        ticket_category = TicketCategory.ASSET_CHECKOUT
+                    
                     # Create the ticket
                     ticket_id = ticket_store.create_ticket(
                         subject=subject,
                         description=description,
                         requester_id=user_id,
-                        category=TicketCategory.ASSET_CHECKOUT_SINGPOST if category == 'ASSET_CHECKOUT_SINGPOST' else TicketCategory.ASSET_CHECKOUT,
+                        category=ticket_category,
                         priority=priority,
                         asset_id=asset.id,
                         customer_id=customer_id,
                         shipping_address=shipping_address,
-                        shipping_tracking=shipping_tracking if shipping_tracking else None
+                        shipping_tracking=shipping_tracking if shipping_tracking else None,
+                        shipping_carrier=shipping_carrier
                     )
 
                     # Update asset status and assign to customer
@@ -1069,108 +1096,260 @@ def download_attachment(ticket_id, attachment_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@tickets_bp.route('/<int:ticket_id>/track_debug', methods=['GET'])
+@login_required
+def track_debug(ticket_id):
+    """Debug endpoint to show detailed tracking information"""
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket or not ticket.shipping_tracking:
+        return jsonify({'error': 'Invalid ticket or no tracking number'}), 404
+    
+    tracking_number = ticket.shipping_tracking
+    debug_info = {
+        'ticket_id': ticket_id,
+        'tracking_number': tracking_number,
+        'ticket_status': ticket.status.value if ticket.status else 'None',
+        'shipping_status': ticket.shipping_status or 'None',
+        'shipping_history': getattr(ticket, 'shipping_history', []),  # Default to empty list if attribute doesn't exist
+        'api_key': TRACKINGMORE_API_KEY[:5] + '****' if TRACKINGMORE_API_KEY else 'Not Set',
+        'carrier_codes_to_try': [],
+        'tracking_attempts': []
+    }
+    
+    # Determine carrier codes to try
+    if tracking_number.startswith('XZD'):
+        carrier_codes = ['speedpost', 'singapore-post', 'singpost-speedpost']
+        debug_info['detected_format'] = 'XZD (Speedpost)'
+    elif tracking_number.startswith('XZB'):
+        carrier_codes = ['singapore-post', 'singpost', 'singpost-registered']
+        debug_info['detected_format'] = 'XZB (SingPost)'
+    elif tracking_number.startswith('JD'):
+        carrier_codes = ['dhl', 'dhl-express']
+        debug_info['detected_format'] = 'JD (DHL)'
+    else:
+        carrier_codes = ['singapore-post', 'singpost', 'dhl', 'speedpost']
+        debug_info['detected_format'] = 'Unknown Format'
+    
+    debug_info['carrier_codes_to_try'] = carrier_codes
+    
+    # Try each carrier code
+    for carrier_code in carrier_codes:
+        attempt_result = {
+            'carrier_code': carrier_code,
+            'create_tracking_attempt': None,
+            'realtime_tracking_attempt': None,
+            'errors': []
+        }
+        
+        try:
+            import trackingmore
+            trackingmore.set_api_key(TRACKINGMORE_API_KEY)
+            
+            # Try to create tracking
+            try:
+                create_params = {'tracking_number': tracking_number, 'carrier_code': carrier_code}
+                create_result = trackingmore.create_tracking_item(create_params)
+                attempt_result['create_tracking_attempt'] = {
+                    'success': True,
+                    'result': create_result
+                }
+            except Exception as e:
+                attempt_result['create_tracking_attempt'] = {
+                    'success': False,
+                    'error': str(e)
+                }
+                attempt_result['errors'].append(f"Create tracking error: {str(e)}")
+            
+            # Try realtime tracking
+            try:
+                params = {'tracking_number': tracking_number, 'carrier_code': carrier_code}
+                result = trackingmore.realtime_tracking(params)
+                attempt_result['realtime_tracking_attempt'] = {
+                    'success': True,
+                    'result': result
+                }
+                
+                # Check status
+                if result and 'items' in result and result['items']:
+                    tracking_data = result['items'][0]
+                    attempt_result['status'] = tracking_data.get('status', 'unknown')
+                    attempt_result['substatus'] = tracking_data.get('substatus', 'unknown')
+                    
+                    # Check tracking events
+                    tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
+                    attempt_result['has_events'] = bool(tracking_events)
+                    attempt_result['event_count'] = len(tracking_events) if tracking_events else 0
+                    if tracking_events:
+                        attempt_result['first_event'] = tracking_events[0]
+            except Exception as e:
+                attempt_result['realtime_tracking_attempt'] = {
+                    'success': False,
+                    'error': str(e)
+                }
+                attempt_result['errors'].append(f"Realtime tracking error: {str(e)}")
+        
+        except Exception as e:
+            attempt_result['errors'].append(f"General error: {str(e)}")
+        
+        debug_info['tracking_attempts'].append(attempt_result)
+    
+    return jsonify(debug_info)
+
 @tickets_bp.route('/<int:ticket_id>/track_singpost', methods=['GET'])
 @login_required
 def track_singpost(ticket_id):
-    """Track SingPost package and return tracking data"""
+    """Track Singapore Post package and return tracking data"""
+    print(f"==== TRACKING SINGPOST - TICKET {ticket_id} ====")
     ticket = ticket_store.get_ticket(ticket_id)
     if not ticket or not ticket.shipping_tracking:
+        print("Invalid ticket or no tracking number")
         return jsonify({'error': 'Invalid ticket or no tracking number'}), 404
 
     try:
         import trackingmore
-
+        
+        # Debug: Print TrackingMore module info
+        print(f"TrackingMore module: {trackingmore}")
+        
         # Use API key from config
-        trackingmore.api_key = TRACKINGMORE_API_KEY
+        print(f"Using TrackingMore API Key: {TRACKINGMORE_API_KEY}")
+        # Force set API key again
+        trackingmore.set_api_key(TRACKINGMORE_API_KEY)
         
         tracking_number = ticket.shipping_tracking
+        print(f"Tracking SingPost number: {tracking_number}")
+        carrier_code = 'singapore-post'
         
-        # First try to get existing tracking data
+        # Create a new tracking request
+        create_params = {
+            'tracking_number': tracking_number,
+            'carrier_code': carrier_code
+        }
         try:
-            params = {
-                'tracking_numbers': tracking_number,
-                'courier_code': 'singapore-post'
-            }
-            result = trackingmore.tracking.get_tracking_results(params)
-            
-            if 'data' in result and 'items' in result['data'] and len(result['data']['items']) > 0:
-                tracking_data = result['data']['items'][0]
+            create_result = trackingmore.create_tracking_item(create_params)
+            print(f"Create tracking result: {create_result}")
+        except Exception as e:
+            if "Tracking already exists" in str(e):
+                print(f"Tracking already exists: {str(e)}")
             else:
-                # If no existing tracking, create a new tracking
-                create_params = {
-                    'tracking_number': tracking_number,
-                    'courier_code': 'singapore-post'
-                }
-                create_result = trackingmore.tracking.create_tracking(create_params)
+                print(f"Error creating tracking: {str(e)}")
+                # Continue anyway to try to get tracking info
+        
+        # Try to get real-time tracking data
+        try:
+            print("\nTrying realtime_tracking")
+            realtime_params = {
+                'tracking_number': tracking_number,
+                'carrier_code': carrier_code
+            }
+            result = trackingmore.realtime_tracking(realtime_params)
+            print(f"Realtime tracking result: {result}")
+            
+            # Check if we have real tracking data
+            if result and 'items' in result and result['items']:
+                tracking_data = result['items'][0]
                 
-                # Try to get results again
-                params = {
-                    'tracking_numbers': tracking_number,
-                    'courier_code': 'singapore-post'
-                }
-                result = trackingmore.tracking.get_tracking_results(params)
-                if 'data' in result and 'items' in result['data'] and len(result['data']['items']) > 0:
-                    tracking_data = result['data']['items'][0]
-                else:
-                    raise Exception("Failed to retrieve tracking data")
-        except Exception as api_error:
-            print(f"TrackingMore API Error: {str(api_error)}")
-            # Fallback to our mock data in case of API issues
-            return generate_mock_tracking_data(ticket)
-        
-        # Parse tracking events from the API response
-        tracking_info = []
-        
-        # Extract delivery status and events
-        delivery_status = tracking_data.get('delivery_status', 'unknown')
-        
-        # Get tracking events - these are in reverse order (newest first)
-        tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
-        
-        for event in tracking_events:
-            tracking_info.append({
-                'date': event.get('Date', ''),
-                'status': event.get('StatusDescription', ''),
-                'location': event.get('Details', '')
-            })
-        
-        # If no events but we have a status, create at least one event
-        if not tracking_info and 'tracking_status' in tracking_data:
-            tracking_info.append({
-                'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'status': tracking_data.get('tracking_status', {}).get('description', 'In Transit'),
-                'location': 'Singapore'
-            })
-        
-        # If still no events, fall back to mock data
-        if not tracking_info:
-            return generate_mock_tracking_data(ticket)
-        
-        # Update ticket tracking status
-        latest = tracking_info[0] if tracking_info else None  # Most recent event is first
-        if latest:
-            ticket.shipping_status = latest['status']
-            ticket.shipping_history = tracking_info
-            ticket.updated_at = datetime.datetime.now()  # Update the timestamp
-            ticket_store.save_tickets()
-        
-        print(f"Real tracking info retrieved for {tracking_number}: {tracking_info}")
-        print(f"Updated shipping status to: {ticket.shipping_status}")
-        
-        return jsonify({
-            'success': True,
-            'tracking_info': tracking_info,
-            'shipping_status': ticket.shipping_status,
-            'is_real_data': True
-        })
-        
+                # Check if the status is "notfound" - if so, handle specially
+                if tracking_data.get('status') == 'notfound':
+                    print(f"No tracking data found for {tracking_number}, but tracking number is valid")
+                    print(f"Tracking data details: {tracking_data}")
+                    
+                    # For valid tracking numbers without data yet, show customized status
+                    current_date = datetime.datetime.now()
+                    tracking_info = []
+                    
+                    # Check the substatus for more detailed info
+                    substatus = tracking_data.get('substatus', '')
+                    if substatus == 'notfound001':
+                        status_desc = "Pending - Waiting for Carrier Scan"
+                        location = "Shipping System"
+                    elif substatus == 'notfound002':
+                        status_desc = "Pending - Tracking Number Registered"
+                        location = "SingPost System"
+                    elif substatus == 'notfound003':
+                        status_desc = "Pending - Invalid Tracking Number"
+                        location = "Verification Required"
+                    else:
+                        status_desc = "Information Received - Waiting for Update"
+                        location = "SingPost Processing Center"
+                        
+                    print(f"Using custom status: {status_desc} for substatus: {substatus}")
+                    
+                    tracking_info.append({
+                        'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
+                        'status': status_desc,
+                        'location': location
+                    })
+                    
+                    # Update ticket
+                    ticket.shipping_status = tracking_info[0]['status']
+                    ticket.shipping_history = tracking_info
+                    ticket.updated_at = datetime.datetime.now()
+                    ticket_store.save_tickets()
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,  # Mark as real data
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'status': tracking_data.get('status', 'unknown'),
+                            'substatus': substatus,
+                            'no_events': True
+                        }
+                    })
+                
+                # Parse tracking events from the API response
+                tracking_info = []
+                
+                # Get tracking events from the response
+                tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
+                
+                if tracking_events:
+                    for event in tracking_events:
+                        tracking_info.append({
+                            'date': event.get('Date', event.get('date', '')),
+                            'status': event.get('StatusDescription', event.get('status_description', event.get('status', ''))),
+                            'location': event.get('Details', event.get('details', event.get('location', '')))
+                        })
+                    
+                    # Update ticket tracking status
+                    latest = tracking_info[0] if tracking_info else None  # Most recent event is first
+                    if latest:
+                        ticket.shipping_status = latest['status']
+                        ticket.shipping_history = tracking_info
+                        ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+                        ticket_store.save_tickets()
+                    
+                    print(f"Real tracking info retrieved for {tracking_number}: {tracking_info}")
+                    print(f"Updated shipping status to: {ticket.shipping_status}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'has_events': True,
+                            'event_count': len(tracking_events)
+                        }
+                    })
+            
+        except Exception as e:
+            print(f"ERROR with realtime tracking: {str(e)}")
+            print(f"Error type: {type(e)}")
+            
     except Exception as e:
         print(f"Error tracking SingPost package: {str(e)}")
-        # Fall back to mock data
-        return generate_mock_tracking_data(ticket)
+        
+    # Fall back to mock data if all real tracking attempts failed
+    print("All tracking attempts failed, falling back to mock data")
+    return generate_mock_singpost_data(ticket)
 
-def generate_mock_tracking_data(ticket):
-    """Generate mock tracking data as fallback"""
+def generate_mock_singpost_data(ticket):
+    """Generate mock tracking data for SingPost as fallback"""
     try:
         base_date = ticket.created_at or datetime.datetime.now()
         tracking_number = ticket.shipping_tracking
@@ -1272,7 +1451,7 @@ def generate_mock_tracking_data(ticket):
         ticket.updated_at = datetime.datetime.now()  # Update the timestamp
         ticket_store.save_tickets()
         
-        print(f"Mock tracking info generated for {tracking_number}: {tracking_info}")
+        print(f"Mock SingPost tracking info generated for {tracking_number}: {tracking_info}")
         print(f"Updated shipping status to: {ticket.shipping_status}")
         
         return jsonify({
@@ -1283,8 +1462,744 @@ def generate_mock_tracking_data(ticket):
         })
         
     except Exception as e:
-        print(f"Error generating mock tracking: {str(e)}")
+        print(f"Error generating mock SingPost tracking: {str(e)}")
         return jsonify({'error': f"Internal server error: {str(e)}"}), 500
+
+@tickets_bp.route('/<int:ticket_id>/track_dhl', methods=['GET'])
+@login_required
+def track_dhl(ticket_id):
+    """Track DHL package and return tracking data"""
+    print(f"==== TRACKING DHL - TICKET {ticket_id} ====")
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket or not ticket.shipping_tracking:
+        print("Invalid ticket or no tracking number")
+        return jsonify({'error': 'Invalid ticket or no tracking number'}), 404
+
+    try:
+        import trackingmore
+        
+        # Debug: Print TrackingMore module info
+        print(f"TrackingMore module: {trackingmore}")
+        
+        # Use API key from config
+        print(f"Using TrackingMore API Key: {TRACKINGMORE_API_KEY}")
+        # Force set API key again
+        trackingmore.set_api_key(TRACKINGMORE_API_KEY)
+        
+        tracking_number = ticket.shipping_tracking
+        print(f"Tracking DHL number: {tracking_number}")
+        
+        # Try each carrier code for DHL
+        potential_carriers = [
+            'dhl',
+            'dhl-global-mail',
+            'dhl-express',
+            'dhl-germany',
+            'dhl-benelux',
+            'dhl-global-mail-asia',
+            'dhl-global-mail-americas',
+            'dhl-global-mail-europe',
+        ]
+        
+        # Try each carrier code until one works
+        for carrier_code in potential_carriers:
+            try:
+                print(f"\nAttempting with carrier code: {carrier_code}")
+                # Create a new tracking request
+                create_params = {
+                    'tracking_number': tracking_number,
+                    'carrier_code': carrier_code
+                }
+                try:
+                    create_result = trackingmore.create_tracking_item(create_params)
+                    print(f"SUCCESS with carrier code {carrier_code}: {create_result}")
+                    # If we get here, this carrier code worked - use it for getting results
+                    break
+                except Exception as e:
+                    if "Tracking already exists" in str(e):
+                        print(f"Tracking already exists with carrier {carrier_code}, continuing")
+                        break
+                    else:
+                        print(f"Failed with carrier code {carrier_code}: {str(e)}")
+                        # Try next carrier code
+            except Exception as outer_e:
+                print(f"Outer exception with carrier {carrier_code}: {str(outer_e)}")
+                continue
+                
+        print(f"Selected carrier code: {carrier_code}")
+        
+        # Try to get real-time tracking data
+        try:
+            print("\nTrying realtime_tracking with carrier code:", carrier_code)
+            realtime_params = {
+                'tracking_number': tracking_number,
+                'carrier_code': carrier_code
+            }
+            result = trackingmore.realtime_tracking(realtime_params)
+            print(f"Realtime tracking result: {result}")
+            
+            # Check if we have real tracking data
+            if result and 'items' in result and result['items']:
+                tracking_data = result['items'][0]
+                
+                # Check if the status is "notfound" - if so, handle specially
+                if tracking_data.get('status') == 'notfound':
+                    print(f"No tracking data found for {tracking_number}, but tracking number is valid")
+                    print(f"Tracking data details: {tracking_data}")
+                    
+                    # For valid tracking numbers without data yet, show customized status based on carrier
+                    current_date = datetime.datetime.now()
+                    tracking_info = []
+                    
+                    # Check the substatus for more detailed info
+                    substatus = tracking_data.get('substatus', '')
+                    if substatus == 'notfound001':
+                        status_desc = "Pending - Waiting for Carrier Scan"
+                        location = "Shipping System"
+                    elif substatus == 'notfound002':
+                        status_desc = "Pending - Tracking Number Registered"
+                        location = "DHL System"
+                    elif substatus == 'notfound003':
+                        status_desc = "Pending - Invalid Tracking Number"
+                        location = "Verification Required"
+                    else:
+                        status_desc = "Information Received - Waiting for Update"
+                        location = "DHL Processing Center"
+                        
+                    print(f"Using custom status: {status_desc} for substatus: {substatus}")
+                    
+                    tracking_info.append({
+                        'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
+                        'status': status_desc,
+                        'location': location
+                    })
+                    
+                    # Update ticket
+                    ticket.shipping_status = tracking_info[0]['status']
+                    ticket.shipping_history = tracking_info
+                    ticket.updated_at = datetime.datetime.now()
+                    ticket_store.save_tickets()
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,  # Mark as real data
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'status': tracking_data.get('status', 'unknown'),
+                            'substatus': substatus,
+                            'no_events': True
+                        }
+                    })
+                
+                # Parse tracking events from the API response
+                tracking_info = []
+                
+                # Get tracking events from the response
+                tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
+                
+                if tracking_events:
+                    for event in tracking_events:
+                        tracking_info.append({
+                            'date': event.get('Date', event.get('date', '')),
+                            'status': event.get('StatusDescription', event.get('status_description', event.get('status', ''))),
+                            'location': event.get('Details', event.get('details', event.get('location', '')))
+                        })
+                    
+                    # Update ticket tracking status
+                    latest = tracking_info[0] if tracking_info else None  # Most recent event is first
+                    if latest:
+                        ticket.shipping_status = latest['status']
+                        ticket.shipping_history = tracking_info
+                        ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+                        ticket_store.save_tickets()
+                    
+                    print(f"Real tracking info retrieved for {tracking_number}: {tracking_info}")
+                    print(f"Updated shipping status to: {ticket.shipping_status}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'has_events': True,
+                            'event_count': len(tracking_events)
+                        }
+                    })
+            
+        except Exception as e:
+            print(f"ERROR with realtime tracking: {str(e)}")
+            print(f"Error type: {type(e)}")
+            
+            # If all attempts failed, fall back to mock data
+            print(f"All carrier code attempts failed, falling back to mock data")
+            return generate_mock_dhl_data(ticket)
+            
+    except Exception as e:
+        print(f"Error tracking DHL package: {str(e)}")
+        # Fall back to mock data
+        return generate_mock_dhl_data(ticket)
+
+def generate_mock_dhl_data(ticket):
+    """Generate mock tracking data for DHL as fallback"""
+    try:
+        base_date = ticket.created_at or datetime.datetime.now()
+        tracking_number = ticket.shipping_tracking
+        
+        print(f"Generating mock DHL tracking data for {tracking_number}")
+        
+        # Determine how many days since ticket creation
+        days_since_creation = (datetime.datetime.now() - base_date).days
+        print(f"Days since ticket creation: {days_since_creation}")
+        
+        # Generate mock tracking events
+        tracking_info = []
+        
+        # Initial status - Package registered
+        initial_date = base_date
+        tracking_info.append({
+            'date': initial_date.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'Shipment information received',
+            'location': 'DHL eCommerce'
+        })
+        
+        # If more than 1 day since creation, add "Picked up" status
+        if days_since_creation >= 1:
+            pickup_date = base_date + datetime.timedelta(days=1)
+            tracking_info.append({
+                'date': pickup_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Shipment picked up',
+                'location': 'Origin Facility'
+            })
+        
+        # If more than 3 days since creation, add "In Transit" status
+        if days_since_creation >= 3:
+            transit_date = base_date + datetime.timedelta(days=3)
+            tracking_info.append({
+                'date': transit_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Shipment in transit',
+                'location': 'DHL Processing Center'
+            })
+        
+        # If more than 5 days since creation, add "Arriving" status
+        if days_since_creation >= 5:
+            arriving_date = base_date + datetime.timedelta(days=5)
+            tracking_info.append({
+                'date': arriving_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Shipment arriving at destination',
+                'location': 'Destination Country'
+            })
+        
+        # If more than 7 days since creation, add "Out for delivery" status
+        if days_since_creation >= 7:
+            delivery_date = base_date + datetime.timedelta(days=7)
+            tracking_info.append({
+                'date': delivery_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Out for delivery',
+                'location': 'Local Delivery Facility'
+            })
+            
+        # If more than 8 days since creation, add "Delivered" status
+        if days_since_creation >= 8:
+            delivered_date = base_date + datetime.timedelta(days=8)
+            tracking_info.append({
+                'date': delivered_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Delivered',
+                'location': 'Destination Address'
+            })
+        
+        # Reverse the list so most recent event is first
+        tracking_info.reverse()
+        
+        # Update ticket tracking status
+        latest = tracking_info[0] if tracking_info else None
+        if latest:
+            ticket.shipping_status = latest['status']
+            ticket.shipping_history = tracking_info
+            ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+            ticket_store.save_tickets()
+        
+        print(f"Mock DHL tracking info generated for {tracking_number}: {tracking_info}")
+        print(f"Updated shipping status to: {ticket.shipping_status}")
+        
+        return jsonify({
+            'success': True,
+            'tracking_info': tracking_info,
+            'shipping_status': ticket.shipping_status,
+            'is_real_data': False,  # Mark as mock data
+            'debug_info': {
+                'mock_data': True,
+                'days_since_creation': days_since_creation,
+                'events_count': len(tracking_info)
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error generating mock DHL tracking: {str(e)}")
+        return jsonify({'error': f"Internal server error: {str(e)}"}), 500
+
+@tickets_bp.route('/<int:ticket_id>/track_ups', methods=['GET'])
+@login_required
+def track_ups(ticket_id):
+    """Track UPS package and return tracking data"""
+    print(f"==== TRACKING UPS - TICKET {ticket_id} ====")
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket or not ticket.shipping_tracking:
+        print("Invalid ticket or no tracking number")
+        return jsonify({'error': 'Invalid ticket or no tracking number'}), 404
+
+    try:
+        import trackingmore
+        
+        # Debug: Print TrackingMore module info
+        print(f"TrackingMore module: {trackingmore}")
+        
+        # Use API key from config
+        print(f"Using TrackingMore API Key: {TRACKINGMORE_API_KEY}")
+        # Force set API key again
+        trackingmore.set_api_key(TRACKINGMORE_API_KEY)
+        
+        tracking_number = ticket.shipping_tracking
+        print(f"Tracking UPS number: {tracking_number}")
+        
+        # Try each carrier code for UPS
+        potential_carriers = [
+            'ups',
+            'ups-freight',
+            'ups-mail-innovations',
+        ]
+        
+        # Try each carrier code until one works
+        for carrier_code in potential_carriers:
+            try:
+                print(f"\nAttempting with carrier code: {carrier_code}")
+                # Create a new tracking request
+                create_params = {
+                    'tracking_number': tracking_number,
+                    'carrier_code': carrier_code
+                }
+                try:
+                    create_result = trackingmore.create_tracking_item(create_params)
+                    print(f"SUCCESS with carrier code {carrier_code}: {create_result}")
+                    # If we get here, this carrier code worked - use it for getting results
+                    break
+                except Exception as e:
+                    if "Tracking already exists" in str(e):
+                        print(f"Tracking already exists with carrier {carrier_code}, continuing")
+                        break
+                    else:
+                        print(f"Failed with carrier code {carrier_code}: {str(e)}")
+                        # Try next carrier code
+            except Exception as outer_e:
+                print(f"Outer exception with carrier {carrier_code}: {str(outer_e)}")
+                continue
+                
+        print(f"Selected carrier code: {carrier_code}")
+        
+        # Try to get real-time tracking data
+        try:
+            print("\nTrying realtime_tracking with carrier code:", carrier_code)
+            realtime_params = {
+                'tracking_number': tracking_number,
+                'carrier_code': carrier_code
+            }
+            result = trackingmore.realtime_tracking(realtime_params)
+            print(f"Realtime tracking result: {result}")
+            
+            # Check if we have real tracking data
+            if result and 'items' in result and result['items']:
+                tracking_data = result['items'][0]
+                
+                # Check if the status is "notfound" - if so, handle specially
+                if tracking_data.get('status') == 'notfound':
+                    print(f"No tracking data found for {tracking_number}, but tracking number is valid")
+                    print(f"Tracking data details: {tracking_data}")
+                    
+                    # For valid tracking numbers without data yet, show customized status based on carrier
+                    current_date = datetime.datetime.now()
+                    tracking_info = []
+                    
+                    # Check the substatus for more detailed info
+                    substatus = tracking_data.get('substatus', '')
+                    if substatus == 'notfound001':
+                        status_desc = "Pending - Waiting for Carrier Scan"
+                        location = "Shipping System"
+                    elif substatus == 'notfound002':
+                        status_desc = "Pending - Tracking Number Registered"
+                        location = "UPS System"
+                    elif substatus == 'notfound003':
+                        status_desc = "Pending - Invalid Tracking Number"
+                        location = "Verification Required"
+                    else:
+                        status_desc = "Information Received - Waiting for Update"
+                        location = "UPS Processing Center"
+                        
+                    print(f"Using custom status: {status_desc} for substatus: {substatus}")
+                    
+                    tracking_info.append({
+                        'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
+                        'status': status_desc,
+                        'location': location
+                    })
+                    
+                    # Update ticket
+                    ticket.shipping_status = tracking_info[0]['status']
+                    ticket.shipping_history = tracking_info
+                    ticket.updated_at = datetime.datetime.now()
+                    ticket_store.save_tickets()
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,  # Mark as real data
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'status': tracking_data.get('status', 'unknown'),
+                            'substatus': substatus,
+                            'no_events': True
+                        }
+                    })
+                
+                # Parse tracking events from the API response
+                tracking_info = []
+                
+                # Get tracking events from the response
+                tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
+                
+                if tracking_events:
+                    for event in tracking_events:
+                        tracking_info.append({
+                            'date': event.get('Date', event.get('date', '')),
+                            'status': event.get('StatusDescription', event.get('status_description', event.get('status', ''))),
+                            'location': event.get('Details', event.get('details', event.get('location', '')))
+                        })
+                    
+                    # Update ticket tracking status
+                    latest = tracking_info[0] if tracking_info else None  # Most recent event is first
+                    if latest:
+                        ticket.shipping_status = latest['status']
+                        ticket.shipping_history = tracking_info
+                        ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+                        ticket_store.save_tickets()
+                    
+                    print(f"Real tracking info retrieved for {tracking_number}: {tracking_info}")
+                    print(f"Updated shipping status to: {ticket.shipping_status}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_info,
+                        'shipping_status': ticket.shipping_status,
+                        'is_real_data': True,
+                        'debug_info': {
+                            'carrier_code': carrier_code,
+                            'has_events': True,
+                            'event_count': len(tracking_events)
+                        }
+                    })
+            
+        except Exception as e:
+            print(f"ERROR with realtime tracking: {str(e)}")
+            print(f"Error type: {type(e)}")
+            
+            # If all attempts failed, fall back to mock data
+            print(f"All carrier code attempts failed, falling back to mock data")
+            return generate_mock_ups_data(ticket)
+            
+    except Exception as e:
+        print(f"Error tracking UPS package: {str(e)}")
+        # Fall back to mock data
+        return generate_mock_ups_data(ticket)
+
+def generate_mock_ups_data(ticket):
+    """Generate mock tracking data for UPS as fallback"""
+    try:
+        base_date = ticket.created_at or datetime.datetime.now()
+        tracking_number = ticket.shipping_tracking
+        
+        print(f"Generating mock UPS tracking data for {tracking_number}")
+        
+        # Determine how many days since ticket creation
+        days_since_creation = (datetime.datetime.now() - base_date).days
+        print(f"Days since ticket creation: {days_since_creation}")
+        
+        # Generate mock tracking events
+        tracking_info = []
+        
+        # Initial status - Package registered
+        initial_date = base_date
+        tracking_info.append({
+            'date': initial_date.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'Order Processed: Ready for UPS',
+            'location': 'Shipper'
+        })
+        
+        # If more than 1 day since creation, add "Picked up" status
+        if days_since_creation >= 1:
+            pickup_date = base_date + datetime.timedelta(days=1)
+            tracking_info.append({
+                'date': pickup_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Pickup Scan',
+                'location': 'Origin Facility'
+            })
+        
+        # If more than 3 days since creation, add "In Transit" status
+        if days_since_creation >= 3:
+            transit_date = base_date + datetime.timedelta(days=3)
+            tracking_info.append({
+                'date': transit_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'In Transit',
+                'location': 'UPS Facility'
+            })
+        
+        # If more than 5 days since creation, add "Arriving" status
+        if days_since_creation >= 5:
+            arriving_date = base_date + datetime.timedelta(days=5)
+            tracking_info.append({
+                'date': arriving_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Arrived at Destination',
+                'location': 'Destination Country'
+            })
+        
+        # If more than 7 days since creation, add "Out for delivery" status
+        if days_since_creation >= 7:
+            delivery_date = base_date + datetime.timedelta(days=7)
+            tracking_info.append({
+                'date': delivery_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Out for Delivery',
+                'location': 'Local Delivery Facility'
+            })
+            
+        # If more than 8 days since creation, add "Delivered" status
+        if days_since_creation >= 8:
+            delivered_date = base_date + datetime.timedelta(days=8)
+            tracking_info.append({
+                'date': delivered_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': 'Delivered',
+                'location': 'Destination Address'
+            })
+        
+        # Reverse the list so most recent event is first
+        tracking_info.reverse()
+        
+        # Update ticket tracking status
+        latest = tracking_info[0] if tracking_info else None
+        if latest:
+            ticket.shipping_status = latest['status']
+            ticket.shipping_history = tracking_info
+            ticket.updated_at = datetime.datetime.now()  # Update the timestamp
+            ticket_store.save_tickets()
+        
+        print(f"Mock UPS tracking info generated for {tracking_number}: {tracking_info}")
+        print(f"Updated shipping status to: {ticket.shipping_status}")
+        
+        return jsonify({
+            'success': True,
+            'tracking_info': tracking_info,
+            'shipping_status': ticket.shipping_status,
+            'is_real_data': False,  # Mark as mock data
+            'debug_info': {
+                'mock_data': True,
+                'days_since_creation': days_since_creation,
+                'events_count': len(tracking_info)
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error generating mock UPS tracking: {str(e)}")
+        return jsonify({'error': f"Internal server error: {str(e)}"}), 500
+
+@tickets_bp.route('/<int:ticket_id>/debug_tracking', methods=['GET'])
+@login_required
+def debug_tracking(ticket_id):
+    """Debug endpoint to get detailed tracking information"""
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+        
+    # Collect debug info
+    tracking_info = {
+        'ticket_id': ticket_id,
+        'tracking_number': ticket.shipping_tracking,
+        'carrier': getattr(ticket, 'shipping_carrier', 'singpost'),  # Default to 'singpost' if attribute doesn't exist
+        'status': ticket.shipping_status,
+        'history': getattr(ticket, 'shipping_history', []),  # Default to empty list if attribute doesn't exist
+        'created_at': str(ticket.created_at),
+        'updated_at': str(ticket.updated_at),
+    }
+    
+    # Try to get current info from carrier APIs
+    carrier_info = {}
+    try:
+        # Get carrier (default to singpost if not set)
+        carrier = getattr(ticket, 'shipping_carrier', 'singpost')
+        
+        if carrier == 'singpost':
+            # Import here to avoid circular imports
+            import trackingmore
+            trackingmore.set_api_key(TRACKINGMORE_API_KEY)
+            
+            tracking_number = ticket.shipping_tracking
+            carrier_code = 'singapore-post'
+            
+            # Create tracking if needed
+            create_params = {
+                'tracking_number': tracking_number,
+                'carrier_code': carrier_code
+            }
+            try:
+                create_result = trackingmore.create_tracking_item(create_params)
+                carrier_info['create_result'] = create_result
+            except Exception as e:
+                carrier_info['create_error'] = str(e)
+            
+            # Get real-time data
+            try:
+                realtime_params = {
+                    'tracking_number': tracking_number,
+                    'carrier_code': carrier_code
+                }
+                result = trackingmore.realtime_tracking(realtime_params)
+                carrier_info['realtime_result'] = result
+            except Exception as e:
+                carrier_info['realtime_error'] = str(e)
+                
+        elif carrier == 'dhl':
+            # Import here to avoid circular imports
+            import trackingmore
+            trackingmore.set_api_key(TRACKINGMORE_API_KEY)
+            
+            tracking_number = ticket.shipping_tracking
+            carrier_info['potential_carriers'] = [
+                'dhl',
+                'dhl-global-mail',
+                'dhl-express',
+                'dhl-germany',
+                'dhl-benelux',
+                'dhl-global-mail-asia',
+                'dhl-global-mail-americas',
+                'dhl-global-mail-europe',
+            ]
+            
+            # Try each carrier code
+            carrier_results = {}
+            for carrier_code in carrier_info['potential_carriers']:
+                carrier_results[carrier_code] = {}
+                
+                # Try to create
+                try:
+                    create_params = {
+                        'tracking_number': tracking_number,
+                        'carrier_code': carrier_code
+                    }
+                    create_result = trackingmore.create_tracking_item(create_params)
+                    carrier_results[carrier_code]['create_result'] = create_result
+                    
+                    # If successful, try to get real-time data
+                    try:
+                        realtime_params = {
+                            'tracking_number': tracking_number,
+                            'carrier_code': carrier_code
+                        }
+                        result = trackingmore.realtime_tracking(realtime_params)
+                        carrier_results[carrier_code]['realtime_result'] = result
+                    except Exception as e:
+                        carrier_results[carrier_code]['realtime_error'] = str(e)
+                        
+                except Exception as e:
+                    carrier_results[carrier_code]['create_error'] = str(e)
+                    
+                    # If "already exists" error, try to get real-time data anyway
+                    if "Tracking already exists" in str(e):
+                        try:
+                            realtime_params = {
+                                'tracking_number': tracking_number,
+                                'carrier_code': carrier_code
+                            }
+                            result = trackingmore.realtime_tracking(realtime_params)
+                            carrier_results[carrier_code]['realtime_result'] = result
+                        except Exception as e2:
+                            carrier_results[carrier_code]['realtime_error'] = str(e2)
+            
+            carrier_info['carrier_results'] = carrier_results
+    except Exception as e:
+        carrier_info['error'] = str(e)
+    
+    # Add carrier info to response
+    tracking_info['carrier_api_info'] = carrier_info
+    
+    return jsonify({
+        'success': True,
+        'debug_tracking_info': tracking_info
+    })
+
+@tickets_bp.route('/<int:ticket_id>/update_carrier', methods=['POST'])
+@login_required
+def update_shipping_carrier(ticket_id):
+    """Update shipping carrier for a ticket"""
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+    
+    carrier = request.form.get('carrier') or request.json.get('carrier')
+    if not carrier:
+        return jsonify({'error': 'Carrier parameter is required'}), 400
+    
+    # Update the carrier
+    ticket.shipping_carrier = carrier.lower()
+    
+    # Also update the ticket category if needed
+    if carrier.lower() == 'dhl':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_DHL
+    elif carrier.lower() == 'singpost':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_SINGPOST
+    elif carrier.lower() == 'ups':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_UPS
+    
+    # Save the ticket
+    ticket.updated_at = datetime.datetime.now()
+    ticket_store.update_ticket(ticket_id, shipping_carrier=carrier.lower())
+    
+    return jsonify({
+        'success': True,
+        'message': f'Shipping carrier updated to {carrier}',
+        'ticket_id': ticket_id,
+        'shipping_carrier': carrier.lower()
+    })
+
+# Simple GET endpoint to update carrier (for easier testing via URL)
+@tickets_bp.route('/<int:ticket_id>/set_carrier/<carrier>', methods=['GET'])
+@login_required
+def set_carrier(ticket_id, carrier):
+    """Simple endpoint to update carrier via GET request"""
+    ticket = ticket_store.get_ticket(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+    
+    # Update the carrier
+    ticket.shipping_carrier = carrier.lower()
+    
+    # Also update the ticket category if needed
+    if carrier.lower() == 'dhl':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_DHL
+    elif carrier.lower() == 'singpost':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_SINGPOST
+    elif carrier.lower() == 'ups':
+        ticket.category = TicketCategory.ASSET_CHECKOUT_UPS
+    
+    # Save the ticket
+    ticket.updated_at = datetime.datetime.now()
+    ticket_store.update_ticket(ticket_id, shipping_carrier=carrier.lower())
+    
+    return jsonify({
+        'success': True,
+        'message': f'Shipping carrier updated to {carrier}',
+        'ticket_id': ticket_id,
+        'shipping_carrier': carrier.lower()
+    })
 
 # Remove the create_repair_ticket route since it's now part of create_ticket
 

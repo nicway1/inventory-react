@@ -55,6 +55,7 @@ class TicketStore:
                     ticket.shipping_address = ticket_data.get('shipping_address')
                     ticket.shipping_status = ticket_data.get('shipping_status')
                     ticket.shipping_history = ticket_data.get('shipping_history', [])
+                    ticket.shipping_carrier = ticket_data.get('shipping_carrier', 'singpost')
                     ticket.customer_id = ticket_data.get('customer_id')
 
                     self.tickets[ticket.id] = ticket
@@ -87,7 +88,8 @@ class TicketStore:
                 'shipping_tracking': ticket.shipping_tracking,
                 'shipping_address': ticket.shipping_address,
                 'shipping_status': ticket.shipping_status,
-                'shipping_history': ticket.shipping_history,
+                'shipping_history': getattr(ticket, 'shipping_history', []),
+                'shipping_carrier': getattr(ticket, 'shipping_carrier', 'singpost'),
                 'customer_id': ticket.customer_id
             }
             tickets_data.append(ticket_data)
@@ -98,7 +100,7 @@ class TicketStore:
     def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
                      asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
                      image_path=None, repair_status=None, customer_id=None, shipping_address=None,
-                     shipping_tracking=None):
+                     shipping_tracking=None, shipping_carrier='singpost'):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -125,7 +127,8 @@ class TicketStore:
                 repair_status=repair_status,
                 customer_id=customer_id,
                 shipping_address=shipping_address,
-                shipping_tracking=shipping_tracking
+                shipping_tracking=shipping_tracking,
+                shipping_carrier=shipping_carrier
             )
             db_session.add(ticket)
             db_session.commit()

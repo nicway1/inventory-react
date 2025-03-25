@@ -35,6 +35,8 @@
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
                         <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout</option>
                         <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
+                        <option value="ASSET_CHECKOUT_DHL" {% if form and form.category == 'ASSET_CHECKOUT_DHL' %}selected{% endif %}>Asset Checkout (DHL)</option>
+                        <option value="ASSET_CHECKOUT_UPS" {% if form and form.category == 'ASSET_CHECKOUT_UPS' %}selected{% endif %}>Asset Checkout (UPS)</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
                     </select>
                 </div>
@@ -287,7 +289,6 @@
                         <input type="text" 
                                id="shipping_tracking" 
                                name="shipping_tracking" 
-                               pattern="^(XZD|XZB)[0-9]+$" 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <p id="trackingHint" class="mt-1 text-sm text-gray-500 hidden">
                             Please enter a valid tracking number starting with XZD or XZB followed by numbers
@@ -455,7 +456,7 @@ function toggleFormFields() {
         repairFields.classList.remove('hidden');
         document.getElementById('repair_serial_number').required = true;
         document.getElementById('damage_description').required = true;
-    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST') {
+    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') {
         assetCheckoutFields.classList.remove('hidden');
         document.getElementById('customer_id').required = true;
         document.getElementById('checkout_serial_number').required = true;
@@ -467,6 +468,20 @@ function toggleFormFields() {
             singpostNote.classList.remove('hidden');
             trackingHint.classList.remove('hidden');
             trackingInput.pattern = '^(XZD|XZB)[0-9]+$';
+            trackingInput.required = true;
+        } else if (category === 'ASSET_CHECKOUT_DHL') {
+            trackingLabel.textContent = 'DHL Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = null;
+            trackingInput.removeAttribute('pattern');
+            trackingInput.required = true;
+        } else if (category === 'ASSET_CHECKOUT_UPS') {
+            trackingLabel.textContent = 'UPS Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = null;
+            trackingInput.removeAttribute('pattern');
             trackingInput.required = true;
         } else {
             trackingLabel.textContent = 'Tracking Number';
@@ -560,8 +575,13 @@ $(document).ready(function() {
             $('#serial_number').trigger('change');
         } else if (category === 'ASSET_REPAIR' && $('#repair_serial_number').val()) {
             $('#repair_serial_number').trigger('change');
-        } else if (category === 'ASSET_CHECKOUT' && $('#checkout_serial_number').val()) {
+        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') && $('#checkout_serial_number').val()) {
             $('#checkout_serial_number').trigger('change');
+            
+            // Special handling for DHL tracking
+            if (category === 'ASSET_CHECKOUT_DHL') {
+                $('#shipping_tracking').removeAttr('pattern');
+            }
         }
     }
 
@@ -615,12 +635,17 @@ $(document).ready(function() {
         const category = $('#category').val();
         
         // Only validate asset selection for specific categories
-        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST') {
+        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') {
             const serialNumber = $('#checkout_serial_number').val();
             if (!serialNumber) {
                 e.preventDefault();
                 alert('Please select an asset');
                 return false;
+            }
+            
+            // Ensure no tracking format validation for DHL
+            if (category === 'ASSET_CHECKOUT_DHL') {
+                $('#shipping_tracking').removeAttr('pattern');
             }
             
             // Set the hidden field value again to ensure it's properly set

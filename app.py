@@ -197,7 +197,7 @@ if __name__ == '__main__':
     port = 5001
     while port < 5010:  # Try ports 5001-5009
         try:
-            app.run(debug=True, host='0.0.0.0', port=port)
+            app.run(debug=True, host='127.0.0.1', port=port)
             break
         except OSError:
             print(f"Port {port} is in use, trying {port + 1}")

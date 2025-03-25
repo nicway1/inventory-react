@@ -100,32 +100,8 @@
         {% endif %}
     </div>
 
-    <!-- Recent Activities -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">Recent Activities</h2>
-        {% if activities %}
-        <div class="space-y-4">
-            {% for activity in activities %}
-            <div class="flex items-start">
-                <div class="flex-shrink-0">
-                    <svg class="w-4 h-4 text-gray-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm text-gray-600">{{ activity.description }}</p>
-                    <p class="text-xs text-gray-400">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-gray-500">No recent activities</p>
-        {% endif %}
-    </div>
-    
     <!-- SingPost Tickets -->
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
                 <svg class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,6 +186,30 @@
         </div>
         {% else %}
         <p class="text-gray-500 py-4">No SingPost shipments available</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">Recent Activities</h2>
+        {% if activities %}
+        <div class="space-y-4">
+            {% for activity in activities %}
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="w-4 h-4 text-gray-400 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-600">{{ activity.description }}</p>
+                    <p class="text-xs text-gray-400">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500">No recent activities</p>
         {% endif %}
     </div>
 </div>

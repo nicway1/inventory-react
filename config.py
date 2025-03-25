@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Flask configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_for_development_only')
@@ -12,7 +16,7 @@ UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv', 'pdf', 'jpg', 'jpeg', 'png'}
 
 # TrackingMore API configuration
-TRACKINGMORE_API_KEY = os.environ.get('TRACKINGMORE_API_KEY', 'your_api_key_here')
+TRACKINGMORE_API_KEY = os.environ.get('TRACKINGMORE_API_KEY')
 
 # Email configuration
 MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.example.com')
