@@ -294,15 +294,15 @@ def add_accessory_stock(id):
 
                 db_session.commit()
                 flash(f'Successfully added {additional_quantity} units to stock!', 'success')
-                return redirect(url_for('inventory.view_accessories'))
+                return redirect(url_for('inventory.view_accessory', id=id))
 
             except ValueError:
                 flash('Invalid quantity value', 'error')
-                return redirect(url_for('inventory.add_accessory_stock', id=id))
+                return redirect(url_for('inventory.view_accessory', id=id))
             except Exception as e:
                 db_session.rollback()
                 flash(f'Error adding stock: {str(e)}', 'error')
-                return redirect(url_for('inventory.add_accessory_stock', id=id))
+                return redirect(url_for('inventory.view_accessory', id=id))
 
         return render_template('inventory/add_accessory_stock.html', accessory=accessory)
 
