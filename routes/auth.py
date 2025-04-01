@@ -27,17 +27,20 @@ def login():
             # Use DatabaseManager to get user with permissions
             user = db_manager.get_user_by_username(username)
             if user and user.check_password(password):
-                # Initialize permissions if they don't exist
-                if not user.permissions:
-                    default_permissions = Permission.get_default_permissions(user.user_type)
-                    permission = Permission(user_type=user.user_type, **default_permissions)
-                    db_session = db_manager.get_session()
-                    try:
+                # Get permission record for this user's type
+                db_session = db_manager.get_session()
+                try:
+                    # Check if permissions exist for this user type
+                    permission = db_session.query(Permission).filter_by(user_type=user.user_type).first()
+                    
+                    if not permission:
+                        # Create default permissions if none exist
+                        default_permissions = Permission.get_default_permissions(user.user_type)
+                        permission = Permission(user_type=user.user_type, **default_permissions)
                         db_session.add(permission)
-                        user.permissions = permission
                         db_session.commit()
-                    finally:
-                        db_session.close()
+                finally:
+                    db_session.close()
                 
                 login_user(user)
                 session['user_id'] = user.id

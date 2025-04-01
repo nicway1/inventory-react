@@ -7,10 +7,7 @@ class Permission(Base):
     __tablename__ = 'permissions'
     
     id = Column(Integer, primary_key=True)
-    user_type = Column(Enum(UserType), nullable=False)
-    
-    # Relationship with User
-    users = relationship("User", back_populates="permissions")
+    user_type = Column(Enum(UserType), nullable=False, unique=True)
     
     # Asset Permissions
     can_view_assets = Column(Boolean, default=True)
@@ -118,11 +115,11 @@ class Permission(Base):
         else:  # Supervisor
             return {
                 'can_view_assets': True,
-                'can_edit_assets': False,
+                'can_edit_assets': True,
                 'can_delete_assets': False,
                 'can_create_assets': False,
                 'can_view_country_assets': True,
-                'can_edit_country_assets': False,
+                'can_edit_country_assets': True,
                 'can_delete_country_assets': False,
                 'can_create_country_assets': False,
                 'can_view_accessories': True,

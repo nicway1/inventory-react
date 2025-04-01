@@ -100,14 +100,14 @@
         {% endif %}
     </div>
 
-    <!-- SingPost Tickets -->
+    <!-- Shipments -->
     <div class="bg-white rounded-lg shadow p-6 mb-8">
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
                 <svg class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
                 </svg>
-                <h2 class="text-xl font-semibold">SingPost Shipments</h2>
+                <h2 class="text-xl font-semibold">Shipments</h2>
             </div>
             <div class="flex space-x-2">
                 <button id="refresh-all-btn" class="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
@@ -127,17 +127,40 @@
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking Number</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-200" id="shipmentsTableBody">
                     {% for ticket in singpost_tickets %}
-                    <tr>
+                    <tr class="shipment-row {% if loop.index > 10 %}hidden{% endif %}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ ticket.display_id }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ticket.subject }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if ticket.category %}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full
+                                {% if 'SINGPOST' in ticket.category.name %}
+                                    bg-green-100 text-green-800
+                                {% elif 'DHL' in ticket.category.name %}
+                                    bg-yellow-100 text-yellow-800
+                                {% elif 'UPS' in ticket.category.name %}
+                                    bg-purple-100 text-purple-800
+                                {% elif 'BLUEDART' in ticket.category.name %}
+                                    bg-blue-100 text-blue-800
+                                {% elif 'DTDC' in ticket.category.name %}
+                                    bg-orange-100 text-orange-800
+                                {% else %}
+                                    bg-gray-100 text-gray-800
+                                {% endif %}">
+                                    {{ ticket.category.value }}
+                                </span>
+                            {% else %}
+                            <span class="text-gray-400">Not Available</span>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {% if ticket.shipping_tracking %}
                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
@@ -171,21 +194,59 @@
                             {% if ticket.shipping_tracking %}
                             <button 
                                 data-ticket-id="{{ ticket.id }}"
+                                data-carrier="{{ ticket.shipping_carrier | default('singpost') }}"
                                 class="refresh-tracking text-blue-600 hover:text-blue-900 mr-3">
                                 Refresh Tracking
                             </button>
-                            <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="text-green-600 hover:text-green-800">
-                                Track on SingPost
-                            </a>
+                            {% set carrier = ticket.shipping_carrier | lower | default('singpost') %}
+                            {% if carrier == 'dhl' %}
+                                <a href="https://www.dhl.com/en/express/tracking.html?AWB={{ ticket.shipping_tracking }}" target="_blank" class="text-yellow-600 hover:text-yellow-800">
+                                    Track on DHL
+                                </a>
+                            {% elif carrier == 'ups' %}
+                                <a href="https://www.ups.com/track?loc=en_US&tracknum={{ ticket.shipping_tracking }}" target="_blank" class="text-purple-600 hover:text-purple-800">
+                                    Track on UPS
+                                </a>
+                            {% elif carrier == 'bluedart' %}
+                                <a href="https://www.bluedart.com/tracking/{{ ticket.shipping_tracking }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                    Track on BlueDart
+                                </a>
+                            {% elif carrier == 'dtdc' %}
+                                <a href="https://tracking.dtdc.com/tracking/trackshipment?number={{ ticket.shipping_tracking }}" target="_blank" class="text-orange-600 hover:text-orange-800">
+                                    Track on DTDC
+                                </a>
+                            {% else %}
+                                <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="text-green-600 hover:text-green-800">
+                                    Track on SingPost
+                                </a>
+                            {% endif %}
                             {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            
+            <!-- Pagination Controls -->
+            <div class="flex justify-between items-center mt-4 px-6 py-3 bg-gray-50 border-t border-gray-200">
+                <div>
+                    <span class="text-sm text-gray-700">
+                        Showing <span id="pageStart">1</span> to <span id="pageEnd">10</span> of <span id="totalItems">{{ singpost_tickets|length }}</span> shipments
+                    </span>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="prevPage" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50" disabled onclick="changePage(-1)">
+                        Previous
+                    </button>
+                    <span id="currentPage" class="px-3 py-1 text-sm text-gray-700">Page 1</span>
+                    <button id="nextPage" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50" onclick="changePage(1)">
+                        Next
+                    </button>
+                </div>
+            </div>
         </div>
         {% else %}
-        <p class="text-gray-500 py-4">No SingPost shipments available</p>
+        <p class="text-gray-500 py-4">No shipments available</p>
         {% endif %}
     </div>
 
@@ -217,7 +278,52 @@
 
 {% block scripts %}
 <script>
+    // Pagination functions for shipments
+    let currentShipmentPage = 1;
+    const rowsPerPage = 10;
+    
+    function updateShipmentPagination() {
+        const rows = document.querySelectorAll('.shipment-row');
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage);
+        
+        // Update page display
+        document.getElementById('pageStart').textContent = ((currentShipmentPage - 1) * rowsPerPage) + 1;
+        document.getElementById('pageEnd').textContent = Math.min(currentShipmentPage * rowsPerPage, totalRows);
+        document.getElementById('totalItems').textContent = totalRows;
+        document.getElementById('currentPage').textContent = `Page ${currentShipmentPage}`;
+        
+        // Update button states
+        document.getElementById('prevPage').disabled = currentShipmentPage === 1;
+        document.getElementById('nextPage').disabled = currentShipmentPage === totalPages;
+        
+        // Show/hide rows
+        rows.forEach((row, index) => {
+            const startIdx = (currentShipmentPage - 1) * rowsPerPage;
+            const endIdx = startIdx + rowsPerPage;
+            
+            if (index >= startIdx && index < endIdx) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    }
+    
+    function changePage(delta) {
+        const rows = document.querySelectorAll('.shipment-row');
+        const totalPages = Math.ceil(rows.length / rowsPerPage);
+        
+        const newPage = currentShipmentPage + delta;
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentShipmentPage = newPage;
+            updateShipmentPagination();
+        }
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
+        updateShipmentPagination();
+        
         // Add event listeners to all refresh tracking buttons
         document.addEventListener('click', function(event) {
             if (event.target.classList.contains('refresh-tracking')) {
@@ -246,39 +352,56 @@
         `;
         button.disabled = true;
         
-        // Get all ticket IDs
-        const tickets = document.querySelectorAll('[data-ticket-id]');
-        const ticketIds = Array.from(tickets).map(el => el.getAttribute('data-ticket-id'));
+        // Get all tracking buttons to extract ticket IDs and carriers
+        const refreshButtons = document.querySelectorAll('.refresh-tracking');
+        const trackingRequests = Array.from(refreshButtons).map(btn => ({
+            ticketId: btn.getAttribute('data-ticket-id'),
+            carrier: btn.getAttribute('data-carrier') || 'singpost' // Default to singpost
+        }));
         
-        // Create a counter to keep track of completed requests
         let completed = 0;
         
-        // If no tickets, reload the page
-        if (ticketIds.length === 0) {
-            // Reload the page to show updated status but prevent refresh loop
-            const separator = window.location.href.includes('?') ? '&' : '?';
-            window.location.href = window.location.href + separator + 'refreshed=true';
+        if (trackingRequests.length === 0) {
+            // Restore button state if no requests
+            button.textContent = originalText;
+            button.disabled = false;
+            // Optionally reload page
+            // const separator = window.location.href.includes('?') ? '&' : '?';
+            // window.location.href = window.location.href + separator + 'refreshed=true';
             return;
         }
         
-        // Process each ticket
-        ticketIds.forEach(ticketId => {
-            fetch(`/tickets/${ticketId}/track_singpost`)
+        // Process each ticket based on its carrier
+        trackingRequests.forEach(req => {
+            let endpoint = '';
+            if (req.carrier === 'dhl') {
+                endpoint = `/tickets/${req.ticketId}/track_dhl`;
+            } else if (req.carrier === 'ups') {
+                endpoint = `/tickets/${req.ticketId}/track_ups`;
+            } else if (req.carrier === 'bluedart') {
+                endpoint = `/tickets/${req.ticketId}/track_bluedart`;
+            } else if (req.carrier === 'dtdc') {
+                endpoint = `/tickets/${req.ticketId}/track_dtdc`;
+            } else { // Default to singpost
+                endpoint = `/tickets/${req.ticketId}/track_singpost`;
+            }
+            
+            fetch(endpoint)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`Failed to fetch tracking information for ticket ${ticketId}`);
+                        throw new Error(`Failed for ticket ${req.ticketId} (${req.carrier})`);
                     }
                     return response.json();
                 })
                 .then(data => {
-                    console.log(`Updated ticket ${ticketId}:`, data);
+                    console.log(`Updated ticket ${req.ticketId} (${req.carrier}):`, data);
                 })
                 .catch(error => {
-                    console.error(`Error updating ticket ${ticketId}:`, error);
+                    console.error(`Error updating ticket ${req.ticketId} (${req.carrier}):`, error);
                 })
                 .finally(() => {
                     completed++;
-                    if (completed === ticketIds.length) {
+                    if (completed === trackingRequests.length) {
                         // Reload the page after all requests are completed
                         const separator = window.location.href.includes('?') ? '&' : '?';
                         window.location.href = window.location.href + separator + 'refreshed=true';
@@ -289,17 +412,37 @@
     
     function refreshTracking(button) {
         const ticketId = button.getAttribute('data-ticket-id');
+        const carrier = button.getAttribute('data-carrier') || 'singpost'; // Get carrier, default to singpost
         const originalText = button.textContent.trim();
+        
+        // Determine the correct endpoint based on carrier
+        let endpoint = '';
+        if (carrier === 'dhl') {
+            endpoint = `/tickets/${ticketId}/track_dhl`;
+        } else if (carrier === 'ups') {
+            endpoint = `/tickets/${ticketId}/track_ups`;
+        } else if (carrier === 'bluedart') {
+            endpoint = `/tickets/${ticketId}/track_bluedart`;
+        } else if (carrier === 'dtdc') {
+            endpoint = `/tickets/${ticketId}/track_dtdc`;
+        } else { // Default to singpost
+            endpoint = `/tickets/${ticketId}/track_singpost`;
+        }
         
         // Show loading state
         button.textContent = 'Refreshing...';
         button.disabled = true;
         
-        // Make API request to our backend endpoint
-        fetch(`/tickets/${ticketId}/track_singpost`)
+        // Make API request to the correct backend endpoint
+        fetch(endpoint)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Failed to fetch tracking information');
+                    // Try to get error message from response body
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || 'Failed to fetch tracking information');
+                    }).catch(() => {
+                         throw new Error('Failed to fetch tracking information and could not parse error response.');
+                    });
                 }
                 return response.json();
             })
@@ -309,7 +452,7 @@
                     const separator = window.location.href.includes('?') ? '&' : '?';
                     window.location.href = window.location.href + separator + 'refreshed=true';
                 } else {
-                    throw new Error(data.error || 'No tracking information available');
+                    throw new Error(data.error || 'Tracking update failed.');
                 }
             })
             .catch(error => {

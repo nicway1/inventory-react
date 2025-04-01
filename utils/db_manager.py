@@ -7,6 +7,7 @@ from models.asset import Asset
 from models.location import Location
 from models.accessory import Accessory
 from models.activity import Activity
+from models.permission import Permission
 from datetime import datetime
 
 class DatabaseManager:
@@ -166,9 +167,9 @@ class DatabaseManager:
     def get_user(self, user_id):
         session = self.get_session()
         try:
+            # Use joinedload to eagerly load the company but not permissions
             return session.query(User).options(
-                joinedload(User.company),
-                joinedload(User.permissions)
+                joinedload(User.company)
             ).filter(User.id == user_id).first()
         finally:
             session.close()
@@ -177,18 +178,19 @@ class DatabaseManager:
         session = self.get_session()
         try:
             user = session.query(User).options(
-                joinedload(User.company),
-                joinedload(User.permissions)
+                joinedload(User.company)
             ).filter(User.username == username).first()
             
-            # Initialize permissions if they don't exist
-            if user and not user.permissions:
-                from models.permission import Permission
-                default_permissions = Permission.get_default_permissions(user.user_type)
-                permission = Permission(user_type=user.user_type, **default_permissions)
-                session.add(permission)
-                user.permissions = permission
-                session.commit()
+            if user:
+                # Get permission record for this user's type instead of relying on direct relationship
+                permission = session.query(Permission).filter_by(user_type=user.user_type).first()
+                
+                if not permission:
+                    # Create default permissions if none exist for this user type
+                    default_permissions = Permission.get_default_permissions(user.user_type)
+                    permission = Permission(user_type=user.user_type, **default_permissions)
+                    session.add(permission)
+                    session.commit()
             
             return user
         finally:
@@ -197,19 +199,22 @@ class DatabaseManager:
     def get_user_permissions(self, user_id):
         session = self.get_session()
         try:
-            user = session.query(User).options(
-                joinedload(User.permissions)
-            ).filter(User.id == user_id).first()
+            user = session.query(User).filter(User.id == user_id).first()
             
-            if user and not user.permissions:
-                from models.permission import Permission
+            if not user:
+                return None
+                
+            # Get permission record for this user's type instead of relying on direct relationship
+            permission = session.query(Permission).filter_by(user_type=user.user_type).first()
+            
+            if not permission:
+                # Create default permissions if none exist for this user type
                 default_permissions = Permission.get_default_permissions(user.user_type)
                 permission = Permission(user_type=user.user_type, **default_permissions)
                 session.add(permission)
-                user.permissions = permission
                 session.commit()
             
-            return user.permissions if user else None
+            return permission
         finally:
             session.close()
 
@@ -242,10 +247,9 @@ class DatabaseManager:
     def get_user_by_id(self, user_id):
         session = self.get_session()
         try:
-            # Use joinedload to eagerly load the company and permissions relationships
+            # Use joinedload to eagerly load the company relationship
             return session.query(User).options(
-                joinedload(User.company),
-                joinedload(User.permissions)
+                joinedload(User.company)
             ).filter(User.id == user_id).first()
         finally:
             session.close()

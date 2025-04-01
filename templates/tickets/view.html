@@ -296,6 +296,28 @@
         transform: translateY(0);
     }
 }
+
+.pdf-inline-container {
+    position: relative;
+}
+
+.pdf-loading-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 10;
+}
+
+.pdf-inline-container iframe {
+    z-index: 5;
+}
 </style>
 {% endblock %}
 
@@ -613,6 +635,8 @@
                                         <option value="singpost" {% if ticket.shipping_carrier == 'singpost' %}selected{% endif %}>SingPost</option>
                                         <option value="dhl" {% if ticket.shipping_carrier == 'dhl' %}selected{% endif %}>DHL</option>
                                         <option value="ups" {% if ticket.shipping_carrier == 'ups' %}selected{% endif %}>UPS</option>
+                                        <option value="bluedart" {% if ticket.shipping_carrier == 'bluedart' %}selected{% endif %}>BlueDart</option>
+                                        <option value="dtdc" {% if ticket.shipping_carrier == 'dtdc' %}selected{% endif %}>DTDC</option>
                                     </select>
                                 </form>
                             </div>
@@ -630,12 +654,11 @@
                         </svg>
                         Debug
                     </a>
-                    <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="inline-flex items-center ml-2 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Track on SingPost
-                    </a>
+                    <button type="button" 
+                            onclick="trackPackage()" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                        Track on {{ ticket.shipping_carrier|default('SingPost', true)|capitalize }}
+                    </button>
                 </div>
             </div>
             
@@ -668,7 +691,7 @@
 
         <script>
         // Store carrier and endpoint information for JavaScript to use
-        var TICKET_ID = {{ ticket.id }};
+        var TICKET_ID = "{{ ticket.id }}";
         var CARRIER = "{{ ticket.shipping_carrier|default('singpost', true) }}";
         var TRACKING_NUMBER = "{{ ticket.shipping_tracking }}";
         
@@ -699,6 +722,10 @@
                 trackingEndpoint = `/tickets/${TICKET_ID}/track_dhl`;
             } else if (CARRIER === 'ups') {
                 trackingEndpoint = `/tickets/${TICKET_ID}/track_ups`;
+            } else if (CARRIER === 'bluedart') {
+                trackingEndpoint = `/tickets/${TICKET_ID}/track_bluedart`;
+            } else if (CARRIER === 'dtdc') {
+                trackingEndpoint = `/tickets/${TICKET_ID}/track_dtdc`;
             }
             
             console.log('Using tracking endpoint:', trackingEndpoint);
@@ -708,7 +735,14 @@
                 .then(response => {
                     console.log('Received response:', response.status);
                     if (!response.ok) {
-                        throw new Error('Failed to fetch tracking information');
+                        // Try to get detailed error from response
+                        return response.json().catch(() => {
+                            // If response isn't JSON, throw generic error with status
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }).then(errorData => {
+                            // If we got JSON error data, throw with more details
+                            throw new Error(errorData.error || `Server error: ${response.status}`);
+                        });
                     }
                     return response.json();
                 })
@@ -837,10 +871,79 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    trackingError.querySelector('span').textContent = error.message || 'Error loading tracking information. Please try again.';
-                    trackingError.classList.remove('hidden');
-                    trackingLoading.classList.add('hidden');
-                    trackingInfo.classList.add('hidden');
+                    // Show more detailed error message
+                    const errorMessage = document.querySelector('#trackingError span');
+                    if (errorMessage) {
+                        // Add more specific error details
+                        let detailedMessage = error.message || 'Error loading tracking information. Please try again.';
+                        
+                        // Add debugging info about which carrier and endpoint was used
+                        detailedMessage += `\n\nDetails: Carrier=${CARRIER}, Endpoint=${trackingEndpoint}`;
+                        
+                        // Format message with line breaks for HTML
+                        errorMessage.innerHTML = detailedMessage.replace(/\n/g, '<br>');
+                    }
+                    
+                    // Try fallback - if this wasn't already the fallback
+                    if (!trackingEndpoint.includes('debug_tracking')) {
+                        console.log('Trying fallback tracking method...');
+                        // Use the debug_tracking endpoint as fallback
+                        fetch(`/tickets/${TICKET_ID}/debug_tracking`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success && data.debug_tracking_info) {
+                                    // Create fallback tracking display using debug info
+                                    const debugInfo = data.debug_tracking_info;
+                                    const fallbackHtml = `
+                                        <div class="p-4 bg-yellow-50 border-b border-yellow-100">
+                                            <p class="text-sm text-yellow-700">
+                                                <strong>Fallback Mode:</strong> Using debug tracking information
+                                            </p>
+                                        </div>
+                                        <div class="p-4">
+                                            <div class="flex items-start space-x-4">
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm text-gray-900">
+                                                        <strong>Tracking Number:</strong> ${debugInfo.tracking_number || 'N/A'}
+                                                    </p>
+                                                    <p class="mt-1 text-sm text-gray-500">
+                                                        <strong>Carrier:</strong> ${debugInfo.carrier || 'Unknown'}
+                                                    </p>
+                                                    <p class="mt-1 text-sm text-gray-500">
+                                                        <strong>Status:</strong> ${debugInfo.status || 'Unknown'}
+                                                    </p>
+                                                    <p class="mt-1 text-sm text-gray-500">
+                                                        <strong>Last Updated:</strong> ${debugInfo.updated_at || 'Unknown'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                    
+                                    // Show fallback tracking info
+                                    trackingInfo.innerHTML = fallbackHtml;
+                                    trackingInfo.classList.remove('hidden');
+                                    trackingLoading.classList.add('hidden');
+                                    trackingError.classList.add('hidden');
+                                } else {
+                                    // Show original error if fallback also fails
+                                    trackingError.classList.remove('hidden');
+                                    trackingLoading.classList.add('hidden');
+                                    trackingInfo.classList.add('hidden');
+                                }
+                            })
+                            .catch(() => {
+                                // If fallback also fails, show original error
+                                trackingError.classList.remove('hidden');
+                                trackingLoading.classList.add('hidden');
+                                trackingInfo.classList.add('hidden');
+                            });
+                    } else {
+                        // Show error element and hide others if already tried fallback
+                        trackingError.classList.remove('hidden');
+                        trackingLoading.classList.add('hidden');
+                        trackingInfo.classList.add('hidden');
+                    }
                 });
         }
 
@@ -863,8 +966,283 @@
                     alert('An error occurred while updating the carrier');
                 });
         }
+
+        function trackPackage() {
+            // Open tracking page in new tab based on carrier
+            let trackingUrl = '';
+            const carrier = "{{ ticket.shipping_carrier|default('singpost', true) }}";
+            const trackingNumber = "{{ ticket.shipping_tracking }}";
+            
+            if (!trackingNumber) {
+                alert('No tracking number available');
+                return;
+            }
+            
+            if (carrier === 'singpost') {
+                trackingUrl = `https://www.singpost.com/track-items?track_number=${trackingNumber}`;
+            } else if (carrier === 'dhl') {
+                trackingUrl = `https://www.dhl.com/sg-en/home/tracking.html?tracking-id=${trackingNumber}`;
+            } else if (carrier === 'ups') {
+                trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}`;
+            } else if (carrier === 'bluedart') {
+                trackingUrl = `https://www.bluedart.com/tracking?trackingNo=${trackingNumber}`;
+            } else if (carrier === 'dtdc') {
+                trackingUrl = `https://www.dtdc.com/track-trace/track-trace.html?trackNumber=${trackingNumber}`;
+            }
+            
+            if (trackingUrl) {
+                try {
+                    window.open(trackingUrl, '_blank');
+                } catch (e) {
+                    console.error('Error opening tracking URL:', e);
+                    alert(`Failed to open tracking URL: ${trackingUrl}\n\nError: ${e.message}`);
+                }
+            } else {
+                alert(`No tracking URL configured for carrier: ${carrier}`);
+            }
+        }
         </script>
         {% endif %}
+    </div>
+</div>
+
+<!-- Comments Tab Content -->
+<div id="comments" class="sf-tab-content hidden">
+    <div class="sf-card mb-6">
+        <div class="sf-card-header">
+            <h2 class="sf-card-title">Comments</h2>
+        </div>
+        <div class="sf-card-body">
+            <!-- Add Comment Form -->
+            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="mb-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-4">
+                    <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Add a comment</label>
+                    <textarea id="content" name="content" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Type your comment here..."></textarea>
+                    <!-- Mention suggestions will appear here -->
+                    <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Add Comment
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Comments List -->
+            <div class="space-y-4">
+                {% if comments %}
+                    {% for comment in comments %}
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-600 font-medium text-sm">{{ comment.user.username[0]|upper if comment.user else 'U' }}</span>
+                                </div>
+                                <div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm font-medium text-gray-900">{{ comment.user.username if comment.user else 'Unknown User' }}</span>
+                                        <span class="text-xs text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    </div>
+                                    <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.content }}</div>
+                                </div>
+                            </div>
+                            {% if session.user_id == comment.user_id %}
+                            <div class="flex">
+                                <button class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center py-4">No comments yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Documents Tab Content -->
+<div id="documents" class="sf-tab-content hidden">
+    <div class="sf-card mb-6">
+        <div class="sf-card-header">
+            <div class="flex justify-between items-center">
+                <h2 class="sf-card-title">Documents</h2>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('upload-document-form').classList.toggle('hidden')" class="sf-button primary-button">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Upload with Details
+                    </button>
+                    <button onclick="document.getElementById('documentUpload').click()" class="sf-button">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        Quick Upload
+                    </button>
+                    <!-- Add hidden file input for direct uploads -->
+                    <input id="documentUpload" type="file" name="attachments" class="hidden" multiple>
+                </div>
+            </div>
+        </div>
+        <div class="sf-card-body">
+            <!-- Upload Document Form -->
+            <form id="upload-document-form" method="POST" action="{{ url_for('tickets.upload_attachment', ticket_id=ticket.id) }}" enctype="multipart/form-data" class="hidden mb-6 p-4 bg-gray-50 rounded-md" onsubmit="handleFormSubmit(event)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-4">
+                    <label for="attachment_title" class="block text-sm font-medium text-gray-700 mb-1">Document Title</label>
+                    <input type="text" id="attachment_title" name="title" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter document title">
+                </div>
+                <div class="mb-4">
+                    <label for="attachment_file" class="block text-sm font-medium text-gray-700 mb-1">File</label>
+                    <input type="file" id="attachment_file" name="attachments" class="w-full">
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" onclick="document.getElementById('upload-document-form').classList.add('hidden')" class="mr-3 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </button>
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Upload
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Documents List -->
+            <div class="space-y-4">
+                {% if ticket.attachments %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% for attachment in ticket.attachments %}
+                            <div class="border rounded-md overflow-hidden">
+                                <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                    <span class="font-medium text-sm truncate">{{ attachment.title or attachment.filename }}</span>
+                                    <div class="flex space-x-2">
+                                        {% if attachment.filename.lower().endswith('.pdf') %}
+                                        <button onclick="previewPdf('{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}')" class="text-green-600 hover:text-green-800" title="Full Screen Preview">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                            </svg>
+                                        </button>
+                                        {% endif %}
+                                        <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" class="text-blue-600 hover:text-blue-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    <div class="text-xs text-gray-500">{{ attachment.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                    {% if attachment.file_size is defined %}
+                                    <div class="text-xs text-gray-500">{{ attachment.file_size|filesizeformat }}</div>
+                                    {% else %}
+                                    <div class="text-xs text-gray-500">File size unknown</div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if attachment.filename.lower().endswith('.pdf') %}
+                                <div class="border-t">
+                                    <div class="flex justify-between items-center p-2 bg-gray-50">
+                                        <span class="text-xs font-medium text-gray-600">PDF Preview</span>
+                                        <button onclick="togglePdfInline('pdf-preview-{{ attachment.id }}')" class="text-gray-500 hover:text-gray-700">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div id="pdf-preview-{{ attachment.id }}" class="pdf-inline-container">
+                                        <div class="pdf-loading-indicator">
+                                            <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span class="ml-2 text-xs text-gray-500">Loading PDF...</span>
+                                        </div>
+                                        <iframe src="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" 
+                                                class="w-full h-96" 
+                                                title="{{ attachment.title or attachment.filename }}"
+                                                onload="hideLoading(this)">
+                                        </iframe>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% elif ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
+                    <!-- Special handling for Asset Intake documents -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% if ticket.packing_list_path %}
+                            <div class="border rounded-md overflow-hidden">
+                                <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                    <span class="font-medium text-sm truncate">Packing List</span>
+                                    <div class="flex space-x-2">
+                                        <a href="{{ url_for('tickets.download_intake_document', ticket_id=ticket.id, doc_type='packing_list') }}" class="text-blue-600 hover:text-blue-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if ticket.asset_csv_path %}
+                            <div class="border rounded-md overflow-hidden">
+                                <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                    <span class="font-medium text-sm truncate">Asset CSV</span>
+                                    <div class="flex space-x-2">
+                                        <a href="{{ url_for('tickets.download_intake_document', ticket_id=ticket.id, doc_type='asset_csv') }}" class="text-blue-600 hover:text-blue-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if not ticket.packing_list_path and not ticket.asset_csv_path %}
+                        <p class="text-gray-500 text-center py-4">No documents attached to this Asset Intake ticket</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-gray-500 text-center py-4">No documents attached to this ticket</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Preview Modal -->
+<div id="pdfPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg overflow-hidden w-11/12 max-w-5xl h-5/6 flex flex-col">
+        <div class="bg-gray-100 px-4 py-3 flex justify-between items-center border-b">
+            <h3 class="font-medium text-gray-700" id="previewTitle">PDF Preview</h3>
+            <button onclick="closePdfPreview()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-hidden">
+            <iframe id="pdfViewer" src="" class="w-full h-full"></iframe>
+        </div>
+        <div class="bg-gray-100 px-4 py-3 flex justify-end border-t">
+            <button onclick="closePdfPreview()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded mr-2 hover:bg-gray-400">Close</button>
+            <a id="pdfDownloadBtn" href="" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Download</a>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -1135,19 +1513,96 @@ function getCaretCoordinates(element, position) {
 })(); // End of self-executing function
 
 // Document handling functions
-document.getElementById('documentUpload').addEventListener('change', function(e) {
-    const files = e.target.files;
-    if (files.length > 0) {
-        const formData = new FormData();
-        
-        // Add files to form data
-        for (let i = 0; i < files.length; i++) {
-            formData.append('attachments', files[i]);
-        }
-        
-        // Get CSRF token from the hidden input
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-        formData.append('csrf_token', csrfToken);
+document.addEventListener('DOMContentLoaded', function() {
+    const documentUpload = document.getElementById('documentUpload');
+    if (documentUpload) {
+        documentUpload.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const formData = new FormData();
+                
+                // Add files to form data
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('attachments', files[i]);
+                }
+                
+                // Get CSRF token from the hidden input
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                formData.append('csrf_token', csrfToken);
+                
+                // Show loading indicator
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'loading-indicator';
+                loadingIndicator.innerHTML = `
+                    <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="ml-2">Uploading files...</span>
+                `;
+                
+                // Add the loading indicator to the documents tab
+                const documentsTab = document.getElementById('documents');
+                if (documentsTab) {
+                    documentsTab.appendChild(loadingIndicator);
+                }
+                
+                fetch('{{ url_for("tickets.upload_attachment", ticket_id=ticket.id) }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                throw new Error(data.error || 'Upload failed');
+                            } catch (e) {
+                                console.error('Server response:', text);
+                                throw new Error('Server error: ' + text);
+                            }
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Show success message before redirect
+                        alert(`Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`);
+                        
+                        // Add a parameter to prevent infinite refreshes
+                        const separator = window.location.href.includes('?') ? '&' : '?';
+                        window.location.href = window.location.href.split('?')[0] + separator + 'refreshed=true';
+                    } else {
+                        throw new Error(data.error || 'Upload failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error uploading documents: ' + error.message);
+                })
+                .finally(() => {
+                    // Remove loading indicator
+                    if (loadingIndicator.parentNode) {
+                        loadingIndicator.parentNode.removeChild(loadingIndicator);
+                    }
+                    // Reset file input
+                    e.target.value = '';
+                });
+            }
+        });
+    }
+    
+    // Set up the regular form handler
+    window.handleFormSubmit = function(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
         
         // Show loading indicator
         const loadingIndicator = document.createElement('div');
@@ -1156,54 +1611,60 @@ document.getElementById('documentUpload').addEventListener('change', function(e)
             <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span class="ml-2">Uploading files...</span>
-        `;
-        document.querySelector('.sf-card-body').appendChild(loadingIndicator);
+        </svg>
+        <span class="ml-2">Uploading files...</span>
+    `;
         
-        fetch('{{ url_for("tickets.upload_attachment", ticket_id=ticket.id) }}', {
+        const documentsTab = document.getElementById('documents');
+        if (documentsTab) {
+            documentsTab.appendChild(loadingIndicator);
+        }
+        
+        fetch(form.action, {
             method: 'POST',
             body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    try {
-                        const data = JSON.parse(text);
-                        throw new Error(data.error || 'Upload failed');
-                    } catch (e) {
-                        console.error('Server response:', text);
-                        throw new Error('Server error: ' + text);
-                    }
-                });
+                'X-Requested-With': 'XMLHttpRequest'
             }
-            return response.json();
         })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Add a parameter to prevent infinite refreshes
+                // Show success message before redirect
+                alert(`Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`);
+                
+                // Redirect back to the ticket page
                 const separator = window.location.href.includes('?') ? '&' : '?';
-                window.location.href = window.location.href + separator + 'refreshed=true';
+                window.location.href = window.location.href.split('?')[0] + separator + 'refreshed=true';
             } else {
-                throw new Error(data.error || 'Upload failed');
+                alert('Error: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error uploading documents: ' + error.message);
+            alert('Error uploading file: ' + error.message);
         })
         .finally(() => {
-            // Remove loading indicator
-            loadingIndicator.remove();
-            // Reset file input
-            e.target.value = '';
+            if (loadingIndicator.parentNode) {
+                loadingIndicator.parentNode.removeChild(loadingIndicator);
+            }
+            form.reset();
         });
-    }
+    };
+    
+    // PDF preview functionality
+    window.previewPdf = function(url) {
+        document.getElementById('pdfViewer').src = url;
+        document.getElementById('pdfPreviewModal').classList.remove('hidden');
+        document.getElementById('previewTitle').textContent = 'PDF Preview';
+        document.getElementById('pdfDownloadBtn').href = url;
+    };
+    
+    window.closePdfPreview = function() {
+        document.getElementById('pdfPreviewModal').classList.add('hidden');
+        // Clear the iframe source when closing to stop PDF rendering
+        document.getElementById('pdfViewer').src = '';
+    };
 });
 
 function deleteAttachment(attachmentId, ticketId) {
@@ -1291,5 +1752,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Add this to your existing JavaScript - Inline PDF preview functionality
+function hideLoading(iframe) {
+    const loadingIndicator = iframe.previousElementSibling;
+    if (loadingIndicator && loadingIndicator.classList.contains('pdf-loading-indicator')) {
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+function togglePdfInline(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        const isHidden = container.style.display === 'none';
+        container.style.display = isHidden ? 'block' : 'none';
+        
+        // Change arrow direction
+        const button = container.previousElementSibling.querySelector('svg');
+        if (button) {
+            if (isHidden) {
+                button.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+            } else {
+                button.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
+            }
+        }
+    }
+}
 </script>
 {% endblock %} 

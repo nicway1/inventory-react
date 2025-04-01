@@ -5,6 +5,7 @@ from enum import Enum as PyEnum
 from models.base import Base
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
+import logging
 
 class UserType(str, PyEnum):
     SUPER_ADMIN = "SUPER_ADMIN"
@@ -34,10 +35,6 @@ class User(Base, UserMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
-    # Add permissions relationship
-    permissions_id = Column(Integer, ForeignKey('permissions.id'))
-    permissions = relationship("Permission", back_populates="users")
-    
     # Relationships
     company = relationship("Company", back_populates="users")
     tickets_requested = relationship('Ticket', foreign_keys='Ticket.requester_id', back_populates='requester')
@@ -46,6 +43,10 @@ class User(Base, UserMixin):
     uploaded_intake_attachments = relationship('IntakeAttachment', back_populates='uploader')
     created_intake_tickets = relationship('IntakeTicket', foreign_keys='IntakeTicket.created_by', back_populates='creator')
     assigned_intake_tickets = relationship('IntakeTicket', foreign_keys='IntakeTicket.assigned_to', back_populates='assignee')
+    activities = relationship("Activity", back_populates="user")
+    assigned_assets = relationship("Asset", back_populates="assigned_to")
+    asset_changes = relationship("AssetHistory", back_populates="user")
+    accessory_changes = relationship("AccessoryHistory", back_populates="user")
 
     def set_password(self, password):
         """Set password hash"""
@@ -112,12 +113,37 @@ class User(Base, UserMixin):
     def update_last_login(self):
         """Update the last login timestamp"""
         self.last_login = datetime.utcnow()
-
-# Add relationships after all models are defined to avoid circular imports
-from models.asset_history import AssetHistory
-from models.accessory_history import AccessoryHistory
-
-User.activities = relationship("Activity", back_populates="user")
-User.assigned_assets = relationship("Asset", back_populates="assigned_to")
-User.asset_changes = relationship("AssetHistory", back_populates="user")
-User.accessory_changes = relationship("AccessoryHistory", back_populates="user")
+        
+    @property
+    def permissions(self):
+        """Get user permissions based on user_type from the database"""
+        from sqlalchemy.orm import Session
+        from models.permission import Permission
+        from database import engine
+        
+        # Log for debugging
+        logging.info(f"Getting permissions for user {self.id} ({self.username}) of type {self.user_type}")
+        
+        # Create a new session
+        session = Session(engine)
+        try:
+            # Get permission record for this user's type
+            permission = session.query(Permission).filter_by(user_type=self.user_type).first()
+            
+            if not permission:
+                # Create default permissions if none exist for this user type
+                logging.info(f"No permissions found for {self.user_type}, creating defaults")
+                default_permissions = Permission.get_default_permissions(self.user_type)
+                permission = Permission(user_type=self.user_type, **default_permissions)
+                session.add(permission)
+                session.commit()
+                logging.info(f"Created default permissions: can_edit_assets = {permission.can_edit_assets}")
+            else:
+                logging.info(f"Found existing permissions: can_edit_assets = {permission.can_edit_assets}")
+            
+            return permission
+        except Exception as e:
+            logging.error(f"Error getting permissions: {str(e)}")
+            raise
+        finally:
+            session.close()

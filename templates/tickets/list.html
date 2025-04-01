@@ -1,107 +1,797 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    /* Salesforce-style UI styling */
+    .sf-card {
+        background-color: white;
+        border-radius: 0.25rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1rem;
+    }
+
+    .sf-card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        background-color: #f0f4f8;
+    }
+
+    .sf-card-body {
+        padding: 1rem;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a202c;
+    }
+
+    .sf-button {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background-color: #f3f4f7;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        color: #4b5563;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: all 0.2s ease;
+    }
+
+    .sf-button:hover {
+        background-color: #e5e7eb;
+        transform: translateY(-1px);
+    }
+
+    .sf-toolbar {
+        background-color: #e6eef8;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .sf-tabs {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+        background-color: #f0f4f8;
+        overflow-x: auto;
+    }
+
+    .sf-tab {
+        padding: 0.75rem 1rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .sf-tab:hover {
+        color: #3b82f6;
+    }
+
+    .sf-tab.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+        font-weight: 500;
+    }
+
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background-color: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .sf-badge-success {
+        background-color: #10b981;
+        color: white;
+    }
+
+    .sf-badge-warning {
+        background-color: #f59e0b;
+        color: white;
+    }
+
+    .sf-badge-info {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .sf-badge-danger {
+        background-color: #ef4444;
+        color: white;
+    }
+
+    .sf-data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-data-table th {
+        background-color: #f0f4f8;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #4b5563;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+
+    .sf-data-table th:hover {
+        background-color: #e1eaf8;
+    }
+
+    .sf-data-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+        color: #111827;
+    }
+
+    .sf-data-table tr:hover {
+        background-color: #f9fafb;
+    }
+
+    .primary-button {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .primary-button:hover {
+        background-color: #2563eb;
+    }
+
+    .danger-button {
+        background-color: #ef4444;
+        color: white;
+    }
+
+    .danger-button:hover {
+        background-color: #dc2626;
+    }
+
+    .sf-search {
+        display: flex;
+        align-items: center;
+        background-color: white;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .sf-search input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 0.875rem;
+        padding: 0.25rem;
+    }
+
+    .sf-search-icon {
+        color: #9ca3af;
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .sf-filter-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-filter-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #6b7280;
+    }
+
+    .sf-filter-select {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        background-color: white;
+        color: #1f2937;
+    }
+
+    .sf-action-menu {
+        position: relative;
+    }
+
+    .sf-action-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #6b7280;
+    }
+
+    .sf-action-dropdown {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background-color: white;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        z-index: 10;
+        display: none;
+    }
+
+    .sf-action-dropdown.show {
+        display: block;
+    }
+
+    .sf-action-item {
+        display: block;
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+    .sf-action-item:hover {
+        background-color: #f3f4f6;
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .sf-page-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Pagination */
+    .sf-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background-color: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .sf-pagination-info {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .sf-pagination-controls {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .sf-pagination-button {
+        padding: 0.25rem 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        background-color: white;
+        font-size: 0.75rem;
+        color: #374151;
+    }
+
+    .sf-pagination-button:hover:not(.disabled) {
+        background-color: #f3f4f6;
+    }
+
+    .sf-pagination-button.active {
+        background-color: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .sf-pagination-button.disabled {
+        color: #d1d5db;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Support Tickets</h1>
-        <div class="space-x-4">
-            <a href="{{ url_for('tickets.create_ticket') }}" 
-               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Create New Ticket
-            </a>
-            <a href="{{ url_for('inventory.add_customer_user') }}" 
-               class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                Add Customer
-            </a>
-            {% if current_user.is_admin %}
-            <form action="{{ url_for('tickets.clear_all_tickets') }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to clear all tickets? This action cannot be undone.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" 
-                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                    Clear All Tickets
-                </button>
-            </form>
-            {% endif %}
+<div class="bg-gray-100 min-h-screen py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="sf-page-header">
+            <div class="sf-page-title">Support Tickets</div>
+            <div class="sf-page-actions">
+                <a href="{{ url_for('tickets.create_ticket') }}" 
+                   class="sf-button primary-button">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Ticket
+                </a>
+                <a href="{{ url_for('inventory.add_customer_user') }}" 
+                   class="sf-button">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                    Add Customer
+                </a>
+                {% if current_user.is_admin %}
+                <form action="{{ url_for('tickets.clear_all_tickets') }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to clear all tickets? This action cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" 
+                            class="sf-button danger-button">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Clear All
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="sf-tabs mb-6 rounded-t-md">
+            <a href="#all" class="sf-tab active" onclick="filterTickets('all')">All Tickets</a>
+            <a href="#open" class="sf-tab" onclick="filterTickets('open')">Open</a>
+            <a href="#my-tickets" class="sf-tab" onclick="filterTickets('my')">My Tickets</a>
+            <a href="#recently-viewed" class="sf-tab" onclick="filterTickets('recent')">Recently Viewed</a>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="sf-card mb-6">
+            <div class="sf-card-header">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-1 items-center gap-2">
+                        <div class="sf-search max-w-md">
+                            <svg class="sf-search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="searchInput" placeholder="Search tickets..." oninput="searchTickets()">
+                        </div>
+                        <button class="sf-button" onclick="clearFilters()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                    
+                    <div class="sf-filter-section">
+                        <span class="sf-filter-label">Status:</span>
+                        <select class="sf-filter-select" id="statusFilter" onchange="filterTickets()">
+                            <option value="">All</option>
+                            <option value="New">New</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                        
+                        <span class="sf-filter-label">Priority:</span>
+                        <select class="sf-filter-select" id="priorityFilter" onchange="filterTickets()">
+                            <option value="">All</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                        
+                        <span class="sf-filter-label">Category:</span>
+                        <select class="sf-filter-select" id="categoryFilter" onchange="filterTickets()">
+                            <option value="">All</option>
+                            <option value="PIN_REQUEST">PIN Request</option>
+                            <option value="ASSET_REPAIR">Asset Repair</option>
+                            <option value="ASSET_CHECKOUT">Asset Checkout</option>
+                            <option value="ASSET_CHECKOUT_SINGPOST">Asset Checkout (SingPost)</option>
+                            <option value="ASSET_CHECKOUT_DHL">Asset Checkout (DHL)</option>
+                            <option value="ASSET_CHECKOUT_UPS">Asset Checkout (UPS)</option>
+                            <option value="ASSET_CHECKOUT_BLUEDART">Asset Checkout (BlueDart)</option>
+                            <option value="ASSET_INTAKE">Asset Intake</option>
+                            <option value="ASSET_CHECKOUT_DTDC">Asset Checkout (DTDC)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sf-card-body p-0">
+                <div class="overflow-x-auto">
+                    <table class="sf-data-table" id="ticketsTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">Case Number</th>
+                                <th onclick="sortTable(1)">Subject</th>
+                                <th onclick="sortTable(2)">Status</th>
+                                <th onclick="sortTable(3)">Priority</th>
+                                <th onclick="sortTable(4)">Created</th>
+                                <th onclick="sortTable(5)">Category</th>
+                                <th onclick="sortTable(6)">Case Owner</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.category.value if ticket.category else '' }}">
+                                <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
+                                <td>
+                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-blue-600 hover:text-blue-900 font-medium">
+                                        {{ ticket.subject }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="sf-badge 
+                                        {% if ticket.status.value == 'New' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif ticket.status.value == 'In Progress' %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% elif ticket.status.value == 'Resolved' %}
+                                            bg-green-100 text-green-800
+                                        {% else %}
+                                            bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ ticket.status.value if ticket.status else 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="sf-badge 
+                                        {% if ticket.priority.value == 'Critical' %}
+                                            bg-red-100 text-red-800
+                                        {% elif ticket.priority.value == 'High' %}
+                                            bg-orange-100 text-orange-800
+                                        {% elif ticket.priority.value == 'Medium' %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% else %}
+                                            bg-green-100 text-green-800
+                                        {% endif %}">
+                                        {{ ticket.priority.value if ticket.priority else 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td class="whitespace-nowrap">
+                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </td>
+                                <td>
+                                    <span class="sf-badge 
+                                        {% if ticket.category.value == 'PIN_REQUEST' %}
+                                            bg-purple-100 text-purple-800
+                                        {% elif ticket.category.value == 'ASSET_REPAIR' %}
+                                            bg-red-100 text-red-800
+                                        {% elif ticket.category.value == 'ASSET_CHECKOUT' or
+                                                ticket.category.value == 'ASSET_CHECKOUT_SINGPOST' or
+                                                ticket.category.value == 'ASSET_CHECKOUT_DHL' or
+                                                ticket.category.value == 'ASSET_CHECKOUT_UPS' or
+                                                ticket.category.value == 'ASSET_CHECKOUT_BLUEDART' or
+                                                ticket.category.value == 'ASSET_CHECKOUT_DTDC' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif ticket.category.value == 'ASSET_INTAKE' %}
+                                            bg-green-100 text-green-800
+                                        {% else %}
+                                            bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ ticket.category.value if ticket.category else 'Other' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if ticket.assigned_to %}
+                                        <span class="sf-badge bg-blue-100 text-blue-800">
+                                            {{ ticket.assigned_to.username }}
+                                        </span>
+                                    {% else %}
+                                        <span class="sf-badge bg-gray-100 text-gray-800">
+                                            Unassigned
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}"
+                                           class="sf-button">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                            View
+                                        </a>
+                                        <div class="sf-action-menu">
+                                            <button class="sf-action-button" onclick="toggleActionMenu(this)">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                </svg>
+                                            </button>
+                                            <div class="sf-action-dropdown">
+                                                <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="sf-action-item">Edit</a>
+                                                <a href="#" class="sf-action-item">Close</a>
+                                                <a href="#" class="sf-action-item text-red-600">Delete</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden py-8 text-center">
+                    <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No tickets found</h3>
+                    <p class="mt-1 text-sm text-gray-500">Try adjusting your search or filter to find what you're looking for.</p>
+                    <div class="mt-6">
+                        <button class="sf-button primary-button" onclick="clearFilters()">
+                            Clear filters
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="sf-pagination">
+                    <div class="sf-pagination-info">
+                        Showing <span id="itemsShown">1-10</span> of <span id="totalItems">{{ tickets|length }}</span> tickets
+                    </div>
+                    <div class="sf-pagination-controls">
+                        <button class="sf-pagination-button" id="prevPage" onclick="changePage(-1)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <span class="sf-pagination-button active" id="currentPage">1</span>
+                        <button class="sf-pagination-button" id="nextPage" onclick="changePage(1)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-
-    <div class="bg-white shadow-md rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for ticket in tickets %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ ticket.id }}</td>
-                    <td class="px-6 py-4">{{ ticket.subject }}</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 rounded-full text-xs
-                            {% if ticket.status == 'New' %}
-                                bg-blue-100 text-blue-800
-                            {% elif ticket.status == 'In Progress' %}
-                                bg-yellow-100 text-yellow-800
-                            {% elif ticket.status == 'Resolved' %}
-                                bg-green-100 text-green-800
-                            {% else %}
-                                bg-gray-100 text-gray-800
-                            {% endif %}">
-                            {{ ticket.status }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 rounded-full text-xs
-                            {% if ticket.priority == 'Critical' %}
-                                bg-red-100 text-red-800
-                            {% elif ticket.priority == 'High' %}
-                                bg-orange-100 text-orange-800
-                            {% elif ticket.priority == 'Medium' %}
-                                bg-yellow-100 text-yellow-800
-                            {% else %}
-                                bg-green-100 text-green-800
-                            {% endif %}">
-                            {{ ticket.priority }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 py-1 text-xs rounded-full
-                            {% if ticket.category == 'Hardware Request' %}
-                                bg-blue-100 text-blue-800
-                            {% elif ticket.category == 'Software Request' %}
-                                bg-green-100 text-green-800
-                            {% elif ticket.category == 'Access Request' %}
-                                bg-purple-100 text-purple-800
-                            {% elif ticket.category == 'Maintenance' %}
-                                bg-yellow-100 text-yellow-800
-                            {% elif ticket.category == 'Incident' %}
-                                bg-red-100 text-red-800
-                            {% elif ticket.category == 'Service Request' %}
-                                bg-indigo-100 text-indigo-800
-                            {% else %}
-                                bg-gray-100 text-gray-800
-                            {% endif %}">
-                            {{ ticket.category }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}"
-                           class="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
 </div>
+
+<script>
+    // Pagination variables
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredItems = [];
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the table
+        const table = document.getElementById('ticketsTable');
+        filteredItems = Array.from(table.querySelectorAll('tbody tr'));
+        updatePagination();
+        showPage(1);
+    });
+    
+    function filterTickets(tabFilter) {
+        const table = document.getElementById('ticketsTable');
+        const rows = table.querySelectorAll('tbody tr');
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        
+        // Update active tab if specified
+        if (tabFilter) {
+            document.querySelectorAll('.sf-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.sf-tab[href="#${tabFilter}"]`).classList.add('active');
+        }
+        
+        filteredItems = [];
+        
+        rows.forEach(row => {
+            const status = row.getAttribute('data-status');
+            const priority = row.getAttribute('data-priority');
+            const category = row.getAttribute('data-category');
+            const subject = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const caseNumber = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+            
+            // Check if row matches all filters
+            const matchesStatus = !statusFilter || status === statusFilter;
+            const matchesPriority = !priorityFilter || priority === priorityFilter;
+            const matchesCategory = !categoryFilter || category === categoryFilter;
+            const matchesSearch = !searchText || 
+                                subject.includes(searchText) || 
+                                caseNumber.includes(searchText);
+            
+            // Apply tab filter logic
+            let matchesTab = true;
+            if (tabFilter === 'open') {
+                matchesTab = status !== 'RESOLVED';
+            } else if (tabFilter === 'my') {
+                // Implement "My Tickets" logic based on your application
+                // For now, we'll just use it as another filter option
+                matchesTab = true;
+            } else if (tabFilter === 'recent') {
+                // Implement "Recently Viewed" logic
+                // For now, just show all
+                matchesTab = true;
+            }
+            
+            if (matchesStatus && matchesPriority && matchesCategory && matchesSearch && matchesTab) {
+                filteredItems.push(row);
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Show empty state if no items match
+        const emptyState = document.getElementById('emptyState');
+        if (filteredItems.length === 0) {
+            emptyState.classList.remove('hidden');
+        } else {
+            emptyState.classList.add('hidden');
+        }
+        
+        // Reset to first page and update pagination
+        currentPage = 1;
+        updatePagination();
+        showPage(1);
+    }
+    
+    function clearFilters() {
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('priorityFilter').value = '';
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        
+        // Reset tab selection
+        document.querySelectorAll('.sf-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector('.sf-tab[href="#all"]').classList.add('active');
+        
+        filterTickets();
+    }
+    
+    function searchTickets() {
+        filterTickets();
+    }
+    
+    function sortTable(n) {
+        const table = document.getElementById('ticketsTable');
+        const tbody = table.querySelector('tbody');
+        let rows = Array.from(tbody.querySelectorAll('tr'));
+        let sortDirection = 'asc';
+        
+        // Get current sort direction from the column
+        const th = table.querySelector(`th:nth-child(${n+1})`);
+        if (th.classList.contains('sort-asc')) {
+            sortDirection = 'desc';
+            th.classList.remove('sort-asc');
+            th.classList.add('sort-desc');
+        } else {
+            // Reset all column classes
+            table.querySelectorAll('th').forEach(header => {
+                header.classList.remove('sort-asc', 'sort-desc');
+            });
+            th.classList.add('sort-asc');
+        }
+        
+        // Sort rows
+        rows.sort((a, b) => {
+            let x = a.cells[n].textContent.trim();
+            let y = b.cells[n].textContent.trim();
+            
+            // If it's a date column (created date), convert to date object
+            if (n === 4) {
+                x = new Date(x);
+                y = new Date(y);
+            }
+            
+            if (sortDirection === 'asc') {
+                return x < y ? -1 : x > y ? 1 : 0;
+            } else {
+                return x > y ? -1 : x < y ? 1 : 0;
+            }
+        });
+        
+        // Append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+        
+        // Update filtered items
+        filterTickets();
+    }
+    
+    function toggleActionMenu(button) {
+        const dropdown = button.nextElementSibling;
+        
+        // Close all other open dropdowns
+        document.querySelectorAll('.sf-action-dropdown.show').forEach(menu => {
+            if (menu !== dropdown) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        // Toggle this dropdown
+        dropdown.classList.toggle('show');
+        
+        // Add click outside listener
+        setTimeout(() => {
+            document.addEventListener('click', closeDropdowns);
+        }, 0);
+    }
+    
+    function closeDropdowns(e) {
+        if (!e.target.closest('.sf-action-menu')) {
+            document.querySelectorAll('.sf-action-dropdown').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+            document.removeEventListener('click', closeDropdowns);
+        }
+    }
+    
+    function showPage(page) {
+        // Hide all rows first
+        const table = document.getElementById('ticketsTable');
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.classList.add('hidden');
+        });
+        
+        // Calculate which items to show
+        const startIndex = (page - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredItems.length);
+        
+        // Show only the rows for this page
+        for (let i = startIndex; i < endIndex; i++) {
+            filteredItems[i].classList.remove('hidden');
+        }
+        
+        // Update pagination text
+        document.getElementById('itemsShown').textContent = 
+            filteredItems.length > 0 ? `${startIndex + 1}-${endIndex}` : '0';
+        document.getElementById('totalItems').textContent = filteredItems.length;
+        document.getElementById('currentPage').textContent = page;
+    }
+    
+    function changePage(direction) {
+        const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        const newPage = currentPage + direction;
+        
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            showPage(currentPage);
+            updatePagination();
+        }
+    }
+    
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        const prevButton = document.getElementById('prevPage');
+        const nextButton = document.getElementById('nextPage');
+        
+        // Disable/enable previous button
+        if (currentPage <= 1) {
+            prevButton.classList.add('disabled');
+        } else {
+            prevButton.classList.remove('disabled');
+        }
+        
+        // Disable/enable next button
+        if (currentPage >= totalPages) {
+            nextButton.classList.add('disabled');
+        } else {
+            nextButton.classList.remove('disabled');
+        }
+    }
+</script>
 {% endblock %} 

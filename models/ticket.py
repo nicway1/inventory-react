@@ -30,6 +30,8 @@ class TicketCategory(enum.Enum):
     ASSET_CHECKOUT_SINGPOST = "Asset Checkout (SingPost)"
     ASSET_CHECKOUT_DHL = "Asset Checkout (DHL)"
     ASSET_CHECKOUT_UPS = "Asset Checkout (UPS)"
+    ASSET_CHECKOUT_BLUEDART = "Asset Checkout (BlueDart)"
+    ASSET_CHECKOUT_DTDC = "Asset Checkout (DTDC)"
     ASSET_INTAKE = "Asset Intake"
 
 class RMAStatus(enum.Enum):
@@ -87,6 +89,11 @@ class Ticket(Base):
     shipping_status = Column(String(100), default='Pending')
     return_status = Column(String(100), default='Pending')
     replacement_status = Column(String(100), default='Pending')
+    
+    # Asset Intake specific fields
+    packing_list_path = Column(String(500))
+    asset_csv_path = Column(String(500))
+    notes = Column(String(2000))
     
     # Non-DB fields for tracking history
     def __init__(self, **kwargs):

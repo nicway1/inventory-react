@@ -74,7 +74,7 @@
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                {% if current_user.is_admin %}
+                {% if current_user.can_edit_assets %}
                 <a href="{{ url_for('inventory.edit_asset', asset_id=asset.id) }}" 
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

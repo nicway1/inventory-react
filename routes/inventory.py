@@ -1507,8 +1507,12 @@ def download_template(template_type):
 
 @inventory_bp.route('/asset/<int:asset_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def edit_asset(asset_id):
+    # Check if current user has permission to edit assets
+    if not (current_user.is_admin or (hasattr(current_user, 'permissions') and getattr(current_user.permissions, 'can_edit_assets', False))):
+        flash('You do not have permission to edit assets', 'error')
+        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+    
     db_session = db_manager.get_session()
     try:
         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
@@ -2045,13 +2049,12 @@ def search():
     finally:
         db_session.close()
 
-@inventory_bp.route('/export/<item_type>', methods=['GET', 'POST'])
+@inventory_bp.route('/export/<string:item_type>', methods=['GET', 'POST'])
 @login_required
 def export_inventory(item_type):
-    """Export inventory items to CSV"""
-    # Check if user has export permission
-    if not current_user.permissions.can_export_data:
-        flash('You do not have permission to export data.', 'error')
+    # Ensure user has permission to export data
+    if not (current_user.is_admin or current_user.is_supervisor):
+        flash('You do not have permission to export data', 'error')
         return redirect(url_for('inventory.view_inventory'))
 
     db_session = db_manager.get_session()

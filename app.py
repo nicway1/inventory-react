@@ -22,6 +22,7 @@ from flask_sqlalchemy import SQLAlchemy
 from models.base import Base
 from models.company import Company
 from models.user import User, UserType, Country
+from models.permission import Permission
 from utils.db_manager import DatabaseManager
 from utils.email_sender import mail
 import os
@@ -33,6 +34,12 @@ from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
 from routes.intake import intake_bp
+
+# Add permissions property to User model for Flask-Login
+# User.permissions = property(lambda self: self.get_permissions)
+
+# Initialize DatabaseManager at module level
+db_manager = DatabaseManager()
 
 # Configure logging
 logging.basicConfig(
@@ -104,16 +111,12 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
+        """Load user from database by ID"""
         if user_id is None:
             return None
         try:
-            db_session = SessionLocal()
-            user = db_session.query(User).options(joinedload(User.permissions)).get(int(user_id))
-            if user:
-                # Expunge the user from the session but keep the permissions loaded
-                db_session.expunge(user)
-            db_session.close()
-            return user
+            # Use db_manager to handle permission retrieval correctly
+            return db_manager.get_user(int(user_id))
         except (ValueError, TypeError):
             return None
 
@@ -201,4 +204,4 @@ if __name__ == '__main__':
             break
         except OSError:
             print(f"Port {port} is in use, trying {port + 1}")
-            port += 1 
+            port += 1

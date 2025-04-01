@@ -53,9 +53,29 @@ def permission_management():
 
         # Get all permissions
         permissions = db_session.query(Permission).all()
-        if not permissions:
-            # Initialize default permissions if none exist
-            for user_type in UserType:
+        
+        # Check for duplicate permissions and remove them
+        user_types_seen = set()
+        duplicates_found = False
+        
+        for permission in permissions[:]:  # Use a copy of the list to avoid modification issues
+            if permission.user_type in user_types_seen:
+                # This is a duplicate
+                duplicates_found = True
+                db_session.delete(permission)
+            else:
+                user_types_seen.add(permission.user_type)
+        
+        if duplicates_found:
+            db_session.commit()
+            permissions = db_session.query(Permission).all()  # Refresh the list
+        
+        # Initialize default permissions if needed
+        existing_types = {p.user_type for p in permissions}
+        missing_types = [user_type for user_type in UserType if user_type not in existing_types]
+        
+        if missing_types:
+            for user_type in missing_types:
                 default_permissions = Permission.get_default_permissions(user_type)
                 permission = Permission(user_type=user_type, **default_permissions)
                 db_session.add(permission)
@@ -492,4 +512,45 @@ def view_history():
                              asset_history=asset_history,
                              accessory_history=accessory_history)
     finally:
-        db_session.close() 
+        db_session.close()
+
+@admin_bp.route('/update-user-type-permissions/<user_type>')
+@admin_required
+def update_user_type_permissions(user_type):
+    """Update permissions for all users of a specific type"""
+    try:
+        # Convert string to UserType enum
+        user_type_enum = UserType[user_type.upper()]
+        
+        # Get the session
+        session = db_manager.get_session()
+        
+        try:
+            # Get or create permission for this user type
+            permission = session.query(Permission).filter_by(user_type=user_type_enum).first()
+            
+            if not permission:
+                # Create new permission with default values
+                default_permissions = Permission.get_default_permissions(user_type_enum)
+                permission = Permission(user_type=user_type_enum, **default_permissions)
+                session.add(permission)
+            else:
+                # Update existing permission with default values
+                default_permissions = Permission.get_default_permissions(user_type_enum)
+                for key, value in default_permissions.items():
+                    setattr(permission, key, value)
+            
+            session.commit()
+            flash(f'Successfully updated permissions for {user_type}', 'success')
+            
+        finally:
+            session.close()
+            
+        return redirect(url_for('admin.manage_permissions'))
+        
+    except KeyError:
+        flash(f'Invalid user type: {user_type}', 'error')
+        return redirect(url_for('admin.manage_permissions'))
+    except Exception as e:
+        flash(f'Error updating permissions: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_permissions')) 

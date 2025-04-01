@@ -117,6 +117,7 @@ class TicketStore:
                 subject=subject,
                 description=description,
                 requester_id=requester_id,
+                assigned_to_id=requester_id,  # Set requester as default case owner
                 category=category,
                 priority=priority,
                 asset_id=asset_id,
@@ -148,7 +149,8 @@ class TicketStore:
         """Get tickets based on user's role and ID"""
         db_session = self.db_manager.get_session()
         try:
-            query = db_session.query(Ticket)
+            query = db_session.query(Ticket)\
+                .options(self.db_manager.joinedload(Ticket.assigned_to))
             
             # Super admin can see all tickets
             if user_type == UserType.SUPER_ADMIN:

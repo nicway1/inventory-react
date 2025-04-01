@@ -37,6 +37,8 @@
                         <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
                         <option value="ASSET_CHECKOUT_DHL" {% if form and form.category == 'ASSET_CHECKOUT_DHL' %}selected{% endif %}>Asset Checkout (DHL)</option>
                         <option value="ASSET_CHECKOUT_UPS" {% if form and form.category == 'ASSET_CHECKOUT_UPS' %}selected{% endif %}>Asset Checkout (UPS)</option>
+                        <option value="ASSET_CHECKOUT_BLUEDART" {% if form and form.category == 'ASSET_CHECKOUT_BLUEDART' %}selected{% endif %}>Asset Checkout (BlueDart)</option>
+                        <option value="ASSET_CHECKOUT_DTDC" {% if form and form.category == 'ASSET_CHECKOUT_DTDC' %}selected{% endif %}>Asset Checkout (DTDC)</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
                     </select>
                 </div>
@@ -257,6 +259,7 @@
                     <div>
                         <label for="checkout_serial_number" class="block text-sm font-medium text-gray-700">Asset Selection</label>
                         <select id="checkout_serial_number" 
+                                name="checkout_serial_number"
                                 required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">Select an asset...</option>
@@ -307,7 +310,105 @@
 
                 <!-- Asset Intake Fields -->
                 <div id="assetIntakeFields" class="hidden space-y-6">
-                    <!-- Title -->
+                    <!-- Tech Asset Section -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold">Tech Asset</h2>
+                                <div class="space-x-2">
+                                    <button type="button" 
+                                            onclick="addNewTechAsset()"
+                                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        Add New Tech Asset
+                                    </button>
+                                    <button type="button"
+                                            onclick="importTechAsset()"
+                                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        Import Tech Asset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6 space-y-6">
+                            <!-- Asset Form -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="asset_tag" class="block text-sm font-medium text-gray-700">Asset Tag</label>
+                                    <input type="text" 
+                                           id="asset_tag" 
+                                           name="asset_tag" 
+                                           placeholder="Enter asset tag"
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+
+                                <div>
+                                    <label for="serial_number" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                                    <input type="text" 
+                                           id="serial_number" 
+                                           name="serial_number" 
+                                           placeholder="Enter serial number"
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+
+                                <div>
+                                    <label for="asset_name" class="block text-sm font-medium text-gray-700">Name</label>
+                                    <input type="text" 
+                                           id="asset_name" 
+                                           name="asset_name" 
+                                           placeholder="Enter asset name"
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+
+                                <div>
+                                    <label for="asset_status" class="block text-sm font-medium text-gray-700">Status</label>
+                                    <select id="asset_status" 
+                                            name="asset_status" 
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="Active" selected>Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Retired">Retired</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <button type="button"
+                                        onclick="addAsset()"
+                                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Add Asset
+                                </button>
+                            </div>
+
+                            <!-- Existing Assets Table -->
+                            <div class="mt-6">
+                                <h3 class="text-lg font-medium mb-4">Existing Assets</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="existingAssets" class="bg-white divide-y divide-gray-200">
+                                            <tr>
+                                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                                    No assets assigned to this case
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rest of the intake fields -->
                     <div>
                         <label for="intake_title" class="block text-sm font-medium text-gray-700">Title</label>
                         <div class="flex gap-2">
@@ -331,38 +432,6 @@
                                   name="description" 
                                   rows="4"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                    </div>
-
-                    <!-- Packing List Upload -->
-                    <div>
-                        <label for="packing_list" class="block text-sm font-medium text-gray-700">Upload Packing List (PDF)</label>
-                        <input type="file" 
-                               id="packing_list" 
-                               name="packing_list" 
-                               accept=".pdf"
-                               class="mt-1 block w-full text-sm text-gray-500
-                                      file:mr-4 file:py-2 file:px-4
-                                      file:rounded-full file:border-0
-                                      file:text-sm file:font-semibold
-                                      file:bg-blue-50 file:text-blue-700
-                                      hover:file:bg-blue-100">
-                        <p class="mt-1 text-sm text-gray-500">Upload a PDF file containing the packing list</p>
-                    </div>
-
-                    <!-- Asset CSV Upload -->
-                    <div>
-                        <label for="asset_csv" class="block text-sm font-medium text-gray-700">Upload Asset List (CSV)</label>
-                        <input type="file" 
-                               id="asset_csv" 
-                               name="asset_csv" 
-                               accept=".csv"
-                               class="mt-1 block w-full text-sm text-gray-500
-                                      file:mr-4 file:py-2 file:px-4
-                                      file:rounded-full file:border-0
-                                      file:text-sm file:font-semibold
-                                      file:bg-blue-50 file:text-blue-700
-                                      hover:file:bg-blue-100">
-                        <p class="mt-1 text-sm text-gray-500">Upload a CSV file containing the asset details</p>
                     </div>
 
                     <!-- Notes -->
@@ -456,11 +525,22 @@ function toggleFormFields() {
         repairFields.classList.remove('hidden');
         document.getElementById('repair_serial_number').required = true;
         document.getElementById('damage_description').required = true;
-    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') {
+    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
         assetCheckoutFields.classList.remove('hidden');
         document.getElementById('customer_id').required = true;
         document.getElementById('checkout_serial_number').required = true;
         document.getElementById('shipping_address').required = true;
+        
+        // For BlueDart, ensure the selected serial number is copied to the hidden field
+        if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
+            // Get the current value from checkout_serial_number
+            const serialValue = document.getElementById('checkout_serial_number').value;
+            if (serialValue) {
+                // Set the hidden field
+                document.getElementById('asset_checkout_serial').value = serialValue;
+                console.log('BlueDart/DTDC: Set asset_checkout_serial to:', serialValue);
+            }
+        }
         
         // Update tracking field based on category
         if (category === 'ASSET_CHECKOUT_SINGPOST') {
@@ -478,6 +558,20 @@ function toggleFormFields() {
             trackingInput.required = true;
         } else if (category === 'ASSET_CHECKOUT_UPS') {
             trackingLabel.textContent = 'UPS Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = null;
+            trackingInput.removeAttribute('pattern');
+            trackingInput.required = true;
+        } else if (category === 'ASSET_CHECKOUT_BLUEDART') {
+            trackingLabel.textContent = 'BlueDart Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = null;
+            trackingInput.removeAttribute('pattern');
+            trackingInput.required = true;
+        } else if (category === 'ASSET_CHECKOUT_DTDC') {
+            trackingLabel.textContent = 'DTDC Tracking Number';
             singpostNote.classList.add('hidden');
             trackingHint.classList.add('hidden');
             trackingInput.pattern = null;
@@ -568,6 +662,25 @@ $(document).ready(function() {
     // Initialize form state and show the correct category fields
     toggleFormFields();
     
+    // Add category change event handler
+    $('#category').on('change', function() {
+        const category = $(this).val();
+        console.log('Category changed to:', category);
+        
+        // If BlueDart is selected, ensure we handle it correctly
+        if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
+            // If a serial number is already selected, make sure hidden field is populated
+            const serial = $('#checkout_serial_number').val();
+            if (serial) {
+                $('#asset_checkout_serial').val(serial);
+                console.log('Category change to BlueDart/DTDC: Set asset_checkout_serial to:', serial);
+            }
+        }
+        
+        // Toggle fields based on category
+        toggleFormFields();
+    });
+    
     // If there's form data, trigger the asset selection change event
     if ($('#category').val()) {
         const category = $('#category').val();
@@ -575,11 +688,27 @@ $(document).ready(function() {
             $('#serial_number').trigger('change');
         } else if (category === 'ASSET_REPAIR' && $('#repair_serial_number').val()) {
             $('#repair_serial_number').trigger('change');
-        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') && $('#checkout_serial_number').val()) {
+        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') && $('#checkout_serial_number').val()) {
             $('#checkout_serial_number').trigger('change');
             
             // Special handling for DHL tracking
             if (category === 'ASSET_CHECKOUT_DHL') {
+                $('#shipping_tracking').removeAttr('pattern');
+            }
+            
+            // Special handling for BlueDart tracking
+            if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
+                $('#shipping_tracking').removeAttr('pattern');
+                // Make sure hidden field is populated
+                const serial = $('#checkout_serial_number').val();
+                if (serial) {
+                    $('#asset_checkout_serial').val(serial);
+                    console.log('BlueDart/DTDC initialization: Set asset_checkout_serial to:', serial);
+                }
+            }
+            
+            // Special handling for UPS tracking
+            if (category === 'ASSET_CHECKOUT_UPS') {
                 $('#shipping_tracking').removeAttr('pattern');
             }
         }
@@ -635,7 +764,7 @@ $(document).ready(function() {
         const category = $('#category').val();
         
         // Only validate asset selection for specific categories
-        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS') {
+        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
             const serialNumber = $('#checkout_serial_number').val();
             if (!serialNumber) {
                 e.preventDefault();
@@ -645,6 +774,11 @@ $(document).ready(function() {
             
             // Ensure no tracking format validation for DHL
             if (category === 'ASSET_CHECKOUT_DHL') {
+                $('#shipping_tracking').removeAttr('pattern');
+            }
+            
+            // Ensure no tracking format validation for BlueDart
+            if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
                 $('#shipping_tracking').removeAttr('pattern');
             }
             
@@ -691,5 +825,73 @@ $(document).ready(function() {
         }
     });
 });
+
+// Tech Asset Functions
+function addNewTechAsset() {
+    // Implementation for adding new tech asset
+    console.log('Add new tech asset clicked');
+}
+
+function importTechAsset() {
+    // Implementation for importing tech asset
+    console.log('Import tech asset clicked');
+}
+
+function addAsset() {
+    const assetTag = document.getElementById('asset_tag').value;
+    const serialNumber = document.getElementById('serial_number').value;
+    const assetName = document.getElementById('asset_name').value;
+    const status = document.getElementById('asset_status').value;
+
+    if (!assetTag || !serialNumber || !assetName) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const existingAssets = document.getElementById('existingAssets');
+    
+    // Clear "No assets" message if it exists
+    if (existingAssets.innerHTML.includes('No assets assigned')) {
+        existingAssets.innerHTML = '';
+    }
+
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${assetTag}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${serialNumber}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${assetName}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                ${status}
+            </span>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <button onclick="removeAsset(this)" class="text-red-600 hover:text-red-900">Remove</button>
+        </td>
+    `;
+    existingAssets.appendChild(newRow);
+
+    // Clear form
+    document.getElementById('asset_tag').value = '';
+    document.getElementById('serial_number').value = '';
+    document.getElementById('asset_name').value = '';
+    document.getElementById('asset_status').value = 'Active';
+}
+
+function removeAsset(button) {
+    const row = button.closest('tr');
+    row.remove();
+
+    const existingAssets = document.getElementById('existingAssets');
+    if (existingAssets.children.length === 0) {
+        existingAssets.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                    No assets assigned to this case
+                </td>
+            </tr>
+        `;
+    }
+}
 </script>
 {% endblock %} 
