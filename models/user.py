@@ -47,6 +47,7 @@ class User(Base, UserMixin):
     assigned_assets = relationship("Asset", back_populates="assigned_to")
     asset_changes = relationship("AssetHistory", back_populates="user")
     accessory_changes = relationship("AccessoryHistory", back_populates="user")
+    company_permissions = relationship("UserCompanyPermission", back_populates="user")
 
     def set_password(self, password):
         """Set password hash"""
@@ -95,6 +96,53 @@ class User(Base, UserMixin):
         """Check if user is a supervisor"""
         return self.user_type == UserType.SUPERVISOR
 
+    def can_access_company(self, company_id):
+        """Check if user has access to a specific company"""
+        # Super admins can access all companies
+        if self.is_super_admin:
+            return True
+            
+        # Check user's company permissions
+        for perm in self.company_permissions:
+            if perm.company_id == company_id and perm.can_view:
+                return True
+                
+        return False
+
+    def can_edit_company_assets(self, company_id):
+        """Check if user has edit permissions for a company's assets"""
+        # Super admins can edit all companies
+        if self.is_super_admin:
+            return True
+            
+        # Check user's company permissions
+        for perm in self.company_permissions:
+            if perm.company_id == company_id and perm.can_edit:
+                return True
+                
+        return False
+
+    def get_accessible_companies(self):
+        """Get list of companies the user has access to"""
+        from sqlalchemy.orm import Session
+        from database import engine
+        from models.company import Company
+        
+        session = Session(engine)
+        try:
+            # Super admins can access all companies
+            if self.is_super_admin:
+                return session.query(Company).all()
+                
+            # Get companies where user has view permission
+            companies = []
+            for perm in self.company_permissions:
+                if perm.can_view:
+                    companies.append(perm.company)
+            return companies
+        finally:
+            session.close()
+
     def to_dict(self):
         """Convert user to dictionary"""
         return {
@@ -107,7 +155,8 @@ class User(Base, UserMixin):
             'assigned_country': self.assigned_country.value if self.assigned_country else None,
             'role': self.role or 'user',  # Return default role if None
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'accessible_companies': [{'id': p.company_id, 'name': p.company.name} for p in self.company_permissions if p.can_view]
         }
 
     def update_last_login(self):
