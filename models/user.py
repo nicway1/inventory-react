@@ -7,7 +7,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 import logging
 # Import the related model to resolve the relationship string
-from models.permission import UserCompanyPermission
+from models.user_company_permission import UserCompanyPermission
 # Import enums from the new file
 from models.enums import UserType, Country
 
