@@ -8,20 +8,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import logging
 # Import the related model to resolve the relationship string
 from models.permission import UserCompanyPermission
-
-class UserType(str, PyEnum):
-    SUPER_ADMIN = "SUPER_ADMIN"
-    SUPERVISOR = "SUPERVISOR"
-    COUNTRY_ADMIN = "COUNTRY_ADMIN"
-
-class Country(str, PyEnum):
-    USA = "USA"
-    JAPAN = "JAPAN"
-    PHILIPPINES = "PHILIPPINES"
-    AUSTRALIA = "AUSTRALIA"
-    ISRAEL = "ISRAEL"
-    INDIA = "INDIA"
-    SINGAPORE = "SINGAPORE"
+# Import enums from the new file
+from models.enums import UserType, Country
 
 class User(Base, UserMixin):
     __tablename__ = 'users'

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, Enum
 from sqlalchemy.orm import relationship
 from models.base import Base
-from models.user import UserType
+from models.enums import UserType
 
 class Permission(Base):
     __tablename__ = 'permissions'

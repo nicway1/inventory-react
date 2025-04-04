@@ -1,6 +1,7 @@
 # This file makes the models directory a Python package
 from models.base import Base
-from models.user import User, UserType, Country
+from models.user import User
+from models.enums import UserType, Country
 from models.company import Company
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
@@ -16,6 +17,7 @@ from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
 from models.ticket_attachment import TicketAttachment
 from models.intake_ticket import IntakeTicket
+from models.user_company_permission import UserCompanyPermission
 
 __all__ = [
     "Base",
@@ -37,5 +39,6 @@ __all__ = [
     "AssetTransaction",
     "AccessoryTransaction",
     "TicketAttachment",
-    "IntakeTicket"
+    "IntakeTicket",
+    "UserCompanyPermission"
 ]

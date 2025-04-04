@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import session, redirect, url_for, flash, abort, request
 from flask_login import current_user
-from models.user import UserType
+from models.enums import UserType
 
 def login_required(f):
     @wraps(f)
