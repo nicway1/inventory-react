@@ -150,6 +150,11 @@ def create_app():
     def hello():
         return 'Hello, World!'
 
+    @app.route('/where-we-operate')
+    def where_we_operate():
+        """Renders the map page, accessible without login."""
+        return render_template('maps.html')
+
     return app
 
 app = create_app()
