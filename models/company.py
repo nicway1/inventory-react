@@ -3,6 +3,8 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from models.base import Base
 from datetime import datetime
+# Import the related model explicitly
+from models.user_company_permission import UserCompanyPermission
 
 class Company(Base):
     __tablename__ = 'companies'
@@ -21,6 +23,7 @@ class Company(Base):
     users = relationship("User", back_populates="company", lazy="dynamic", viewonly=True)
     assets = relationship("Asset", back_populates="company", lazy="dynamic", viewonly=True)
     customer_users = relationship("CustomerUser", back_populates="company")
+    user_permissions = relationship(UserCompanyPermission, back_populates="company")
 
     @property
     def logo_url(self):
