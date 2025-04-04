@@ -6,6 +6,8 @@ from models.base import Base
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 import logging
+# Import the related model to resolve the relationship string
+from models.permission import UserCompanyPermission
 
 class UserType(str, PyEnum):
     SUPER_ADMIN = "SUPER_ADMIN"
