@@ -239,12 +239,12 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex space-x-3">
-                                <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
+                                <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}"
                                    class="text-blue-600 hover:text-blue-900">View</a>
-                                {% if is_admin %}
-                                <a href="{{ url_for('inventory.edit_accessory', id=accessory.id) }}" 
+                                {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
+                                <a href="{{ url_for('inventory.edit_accessory', id=accessory.id) }}"
                                    class="text-indigo-600 hover:text-indigo-900">Edit</a>
-                                <form action="{{ url_for('inventory.delete_accessory', id=accessory.id) }}" 
+                                <form action="{{ url_for('inventory.delete_accessory', id=accessory.id) }}"
                                       method="POST"
                                       class="inline"
                                       onsubmit="return confirm('Are you sure you want to delete this accessory?');">

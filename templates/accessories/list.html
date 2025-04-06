@@ -133,12 +133,18 @@
                                 {{ accessory.status }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onclick="event.stopPropagation()">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onclick="event.stopPropagation();">
                             <div class="flex space-x-2">
                                 <a href="{{ url_for('accessories.view', id=accessory.id) }}" class="text-blue-600 hover:text-blue-900">View</a>
+                                {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
                                 <a href="{{ url_for('accessories.edit', id=accessory.id) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                {% endif %}
+                                {% if current_user.permissions and current_user.permissions.can_create_accessories %}
                                 <a href="{{ url_for('accessories.add_stock', id=accessory.id) }}" class="text-green-600 hover:text-green-900">Add Stock</a>
+                                {% endif %}
+                                {% if current_user.permissions and current_user.permissions.can_delete_accessories %}
                                 <button onclick="deleteAccessory({{ accessory.id }})" class="text-red-600 hover:text-red-900">Delete</button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

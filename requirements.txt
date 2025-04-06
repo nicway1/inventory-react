@@ -16,4 +16,6 @@ Flask-WTF==1.1.1
 Flask-Mail==0.10.0
 WTForms==2.3.3
 beautifulsoup4>=4.12.2
-trackingmore-sdk-python>=1.0.0 
+trackingmore-sdk-python==0.1.4
+Flask-Migrate==2.7.0
+firecrawl-py 

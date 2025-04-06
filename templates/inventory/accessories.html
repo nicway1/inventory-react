@@ -50,7 +50,7 @@
                 <span id="checkoutCount" class="ml-1.5 bg-white text-blue-600 px-1.5 py-0.5 rounded-full text-xs font-medium"></span>
             </button>
             
-            {% if is_admin %}
+            {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
             <button class="bg-blue-500 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-600 transition-colors duration-200 flex items-center" onclick="showAddAccessoryModal()">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -80,7 +80,7 @@
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Quantity</th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Available</th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        {% if is_admin %}
+                        {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                         {% endif %}
                     </tr>
@@ -129,7 +129,7 @@
                                 {{ accessory.status }}
                             </span>
                         </td>
-                        {% if is_admin %}
+                        {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" onclick="event.stopPropagation();">
                             <div class="flex items-center space-x-4">
                                 <button onclick="window.location.href='{{ url_for('inventory.edit_accessory', id=accessory.id) }}'"
@@ -164,7 +164,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{% if is_admin %}7{% else %}6{% endif %}" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="{% if current_user.permissions and current_user.permissions.can_edit_accessories %}7{% else %}6{% endif %}" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>

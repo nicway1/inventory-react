@@ -152,6 +152,12 @@
                                     bg-blue-100 text-blue-800
                                 {% elif 'DTDC' in ticket.category.name %}
                                     bg-orange-100 text-orange-800
+                                {% elif 'AUTO' in ticket.category.name %}
+                                    bg-teal-100 text-teal-800
+                                {% elif 'CLAW' in ticket.category.name and 'RETURN' in ticket.category.name %}
+                                    bg-red-100 text-red-800
+                                {% elif 'CLAW' in ticket.category.name %}
+                                    bg-indigo-100 text-indigo-800
                                 {% else %}
                                     bg-gray-100 text-gray-800
                                 {% endif %}">
@@ -214,6 +220,14 @@
                             {% elif carrier == 'dtdc' %}
                                 <a href="https://tracking.dtdc.com/tracking/trackshipment?number={{ ticket.shipping_tracking }}" target="_blank" class="text-orange-600 hover:text-orange-800">
                                     Track on DTDC
+                                </a>
+                            {% elif carrier == 'auto' %}
+                                <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}#tracking" class="text-teal-600 hover:text-teal-800">
+                                    View Auto Tracking
+                                </a>
+                            {% elif carrier == 'claw' %}
+                                <a href="https://www.ship24.com/tracking?p={{ ticket.shipping_tracking }}" target="_blank" class="text-indigo-600 hover:text-indigo-800">
+                                    Track on Ship24
                                 </a>
                             {% else %}
                                 <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="text-green-600 hover:text-green-800">

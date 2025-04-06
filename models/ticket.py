@@ -32,6 +32,9 @@ class TicketCategory(enum.Enum):
     ASSET_CHECKOUT_UPS = "Asset Checkout (UPS)"
     ASSET_CHECKOUT_BLUEDART = "Asset Checkout (BlueDart)"
     ASSET_CHECKOUT_DTDC = "Asset Checkout (DTDC)"
+    ASSET_CHECKOUT_AUTO = "Asset Checkout (Auto)"
+    ASSET_CHECKOUT_CLAW = "Asset Checkout (claw)"
+    ASSET_RETURN_CLAW = "Asset Return (claw)"
     ASSET_INTAKE = "Asset Intake"
 
 class RMAStatus(enum.Enum):

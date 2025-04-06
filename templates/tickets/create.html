@@ -18,7 +18,7 @@
                 <h1 class="text-2xl font-bold">Create New Ticket</h1>
             </div>
 
-            <form method="POST" enctype="multipart/form-data" class="px-6 py-4 space-y-6">
+            <form id="ticketForm" method="POST" enctype="multipart/form-data" class="px-6 py-4 space-y-6">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <!-- Category -->
@@ -29,16 +29,21 @@
                             required
                             onchange="toggleFormFields()"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Select a category...</option>
+                        <option value="">Select category...</option>
                         <option value="PIN_REQUEST" {% if form and form.category == 'PIN_REQUEST' %}selected{% endif %}>PIN Request</option>
                         <option value="ASSET_REPAIR" {% if form and form.category == 'ASSET_REPAIR' %}selected{% endif %}>Asset Repair</option>
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
-                        <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout</option>
+                        <option value="REPAIR_QUOTE" {% if form and form.category == 'REPAIR_QUOTE' %}selected{% endif %}>Repair Quote</option>
+                        <option value="ITAD_QUOTE" {% if form and form.category == 'ITAD_QUOTE' %}selected{% endif %}>ITAD Quote</option>
+                        <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout (Standard)</option>
                         <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
                         <option value="ASSET_CHECKOUT_DHL" {% if form and form.category == 'ASSET_CHECKOUT_DHL' %}selected{% endif %}>Asset Checkout (DHL)</option>
                         <option value="ASSET_CHECKOUT_UPS" {% if form and form.category == 'ASSET_CHECKOUT_UPS' %}selected{% endif %}>Asset Checkout (UPS)</option>
                         <option value="ASSET_CHECKOUT_BLUEDART" {% if form and form.category == 'ASSET_CHECKOUT_BLUEDART' %}selected{% endif %}>Asset Checkout (BlueDart)</option>
                         <option value="ASSET_CHECKOUT_DTDC" {% if form and form.category == 'ASSET_CHECKOUT_DTDC' %}selected{% endif %}>Asset Checkout (DTDC)</option>
+                        <option value="ASSET_CHECKOUT_AUTO" {% if form and form.category == 'ASSET_CHECKOUT_AUTO' %}selected{% endif %}>Asset Checkout (Auto)</option>
+                        <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout (claw)</option>
+                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return (claw)</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
                     </select>
                 </div>
@@ -255,8 +260,8 @@
                     <!-- Hidden subject field -->
                     <input type="hidden" id="subject" name="subject" value="">
 
-                    <!-- Asset Selection -->
-                    <div>
+                    <!-- Asset Selection - Only shown for checkout categories -->
+                    <div id="assetSelectionContainer">
                         <label for="checkout_serial_number" class="block text-sm font-medium text-gray-700">Asset Selection</label>
                         <select id="checkout_serial_number" 
                                 name="checkout_serial_number"
@@ -434,14 +439,142 @@
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
 
+                    <!-- File Upload -->
+                    <div>
+                        <label for="intake_file" class="block text-sm font-medium text-gray-700">Upload Packing List</label>
+                        <input type="file" 
+                               id="intake_file" 
+                               name="packing_list" 
+                               accept=".xlsx,.xls,.csv,.pdf,.docx,.doc"
+                               class="mt-1 block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                    </div>
+                    
+                    <!-- Asset CSV Upload -->
+                    <div>
+                        <label for="asset_csv" class="block text-sm font-medium text-gray-700">Upload Asset List (CSV)</label>
+                        <input type="file" 
+                               id="asset_csv" 
+                               name="asset_csv" 
+                               accept=".csv"
+                               class="mt-1 block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                    </div>
+                    
                     <!-- Notes -->
                     <div>
-                        <label for="intake_notes" class="block text-sm font-medium text-gray-700">Additional Notes</label>
+                        <label for="intake_notes" class="block text-sm font-medium text-gray-700">Notes</label>
                         <textarea id="intake_notes" 
                                   name="notes" 
                                   rows="3"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                   placeholder="Any additional information about this intake..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Asset Return Fields -->
+                <div id="assetReturnFields" class="hidden space-y-6">
+                    <!-- ALL hidden fields needed for backend compatibility -->
+                    <input type="hidden" id="asset_return_serial" name="asset_checkout_serial" value="ASSET_RETURN_NO_ASSET">
+                    <input type="hidden" id="return_subject" name="subject" value="">
+                    <input type="hidden" id="asset_return_form_flag" name="is_asset_return" value="1">
+                    <input type="hidden" id="novalidate_flag" name="novalidate" value="1">
+                    
+                    <!-- Customer Selection -->
+                    <div>
+                        <label for="return_customer_id" class="block text-sm font-medium text-gray-700">Select Customer</label>
+                        <select id="return_customer_id" 
+                                name="customer_id"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select a customer...</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}" 
+                                    data-address="{{ customer.address }}"
+                                    data-company="{{ customer.company.name if customer.company else '' }}">
+                                {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Return Description -->
+                    <div>
+                        <label for="return_description" class="block text-sm font-medium text-gray-700">Return Description</label>
+                        <textarea id="return_description" 
+                                  name="return_description" 
+                                  rows="3"
+                                  required
+                                  placeholder="Please describe what assets are being returned and why"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Shipping Address -->
+                    <div>
+                        <label for="return_shipping_address" class="block text-sm font-medium text-gray-700">Return Address</label>
+                        <textarea id="return_shipping_address" 
+                                  name="shipping_address" 
+                                  rows="3"
+                                  required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Outbound Tracking Number -->
+                    <div>
+                        <label for="outbound_tracking" class="block text-sm font-medium text-gray-700">
+                            Outbound Tracking Number (Any Carrier)
+                        </label>
+                        <input type="text" 
+                               id="outbound_tracking" 
+                               name="shipping_tracking" 
+                               required
+                               placeholder="Tracking number for shipment TO customer"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500" id="outboundTrackingHelp">
+                            This is the tracking number for shipping the package to the customer.
+                        </p>
+                    </div>
+
+                    <!-- Inbound Tracking Number -->
+                    <div>
+                        <label for="inbound_tracking" class="block text-sm font-medium text-gray-700">
+                            Inbound Tracking Number (Optional)
+                        </label>
+                        <input type="text" 
+                               id="inbound_tracking" 
+                               name="return_tracking" 
+                               placeholder="Tracking number for return shipment FROM customer"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500" id="inboundTrackingHelp">
+                            This is the tracking number for the return shipment from the customer.
+                        </p>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="return_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea id="return_notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Special Submit Button for Asset Return -->
+                    <div class="pt-4">
+                        <button type="button" 
+                                id="asset_return_submit"
+                                onclick="submitAssetReturnForm()"
+                                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            Create Asset Return Ticket
+                        </button>
                     </div>
                 </div>
 
@@ -472,6 +605,7 @@
                 <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" 
+                            id="mainSubmitButton"
                             class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         Create Ticket
                     </button>
@@ -492,18 +626,35 @@ function toggleFormFields() {
     const repairFields = document.getElementById('repairFields');
     const assetCheckoutFields = document.getElementById('assetCheckoutFields');
     const assetIntakeFields = document.getElementById('assetIntakeFields');
+    const assetReturnFields = document.getElementById('assetReturnFields');
     const trackingLabel = document.getElementById('trackingLabel');
     const singpostNote = document.getElementById('singpostNote');
     const trackingHint = document.getElementById('trackingHint');
     const trackingInput = document.getElementById('shipping_tracking');
     const intakeTitle = document.getElementById('intake_title');
     const intakeDescription = document.getElementById('intake_description');
+    const assetSelectionContainer = document.getElementById('assetSelectionContainer');
+    const mainSubmitButton = document.querySelector('button[type="submit"]');
     
     // Hide all category-specific fields first
     pinRequestFields.classList.add('hidden');
     repairFields.classList.add('hidden');
     assetCheckoutFields.classList.add('hidden');
     assetIntakeFields.classList.add('hidden');
+    assetReturnFields.classList.add('hidden');
+    
+    // Show/hide submit buttons based on category
+    if (category === 'ASSET_RETURN_CLAW') {
+        // Hide main submit button
+        if (mainSubmitButton) {
+            mainSubmitButton.classList.add('hidden');
+        }
+    } else {
+        // Show main submit button for other categories
+        if (mainSubmitButton) {
+            mainSubmitButton.classList.remove('hidden');
+        }
+    }
     
     // Remove required attributes from all fields
     document.getElementById('serial_number').required = false;
@@ -513,10 +664,32 @@ function toggleFormFields() {
     document.getElementById('customer_id').required = false;
     document.getElementById('checkout_serial_number').required = false;
     document.getElementById('shipping_address').required = false;
+    document.getElementById('return_customer_id').required = false;
+    document.getElementById('return_description').required = false;
+    document.getElementById('return_shipping_address').required = false;
+    document.getElementById('outbound_tracking').required = false;
     if (intakeTitle) intakeTitle.required = false;
     if (intakeDescription) intakeDescription.required = false;
     
-    // Show and make required the appropriate fields
+    // Handle ASSET_RETURN_CLAW as a separate category first
+    if (category === 'ASSET_RETURN_CLAW') {
+        // Show ONLY the asset return fields
+        assetReturnFields.classList.remove('hidden');
+        
+        // Make required fields for asset return
+        document.getElementById('return_customer_id').required = true;
+        document.getElementById('return_description').required = true;
+        document.getElementById('return_shipping_address').required = true;
+        document.getElementById('outbound_tracking').required = true;
+        
+        // Set a dummy value in asset_checkout_serial for form validation
+        document.getElementById('asset_checkout_serial').value = 'ASSET_RETURN_NO_ASSET';
+        console.log('Set dummy value in asset_checkout_serial for Asset Return');
+        
+        return; // Exit early to avoid running the asset checkout logic
+    }
+    
+    // Show and make required the appropriate fields for other categories
     if (category === 'PIN_REQUEST') {
         pinRequestFields.classList.remove('hidden');
         document.getElementById('serial_number').required = true;
@@ -525,11 +698,16 @@ function toggleFormFields() {
         repairFields.classList.remove('hidden');
         document.getElementById('repair_serial_number').required = true;
         document.getElementById('damage_description').required = true;
-    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
+    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
         assetCheckoutFields.classList.remove('hidden');
         document.getElementById('customer_id').required = true;
         document.getElementById('checkout_serial_number').required = true;
         document.getElementById('shipping_address').required = true;
+        
+        // Show asset selection for checkout categories
+        if (assetSelectionContainer) {
+            assetSelectionContainer.classList.remove('hidden');
+        }
         
         // For BlueDart, ensure the selected serial number is copied to the hidden field
         if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
@@ -572,6 +750,13 @@ function toggleFormFields() {
             trackingInput.required = true;
         } else if (category === 'ASSET_CHECKOUT_DTDC') {
             trackingLabel.textContent = 'DTDC Tracking Number';
+            singpostNote.classList.add('hidden');
+            trackingHint.classList.add('hidden');
+            trackingInput.pattern = null;
+            trackingInput.removeAttribute('pattern');
+            trackingInput.required = true;
+        } else if (category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
+            trackingLabel.textContent = 'Tracking Number (Any Carrier)';
             singpostNote.classList.add('hidden');
             trackingHint.classList.add('hidden');
             trackingInput.pattern = null;
@@ -662,6 +847,13 @@ $(document).ready(function() {
     // Initialize form state and show the correct category fields
     toggleFormFields();
     
+    // Run toggleFormFields initially to hide/show appropriate buttons
+    const initialCategory = $('#category').val();
+    if (initialCategory === 'ASSET_RETURN_CLAW') {
+        // Make sure we handle asset return category correctly on page load
+        $('#mainSubmitButton').addClass('hidden');
+    }
+    
     // Add category change event handler
     $('#category').on('change', function() {
         const category = $(this).val();
@@ -688,7 +880,7 @@ $(document).ready(function() {
             $('#serial_number').trigger('change');
         } else if (category === 'ASSET_REPAIR' && $('#repair_serial_number').val()) {
             $('#repair_serial_number').trigger('change');
-        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') && $('#checkout_serial_number').val()) {
+        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') && $('#checkout_serial_number').val()) {
             $('#checkout_serial_number').trigger('change');
             
             // Special handling for DHL tracking
@@ -717,6 +909,9 @@ $(document).ready(function() {
     // Handle asset selection changes
     $('#serial_number, #repair_serial_number, #checkout_serial_number').on('change', function() {
         const selectedOption = $(this).find(':selected');
+        const selectedValue = selectedOption.val();
+        console.log(`Asset selected (change event - ${this.id}). Value:`, selectedValue);
+
         if (selectedOption.val()) {
             const model = selectedOption.data('model');
             const customer = selectedOption.data('customer');
@@ -738,12 +933,18 @@ $(document).ready(function() {
             } else if (this.id === 'checkout_serial_number') {
                 // Update the hidden field with the selected serial number
                 $('#asset_checkout_serial').val(selectedOption.val());
-                console.log('Updated asset_checkout_serial to:', selectedOption.val());
+                console.log('Updated #asset_checkout_serial hidden field to:', $('#asset_checkout_serial').val());
                 
                 // Set the subject for the ticket
                 const ticketSubject = `Asset Checkout - ${model} (${assetTag}) - ${selectedOption.val()}`;
                 $('#subject').val(ticketSubject);
                 console.log('Updated subject to:', ticketSubject);
+            }
+        } else {
+            // Clear hidden field if no asset is selected
+            if (this.id === 'checkout_serial_number') {
+                $('#asset_checkout_serial').val('');
+                console.log('Cleared #asset_checkout_serial hidden field.');
             }
         }
     });
@@ -759,19 +960,77 @@ $(document).ready(function() {
         }
     });
 
+    // Handle customer selection for asset return
+    $('#return_customer_id').on('change', function() {
+        const selectedOption = $(this).find(':selected');
+        if (selectedOption.val()) {
+            const address = selectedOption.data('address');
+            if (address) {
+                $('#return_shipping_address').val(address);
+            }
+            
+            // Set the subject for asset return tickets
+            const customerName = selectedOption.text();
+            $('#return_subject').val(`Asset Return (claw) - ${customerName}`);
+        }
+    });
+
     // Add form submission debugging
     $('form').on('submit', function(e) {
         const category = $('#category').val();
+        console.log('Form submit event triggered. Category:', category);
         
-        // Only validate asset selection for specific categories
-        if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
-            const serialNumber = $('#checkout_serial_number').val();
+        // Check if this is an asset return form with the special flag
+        if ($('#asset_return_form_flag').val() === '1' && category === 'ASSET_RETURN_CLAW') {
+            console.log('Asset Return form detected with flag. Allowing default submission.');
+            return true;
+        }
+        
+        // Log the value of the hidden serial field *before* validation checks
+        const hiddenSerialValueBeforeCheck = $('#asset_checkout_serial').val();
+        console.log('Value of #asset_checkout_serial BEFORE validation:', hiddenSerialValueBeforeCheck);
+
+        // Handle Asset Return with special validation
+        if (category === 'ASSET_RETURN_CLAW') {
+            console.log('Validating ASSET_RETURN_CLAW category...');
+            // For Asset Return, check if outbound tracking is provided
+            const outboundTracking = $('#outbound_tracking').val();
+            if (!outboundTracking) {
+                console.log('Submit validation failed: #outbound_tracking is empty. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide an outbound tracking number');
+                return false;
+            }
+            
+            // Set a default subject if not provided
+            if (!$('#subject').val()) {
+                const customer = $('#return_customer_id option:selected').text();
+                $('#subject').val(`Asset Return (claw) - ${customer}`);
+            }
+            
+            // Explicitly bypass any asset validation for return tickets by setting a dummy value
+            $('#asset_checkout_serial').val('ASSET_RETURN_NO_ASSET');
+            
+            console.log('Submit validation passed for Asset Return. Submitting form...');
+            return true; // Allow the form to submit
+        }
+        
+        // Only validate asset selection for specific checkout categories
+        else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
+            console.log('Validating ASSET_CHECKOUT_* category...');
+            // Use the hidden field which is reliably updated by the change handler
+            const serialNumber = $('#asset_checkout_serial').val();
+            console.log('Submit validation: Checking #asset_checkout_serial. Value:', serialNumber);
+
             if (!serialNumber) {
+                console.log('Submit validation failed: #asset_checkout_serial is empty. Preventing submission.');
                 e.preventDefault();
                 alert('Please select an asset');
                 return false;
             }
             
+            console.log('Submit validation passed for asset selection.');
+
             // Ensure no tracking format validation for DHL
             if (category === 'ASSET_CHECKOUT_DHL') {
                 $('#shipping_tracking').removeAttr('pattern');
@@ -782,33 +1041,31 @@ $(document).ready(function() {
                 $('#shipping_tracking').removeAttr('pattern');
             }
             
-            // Set the hidden field value again to ensure it's properly set
-            $('#asset_checkout_serial').val(serialNumber);
+            // The hidden field is already set by the change handler, this line is redundant but harmless
+            // $('#asset_checkout_serial').val(serialNumber);
             console.log('Form submitted with asset_checkout_serial:', $('#asset_checkout_serial').val());
         } else if (category === 'PIN_REQUEST') {
+             console.log('Validating PIN_REQUEST category...');
             const serialNumber = $('#serial_number').val();
             if (!serialNumber) {
+                 console.log('Submit validation failed: #serial_number is empty. Preventing submission.');
                 e.preventDefault();
                 alert('Please select an asset');
                 return false;
             }
         } else if (category === 'ASSET_REPAIR') {
+             console.log('Validating ASSET_REPAIR category...');
             const serialNumber = $('#repair_serial_number').val();
             if (!serialNumber) {
+                 console.log('Submit validation failed: #repair_serial_number is empty. Preventing submission.');
                 e.preventDefault();
                 alert('Please select an asset');
                 return false;
             }
         }
         
-        console.log('Form submitted');
-        console.log('Category:', $('#category').val());
-        console.log('Customer ID:', $('#customer_id').val());
-        console.log('Serial Number (checkout):', $('#checkout_serial_number').val());
-        console.log('Hidden Serial Number:', $('#asset_checkout_serial').val());
-        console.log('Shipping Address:', $('#shipping_address').val());
-        console.log('Subject:', $('#subject').val());
-        console.log('Priority:', $('#priority').val());
+        console.log('Form validation completed. Allowing submission.');
+        // ... rest of submit logic ...
         return true;
     });
 
@@ -892,6 +1149,136 @@ function removeAsset(button) {
             </tr>
         `;
     }
+}
+
+// Function to submit the Asset Return form bypassing normal validation
+function submitAssetReturnForm() {
+    console.log('Custom Asset Return submit function called');
+    
+    // Validate required fields for asset return
+    if (!$('#return_customer_id').val()) {
+        alert('Please select a customer');
+        return false;
+    }
+    
+    if (!$('#return_description').val()) {
+        alert('Please provide a return description');
+        return false;
+    }
+    
+    if (!$('#return_shipping_address').val()) {
+        alert('Please provide a return address');
+        return false;
+    }
+    
+    if (!$('#outbound_tracking').val()) {
+        alert('Please provide an outbound tracking number');
+        return false;
+    }
+    
+    // Set the subject for the ticket
+    const customer = $('#return_customer_id option:selected').text();
+    $('#return_subject').val(`Asset Return (claw) - ${customer}`);
+    
+    // Ensure the dummy value is set for the asset checkout serial
+    $('#asset_return_serial').val('ASSET_RETURN_NO_ASSET');
+    
+    console.log('Asset Return validation passed. Creating form submission...');
+    
+    // Create a temporary form to submit data
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = window.location.href;
+    form.style.display = 'none';
+    
+    // Add CSRF token
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    // Add category
+    const categoryInput = document.createElement('input');
+    categoryInput.type = 'hidden';
+    categoryInput.name = 'category';
+    categoryInput.value = 'ASSET_RETURN_CLAW';
+    form.appendChild(categoryInput);
+    
+    // Add priority
+    const priorityInput = document.createElement('input');
+    priorityInput.type = 'hidden';
+    priorityInput.name = 'priority';
+    priorityInput.value = $('#priority').val();
+    form.appendChild(priorityInput);
+    
+    // Add customer ID
+    const customerInput = document.createElement('input');
+    customerInput.type = 'hidden';
+    customerInput.name = 'customer_id';
+    customerInput.value = $('#return_customer_id').val();
+    form.appendChild(customerInput);
+    
+    // Add return description (as the main description)
+    const descriptionInput = document.createElement('input');
+    descriptionInput.type = 'hidden';
+    descriptionInput.name = 'description';
+    descriptionInput.value = $('#return_description').val();
+    form.appendChild(descriptionInput);
+    
+    // Add shipping address
+    const addressInput = document.createElement('input');
+    addressInput.type = 'hidden';
+    addressInput.name = 'shipping_address';
+    addressInput.value = $('#return_shipping_address').val();
+    form.appendChild(addressInput);
+    
+    // Add outbound tracking
+    const trackingInput = document.createElement('input');
+    trackingInput.type = 'hidden';
+    trackingInput.name = 'shipping_tracking';
+    trackingInput.value = $('#outbound_tracking').val();
+    form.appendChild(trackingInput);
+    
+    // Add inbound tracking if provided
+    if ($('#inbound_tracking').val()) {
+        const inboundInput = document.createElement('input');
+        inboundInput.type = 'hidden';
+        inboundInput.name = 'return_tracking';
+        inboundInput.value = $('#inbound_tracking').val();
+        form.appendChild(inboundInput);
+    }
+    
+    // Add notes if provided
+    if ($('#return_notes').val()) {
+        const notesInput = document.createElement('input');
+        notesInput.type = 'hidden';
+        notesInput.name = 'notes';
+        notesInput.value = $('#return_notes').val();
+        form.appendChild(notesInput);
+    }
+    
+    // Add subject
+    const subjectInput = document.createElement('input');
+    subjectInput.type = 'hidden';
+    subjectInput.name = 'subject';
+    subjectInput.value = `Asset Return (claw) - ${$('#return_customer_id option:selected').text()}`;
+    form.appendChild(subjectInput);
+    
+    // Add dummy asset checkout serial
+    const serialInput = document.createElement('input');
+    serialInput.type = 'hidden';
+    serialInput.name = 'asset_checkout_serial';
+    serialInput.value = 'ASSET_RETURN_NO_ASSET';
+    form.appendChild(serialInput);
+    
+    // Add the form to the document and submit it
+    document.body.appendChild(form);
+    console.log('Submitting custom form for Asset Return...');
+    form.submit();
+    
+    return true;
 }
 </script>
 {% endblock %} 

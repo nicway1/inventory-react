@@ -214,7 +214,7 @@
             <h2 class="text-xl font-semibold">Accessories</h2>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                 <!-- Bulk Delete Form -->
-                {% if is_admin %}
+                {% if current_user.permissions and current_user.permissions.can_delete_accessories %}
                 <form id="bulkDeleteAccessoriesForm" action="{{ url_for('inventory.bulk_delete') }}" method="POST" class="flex items-center" onsubmit="return confirmDelete()">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete2" value="[]">
@@ -224,6 +224,7 @@
                         Delete Selected
                     </button>
                 </form>
+                {% endif %}
                 
                 <!-- Checkout List Buttons for Accessories -->
                 <button id="addToCheckoutListAccessories" disabled
@@ -252,7 +253,6 @@
                     </svg>
                     Export Accessories
                 </a>
-                {% endif %}
             </div>
         </div>
         

@@ -18,6 +18,9 @@ ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv', 'pdf', 'jpg', 'jpeg', 'png'}
 # TrackingMore API configuration
 TRACKINGMORE_API_KEY = os.environ.get('TRACKINGMORE_API_KEY')
 
+# Firecrawl API configuration
+FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY', 'your_firecrawl_api_key_here')
+
 # Email configuration
 MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.example.com')
 MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))

@@ -74,7 +74,7 @@
                     </div>
                 </div>
             </div>
-            {% if is_admin %}
+            {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
             <div class="flex space-x-2">
                 <a href="{{ url_for('inventory.edit_accessory', id=accessory.id) }}" 
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors duration-150">

@@ -1,10 +1,6 @@
 {% extends "base.html" %}
 
 {% block head %}
-<!-- Debug Info -->
-<div style="background-color: #f0f0f0; padding: 10px; margin: 10px;">
-    <p>Current user type: {{ session.get('user_type') }}</p>
-</div>
 <!-- Load 17TRACK script only for SingPost tickets -->
 {% if ticket.shipping_tracking and (ticket.shipping_tracking.startswith('XZD') or ticket.shipping_tracking.startswith('XZB')) %}
 <!-- SingPost Tracking Widget Script -->
@@ -415,14 +411,12 @@
                 </svg>
                 Email
             </button>
-            {% if session.get('user_type')|upper == 'SUPER_ADMIN' %}
             <button class="sf-button">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
                 Edit
             </button>
-            {% endif %}
             <button class="sf-button primary-button" onclick="toggleUpdateForm()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
@@ -584,16 +578,8 @@
                                         <td>
                                             <span class="sf-badge sf-badge-success">{{ displayed_asset.status }}</span>
                                         </td>
-                                        <td class="flex items-center space-x-2">
-                                            <button class="sf-button" onclick="viewAsset('{{ displayed_asset.id }}')">View</button>
-                                            {% if session.get('user_type')|upper == 'SUPER_ADMIN' %}
-                                            <a href="/assets/{{ displayed_asset.id }}/edit" class="sf-button primary-button inline-flex items-center">
-                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                                Edit
-                                            </a>
-                                            {% endif %}
+                                        <td>
+                                            <button class="sf-button">View</button>
                                         </td>
                                     </tr>
                                     {% else %}
@@ -614,19 +600,19 @@
             </div>
         </div>
 
-        <!-- Outbound Tracking Information Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
+        <!-- Tracking Information Section -->
+        {% if ticket.shipping_tracking %}
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
             <div class="p-4 bg-gray-50 border-b border-gray-200">
                 <div class="flex justify-between items-center">
-                    <div class="flex flex-col space-y-2">
-                        <h3 class="text-lg font-semibold text-gray-900">Outbound Tracking Information</h3>
-                        <div class="flex items-center">
-                            {% if ticket.shipping_tracking %}
+                    <div class="flex items-center space-x-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Tracking Information</h3>
+                        <div class="flex items-center space-x-2">
                             <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
                                 {{ ticket.shipping_tracking }}
                             </span>
                             {% if ticket.shipping_status %}
-                            <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
+                            <span class="px-3 py-1 text-sm font-medium rounded-full ticket-status
                                 {% if 'delivered' in ticket.shipping_status.lower() %}
                                     bg-green-100 text-green-800
                                 {% elif 'out for delivery' in ticket.shipping_status.lower() %}
@@ -637,21 +623,16 @@
                                 {{ ticket.shipping_status }}
                             </span>
                             {% endif %}
-                            {% else %}
-                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
-                                Not provided yet
+                            <span id="data-source-indicator" class="hidden px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                                Simulated Data
                             </span>
-                            {% endif %}
-                        </div>
-                    </div>
                             
-                    {% if ticket.shipping_tracking %}
                             <!-- Carrier Selection -->
-                    <div class="flex items-center space-x-4">
-                        <form id="carrierForm" class="flex items-center gap-2">
+                            <div class="ml-4">
+                                <form id="carrierForm" class="inline-flex items-center gap-2">
                                     <label for="carrier" class="text-sm text-gray-700">Carrier:</label>
                                     <select id="carrier" name="carrier" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" onchange="updateCarrier()">
-                                <option value="auto" {% if ticket.shipping_carrier == 'auto' %}selected{% endif %}>Auto-Detect</option>
+                                        <option value="auto" {% if ticket.shipping_carrier == 'auto' %}selected{% endif %}>Auto-Detect</option>
                                         <option value="singpost" {% if ticket.shipping_carrier == 'singpost' %}selected{% endif %}>SingPost</option>
                                         <option value="dhl" {% if ticket.shipping_carrier == 'dhl' %}selected{% endif %}>DHL</option>
                                         <option value="ups" {% if ticket.shipping_carrier == 'ups' %}selected{% endif %}>UPS</option>
@@ -659,21 +640,26 @@
                                         <option value="dtdc" {% if ticket.shipping_carrier == 'dtdc' %}selected{% endif %}>DTDC</option>
                                     </select>
                                 </form>
-                        
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="refreshTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                         Refresh
                     </button>
-                        
+                    <a href="{{ url_for('tickets.debug_tracking', ticket_id=ticket.id) }}" target="_blank" class="inline-flex items-center ml-2 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Debug
+                    </a>
                     <button type="button" 
                             onclick="trackPackage()" 
                             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                            Track on {% if ticket.shipping_carrier == 'auto' %}Tracking Site{% else %}{{ ticket.shipping_carrier|default('SingPost', true)|capitalize }} Site{% endif %}
+                        Track on {% if ticket.shipping_carrier == 'auto' %}Tracking Site{% else %}{{ ticket.shipping_carrier|default('SingPost', true)|capitalize }} Site{% endif %}
                     </button>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
             
@@ -703,79 +689,338 @@
                 <!-- Content will be populated by JavaScript -->
             </div>
         </div>
+        {% endif %}
 
-        <!-- Inbound Tracking Information Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden inbound-tracking">
+        <!-- Second Tracking Section for Asset Return tickets -->
+        {% if ticket.category == 'Asset Return (claw)' or ticket.category.name == 'Asset Return (claw)' %}
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden mt-4">
             <div class="p-4 bg-gray-50 border-b border-gray-200">
-                <div class="flex justify-between items-center">
-                    <div class="flex flex-col space-y-2">
-                        <h3 class="text-lg font-semibold text-gray-900">Inbound Tracking Information</h3>
-                        <div class="flex items-center">
-                            {% if ticket.return_tracking %}
-                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                                {{ ticket.return_tracking }}
-                            </span>
-                            <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
-                                {% if 'delivered' in ticket.return_status.lower() %}
-                                    bg-green-100 text-green-800
-                                {% elif 'out for delivery' in ticket.return_status.lower() %}
-                                    bg-yellow-100 text-yellow-800
-                                {% else %}
-                                    bg-gray-100 text-gray-800
-                                {% endif %}">
-                                {{ ticket.return_status or 'In Transit' }}
-                            </span>
-                            {% else %}
-                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
-                                Not provided yet
-                            </span>
-                            {% endif %}
+                <h3 class="text-lg font-semibold text-gray-900">Return Tracking Details</h3>
+            </div>
+            <div class="p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Outbound Tracking -->
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium text-gray-800">Outbound Tracking</h4>
+                            <button onclick="editTracking('outbound', '{{ ticket.shipping_tracking }}')" class="text-blue-600 hover:text-blue-800">
+                                Edit
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">Package from our facility to customer</p>
+                        <div class="bg-blue-50 p-2 rounded">
+                            <p class="font-mono">{{ ticket.shipping_tracking }}</p>
                         </div>
                     </div>
 
-                    {% if ticket.return_tracking %}
-                    <div class="flex items-center space-x-2">
-                        <button onclick="refreshReturnTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Refresh
+                    <!-- Inbound Tracking -->
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium text-gray-800">Inbound Tracking</h4>
+                            <button onclick="editTracking('inbound', '{{ ticket.return_tracking }}')" class="text-blue-600 hover:text-blue-800">
+                                Edit
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">Return package from customer</p>
+                        <div class="bg-blue-50 p-2 rounded">
+                            <p class="font-mono">{{ ticket.return_tracking or 'Not provided yet' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tracking Edit Modal -->
+        <div id="tracking-edit-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <h3 id="tracking-edit-title" class="text-lg font-medium mb-4">Edit Tracking Number</h3>
+                <form id="tracking-edit-form" method="POST" action="{{ url_for('tickets.update_tracking_numbers', ticket_id=ticket.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="tracking-edit-type" name="tracking_type" value="">
+                    
+                    <div class="mb-4">
+                        <label for="tracking-edit-number" class="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
+                        <input type="text" id="tracking-edit-number" name="tracking_number" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeTrackingModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded">
+                            Cancel
                         </button>
-                        
-                        <button type="button" 
-                                onclick="trackReturnPackage()" 
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-                            Track Return Package
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
+                            Save
                         </button>
                     </div>
-                    {% endif %}
-                </div>
+                </form>
             </div>
-            
-            <!-- Loading State -->
-            <div id="returnTrackingLoading" class="hidden">
-                <div class="flex flex-col items-center justify-center p-8">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-                    <p class="mt-4 text-sm text-gray-500">Fetching latest return tracking information...</p>
-                </div>
-            </div>
+        </div>
 
-            <!-- Error State -->
-            <div id="returnTrackingError" class="hidden">
-                <div class="flex flex-col items-center justify-center p-8 bg-red-50">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+        <script>
+        function editTracking(type, currentValue) {
+            const modal = document.getElementById('tracking-edit-modal');
+            const titleElement = document.getElementById('tracking-edit-title');
+            const typeInput = document.getElementById('tracking-edit-type');
+            const numberInput = document.getElementById('tracking-edit-number');
+            
+            // Set modal values
+            if (type === 'outbound') {
+                titleElement.textContent = 'Edit Outbound Tracking Number';
+                typeInput.value = 'outbound';
+            } else {
+                titleElement.textContent = 'Edit Inbound Tracking Number';
+                typeInput.value = 'inbound';
+            }
+            
+            numberInput.value = currentValue || '';
+            
+            // Show modal
+            modal.classList.remove('hidden');
+        }
+        
+        function closeTrackingModal() {
+            const modal = document.getElementById('tracking-edit-modal');
+            modal.classList.add('hidden');
+        }
+        </script>
+        {% endif %}
+
+        <!-- Comments Tab Content -->
+        <div id="comments" class="sf-tab-content hidden">
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <h2 class="sf-card-title">Comments</h2>
+                </div>
+                <div class="sf-card-body">
+                    <!-- Add Comment Form -->
+                    <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="mb-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-4">
+                            <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Add a comment</label>
+                            <textarea id="content" name="content" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Type your comment here..."></textarea>
+                            <!-- Mention suggestions will appear here -->
+                            <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Add Comment
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Comments List -->
+                    <div class="space-y-4">
+                        {% if comments %}
+                            {% for comment in comments %}
+                            <div class="bg-gray-50 p-4 rounded-md">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <span class="text-blue-600 font-medium text-sm">{{ comment.user.username[0]|upper if comment.user else 'U' }}</span>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm font-medium text-gray-900">{{ comment.user.username if comment.user else 'Unknown User' }}</span>
+                                                <span class="text-xs text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                            </div>
+                                            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.content }}</div>
+                                        </div>
+                                    </div>
+                                    {% if session.user_id == comment.user_id %}
+                                    <div class="flex">
+                                        <button class="text-gray-400 hover:text-gray-600">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-gray-500 text-center py-4">No comments yet</p>
+                        {% endif %}
                     </div>
-                    <h3 class="mt-2 text-sm font-medium text-red-800">Unable to load return tracking information</h3>
-                    <p class="mt-1 text-sm text-red-600"><span></span></p>
                 </div>
             </div>
-            
-            <!-- Return Tracking Info -->
-            <div id="returnTrackingInfo" class="divide-y divide-gray-200">
-                <!-- Content will be populated by JavaScript -->
+        </div>
+
+        <!-- Documents Tab Content -->
+        <div id="documents" class="sf-tab-content hidden">
+            <div class="sf-card mb-6">
+                <div class="sf-card-header">
+                    <div class="flex justify-between items-center">
+                        <h2 class="sf-card-title">Documents</h2>
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('upload-document-form').classList.toggle('hidden')" class="sf-button primary-button">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Upload with Details
+                            </button>
+                            <button onclick="document.getElementById('documentUpload').click()" class="sf-button">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                Quick Upload
+                            </button>
+                            <!-- Add hidden file input for direct uploads -->
+                            <input id="documentUpload" type="file" name="attachments" class="hidden" multiple>
+                        </div>
+                    </div>
+                </div>
+                <div class="sf-card-body">
+                    <!-- Upload Document Form -->
+                    <form id="upload-document-form" method="POST" action="{{ url_for('tickets.upload_attachment', ticket_id=ticket.id) }}" enctype="multipart/form-data" class="hidden mb-6 p-4 bg-gray-50 rounded-md" onsubmit="handleFormSubmit(event)">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-4">
+                            <label for="attachment_title" class="block text-sm font-medium text-gray-700 mb-1">Document Title</label>
+                            <input type="text" id="attachment_title" name="title" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter document title">
+                        </div>
+                        <div class="mb-4">
+                            <label for="attachment_file" class="block text-sm font-medium text-gray-700 mb-1">File</label>
+                            <input type="file" id="attachment_file" name="attachments" class="w-full">
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="document.getElementById('upload-document-form').classList.add('hidden')" class="mr-3 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Cancel
+                            </button>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Upload
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Documents List -->
+                    <div class="space-y-4">
+                        {% if ticket.attachments %}
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {% for attachment in ticket.attachments %}
+                                    <div class="border rounded-md overflow-hidden">
+                                        <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                            <span class="font-medium text-sm truncate">{{ attachment.title or attachment.filename }}</span>
+                                            <div class="flex space-x-2">
+                                                {% if attachment.filename.lower().endswith('.pdf') %}
+                                                <button onclick="previewPdf('{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}')" class="text-green-600 hover:text-green-800" title="Full Screen Preview">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    </svg>
+                                                </button>
+                                                {% endif %}
+                                                <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" class="text-blue-600 hover:text-blue-800">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="text-xs text-gray-500">{{ attachment.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                            {% if attachment.file_size is defined %}
+                                            <div class="text-xs text-gray-500">{{ attachment.file_size|filesizeformat }}</div>
+                                            {% else %}
+                                            <div class="text-xs text-gray-500">File size unknown</div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        {% if attachment.filename.lower().endswith('.pdf') %}
+                                        <div class="border-t">
+                                            <div class="flex justify-between items-center p-2 bg-gray-50">
+                                                <span class="text-xs font-medium text-gray-600">PDF Preview</span>
+                                                <button onclick="togglePdfInline('pdf-preview-{{ attachment.id }}')" class="text-gray-500 hover:text-gray-700">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div id="pdf-preview-{{ attachment.id }}" class="pdf-inline-container">
+                                                <div class="pdf-loading-indicator">
+                                                    <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span class="ml-2 text-xs text-gray-500">Loading PDF...</span>
+                                                </div>
+                                                <iframe src="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" 
+                                                        class="w-full h-96" 
+                                                        title="{{ attachment.title or attachment.filename }}"
+                                                        onload="hideLoading(this)">
+                                                </iframe>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% elif ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
+                            <!-- Special handling for Asset Intake documents -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {% if ticket.packing_list_path %}
+                                    <div class="border rounded-md overflow-hidden">
+                                        <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                            <span class="font-medium text-sm truncate">Packing List</span>
+                                            <div class="flex space-x-2">
+                                                <a href="{{ url_for('tickets.download_intake_document', ticket_id=ticket.id, doc_type='packing_list') }}" class="text-blue-600 hover:text-blue-800">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if ticket.asset_csv_path %}
+                                    <div class="border rounded-md overflow-hidden">
+                                        <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                                            <span class="font-medium text-sm truncate">Asset CSV</span>
+                                            <div class="flex space-x-2">
+                                                <a href="{{ url_for('tickets.download_intake_document', ticket_id=ticket.id, doc_type='asset_csv') }}" class="text-blue-600 hover:text-blue-800">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if not ticket.packing_list_path and not ticket.asset_csv_path %}
+                                <p class="text-gray-500 text-center py-4">No documents attached to this Asset Intake ticket</p>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-gray-500 text-center py-4">No documents attached to this ticket</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF Preview Modal -->
+        <div id="pdfPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg overflow-hidden w-11/12 max-w-5xl h-5/6 flex flex-col">
+                <div class="bg-gray-100 px-4 py-3 flex justify-between items-center border-b">
+                    <h3 class="font-medium text-gray-700" id="previewTitle">PDF Preview</h3>
+                    <button onclick="closePdfPreview()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <iframe id="pdfViewer" src="" class="w-full h-full"></iframe>
+                </div>
+                <div class="bg-gray-100 px-4 py-3 flex justify-end border-t">
+                    <button onclick="closePdfPreview()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded mr-2 hover:bg-gray-400">Close</button>
+                    <a id="pdfDownloadBtn" href="" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Download</a>
+                </div>
             </div>
         </div>
     </div>
@@ -1146,9 +1391,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span class="ml-2">Uploading files...</span>
-        `;
+        </svg>
+        <span class="ml-2">Uploading files...</span>
+    `;
         
         const documentsTab = document.getElementById('documents');
         if (documentsTab) {
@@ -1316,137 +1561,120 @@ function togglePdfInline(containerId) {
 
 // Store carrier and endpoint information for JavaScript to use
 var TICKET_ID = "{{ ticket.id }}";
+// Ensure 'auto' carrier is correctly read, default to 'unknown' otherwise
 var CARRIER = "{{ ticket.shipping_carrier or 'unknown' }}"; 
 var TRACKING_NUMBER = "{{ ticket.shipping_tracking }}";
-var RETURN_TRACKING_NUMBER = "{{ ticket.return_tracking }}";
 console.log("Initialized CARRIER variable:", CARRIER); // Add log to check value
 
 document.addEventListener('DOMContentLoaded', function() {
-    refreshOutboundTracking();
-    if (RETURN_TRACKING_NUMBER) {
-        refreshReturnTracking();
-    }
+    refreshTracking();
 });
 
-function refreshOutboundTracking() {
+function refreshTracking() {
     const trackingInfo = document.getElementById('trackingInfo');
     const trackingLoading = document.getElementById('trackingLoading');
     const trackingError = document.getElementById('trackingError');
     
     if (!trackingInfo || !trackingLoading || !trackingError) {
-        console.error('Required outbound tracking elements not found');
-        return;
-    }
-    
-    // Show loading state for outbound tracking
-    trackingInfo.classList.add('hidden');
-    trackingError.classList.add('hidden');
-    trackingLoading.classList.remove('hidden');
-    
-    console.log(`Refreshing outbound tracking for ticket ${TICKET_ID}`);
-    console.log(`Outbound tracking: ${TRACKING_NUMBER}`);
-    
-    // Use track_claw endpoint for outbound tracking
-    const trackingEndpoint = `/tickets/${TICKET_ID}/track_claw`;
-    
-    // Fetch outbound tracking
-    fetch(trackingEndpoint)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.tracking_info && data.tracking_info.length > 0) {
-                const trackingHtml = data.tracking_info.map((entry, index) => `
-                    <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 rounded-full ${index === 0 ? 'bg-blue-100' : 'bg-gray-100'} flex items-center justify-center">
-                                    <svg class="w-5 h-5 ${index === 0 ? 'text-blue-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="${index === 0 ? 'text-blue-900 font-medium' : 'text-gray-900'} text-sm">
-                                            ${entry.status}
-                                        </p>
-                                        <p class="mt-1 text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'}">
-                                            ${entry.location || 'Singapore'}
-                                        </p>
-                                    </div>
-                                    <time class="text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'} whitespace-nowrap ml-4">
-                                        ${entry.date}
-                                    </time>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-                
-                trackingInfo.innerHTML = trackingHtml;
-                trackingInfo.classList.remove('hidden');
-            } else {
-                trackingInfo.innerHTML = `
-                    <div class="p-4">
-                        <p class="text-sm text-gray-500">Pending - Tracking information will be available once the package starts moving.</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching outbound tracking:', error);
-            trackingInfo.innerHTML = `
-                <div class="p-4">
-                    <p class="text-sm text-red-500">Error loading outbound tracking information.</p>
-                </div>
-            `;
-        })
-        .finally(() => {
-            trackingLoading.classList.add('hidden');
-            trackingError.classList.add('hidden');
-        });
-}
-
-function refreshReturnTracking() {
-    const returnTrackingInfo = document.getElementById('returnTrackingInfo');
-    const returnTrackingLoading = document.getElementById('returnTrackingLoading');
-    const returnTrackingError = document.getElementById('returnTrackingError');
-    const statusBadge = document.querySelector('.inbound-tracking .ticket-status');
-    
-    if (!returnTrackingInfo || !returnTrackingLoading || !returnTrackingError) {
-        console.error('Required return tracking elements not found');
+        console.error('Required tracking elements not found');
         return;
     }
     
     // Show loading state
-    returnTrackingInfo.classList.add('hidden');
-    returnTrackingError.classList.add('hidden');
-    returnTrackingLoading.classList.remove('hidden');
+    trackingInfo.classList.add('hidden');
+    trackingError.classList.add('hidden');
+    trackingLoading.classList.remove('hidden');
     
-    // Determine endpoint based on tracking number
+    console.log(`Refreshing tracking for ticket ${TICKET_ID} with tracking number ${TRACKING_NUMBER}`);
+    
+    // Determine the right endpoint based on carrier
     let trackingEndpoint = `/tickets/${TICKET_ID}/track_singpost`;
+    if (CARRIER === 'auto') {
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_auto`;
+    } else if (CARRIER === 'claw') { // Added CLAW
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_claw`;
+    } else if (CARRIER === 'dhl') {
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_dhl`;
+    } else if (CARRIER === 'ups') {
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_ups`;
+    } else if (CARRIER === 'bluedart') {
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_bluedart`;
+    } else if (CARRIER === 'dtdc') {
+        trackingEndpoint = `/tickets/${TICKET_ID}/track_dtdc`;
+    }
     
+    console.log('Using tracking endpoint:', trackingEndpoint);
+    
+    // Make API request to our backend endpoint
     fetch(trackingEndpoint)
-        .then(response => response.json())
+        .then(response => {
+            console.log('Received response:', response.status);
+            if (!response.ok) {
+                // Try to get detailed error from response
+                return response.json().catch(() => {
+                    // If response isn't JSON, throw generic error with status
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                }).then(errorData => {
+                    // If we got JSON error data, throw with more details
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Received data:', data);
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
-                // Update status badge
-                if (statusBadge && data.tracking_info[0]) {
-                    const status = data.tracking_info[0].status;
-                    statusBadge.textContent = status;
-                    
-                    // Update badge color
-                    statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
-                    if (status.toLowerCase().includes('delivered')) {
-                        statusBadge.classList.add('bg-green-100', 'text-green-800');
-                    } else if (status.toLowerCase().includes('out for delivery')) {
-                        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
+                // Update the data source indicator
+                const dataSourceIndicator = document.getElementById('data-source-indicator');
+                if (dataSourceIndicator) {
+                    dataSourceIndicator.classList.remove('hidden');
+                    if (data.is_real_data) {
+                        dataSourceIndicator.textContent = 'Live API Data';
+                        dataSourceIndicator.classList.remove('bg-gray-100', 'text-gray-800');
+                        dataSourceIndicator.classList.add('bg-green-100', 'text-green-800');
                     } else {
-                        statusBadge.classList.add('bg-gray-100', 'text-gray-800');
+                        dataSourceIndicator.textContent = 'Simulated Data';
+                        dataSourceIndicator.classList.remove('bg-green-100', 'text-green-800');
+                        dataSourceIndicator.classList.add('bg-gray-100', 'text-gray-800');
+                    }
+                    
+                    // Add debug info if available
+                    if (data.debug_info) {
+                        const debugInfo = data.debug_info;
+                        let debugTooltip = '';
+                        
+                        if (debugInfo.carrier_code) {
+                            debugTooltip += `Carrier: ${debugInfo.carrier_code} | `;
+                        }
+                        
+                        if (debugInfo.status) {
+                            debugTooltip += `Status: ${debugInfo.status} | `;
+                        }
+                        
+                        if (debugInfo.substatus) {
+                            debugTooltip += `Substatus: ${debugInfo.substatus} | `;
+                        }
+                        
+                        if (debugInfo.no_events) {
+                            debugTooltip += 'No Events | ';
+                        } else if (debugInfo.has_events) {
+                            debugTooltip += `${debugInfo.event_count} Events | `;
+                        }
+                        
+                        if (debugInfo.mock_data) {
+                            debugTooltip += 'Mock Data | ';
+                        }
+                        
+                        // Remove trailing separator
+                        debugTooltip = debugTooltip.replace(/ \| $/, '');
+                        
+                        // Set the tooltip
+                        dataSourceIndicator.title = debugTooltip;
+                        dataSourceIndicator.style.cursor = 'help';
                     }
                 }
-
-                // Update tracking info display
+                
+                // Update tracking information
                 const trackingHtml = data.tracking_info.map((entry, index) => `
                     <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
                         <div class="flex items-start space-x-4">
@@ -1476,38 +1704,121 @@ function refreshReturnTracking() {
                     </div>
                 `).join('');
                 
-                returnTrackingInfo.innerHTML = trackingHtml;
-                returnTrackingInfo.classList.remove('hidden');
-            } else {
-                // Handle no tracking info case
-                if (statusBadge) {
-                    statusBadge.textContent = 'In Transit';
-                    statusBadge.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
-                    statusBadge.classList.add('bg-gray-100', 'text-gray-800');
+                // Update tracking info container
+                trackingInfo.innerHTML = trackingHtml;
+                
+                // Show tracking info
+                trackingInfo.classList.remove('hidden');
+                trackingLoading.classList.add('hidden');
+                trackingError.classList.add('hidden');
+                
+                // Update ticket status if needed
+                const statusElement = document.querySelector('.ticket-status');
+                if (statusElement) {
+                    const latestStatus = data.tracking_info[0].status;
+                    if (latestStatus) {
+                        statusElement.textContent = latestStatus;
+                        
+                        // Update status styling based on the new status
+                        statusElement.className = 'px-3 py-1 text-sm font-medium rounded-full ticket-status';
+                        
+                        if (latestStatus.toLowerCase().includes('delivered')) {
+                            statusElement.classList.add('bg-green-100', 'text-green-800');
+                        } else if (latestStatus.toLowerCase().includes('out for delivery')) {
+                            statusElement.classList.add('bg-yellow-100', 'text-yellow-800');
+                        } else {
+                            statusElement.classList.add('bg-gray-100', 'text-gray-800');
+                        }
+                        
+                        // Force reload the page to ensure server data is updated
+                        if (!window.location.href.includes('refreshed=true')) {
+                            // Only reload if this isn't already a post-refresh page
+                            const separator = window.location.href.includes('?') ? '&' : '?';
+                            setTimeout(() => {
+                                window.location.href = window.location.href + separator + 'refreshed=true';
+                            }, 2000);
+                        }
+                    }
                 }
-                returnTrackingInfo.innerHTML = `
-                    <div class="p-4">
-                        <p class="text-sm text-gray-500">Tracking information will be available once the package starts moving.</p>
-                    </div>
-                `;
+            } else {
+                throw new Error(data.error || 'No tracking information available');
             }
         })
         .catch(error => {
-            console.error('Error fetching return tracking:', error);
-            if (statusBadge) {
-                statusBadge.textContent = 'Error';
-                statusBadge.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
-                statusBadge.classList.add('bg-red-100', 'text-red-600');
+            console.error('Error:', error);
+            // Show more detailed error message
+            const errorMessage = document.querySelector('#trackingError span');
+            if (errorMessage) {
+                // Add more specific error details
+                let detailedMessage = error.message || 'Error loading tracking information. Please try again.';
+                
+                // Add debugging info about which carrier and endpoint was used
+                detailedMessage += `\n\nDetails: Carrier=${CARRIER}, Endpoint=${trackingEndpoint}`;
+                
+                // Format message with line breaks for HTML
+                errorMessage.innerHTML = detailedMessage.replace(/\n/g, '<br>');
             }
-            returnTrackingInfo.innerHTML = `
-                <div class="p-4">
-                    <p class="text-sm text-red-500">Error loading return tracking information.</p>
-                </div>
-            `;
-        })
-        .finally(() => {
-            returnTrackingLoading.classList.add('hidden');
-            returnTrackingError.classList.add('hidden');
+            
+            // Try fallback - if this wasn't already the fallback
+            if (!trackingEndpoint.includes('debug_tracking')) {
+                console.log('Trying fallback tracking method...');
+                // Use the debug_tracking endpoint as fallback
+                fetch(`/tickets/${TICKET_ID}/debug_tracking`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.debug_tracking_info) {
+                            // Create fallback tracking display using debug info
+                            const debugInfo = data.debug_tracking_info;
+                            const fallbackHtml = `
+                                <div class="p-4 bg-yellow-50 border-b border-yellow-100">
+                                    <p class="text-sm text-yellow-700">
+                                        <strong>Fallback Mode:</strong> Using debug tracking information
+                                    </p>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm text-gray-900">
+                                                <strong>Tracking Number:</strong> ${debugInfo.tracking_number || 'N/A'}
+                                            </p>
+                                            <p class="mt-1 text-sm text-gray-500">
+                                                <strong>Carrier:</strong> ${debugInfo.carrier || 'Unknown'}
+                                            </p>
+                                            <p class="mt-1 text-sm text-gray-500">
+                                                <strong>Status:</strong> ${debugInfo.status || 'Unknown'}
+                                            </p>
+                                            <p class="mt-1 text-sm text-gray-500">
+                                                <strong>Last Updated:</strong> ${debugInfo.updated_at || 'Unknown'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Show fallback tracking info
+                            trackingInfo.innerHTML = fallbackHtml;
+                            trackingInfo.classList.remove('hidden');
+                            trackingLoading.classList.add('hidden');
+                            trackingError.classList.add('hidden');
+                        } else {
+                            // Show original error if fallback also fails
+                            trackingError.classList.remove('hidden');
+                            trackingLoading.classList.add('hidden');
+                            trackingInfo.classList.add('hidden');
+                        }
+                    })
+                    .catch(() => {
+                        // If fallback also fails, show original error
+                        trackingError.classList.remove('hidden');
+                        trackingLoading.classList.add('hidden');
+                        trackingInfo.classList.add('hidden');
+                    });
+            } else {
+                // Show error element and hide others if already tried fallback
+                trackingError.classList.remove('hidden');
+                trackingLoading.classList.add('hidden');
+                trackingInfo.classList.add('hidden');
+            }
         });
 }
 
@@ -1533,6 +1844,8 @@ function updateCarrier() {
 
 function trackPackage() {
     // Open tracking page in new tab based on carrier
+    let trackingUrl = '';
+    const carrier = "{{ ticket.shipping_carrier|default('singpost', true) }}";
     const trackingNumber = "{{ ticket.shipping_tracking }}";
     
     if (!trackingNumber) {
@@ -1540,39 +1853,34 @@ function trackPackage() {
         return;
     }
     
-    // Use Ship24 for all tracking
-    const trackingUrl = `https://www.ship24.com/tracking?p=${trackingNumber}`;
-    
-    try {
-        window.open(trackingUrl, '_blank');
-    } catch (e) {
-        console.error('Error opening tracking URL:', e);
-        alert(`Failed to open tracking URL: ${trackingUrl}\n\nError: ${e.message}`);
-    }
-}
-
-function trackReturnPackage() {
-    // Open tracking page in new tab for return tracking
-    const returnTrackingNumber = "{{ ticket.return_tracking }}";
-    
-    if (!returnTrackingNumber) {
-        alert('No return tracking number available');
-        return;
+    if (carrier === 'auto') {
+        // For auto-detect carrier, use a global package tracking site
+        trackingUrl = `https://www.packagetrackr.com/track/${trackingNumber}`;
+    } else if (carrier === 'claw') { // Added CLAW
+        // Link directly to ship24
+        trackingUrl = `https://www.ship24.com/tracking/${trackingNumber}`;
+    } else if (carrier === 'singpost') {
+        trackingUrl = `https://www.singpost.com/track-items?track_number=${trackingNumber}`;
+    } else if (carrier === 'dhl') {
+        trackingUrl = `https://www.dhl.com/sg-en/home/tracking.html?tracking-id=${trackingNumber}`;
+    } else if (carrier === 'ups') {
+        trackingUrl = `https://www.ups.com/track?tracknum=${trackingNumber}`;
+    } else if (carrier === 'bluedart') {
+        trackingUrl = `https://www.bluedart.com/tracking?trackingNo=${trackingNumber}`;
+    } else if (carrier === 'dtdc') {
+        trackingUrl = `https://www.dtdc.com/track-trace/track-trace.html?trackNumber=${trackingNumber}`;
     }
     
-    // Use Ship24 for return tracking
-    const trackingUrl = `https://www.ship24.com/tracking?p=${returnTrackingNumber}`;
-    
-    try {
-        window.open(trackingUrl, '_blank');
-    } catch (e) {
-        console.error('Error opening return tracking URL:', e);
-        alert(`Failed to open tracking URL: ${trackingUrl}\n\nError: ${e.message}`);
+    if (trackingUrl) {
+        try {
+            window.open(trackingUrl, '_blank');
+        } catch (e) {
+            console.error('Error opening tracking URL:', e);
+            alert(`Failed to open tracking URL: ${trackingUrl}\n\nError: ${e.message}`);
+        }
+    } else {
+        alert(`No tracking URL configured for carrier: ${carrier}`);
     }
-}
-
-function viewAsset(assetId) {
-    window.location.href = `/assets/${assetId}`;
 }
 </script>
 {% endblock %} 

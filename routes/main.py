@@ -141,7 +141,10 @@ def index():
                 TicketCategory.ASSET_CHECKOUT_DHL,
                 TicketCategory.ASSET_CHECKOUT_UPS,
                 TicketCategory.ASSET_CHECKOUT_BLUEDART,
-                TicketCategory.ASSET_CHECKOUT_DTDC
+                TicketCategory.ASSET_CHECKOUT_DTDC,
+                TicketCategory.ASSET_CHECKOUT_AUTO,
+                TicketCategory.ASSET_CHECKOUT_CLAW,
+                TicketCategory.ASSET_RETURN_CLAW
             ])
         ).order_by(Ticket.created_at.desc()).all()
     finally:

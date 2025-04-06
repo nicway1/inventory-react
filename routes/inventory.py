@@ -1512,7 +1512,7 @@ def edit_asset(asset_id):
     if not (current_user.is_admin or (hasattr(current_user, 'permissions') and getattr(current_user.permissions, 'can_edit_assets', False))):
         flash('You do not have permission to edit assets', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
-    
+
     db_session = db_manager.get_session()
     try:
         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()

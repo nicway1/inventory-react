@@ -6,6 +6,7 @@ from utils.user_store import UserStore
 from utils.inventory_store import InventoryStore
 from utils.ticket_store import TicketStore
 from utils.comment_store import CommentStore
+from utils.firecrawl_client import FirecrawlClient
 
 # Initialize database manager
 db_manager = DatabaseManager()
@@ -21,3 +22,6 @@ snipe_client = None
 
 # Initialize comment store with required dependencies
 comment_store = CommentStore(user_store, activity_store, ticket_store)
+
+# Initialize Firecrawl client
+firecrawl_client = FirecrawlClient()
