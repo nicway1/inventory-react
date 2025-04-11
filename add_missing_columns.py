@@ -1,10 +1,41 @@
 import sqlite3
+import os
 
 def add_missing_columns():
     """Add missing columns to the tickets table in SQLite database"""
+    conn = None
     try:
-        # Connect to the database
-        conn = sqlite3.connect('instance/app.db')
+        # Determine the database path
+        # For PythonAnywhere, the path is likely in the project root
+        database_paths = [
+            'instance/app.db',  # Standard Flask path
+            'app.db',           # Root directory
+            '/home/nicway2/inventory/instance/app.db',  # Full path on PythonAnywhere
+            '/home/nicway2/inventory/app.db'            # Alternative full path
+        ]
+        
+        # Try each path until we find the database
+        for db_path in database_paths:
+            if os.path.exists(db_path):
+                print(f"Found database at: {db_path}")
+                conn = sqlite3.connect(db_path)
+                break
+        
+        # If we couldn't find the database, let the user provide the path
+        if conn is None:
+            print("Could not find the database file automatically.")
+            print("Current working directory:", os.getcwd())
+            print("Available files in current directory:", os.listdir())
+            print("Available files in 'instance' directory (if it exists):", 
+                  os.listdir('instance') if os.path.exists('instance') else "No instance directory")
+            
+            user_path = input("Please enter the full path to the database file: ")
+            if os.path.exists(user_path):
+                conn = sqlite3.connect(user_path)
+            else:
+                print(f"Error: File {user_path} does not exist.")
+                return
+        
         cursor = conn.cursor()
         
         # Check if the column already exists
