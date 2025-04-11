@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 {% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
 <!-- Debug Info -->
 <div style="background-color: #f0f0f0; padding: 10px; margin: 10px;">
     <p>Current user type: {{ session.get('user_type') }}</p>
@@ -323,7 +325,7 @@
     z-index: 5;
 }
 </style>
-{% endblock %}
+{% endblock head %}
 
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-6">
@@ -615,7 +617,7 @@
         </div>
 
         <!-- Outbound Tracking Information Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4 outbound-tracking">
             <div class="p-4 bg-gray-50 border-b border-gray-200">
                 <div class="flex justify-between items-center">
                     <div class="flex flex-col space-y-2">
@@ -626,11 +628,13 @@
                                 {{ ticket.shipping_tracking }}
                             </span>
                             {% if ticket.shipping_status %}
-                            <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
-                                {% if 'delivered' in ticket.shipping_status.lower() %}
+                            <span id="outbound-status-badge" class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
+                                {% if 'delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower() %}
                                     bg-green-100 text-green-800
                                 {% elif 'out for delivery' in ticket.shipping_status.lower() %}
                                     bg-yellow-100 text-yellow-800
+                                {% elif 'not found' in ticket.shipping_status.lower() %}
+                                    bg-red-100 text-red-800
                                 {% else %}
                                     bg-gray-100 text-gray-800
                                 {% endif %}">
@@ -638,16 +642,22 @@
                             </span>
                             {% endif %}
                             {% else %}
+                            {% if ticket.shipping_status and 'received' in ticket.shipping_status.lower() %}
+                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                                {{ ticket.shipping_status }}
+                            </span>
+                            {% else %}
                             <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
                                 Not provided yet
                             </span>
                             {% endif %}
+                        {% endif %}
                         </div>
                     </div>
                             
+                    <div class="flex items-center space-x-2">
                     {% if ticket.shipping_tracking %}
                             <!-- Carrier Selection -->
-                    <div class="flex items-center space-x-4">
                         <form id="carrierForm" class="flex items-center gap-2">
                                     <label for="carrier" class="text-sm text-gray-700">Carrier:</label>
                                     <select id="carrier" name="carrier" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" onchange="updateCarrier()">
@@ -660,7 +670,7 @@
                                     </select>
                                 </form>
                         
-                    <button onclick="refreshTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        <button onclick="refreshOutboundTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
@@ -672,8 +682,30 @@
                             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
                             Track on {% if ticket.shipping_carrier == 'auto' %}Tracking Site{% else %}{{ ticket.shipping_carrier|default('SingPost', true)|capitalize }} Site{% endif %}
                     </button>
-                    </div>
+                        
+                        <button type="button" 
+                                onclick="markOutboundAsReceived()" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                Mark as Received
+                        </button>
+                        {% else %}
+                        <button type="button" 
+                                onclick="showAddOutboundTrackingModal()" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add Tracking
+                        </button>
+                        
+                        <!-- Also show Mark as Received button when no tracking info -->
+                        <button type="button" 
+                                onclick="markOutboundAsReceived()" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded ml-2">
+                                Mark as Received
+                        </button>
                     {% endif %}
+                    </div>
                 </div>
             </div>
             
@@ -704,8 +736,13 @@
             </div>
         </div>
 
+        {% if ticket.category %}
+            {% if ticket.category.value != 'ASSET_CHECKOUT_MAIN' and 
+                  ticket.category.value != 'Asset Checkout (main)' and 
+                  ticket.category.value != 'ASSET_CHECKOUT_CLAW' and 
+                  ticket.category.value != 'Asset Checkout (claw)' %}
         <!-- Inbound Tracking Information Section -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden inbound-tracking">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4 inbound-tracking">
             <div class="p-4 bg-gray-50 border-b border-gray-200">
                 <div class="flex justify-between items-center">
                     <div class="flex flex-col space-y-2">
@@ -715,8 +752,8 @@
                             <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
                                 {{ ticket.return_tracking }}
                             </span>
-                            <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
-                                {% if 'delivered' in ticket.return_status.lower() %}
+                            <span id="inbound-status-badge" class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
+                                {% if 'delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower() %}
                                     bg-green-100 text-green-800
                                 {% elif 'out for delivery' in ticket.return_status.lower() %}
                                     bg-yellow-100 text-yellow-800
@@ -726,15 +763,21 @@
                                 {{ ticket.return_status or 'In Transit' }}
                             </span>
                             {% else %}
+                            {% if ticket.return_status and 'received' in ticket.return_status.lower() %}
+                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                                {{ ticket.return_status }}
+                            </span>
+                            {% else %}
                             <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
                                 Not provided yet
                             </span>
                             {% endif %}
+                        {% endif %}
                         </div>
                     </div>
 
-                    {% if ticket.return_tracking %}
                     <div class="flex items-center space-x-2">
+                                {% if ticket.return_tracking %}
                         <button onclick="refreshReturnTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -747,8 +790,30 @@
                                 class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
                             Track Return Package
                         </button>
-                    </div>
+
+                                <button type="button" 
+                                        onclick="markReturnAsReceived()" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                    Mark as Received
+                                </button>
+                                {% else %}
+                                <button type="button" 
+                                        onclick="showAddReturnTrackingModal()" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add Return Tracking
+                                </button>
+                                
+                                <!-- Also show Mark as Received button when no return tracking info -->
+                                <button type="button" 
+                                        onclick="markReturnAsReceived()" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded ml-2">
+                                    Mark as Received
+                                </button>
                     {% endif %}
+                            </div>
                 </div>
             </div>
             
@@ -778,6 +843,215 @@
                 <!-- Content will be populated by JavaScript -->
             </div>
         </div>
+            {% endif %}
+
+            {% if ticket.shipping_tracking_2 %}
+                {% if ticket.category.value == 'ASSET_CHECKOUT_MAIN' or ticket.category.value == 'Asset Checkout (main)' %}
+                    <!-- Asset Checkout (main) Secondary Tracking Section -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
+                        <div class="p-4 bg-gray-50 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <div class="flex flex-col space-y-2">
+                                    <h3 class="text-lg font-semibold text-gray-900">Shipment 2 Tracking Information</h3>
+                                    <div class="flex items-center">
+                                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                                            {{ ticket.shipping_tracking_2 }}
+                                        </span>
+                                        {% if ticket.shipping_status_2 %}
+                                        <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
+                                            {% if 'delivered' in ticket.shipping_status_2.lower() %}
+                                                bg-green-100 text-green-800
+                                            {% elif 'out for delivery' in ticket.shipping_status_2.lower() %}
+                                                bg-yellow-100 text-yellow-800
+                                            {% elif 'not found' in ticket.shipping_status_2.lower() %}
+                                                bg-red-100 text-red-800
+                                            {% else %}
+                                                bg-gray-100 text-gray-800
+                                            {% endif %}">
+                                            {{ ticket.shipping_status_2 }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                        
+                                <div class="flex items-center space-x-4">
+                                    <form id="carrier2Form" class="flex items-center gap-2">
+                                        <label for="carrier2" class="text-sm text-gray-700">Carrier:</label>
+                                        <select id="carrier2" name="carrier2" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" onchange="updateSecondaryCarrier()">
+                                            <option value="auto" {% if ticket.shipping_carrier_2 == 'auto' %}selected{% endif %}>Auto-Detect</option>
+                                            <option value="singpost" {% if ticket.shipping_carrier_2 == 'singpost' %}selected{% endif %}>SingPost</option>
+                                            <option value="dhl" {% if ticket.shipping_carrier_2 == 'dhl' %}selected{% endif %}>DHL</option>
+                                            <option value="ups" {% if ticket.shipping_carrier_2 == 'ups' %}selected{% endif %}>UPS</option>
+                                            <option value="bluedart" {% if ticket.shipping_carrier_2 == 'bluedart' %}selected{% endif %}>BlueDart</option>
+                                            <option value="dtdc" {% if ticket.shipping_carrier_2 == 'dtdc' %}selected{% endif %}>DTDC</option>
+                                        </select>
+                                    </form>
+                                    
+                                    <button onclick="refreshSecondaryTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Refresh
+                                    </button>
+                                            
+                                    <button type="button" 
+                                            onclick="trackSecondaryPackage()" 
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                                            Track on {% if ticket.shipping_carrier_2 == 'auto' %}Tracking Site{% else %}{{ ticket.shipping_carrier_2|default('SingPost', true)|capitalize }} Site{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="secondaryTrackingLoading" class="hidden">
+                            <div class="flex flex-col items-center justify-center p-8">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                <p class="mt-4 text-sm text-gray-500">Fetching latest secondary tracking information...</p>
+                            </div>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="secondaryTrackingError" class="hidden">
+                            <div class="flex flex-col items-center justify-center p-8 bg-red-50">
+                                <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="mt-2 text-sm font-medium text-red-800">Unable to load secondary tracking information</h3>
+                                <p class="mt-1 text-sm text-red-600"><span></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Tracking Info -->
+                        <div id="secondaryTrackingInfo" class="divide-y divide-gray-200">
+                            <!-- Content will be populated by JavaScript -->
+                        </div>
+                    </div>
+                {% elif ticket.category.value != 'ASSET_RETURN_CLAW' %}
+                    <!-- Secondary Tracking Section for non-claw tickets -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
+                        <div class="p-4 bg-gray-50 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <div class="flex flex-col space-y-2">
+                                    <h3 class="text-lg font-semibold text-gray-900">Secondary Tracking Information</h3>
+                                    <div class="flex items-center">
+                                        {% if ticket.shipping_tracking_2 %}
+                                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                                            {{ ticket.shipping_tracking_2 }}
+                                        </span>
+                                        {% if ticket.shipping_status_2 %}
+                                        <span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ticket-status
+                                            {% if 'delivered' in ticket.shipping_status_2.lower() %}
+                                                bg-green-100 text-green-800
+                                            {% elif 'out for delivery' in ticket.shipping_status_2.lower() %}
+                                                bg-yellow-100 text-yellow-800
+                                            {% elif 'not found' in ticket.shipping_status_2.lower() %}
+                                                bg-red-100 text-red-800
+                                            {% else %}
+                                                bg-gray-100 text-gray-800
+                                            {% endif %}">
+                                            {{ ticket.shipping_status_2 }}
+                                        </span>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
+                                            Not provided yet
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                        
+                                <div class="flex items-center space-x-4">
+                                    <form id="carrier2Form" class="flex items-center gap-2">
+                                        <label for="carrier2" class="text-sm text-gray-700">Carrier:</label>
+                                        <select id="carrier2" name="carrier2" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" onchange="updateSecondaryCarrier()">
+                                            <option value="auto" {% if ticket.shipping_carrier_2 == 'auto' %}selected{% endif %}>Auto-Detect</option>
+                                            <option value="singpost" {% if ticket.shipping_carrier_2 == 'singpost' %}selected{% endif %}>SingPost</option>
+                                            <option value="dhl" {% if ticket.shipping_carrier_2 == 'dhl' %}selected{% endif %}>DHL</option>
+                                            <option value="ups" {% if ticket.shipping_carrier_2 == 'ups' %}selected{% endif %}>UPS</option>
+                                            <option value="bluedart" {% if ticket.shipping_carrier_2 == 'bluedart' %}selected{% endif %}>BlueDart</option>
+                                            <option value="dtdc" {% if ticket.shipping_carrier_2 == 'dtdc' %}selected{% endif %}>DTDC</option>
+                                        </select>
+                                    </form>
+                                    
+                                    <button onclick="refreshSecondaryTracking()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Refresh
+                                    </button>
+                                            
+                                    <button type="button" 
+                                            onclick="trackSecondaryPackage()" 
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                                            Track on {% if ticket.shipping_carrier_2 == 'auto' %}Tracking Site{% else %}{{ ticket.shipping_carrier_2|default('SingPost', true)|capitalize }} Site{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="secondaryTrackingLoading" class="hidden">
+                            <div class="flex flex-col items-center justify-center p-8">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                <p class="mt-4 text-sm text-gray-500">Fetching latest secondary tracking information...</p>
+                            </div>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="secondaryTrackingError" class="hidden">
+                            <div class="flex flex-col items-center justify-center p-8 bg-red-50">
+                                <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="mt-2 text-sm font-medium text-red-800">Unable to load secondary tracking information</h3>
+                                <p class="mt-1 text-sm text-red-600"><span></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Tracking Info -->
+                        <div id="secondaryTrackingInfo" class="divide-y divide-gray-200">
+                            <!-- Content will be populated by JavaScript -->
+                        </div>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {% if ticket.category.value == 'ASSET_CHECKOUT_MAIN' or ticket.category.value == 'Asset Checkout (main)' or ticket.category.value == 'ASSET_CHECKOUT_CLAW' or ticket.category.value == 'Asset Checkout (claw)' or ticket.category.value == 'ASSET_CHECKOUT_SINGPOST' or ticket.category.value == 'ASSET_CHECKOUT_AUTO' or ticket.category.value == 'ASSET_CHECKOUT_DHL' or ticket.category.value == 'ASSET_CHECKOUT_UPS' or ticket.category.value == 'ASSET_CHECKOUT_BLUEDART' or ticket.category.value == 'ASSET_CHECKOUT_DTDC' %}
+                <!-- Asset Checkout Specific UI -->
+                <div class="mt-4 mb-4">
+                    <button type="button" class="sf-button primary-button" onclick="showAddShipmentModal()">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add Tracking Information
+                    </button>
+                </div>
+            {% endif %}
+
+            {% if ticket.category.value == 'ASSET_RETURN_CLAW' or ticket.category.value == 'Asset Return (claw)' %}
+                <!-- Asset Return (claw) Specific UI -->
+                <div class="mt-4 mb-4 flex space-x-4">
+                    <button type="button" class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add/Update Outbound Tracking
+                    </button>
+                    
+                    <button type="button" class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add/Update Return Tracking
+                    </button>
+                </div>
+            {% endif %}
+        {% endif %}  <!-- Close category.value check if -->
     </div>
 </div>
 {% endblock content %}
@@ -857,6 +1131,29 @@
             } catch (e) {
                 console.error('Error initializing tracking widget:', e);
             }
+        }
+        
+        // Initialize Add Shipment form if it exists
+        const addShipmentForm = document.getElementById('addShipmentForm');
+        if (addShipmentForm) {
+            console.log('Setting up addShipmentForm event listener');
+            addShipmentForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('Form submitted, calling submitAddShipmentForm()');
+                submitAddShipmentForm();
+            });
+            
+            // Also add click event to the submit button as a backup
+            const submitButton = document.querySelector('button[form="addShipmentForm"]');
+            if (submitButton) {
+                submitButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Submit button clicked, calling submitAddShipmentForm()');
+                    submitAddShipmentForm();
+                });
+            }
+        } else {
+            console.warn('Add Shipment form not found');
         }
     });
 
@@ -1319,11 +1616,12 @@ var TICKET_ID = "{{ ticket.id }}";
 var CARRIER = "{{ ticket.shipping_carrier or 'unknown' }}"; 
 var TRACKING_NUMBER = "{{ ticket.shipping_tracking }}";
 var RETURN_TRACKING_NUMBER = "{{ ticket.return_tracking }}";
+var TICKET_CATEGORY = "{{ ticket.category.value }}";
 console.log("Initialized CARRIER variable:", CARRIER); // Add log to check value
 
 document.addEventListener('DOMContentLoaded', function() {
     refreshOutboundTracking();
-    if (RETURN_TRACKING_NUMBER) {
+    if (RETURN_TRACKING_NUMBER && TICKET_CATEGORY === 'ASSET_RETURN_CLAW') {
         refreshReturnTracking();
     }
 });
@@ -1345,15 +1643,72 @@ function refreshOutboundTracking() {
     
     console.log(`Refreshing outbound tracking for ticket ${TICKET_ID}`);
     console.log(`Outbound tracking: ${TRACKING_NUMBER}`);
+    console.log(`Ticket category: ${TICKET_CATEGORY}`);
+
+    // Determine the correct endpoint based on TICKET_CATEGORY
+    let trackingEndpoint;
+    if (TICKET_CATEGORY === 'ASSET_CHECKOUT_MAIN' || TICKET_CATEGORY === 'Asset Checkout (main)') {
+        trackingEndpoint = `/tickets/category/checkout_main/${TICKET_ID}/track`;
+    } else if (TICKET_CATEGORY === 'ASSET_RETURN_CLAW' || TICKET_CATEGORY === 'Asset Return (claw)') {
+        // For RETURN tickets, the "outbound" section should display the return tracking info
+        trackingEndpoint = `/tickets/category/return_claw/${TICKET_ID}/track_return`; 
+    } else {
+        // Fallback or handle other categories if necessary
+        console.warn(`Outbound tracking endpoint not explicitly defined for category: ${TICKET_CATEGORY}. Attempting default.`);
+        // Let's try a generic endpoint pattern if one exists, or maybe fallback to main?
+        // For now, let's assume a generic pattern might exist, or default to checkout_main if nothing else works.
+        // If /track exists directly under /tickets/{id}, that could be a generic option.
+        // Sticking to the specific case mentioned for now.
+        // If the category is not checkout_main or return_claw, this might still cause issues.
+        // A more robust solution might need backend changes or more JS logic.
+        trackingEndpoint = `/tickets/${TICKET_ID}/track`; // Example generic endpoint, adjust if needed
+    }
+
+    if (!trackingEndpoint) {
+        console.error("Could not determine tracking endpoint for category:", TICKET_CATEGORY);
+        trackingLoading.classList.add('hidden');
+        trackingError.classList.remove('hidden');
+        trackingError.querySelector('p span').textContent = 'Configuration error: Cannot determine tracking endpoint for this category.';
+        return;
+    }
     
-    // Use track_claw endpoint for outbound tracking
-    const trackingEndpoint = `/tickets/${TICKET_ID}/track_claw`;
-    
-    // Fetch outbound tracking
+    console.log(`Using tracking endpoint: ${trackingEndpoint}`);
+
+    // Fetch outbound tracking using the dynamic endpoint
     fetch(trackingEndpoint)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                 // Log the error status and potentially the response body for debugging
+                console.error(`Error fetching outbound tracking: ${response.status} ${response.statusText}`);
+                return response.text().then(text => {
+                    console.error("Error response body:", text);
+                    throw new Error(`Server responded with status ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            // Get the specific status badge element by its new ID
+            const statusBadge = document.getElementById('outbound-status-badge');
+
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                const latestStatus = data.tracking_info[0].status; // Assuming the first entry is the latest
+                
+                // Update status badge text and color
+                if (statusBadge) {
+                    statusBadge.textContent = latestStatus;
+                    statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
+                    if (latestStatus.toLowerCase().includes('delivered')) {
+                        statusBadge.classList.add('bg-green-100', 'text-green-800');
+                    } else if (latestStatus.toLowerCase().includes('out for delivery')) {
+                        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
+                    } else if (latestStatus.toLowerCase().includes('not found')) {
+                        statusBadge.classList.add('bg-red-100', 'text-red-800');
+                    } else { // Default/in transit
+                        statusBadge.classList.add('bg-gray-100', 'text-gray-800');
+                    }
+                }
+
                 const trackingHtml = data.tracking_info.map((entry, index) => `
                     <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
                         <div class="flex items-start space-x-4">
@@ -1395,6 +1750,13 @@ function refreshOutboundTracking() {
         })
         .catch(error => {
             console.error('Error fetching outbound tracking:', error);
+            // Also update the badge on error
+            const statusBadge = document.getElementById('outbound-status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = 'Error';
+                statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
+                statusBadge.classList.add('bg-red-100', 'text-red-600');
+            }
             trackingInfo.innerHTML = `
                 <div class="p-4">
                     <p class="text-sm text-red-500">Error loading outbound tracking information.</p>
@@ -1411,7 +1773,8 @@ function refreshReturnTracking() {
     const returnTrackingInfo = document.getElementById('returnTrackingInfo');
     const returnTrackingLoading = document.getElementById('returnTrackingLoading');
     const returnTrackingError = document.getElementById('returnTrackingError');
-    const statusBadge = document.querySelector('.inbound-tracking .ticket-status');
+    // Get the specific status badge element by its new ID
+    const statusBadge = document.getElementById('inbound-status-badge'); 
     
     if (!returnTrackingInfo || !returnTrackingLoading || !returnTrackingError) {
         console.error('Required return tracking elements not found');
@@ -1423,25 +1786,30 @@ function refreshReturnTracking() {
     returnTrackingError.classList.add('hidden');
     returnTrackingLoading.classList.remove('hidden');
     
-    // Determine endpoint based on tracking number
-    let trackingEndpoint = `/tickets/${TICKET_ID}/track_singpost`;
+    console.log(`Refreshing return tracking for ticket ${TICKET_ID}`);
+    console.log(`Return tracking: ${RETURN_TRACKING_NUMBER}`);
     
-    fetch(trackingEndpoint)
+    // Use the new category-specific endpoint for return tracking
+    const returnTrackingEndpoint = `/tickets/category/return_claw/${TICKET_ID}/track_return`;
+    
+    // Fetch return tracking
+    fetch(returnTrackingEndpoint)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
-                // Update status badge
-                if (statusBadge && data.tracking_info[0]) {
-                    const status = data.tracking_info[0].status;
-                    statusBadge.textContent = status;
-                    
-                    // Update badge color
-                    statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
-                    if (status.toLowerCase().includes('delivered')) {
+                const latestStatus = data.tracking_info[0].status; // Assuming the first entry is the latest
+
+                // Update status badge text and color
+                if (statusBadge) {
+                    statusBadge.textContent = latestStatus;
+                    statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
+                    if (latestStatus.toLowerCase().includes('delivered')) {
                         statusBadge.classList.add('bg-green-100', 'text-green-800');
-                    } else if (status.toLowerCase().includes('out for delivery')) {
+                    } else if (latestStatus.toLowerCase().includes('out for delivery')) {
                         statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
-                    } else {
+                    } else if (latestStatus.toLowerCase().includes('not found')) {
+                        statusBadge.classList.add('bg-red-100', 'text-red-800');
+                    } else { // Default/in transit
                         statusBadge.classList.add('bg-gray-100', 'text-gray-800');
                     }
                 }
@@ -1481,8 +1849,10 @@ function refreshReturnTracking() {
             } else {
                 // Handle no tracking info case
                 if (statusBadge) {
-                    statusBadge.textContent = 'In Transit';
-                    statusBadge.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+                    // Use the initial status from Jinja or a default like 'Pending'
+                    const initialStatus = statusBadge.dataset.initialStatus || 'Pending'; 
+                    statusBadge.textContent = initialStatus;
+                    statusBadge.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
                     statusBadge.classList.add('bg-gray-100', 'text-gray-800');
                 }
                 returnTrackingInfo.innerHTML = `
@@ -1494,9 +1864,11 @@ function refreshReturnTracking() {
         })
         .catch(error => {
             console.error('Error fetching return tracking:', error);
+            // Also update the badge on error
+            const statusBadge = document.getElementById('inbound-status-badge');
             if (statusBadge) {
                 statusBadge.textContent = 'Error';
-                statusBadge.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+                statusBadge.classList.remove('bg-gray-100', 'text-gray-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
                 statusBadge.classList.add('bg-red-100', 'text-red-600');
             }
             returnTrackingInfo.innerHTML = `
@@ -1574,5 +1946,716 @@ function trackReturnPackage() {
 function viewAsset(assetId) {
     window.location.href = `/assets/${assetId}`;
 }
+
+// Add Shipment Modal functions
+window.showAddShipmentModal = function() {
+    console.log('showAddShipmentModal called');
+    const modal = document.getElementById('addShipmentModal');
+    if (modal) {
+        console.log('Found addShipmentModal, removing hidden class');
+        modal.classList.remove('hidden');
+    } else {
+        console.error('addShipmentModal element not found!');
+    }
+};
+
+window.hideAddShipmentModal = function() {
+    console.log('hideAddShipmentModal called');
+    const modal = document.getElementById('addShipmentModal');
+    if (modal) {
+        console.log('Found addShipmentModal, adding hidden class');
+        modal.classList.add('hidden');
+    } else {
+        console.error('addShipmentModal element not found!');
+    }
+};
+
+window.refreshSecondaryTracking = function() {
+    // Show loading state
+    document.getElementById('secondaryTrackingInfo').innerHTML = '';
+    document.getElementById('secondaryTrackingLoading').classList.remove('hidden');
+    document.getElementById('secondaryTrackingError').classList.add('hidden');
+    
+    // Make API call to refresh tracking
+    fetch(`/tickets/category/checkout_main/{{ ticket.id }}/track_secondary`)
+        .then(response => response.json())
+        .then(data => {
+            // Hide loading state
+            document.getElementById('secondaryTrackingLoading').classList.add('hidden');
+            
+            if (data.success) {
+                // Display tracking information
+                const trackingInfo = data.tracking_info || [];
+                const trackingContainer = document.getElementById('secondaryTrackingInfo');
+                
+                if (trackingInfo.length === 0) {
+                    trackingContainer.innerHTML = `
+                        <div class="p-4 text-center text-gray-500">
+                            ${data.shipping_status === "Not found" ? 
+                            'This tracking number was not recognized by the carrier. Please verify the tracking number and carrier selection.' : 
+                            'No tracking information available yet. The carrier may still be processing this shipment.'}
+                        </div>
+                    `;
+                } else {
+                    trackingContainer.innerHTML = '';
+                    trackingInfo.forEach(event => {
+                        trackingContainer.innerHTML += `
+                            <div class="p-4 flex items-center">
+                                <div class="flex-shrink-0 mr-4">
+                                    <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="font-medium">${event.status}</p>
+                                    <p class="text-sm text-gray-600">${event.location}</p>
+                                </div>
+                                <div class="ml-auto text-right">
+                                    <p class="text-sm text-gray-600">${event.date}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Reload page to update status badge if status has changed
+                if (data.shipping_status && data.shipping_status !== '{{ ticket.shipping_status_2 }}') {
+                    window.location.reload();
+                }
+            } else {
+                // Show error state
+                document.getElementById('secondaryTrackingError').classList.remove('hidden');
+                document.getElementById('secondaryTrackingError').querySelector('p span').textContent = data.error || 'An unknown error occurred';
+            }
+        })
+        .catch(error => {
+            // Hide loading state and show error
+            document.getElementById('secondaryTrackingLoading').classList.add('hidden');
+            document.getElementById('secondaryTrackingError').classList.remove('hidden');
+            document.getElementById('secondaryTrackingError').querySelector('p span').textContent = error.message || 'Network error';
+            console.error('Error:', error);
+        });
+};
+
+window.updateSecondaryCarrier = function() {
+    const carrier = document.getElementById('carrier2').value;
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make API call to update carrier
+    fetch(`/tickets/{{ ticket.id }}/update_carrier`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            carrier: carrier,
+            tracking_field: 'shipping_carrier_2'
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Carrier updated successfully');
+            // Optional: show a success message
+        } else {
+            console.error('Error updating carrier:', data.message);
+            alert('Error: ' + (data.message || 'Failed to update carrier'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating the carrier');
+    });
+};
+
+window.trackSecondaryPackage = function() {
+    const trackingNumber = '{{ ticket.shipping_tracking_2 }}';
+    const carrier = '{{ ticket.shipping_carrier_2 }}';
+    
+    if (!trackingNumber) {
+        alert('No tracking number available');
+        return;
+    }
+    
+    let trackingUrl;
+    
+    // Determine tracking URL based on carrier
+    switch (carrier) {
+        case 'singpost':
+            trackingUrl = `https://www.singpost.com/track-items?track_number=${trackingNumber}`;
+            break;
+        case 'dhl':
+            trackingUrl = `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`;
+            break;
+        case 'ups':
+            trackingUrl = `https://www.ups.com/track?loc=en_US&tracknum=${trackingNumber}`;
+            break;
+        case 'bluedart':
+            trackingUrl = `https://www.bluedart.com/tracking-details?trackfor=${trackingNumber}`;
+            break;
+        case 'dtdc':
+            trackingUrl = `https://tracking.dtdc.com/ctbs-tracking/customerInterface.tr?submitName=showCITrackingDetails&cnNo=${trackingNumber}`;
+            break;
+        default:
+            // Default to a general tracking site for auto or unknown carriers
+            trackingUrl = `https://www.ship24.com/tracking?p=${trackingNumber}`;
+            break;
+    }
+    
+    // Open tracking URL in a new window
+    window.open(trackingUrl, '_blank');
+};
+
+window.submitAddShipmentForm = function() {
+    const form = document.getElementById('addShipmentForm');
+    const trackingNumber = form.elements['tracking_number'].value;
+    const carrier = form.elements['carrier'].value;
+    
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...';
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make AJAX request to save the additional tracking number
+    fetch(`/tickets/{{ ticket.id }}/add_secondary_shipment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            tracking_number: trackingNumber,
+            carrier: carrier
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 400) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'CSRF validation failed');
+                });
+            }
+            throw new Error('Network response was not ok, status: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Hide modal
+            hideAddShipmentModal();
+            
+            // Refresh the page to show the new shipment
+            window.location.reload();
+        } else {
+            console.error('API Error:', data.message);
+            alert('Error: ' + (data.message || 'Failed to add shipment'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving the shipment');
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    });
+};
+
+// Add Return Tracking Modal functions
+window.showAddReturnTrackingModal = function() {
+    console.log('showAddReturnTrackingModal called');
+    const modal = document.getElementById('addReturnTrackingModal');
+    if (modal) {
+        console.log('Found addReturnTrackingModal, removing hidden class');
+        modal.classList.remove('hidden');
+    } else {
+        console.error('addReturnTrackingModal element not found!');
+    }
+};
+
+window.hideAddReturnTrackingModal = function() {
+    console.log('hideAddReturnTrackingModal called');
+    const modal = document.getElementById('addReturnTrackingModal');
+    if (modal) {
+        console.log('Found addReturnTrackingModal, adding hidden class');
+        modal.classList.add('hidden');
+    } else {
+        console.error('addReturnTrackingModal element not found!');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const submitReturnTrackingBtn = document.getElementById('submitReturnTrackingBtn');
+    if (submitReturnTrackingBtn) {
+        submitReturnTrackingBtn.addEventListener('click', function() {
+            submitAddReturnTrackingForm();
+        });
+    }
+    
+    // Add event listener for outbound tracking modal submit button
+    const submitOutboundTrackingBtn = document.getElementById('submitOutboundTrackingBtn');
+    if (submitOutboundTrackingBtn) {
+        submitOutboundTrackingBtn.addEventListener('click', function() {
+            submitAddOutboundTrackingForm();
+        });
+    }
+});
+
+function submitAddReturnTrackingForm() {
+    const form = document.getElementById('addReturnTrackingForm');
+    const trackingNumber = form.elements['return_tracking_number'].value;
+    const carrier = form.elements['return_carrier'].value;
+    
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitReturnTrackingBtn');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...';
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make AJAX request to save the return tracking number
+    fetch(`/tickets/{{ ticket.id }}/add_return_tracking`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            tracking_number: trackingNumber,
+            carrier: carrier
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        
+        if (data.success) {
+            // Hide modal and reload page
+            hideAddReturnTrackingModal();
+            window.location.reload();
+        } else {
+            alert(`Error: ${data.message || 'Failed to add return tracking'}`);
+        }
+    })
+    .catch(error => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        
+        console.error('Error:', error);
+        alert(`An error occurred: ${error.message || 'Failed to add return tracking'}`);
+    });
+}
+
+// Add Outbound Tracking Modal functions
+window.showAddOutboundTrackingModal = function() {
+    console.log('showAddOutboundTrackingModal called');
+    const modal = document.getElementById('addOutboundTrackingModal');
+    if (modal) {
+        console.log('Found addOutboundTrackingModal, removing hidden class');
+        modal.classList.remove('hidden');
+    } else {
+        console.error('addOutboundTrackingModal element not found!');
+    }
+};
+
+window.hideAddOutboundTrackingModal = function() {
+    console.log('hideAddOutboundTrackingModal called');
+    const modal = document.getElementById('addOutboundTrackingModal');
+    if (modal) {
+        console.log('Found addOutboundTrackingModal, adding hidden class');
+        modal.classList.add('hidden');
+    } else {
+        console.error('addOutboundTrackingModal element not found!');
+    }
+};
+
+function submitAddOutboundTrackingForm() {
+    const form = document.getElementById('addOutboundTrackingForm');
+    const trackingNumber = form.elements['outbound_tracking_number'].value;
+    const carrier = form.elements['outbound_carrier'].value;
+    
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitOutboundTrackingBtn');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...';
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make AJAX request to save the tracking number
+    fetch(`/tickets/{{ ticket.id }}/add_outbound_tracking`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            tracking_number: trackingNumber,
+            carrier: carrier
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        
+        if (data.success) {
+            // Hide modal and reload page
+            hideAddOutboundTrackingModal();
+            window.location.reload();
+        } else {
+            alert(`Error: ${data.message || 'Failed to add outbound tracking'}`);
+        }
+    })
+    .catch(error => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        
+        console.error('Error:', error);
+        alert(`An error occurred: ${error.message || 'Failed to add outbound tracking'}`);
+    });
+}
+
+// Mark items as received functions
+function markOutboundAsReceived() {
+    if(!confirm('Are you sure you want to mark this item as received?')) {
+        return;
+    }
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    loadingDiv.innerHTML = '<div class="bg-white p-4 rounded-lg"><span class="animate-spin inline-block mr-2 h-5 w-5 border-t-2 border-blue-500 rounded-full"></span>Processing...</div>';
+    document.body.appendChild(loadingDiv);
+    
+    fetch(`/tickets/{{ ticket.id }}/mark_outbound_received`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Remove loading indicator
+        document.body.removeChild(loadingDiv);
+        
+        if (data.success) {
+            alert('Item marked as received!');
+            // Force a full page reload with cache busting
+            const cacheBuster = new Date().getTime();
+            window.location.href = window.location.pathname + '?t=' + cacheBuster;
+        } else {
+            alert(`Error: ${data.message || 'Failed to mark as received'}`);
+        }
+    })
+    .catch(error => {
+        // Remove loading indicator
+        if (document.body.contains(loadingDiv)) {
+            document.body.removeChild(loadingDiv);
+        }
+        
+        console.error('Error:', error);
+        alert(`An error occurred: ${error.message || 'Failed to mark as received'}`);
+    });
+}
+
+function markReturnAsReceived() {
+    if(!confirm('Are you sure you want to mark this return item as received?')) {
+        return;
+    }
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    loadingDiv.innerHTML = '<div class="bg-white p-4 rounded-lg"><span class="animate-spin inline-block mr-2 h-5 w-5 border-t-2 border-blue-500 rounded-full"></span>Processing...</div>';
+    document.body.appendChild(loadingDiv);
+    
+    fetch(`/tickets/{{ ticket.id }}/mark_return_received`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Remove loading indicator
+        document.body.removeChild(loadingDiv);
+        
+        if (data.success) {
+            alert('Return item marked as received!');
+            // Force a full page reload with cache busting
+            const cacheBuster = new Date().getTime();
+            window.location.href = window.location.pathname + '?t=' + cacheBuster;
+        } else {
+            alert(`Error: ${data.message || 'Failed to mark as received'}`);
+        }
+    })
+    .catch(error => {
+        // Remove loading indicator
+        if (document.body.contains(loadingDiv)) {
+            document.body.removeChild(loadingDiv);
+        }
+        
+        console.error('Error:', error);
+        alert(`An error occurred: ${error.message || 'Failed to mark as received'}`);
+    });
+}
 </script>
-{% endblock %} 
+
+<!-- Add Shipment Modal -->
+<div id="addShipmentModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Add Tracking Information
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Please enter the tracking number and select the carrier for this shipment.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="addShipmentForm" class="mt-4 space-y-4">
+                    <div>
+                        <label for="tracking_number" class="block text-sm font-medium text-gray-700">Tracking Number</label>
+                        <input type="text" id="tracking_number" name="tracking_number" required 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                        <select id="carrier" name="carrier" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="auto">Auto-Detect</option>
+                            <option value="singpost">SingPost</option>
+                            <option value="dhl">DHL</option>
+                            <option value="ups">UPS</option>
+                            <option value="bluedart">BlueDart</option>
+                            <option value="dtdc">DTDC</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="submit" form="addShipmentForm" 
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Add Shipment
+                </button>
+                <button type="button" onclick="hideAddShipmentModal()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Return Tracking Modal -->
+<div id="addReturnTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Add Return Tracking Information
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Please enter the return tracking number and select the carrier for this return shipment.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="addReturnTrackingForm" class="mt-4 space-y-4">
+                    <div>
+                        <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
+                        <input type="text" id="return_tracking_number" name="return_tracking_number" required 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                        <select id="return_carrier" name="return_carrier" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                            <option value="auto">Auto-Detect</option>
+                            <option value="singpost">SingPost</option>
+                            <option value="dhl">DHL</option>
+                            <option value="ups">UPS</option>
+                            <option value="bluedart">BlueDart</option>
+                            <option value="dtdc">DTDC</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="submitReturnTrackingBtn" 
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Add Return Tracking
+                </button>
+                <button type="button" onclick="hideAddReturnTrackingModal()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Outbound Tracking Modal -->
+<div id="addOutboundTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Add Outbound Tracking Information
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Please enter the outbound tracking number and select the carrier for this shipment.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="addOutboundTrackingForm" class="mt-4 space-y-4">
+                    <div>
+                        <label for="outbound_tracking_number" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
+                        <input type="text" id="outbound_tracking_number" name="outbound_tracking_number" required 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="outbound_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                        <select id="outbound_carrier" name="outbound_carrier" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="auto">Auto-Detect</option>
+                            <option value="singpost">SingPost</option>
+                            <option value="dhl">DHL</option>
+                            <option value="ups">UPS</option>
+                            <option value="bluedart">BlueDart</option>
+                            <option value="dtdc">DTDC</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="submitOutboundTrackingBtn" 
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Add Outbound Tracking
+                </button>
+                <button type="button" onclick="hideAddOutboundTrackingModal()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock scripts %} 

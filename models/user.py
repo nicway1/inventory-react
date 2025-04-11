@@ -84,6 +84,11 @@ class User(Base, UserMixin):
         """Check if user is a supervisor"""
         return self.user_type == UserType.SUPERVISOR
 
+    @property
+    def is_client(self):
+        """Check if user is a client"""
+        return self.user_type == UserType.CLIENT
+
     def can_access_company(self, company_id):
         """Check if user has access to a specific company"""
         # Super admins can access all companies

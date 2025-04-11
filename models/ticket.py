@@ -93,6 +93,11 @@ class Ticket(Base):
     return_status = Column(String(100), default='Pending')
     replacement_status = Column(String(100), default='Pending')
     
+    # Second tracking for Asset Checkout (claw)
+    shipping_tracking_2 = Column(String(100), nullable=True)
+    shipping_carrier_2 = Column(String(50), nullable=True)
+    shipping_status_2 = Column(String(100), nullable=True, default='Pending')
+    
     # Asset Intake specific fields
     packing_list_path = Column(String(500))
     asset_csv_path = Column(String(500))

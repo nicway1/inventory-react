@@ -127,6 +127,12 @@ def index():
     # Get counts from database
     db_session = db_manager.get_session()
     try:
+        # Load ticket counts for each queue to avoid detached session issues
+        queue_ticket_counts = {}
+        for queue in queues:
+            # Count tickets for this queue to avoid lazy loading issues in template
+            queue_ticket_counts[queue.id] = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+        
         tech_assets_count = db_session.query(Asset).count()
         accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
         total_inventory = tech_assets_count + accessories_count
@@ -134,19 +140,22 @@ def index():
         total_tickets = db_session.query(Ticket).count()
         
         # Get all shipment tickets (all carriers)
-        shipment_tickets = db_session.query(Ticket).filter(
-            Ticket.category.in_([
-                TicketCategory.ASSET_CHECKOUT,
-                TicketCategory.ASSET_CHECKOUT_SINGPOST,
-                TicketCategory.ASSET_CHECKOUT_DHL,
-                TicketCategory.ASSET_CHECKOUT_UPS,
-                TicketCategory.ASSET_CHECKOUT_BLUEDART,
-                TicketCategory.ASSET_CHECKOUT_DTDC,
-                TicketCategory.ASSET_CHECKOUT_AUTO,
-                TicketCategory.ASSET_CHECKOUT_CLAW,
-                TicketCategory.ASSET_RETURN_CLAW
-            ])
-        ).order_by(Ticket.created_at.desc()).all()
+        shipment_tickets = []
+        # Only load shipment tickets for non-CLIENT users
+        if user.user_type != UserType.CLIENT:
+            shipment_tickets = db_session.query(Ticket).filter(
+                Ticket.category.in_([
+                    TicketCategory.ASSET_CHECKOUT,
+                    TicketCategory.ASSET_CHECKOUT_SINGPOST,
+                    TicketCategory.ASSET_CHECKOUT_DHL,
+                    TicketCategory.ASSET_CHECKOUT_UPS,
+                    TicketCategory.ASSET_CHECKOUT_BLUEDART,
+                    TicketCategory.ASSET_CHECKOUT_DTDC,
+                    TicketCategory.ASSET_CHECKOUT_AUTO,
+                    TicketCategory.ASSET_CHECKOUT_CLAW,
+                    TicketCategory.ASSET_RETURN_CLAW
+                ])
+            ).order_by(Ticket.created_at.desc()).all()
     finally:
         db_session.close()
 
@@ -202,6 +211,7 @@ def index():
 
     return render_template('home.html',
         queues=queues,
+        queue_ticket_counts=queue_ticket_counts,
         stats=stats,
         activities=activities,
         user=user,

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Outbound Tracking Information Section -->
+    {% if ticket.category %}
+        {% if ticket.category.value == 'ASSET_CHECKOUT_MAIN' or
+              ticket.category.value == 'Asset Checkout (main)' or
+              ticket.category.value == 'ASSET_CHECKOUT_CLAW' or
+              ticket.category.value == 'Asset Checkout (claw)' %}
+        <div>
+            <h3>Outbound Tracking</h3>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- Inbound Tracking Information Section -->
+    {% if ticket.category %}
+        {% if ticket.category.value != 'ASSET_CHECKOUT_MAIN' and 
+              ticket.category.value != 'Asset Checkout (main)' and 
+              ticket.category.value != 'ASSET_CHECKOUT_CLAW' and 
+              ticket.category.value != 'Asset Checkout (claw)' or
+              ticket.category.value == 'ASSET_RETURN_CLAW' or
+              ticket.category.value == 'Asset Return (claw)' %}
+        <div>
+            <h3>Inbound Tracking</h3>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Basic script
+</script>
+{% endblock %} 

@@ -4,6 +4,16 @@
 <!-- Add CSRF token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+<!-- Add global variables for use in JavaScript -->
+<script>
+    // Global variables for user permissions and type
+    var isClient = {% if is_client %}true{% else %}false{% endif %};
+    var csrfToken = "{{ csrf_token() }}";
+    
+    // This will be replaced with the actual filtered count from the API for client users
+    var initialTechAssetCount = {% if is_client %}0{% else %}{{ tech_assets_count }}{% endif %};
+</script>
+
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-8">IT Asset Inventory</h1>
 
@@ -111,7 +121,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-{% if is_client %}1{% else %}3{% endif %} gap-6 mb-8">
         <!-- Tech Assets Card -->
         <div id="techAssetsCard" 
              class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors">
@@ -120,6 +130,7 @@
             <p class="text-3xl font-bold" id="techAssetsCount">{{ tech_assets_count }}</p>
         </div>
 
+        {% if not is_client %}
         <!-- Accessories Card -->
         <div id="accessoriesCard"
              class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors">
@@ -135,6 +146,7 @@
             <p class="text-sm opacity-80 mb-4">Assets needing erasure attention</p>
             <p class="text-3xl font-bold" id="maintenanceCount">{{ maintenance_assets_count }}</p>
         </div>
+        {% endif %}
     </div>
 
     <!-- Tech Assets Table -->
@@ -475,22 +487,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkoutCount = document.getElementById('checkoutCount');
     const checkoutCountAccessories = document.getElementById('checkoutCountAccessories');
     
-    // Load items from localStorage immediately
-    let storedItems = [];
+    // Initialize variables
+    var initialTechAssetCount = {% if is_client %}0{% else %}{{ tech_assets_count }}{% endif %};
+
     try {
-        const savedItems = localStorage.getItem('checkoutItems');
-        if (savedItems) {
-            storedItems = JSON.parse(savedItems);
-            console.log('Loaded checkout items from storage:', storedItems.length);
-            
-            // Update count displays immediately
-            if (checkoutCount) checkoutCount.textContent = storedItems.length;
-            if (checkoutCountAccessories) checkoutCountAccessories.textContent = storedItems.length;
-        }
+        // Try to load items from localStorage
+        const storedItems = JSON.parse(localStorage.getItem('checkoutItems') || '[]');
+        
+        // Update both count displays
+        const techCount = document.getElementById('checkoutCount');
+        const checkoutCountAccessories = document.getElementById('checkoutCountAccessories');
+        
+        if (techCount) techCount.textContent = storedItems.length;
+        if (checkoutCountAccessories) checkoutCountAccessories.textContent = storedItems.length;
     } catch (e) {
         console.error('Error loading checkout items from storage:', e);
     }
     
+    // Important: Load tech assets immediately to ensure correct count display
+    {% if not is_client %}
+    // For non-CLIENT users, load tech assets at page load
+    loadTechAssets();
+    {% endif %}
+
     const techAssetsTable = document.getElementById('techAssetsTable');
     const accessoriesTable = document.getElementById('accessoriesTable');
     const maintenanceTable = document.getElementById('maintenanceTable');
@@ -847,7 +866,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to update the table with data
     function updateTable(data) {
-        techAssetsCount.textContent = data.total_count;
+        // Update the total count display with the actual count from the API
+        if (isClient) {
+            // For CLIENT users, always use the count from the API to ensure they only see their assets
+            techAssetsCount.textContent = data.total_count;
+        } else if (initialTechAssetCount > 0) {
+            // For non-CLIENT users, only update if there's filtered data, otherwise keep the server count
+            techAssetsCount.textContent = data.total_count || initialTechAssetCount;
+        }
         
         if (data.assets && data.assets.length > 0) {
             const rows = data.assets.map(asset => {
@@ -1523,15 +1549,22 @@ document.addEventListener('DOMContentLoaded', function() {
         showTable('techAssetsTable');
     });
 
-    accessoriesCard.addEventListener('click', function() {
-        showTable('accessoriesTable');
-    });
-
-    maintenanceCard.addEventListener('click', function() {
-        console.log("Maintenance card clicked"); // Add debug log
-        showTable('maintenanceTable');
-        loadMaintenanceAssets(); // Load the maintenance data when tab is clicked
-    });
+    // Only set up accessories and maintenance card event listeners if not a client
+    if (!isClient) {
+        if (accessoriesCard) {
+            accessoriesCard.addEventListener('click', function() {
+                showTable('accessoriesTable');
+            });
+        }
+        
+        if (maintenanceCard) {
+            maintenanceCard.addEventListener('click', function() {
+                console.log("Maintenance card clicked"); // Add debug log
+                showTable('maintenanceTable');
+                loadMaintenanceAssets(); // Load the maintenance data when tab is clicked
+            });
+        }
+    }
 
     // Show tech assets tab by default
     showTable('techAssetsTable');
@@ -1702,11 +1735,23 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         // Check URL hash and activate appropriate tab
         if (window.location.hash === '#accessories') {
-            initAccessoriesTab();
-            currentTab = 'accessories';
+            if (isClient) {
+                // Clients can't access accessories tab, redirect to tech assets
+                window.location.hash = '';
+                initTechAssetsTab();
+            } else {
+                initAccessoriesTab();
+                currentTab = 'accessories';
+            }
         } else if (window.location.hash === '#maintenance') {
-            initMaintenanceTab();
-            currentTab = 'maintenance';
+            if (isClient) {
+                // Clients can't access maintenance tab, redirect to tech assets
+                window.location.hash = '';
+                initTechAssetsTab();
+            } else {
+                initMaintenanceTab();
+                currentTab = 'maintenance';
+            }
         } else {
             initTechAssetsTab();
             currentTab = 'techAssets';
@@ -1738,13 +1783,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     currentTab = 'techAssets';
                     window.location.hash = '';
                 } else if (tabName === 'accessories') {
-                    initAccessoriesTab();
-                    currentTab = 'accessories';
-                    window.location.hash = '#accessories';
+                    if (isClient) {
+                        // Clients can't access accessories tab
+                        initTechAssetsTab();
+                        currentTab = 'techAssets';
+                        window.location.hash = '';
+                    } else {
+                        initAccessoriesTab();
+                        currentTab = 'accessories';
+                        window.location.hash = '#accessories';
+                    }
                 } else if (tabName === 'maintenance') {
-                    initMaintenanceTab();
-                    currentTab = 'maintenance';
-                    window.location.hash = '#maintenance';
+                    if (isClient) {
+                        // Clients can't access maintenance tab
+                        initTechAssetsTab();
+                        currentTab = 'techAssets';
+                        window.location.hash = '';
+                    } else {
+                        initMaintenanceTab();
+                        currentTab = 'maintenance';
+                        window.location.hash = '#maintenance';
+                    }
                 }
             });
         });
@@ -1792,9 +1851,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Load initial data
-    loadTechAssets();
-    
     // Function to initialize the tech assets tab
     function initTechAssetsTab() {
         // Reset selected assets
@@ -1966,6 +2022,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('closeEraseStatusModal').addEventListener('click', function() {
         document.getElementById('eraseStatusModal').classList.add('hidden');
     });
+
+    // For CLIENT users, immediately load the tech assets to get the correct count
+    if (isClient && typeof loadTechAssets === 'function') {
+        console.log("CLIENT user detected: Loading tech assets for accurate count display");
+        loadTechAssets();
+    }
 });
 </script>
 {% endblock %} 

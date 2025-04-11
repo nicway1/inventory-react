@@ -112,6 +112,33 @@ class Permission(Base):
                 'can_import_data': True,
                 'can_export_data': True
             }
+        elif user_type == UserType.CLIENT:
+            return {
+                'can_view_assets': True,
+                'can_edit_assets': False,
+                'can_delete_assets': False,
+                'can_create_assets': False,
+                'can_view_country_assets': False,
+                'can_edit_country_assets': False,
+                'can_delete_country_assets': False,
+                'can_create_country_assets': False,
+                'can_view_accessories': False,
+                'can_edit_accessories': False,
+                'can_delete_accessories': False,
+                'can_create_accessories': False,
+                'can_view_companies': False,
+                'can_edit_companies': False,
+                'can_delete_companies': False,
+                'can_create_companies': False,
+                'can_view_users': False,
+                'can_edit_users': False,
+                'can_delete_users': False,
+                'can_create_users': False,
+                'can_view_reports': False,
+                'can_generate_reports': False,
+                'can_import_data': False,
+                'can_export_data': False
+            }
         else:  # Supervisor
             return {
                 'can_view_assets': True,

@@ -24,6 +24,12 @@ import sys
 from config import TRACKINGMORE_API_KEY
 import traceback
 from werkzeug.security import generate_password_hash
+from dotenv import load_dotenv
+from models.comment import Comment
+from flask_login import current_user
+from models.user import User, UserType, Country
+from datetime import timezone # Modified import
+import uuid
 
 # Initialize TrackingMore client
 try:
@@ -55,9 +61,18 @@ TRACKINGMORE_API_KEY = "7yyp17vj-t0bh-jtg0-xjf0-v9m3335cjbtc"
 @login_required
 def list_tickets():
     user_id = session['user_id']
+    user = db_manager.get_user(user_id)
     user_type = session['user_type']
-    tickets = ticket_store.get_user_tickets(user_id, user_type)
-    return render_template('tickets/list.html', tickets=tickets)
+    
+    # Only allow access to tickets based on user type
+    if user.user_type == UserType.CLIENT:
+        # For CLIENT users, only show tickets related to their company
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+    else:
+        # For other users, show all tickets according to their permissions
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+        
+    return render_template('tickets/list.html', tickets=tickets, user=user)
 
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
@@ -65,6 +80,10 @@ def create_ticket():
     print("Entering create_ticket route")  # Debug log
     db_session = db_manager.get_session()
     try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        is_client = user.user_type == UserType.CLIENT
+        
         # Get all available assets for the dropdown
         assets = db_session.query(Asset).filter(
             Asset.status.in_([AssetStatus.IN_STOCK, AssetStatus.READY_TO_DEPLOY]),
@@ -81,13 +100,20 @@ def create_ticket():
         
         # Get all customers for the dropdown
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        
+        # Get all queues for the dropdown
+        queues = queue_store.get_all_queues()
 
         if request.method == 'GET':
             print("Handling GET request")  # Debug log
             return render_template('tickets/create.html', 
                                 assets=assets_data,
                                 customers=customers,
-                                priorities=list(TicketPriority))
+                                priorities=list(TicketPriority),
+                                queues=queues,
+                                Country=list(Country),
+                                is_client=is_client,
+                                user=user)
 
         if request.method == 'POST':
             print("Handling POST request")  # Debug log
@@ -114,6 +140,23 @@ def create_ticket():
                                     assets=assets_data,
                                     customers=customers,
                                     priorities=list(TicketPriority),
+                                    queues=queues,
+                                    Country=list(Country),
+                                    is_client=is_client,
+                                    user=user,
+                                    form=request.form)
+
+            # Ensure CLIENT users can only create ASSET_RETURN_CLAW tickets
+            if is_client and category != 'ASSET_RETURN_CLAW':
+                flash('You can only create Asset Return (CLAW) tickets', 'error')
+                return render_template('tickets/create.html',
+                                    assets=assets_data,
+                                    customers=customers,
+                                    priorities=list(TicketPriority),
+                                    queues=queues,
+                                    Country=list(Country),
+                                    is_client=is_client,
+                                    user=user,
                                     form=request.form)
 
             # Get serial number based on category
@@ -139,6 +182,10 @@ def create_ticket():
                                     assets=assets_data,
                                     customers=customers,
                                     priorities=list(TicketPriority),
+                                    queues=queues,
+                                    Country=list(Country),
+                                    is_client=is_client,
+                                    user=user,
                                     form=request.form)
 
             # Find the asset (skip for Asset Intake and Asset Return Claw)
@@ -151,6 +198,10 @@ def create_ticket():
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=list(Country),
+                                        is_client=is_client,
+                                        user=user,
                                         form=request.form)
 
             # Include ASSET_CHECKOUT_AUTO and CLAW in the main checkout logic block
@@ -175,6 +226,10 @@ def create_ticket():
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
+                                        is_client=is_client,
+                                        user=user,
                                         form=request.form)
 
                 if not shipping_address:
@@ -183,6 +238,10 @@ def create_ticket():
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
+                                        is_client=is_client,
+                                        user=user,
                                         form=request.form)
                 
                 # Get customer details
@@ -193,6 +252,10 @@ def create_ticket():
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
+                                        is_client=is_client,
+                                        user=user,
                                         form=request.form)
                 
                 # Determine shipping method based on category
@@ -292,6 +355,8 @@ Additional Notes:
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
 
             # Handle category-specific logic
@@ -318,6 +383,8 @@ Additional Notes:
                                        assets=assets_data,
                                        customers=customers,
                                        priorities=list(TicketPriority),
+                                       queues=queues,
+                                       Country=Country,
                                        form=request.form)
                                        
             elif category == 'ASSET_RETURN_CLAW':
@@ -327,6 +394,14 @@ Additional Notes:
                 outbound_tracking = request.form.get('shipping_tracking', '')  # Renamed for clarity
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
                 notes = request.form.get('notes', '')
+                queue_id = request.form.get('queue_id')  # Get selected queue
+                
+                # Convert queue_id to int if provided
+                if queue_id:
+                    try:
+                        queue_id = int(queue_id)
+                    except ValueError:
+                        queue_id = None
                 
                 print(f"Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
                 
@@ -336,6 +411,8 @@ Additional Notes:
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
 
                 if not shipping_address:
@@ -344,15 +421,12 @@ Additional Notes:
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
                 
-                if not outbound_tracking:
-                    flash('Please provide an outbound tracking number', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        form=request.form)
+                # We no longer require outbound tracking
+                # Removed validation that previously required outbound_tracking
                 
                 # Get customer details
                 customer = db_session.query(CustomerUser).get(customer_id)
@@ -362,6 +436,8 @@ Additional Notes:
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
                 
                 # Prepare description
@@ -374,7 +450,7 @@ Contact: {customer.contact_number}
 
 Return Information:
 Address: {shipping_address}
-Outbound Tracking Number: {outbound_tracking}
+Outbound Tracking Number: {outbound_tracking if outbound_tracking else 'Not provided yet'}
 Inbound Tracking Number: {inbound_tracking if inbound_tracking else 'Not provided yet'}
 Shipping Method: Claw (Ship24)
 
@@ -392,9 +468,10 @@ Additional Notes:
                         asset_id=None,  # No asset for returns
                         customer_id=customer_id,
                         shipping_address=shipping_address,
-                        shipping_tracking=outbound_tracking,
+                        shipping_tracking=outbound_tracking if outbound_tracking else None,
                         shipping_carrier='claw',
-                        return_tracking=inbound_tracking if inbound_tracking else None
+                        return_tracking=inbound_tracking if inbound_tracking else None,
+                        queue_id=queue_id
                     )
 
                     print(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
@@ -467,6 +544,8 @@ Images Attached: {len(image_paths)} image(s)"""
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
 
                 # Handle file uploads
@@ -533,6 +612,8 @@ Additional Notes:
                                         assets=assets_data,
                                         customers=customers,
                                         priorities=list(TicketPriority),
+                                        queues=queues,
+                                        Country=Country,
                                         form=request.form)
 
             # Create the ticket for other categories
@@ -555,7 +636,9 @@ Additional Notes:
     return render_template('tickets/create.html',
                         assets=assets_data,
                         customers=customers,
-                        priorities=list(TicketPriority))
+                        priorities=list(TicketPriority),
+                        queues=queues,
+                        Country=Country)
 
 @tickets_bp.route('/<int:ticket_id>')
 @login_required
@@ -563,6 +646,11 @@ def view_ticket(ticket_id):
     # Get ticket with eagerly loaded relationships
     db_session = db_manager.get_session()
     try:
+        print(f"Loading ticket {ticket_id} for viewing")
+        # Make sure we're getting fresh data, not cached
+        db_session.expire_all()
+        
+        # Load ticket with all relationships directly from database
         ticket = db_session.query(Ticket)\
             .options(db_manager.joinedload(Ticket.asset))\
             .options(db_manager.joinedload(Ticket.accessory))\
@@ -572,6 +660,23 @@ def view_ticket(ticket_id):
         if not ticket:
             flash('Ticket not found')
             return redirect(url_for('tickets.list_tickets'))
+        
+        print(f"Loaded ticket {ticket_id} from database - shipping_status: '{ticket.shipping_status}', return_status: '{ticket.return_status}'")
+        
+        # Check if ticket exists in ticket_store and if data might be stale
+        store_ticket = ticket_store.get_ticket(ticket_id)
+        if store_ticket:
+            # If store has different status values, update the store to match database
+            if (store_ticket.shipping_status != ticket.shipping_status or 
+                store_ticket.return_status != ticket.return_status):
+                print(f"Ticket store data is stale. Updating ticket {ticket_id} in store.")
+                store_ticket.shipping_status = ticket.shipping_status
+                store_ticket.return_status = ticket.return_status
+                ticket_store.save_tickets()
+            
+            print(f"Ticket {ticket_id} from store - shipping_status: '{store_ticket.shipping_status}', return_status: '{store_ticket.return_status}'")
+        else:
+            print(f"Ticket {ticket_id} not found in ticket store")
         
         comments = comment_store.get_ticket_comments(ticket_id)
         
@@ -607,7 +712,7 @@ def view_ticket(ticket_id):
         
         return render_template(
             'tickets/view.html',
-            ticket=ticket,
+            ticket=ticket,  # Use the database version of the ticket
             comments=sorted(comments, key=lambda x: x.created_at),
             queues=queues,
             users=users_dict,
@@ -639,7 +744,38 @@ def add_comment(ticket_id):
 @login_required
 def list_queues():
     queues = queue_store.get_all_queues()
-    return render_template('tickets/queues.html', queues=queues)
+    
+    # Get ticket counts for each queue to avoid detached session issues
+    db_session = db_manager.get_session()
+    queue_ticket_counts = {}
+    try:
+        for queue in queues:
+            # Count tickets for this queue to avoid lazy loading issues in template
+            queue_ticket_counts[queue.id] = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+    finally:
+        db_session.close()
+    
+    return render_template('tickets/queues.html', queues=queues, queue_ticket_counts=queue_ticket_counts)
+
+@tickets_bp.route('/queues/create', methods=['POST'])
+@login_required
+def create_queue():
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    
+    if not name:
+        flash('Queue name is required', 'error')
+        return redirect(url_for('tickets.list_queues'))
+    
+    # Create the queue using the queue_store
+    new_queue = queue_store.add_queue(name, description)
+    
+    if new_queue:
+        flash(f'Queue "{name}" created successfully', 'success')
+    else:
+        flash('Failed to create queue', 'error')
+    
+    return redirect(url_for('tickets.list_queues'))
 
 @tickets_bp.route('/queues/<int:queue_id>')
 @login_required
@@ -649,97 +785,14 @@ def view_queue(queue_id):
         flash('Queue not found')
         return redirect(url_for('tickets.list_queues'))
     
-    tickets = [ticket_store.get_ticket(ticket_id) for ticket_id in queue.tickets]
+    # Get tickets directly from database with an active session
+    db_session = db_manager.get_session()
+    try:
+        tickets = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).all()
+    finally:
+        db_session.close()
+        
     return render_template('tickets/queue_view.html', queue=queue, tickets=tickets)
-
-@tickets_bp.route('/<int:ticket_id>/assign', methods=['POST'])
-@admin_required
-def assign_ticket(ticket_id):
-    assigned_to_id = request.form.get('assigned_to_id')
-    queue_id = request.form.get('queue_id')
-    
-    if queue_id:
-        queue_id = int(queue_id)
-    if assigned_to_id:
-        assigned_to_id = int(assigned_to_id)
-
-    ticket = ticket_store.assign_ticket(ticket_id, assigned_to_id, queue_id)
-    if ticket:
-        flash('Ticket assigned successfully')
-    else:
-        flash('Error assigning ticket')
-    
-    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-
-@tickets_bp.route('/<int:ticket_id>/status', methods=['POST'])
-@admin_required
-def change_status(ticket_id):
-    ticket = ticket_store.get_ticket(ticket_id)
-    if not ticket:
-        flash('Ticket not found')
-        return redirect(url_for('tickets.list_tickets'))
-    
-    new_status = request.form.get('status')
-    comment = request.form.get('status_comment')
-    
-    if new_status in Ticket.STATUS_OPTIONS:
-        ticket.change_status(new_status, comment)
-        flash('Status updated successfully')
-    else:
-        flash('Invalid status')
-    
-    return redirect(url_for('tickets.view_ticket', ticket_id=ticket.id))
-
-@tickets_bp.route('/<int:ticket_id>/assign-owner', methods=['POST'])
-@admin_required
-def assign_case_owner(ticket_id):
-    ticket = ticket_store.get_ticket(ticket_id)
-    if not ticket:
-        flash('Ticket not found')
-        return redirect(url_for('tickets.list_tickets'))
-    
-    owner_id = request.form.get('owner_id')
-    if owner_id:
-        owner_id = int(owner_id)
-        # Check if user exists
-        owner = user_store.get_user_by_id(owner_id)
-        if owner:
-            previous_owner_id = ticket.assigned_to_id
-            ticket.assign_case_owner(owner_id)
-            
-            # Create activity for the new owner
-            activity_store.add_activity(
-                user_id=owner_id,
-                type='case_assigned',
-                content=f"You were assigned as owner of ticket {ticket.display_id}: {ticket.subject}",
-                reference_id=ticket.id
-            )
-            
-            # If there was a previous owner, notify them as well
-            if previous_owner_id and previous_owner_id != owner_id:
-                activity_store.add_activity(
-                    user_id=previous_owner_id,
-                    type='case_unassigned',
-                    content=f"You were unassigned from ticket {ticket.display_id}: {ticket.subject}",
-                    reference_id=ticket.id
-                )
-                
-            flash('Case owner updated successfully')
-        else:
-            flash('Selected user not found')
-    else:
-        # If unassigning, notify the previous owner
-        if ticket.assigned_to_id:
-            activity_store.add_activity(
-                user_id=ticket.assigned_to_id,
-                type='case_unassigned',
-                content=f"You were unassigned from ticket {ticket.display_id}: {ticket.subject}",
-                reference_id=ticket.id
-            )
-        ticket.assign_case_owner(None)  # Unassign
-        flash('Case owner removed')
-    
-    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
 
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
 @login_required
@@ -2147,47 +2200,61 @@ def debug_tracking(ticket_id):
 @login_required
 def update_shipping_carrier(ticket_id):
     """Update the shipping carrier for a ticket"""
-    ticket = ticket_store.get_ticket(ticket_id)
-    if not ticket:
-        flash('Ticket not found', 'error')
-        return redirect(url_for('tickets.list_tickets'))
-        
-    new_carrier = request.form.get('carrier')
-    if not new_carrier or new_carrier not in ['singpost', 'dhl', 'ups', 'bluedart', 'dtdc', 'auto']:
-        flash('Invalid carrier specified', 'error')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-    
-    # Update the carrier and category
     try:
-        ticket.shipping_carrier = new_carrier
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        carrier = data.get('carrier')
+        tracking_field = data.get('tracking_field', 'shipping_carrier')  # Default to main tracking field, but allow secondary
         
-        # Also update the ticket category
-        if new_carrier == 'singpost':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_SINGPOST
-        elif new_carrier == 'dhl':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_DHL
-        elif new_carrier == 'ups':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_UPS
-        elif new_carrier == 'bluedart':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_BLUEDART
-        elif new_carrier == 'dtdc':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_DTDC
-        elif new_carrier == 'auto':
-            ticket.category = TicketCategory.ASSET_CHECKOUT_AUTO
-        
-        # Save the ticket
+        if not carrier:
+            return jsonify({'success': False, 'message': 'No carrier specified'}), 400
+
+        # Validate carrier
+        valid_carriers = ['auto', 'singpost', 'dhl', 'ups', 'bluedart', 'dtdc', 'claw']
+        if carrier not in valid_carriers:
+            return jsonify({'success': False, 'message': f'Invalid carrier. Valid options are: {", ".join(valid_carriers)}'}), 400
+
+        # Get ticket
         db_session = ticket_store.db_manager.get_session()
-        try:
-            db_session.add(ticket)
-            db_session.commit()
-            flash(f'Carrier updated to {new_carrier}', 'success')
-        finally:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        
+        if not ticket:
             db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+        
+        # Update carrier based on tracking_field
+        if tracking_field == 'shipping_carrier':
+            ticket.shipping_carrier = carrier
+        elif tracking_field == 'shipping_carrier_2':
+            ticket.shipping_carrier_2 = carrier
+        else:
+            db_session.close()
+            return jsonify({'success': False, 'message': f'Invalid tracking field: {tracking_field}'}), 400
+            
+        ticket.updated_at = datetime.datetime.now()
+        
+        # Add system comment
+        new_comment = Comment(
+            content=f"Updated {tracking_field.replace('_', ' ')} to {carrier}",
+            ticket_id=ticket.id,
+            user_id=current_user.id,
+            created_at=datetime.datetime.now()
+        )
+        db_session.add(new_comment)
+        
+        # Commit changes
+        db_session.commit()
+        db_session.close()
+        
+        return jsonify({'success': True, 'message': 'Carrier updated successfully'})
         
     except Exception as e:
-        flash(f'Error updating carrier: {str(e)}', 'error')
-        
-    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        print(f"Error updating carrier: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
 # Simple GET endpoint to update carrier (for easier testing via URL)
 @tickets_bp.route('/<int:ticket_id>/set_carrier/<carrier>', methods=['GET'])
@@ -2789,6 +2856,9 @@ def track_claw(ticket_id):
     tracking_number = ticket.shipping_tracking
     print(f"Attempting to scrape ship24 for: {tracking_number}")
 
+    # Ensure we have the latest environment variables
+    load_dotenv(override=True)
+    
     # Initialize FirecrawlApp locally to avoid dependency on global variable
     FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY')
     firecrawl_client = None
@@ -2798,7 +2868,7 @@ def track_claw(ticket_id):
         from firecrawl import FirecrawlApp
         if FIRECRAWL_API_KEY:
             firecrawl_client = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
-            print("Firecrawl API client initialized successfully")
+            print(f"Firecrawl API client initialized successfully with key: {FIRECRAWL_API_KEY[:5]}...")
         else:
             print("Error: No Firecrawl API key found in environment variables")
     except Exception as e:
@@ -3074,3 +3144,256 @@ def track_return(ticket_id):
         if db_session:
             print("Closing database session.")
             db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/add_secondary_shipment', methods=['POST'])
+@login_required
+def add_secondary_shipment(ticket_id):
+    """Add a secondary shipment tracking number to a ticket"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        tracking_number = data.get('tracking_number')
+        carrier = data.get('carrier', 'auto')  # Default to auto if not specified
+
+        if not tracking_number:
+            return jsonify({'success': False, 'message': 'Tracking number is required'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Update the ticket with the tracking information
+        if not ticket.shipping_tracking:
+            # No primary tracking - update the main tracking field
+            ticket.shipping_tracking = tracking_number
+            ticket.shipping_carrier = carrier
+            ticket.shipping_status = 'Pending'  # Set initial status
+            ticket.updated_at = datetime.datetime.now()
+            tracking_field = "primary"
+        else:
+            # Primary tracking exists - update secondary tracking field
+            ticket.shipping_tracking_2 = tracking_number
+            ticket.shipping_carrier_2 = carrier
+            ticket.shipping_status_2 = 'Pending'  # Set initial status
+            ticket.updated_at = datetime.datetime.now()
+            tracking_field = "secondary"
+        
+        # Add system note instead of creating a Comment object directly
+        # (This avoids the error with Comment requiring an ID)
+        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] {tracking_field.capitalize()} shipment added with tracking: {tracking_number} (carrier: {carrier})"
+        
+        # Commit changes
+        db_session.commit()
+        db_session.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'{tracking_field.capitalize()} shipment tracking added successfully',
+            'tracking_number': tracking_number,
+            'carrier': carrier,
+            'tracking_field': tracking_field
+        })
+
+    except Exception as e:
+        print(f"Error adding secondary shipment: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/add_return_tracking', methods=['POST'])
+@login_required
+def add_return_tracking(ticket_id):
+    """Add a return tracking number to an Asset Return (claw) ticket"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        tracking_number = data.get('tracking_number')
+        carrier = data.get('carrier', 'auto')  # Default to auto if not specified
+
+        if not tracking_number:
+            return jsonify({'success': False, 'message': 'Tracking number is required'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+            
+        # Verify this is an Asset Return (claw) ticket
+        if ticket.category != TicketCategory.ASSET_RETURN_CLAW:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'This operation is only valid for Asset Return (claw) tickets'}), 400
+
+        # Update the return tracking information
+        ticket.return_tracking = tracking_number
+        ticket.updated_at = datetime.datetime.now()
+        
+        # Add system note
+        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return tracking added: {tracking_number} (carrier: {carrier})"
+        
+        # Commit changes
+        db_session.commit()
+        db_session.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Return tracking added successfully',
+            'tracking_number': tracking_number,
+            'carrier': carrier
+        })
+
+    except Exception as e:
+        print(f"Error adding return tracking: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
+
+@tickets_bp.route('/api/customers')
+@login_required
+def get_customers():
+    """Get a list of all customers for use in AJAX requests"""
+    db_session = db_manager.get_session()
+    try:
+        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        return jsonify({
+            'success': True,
+            'customers': [
+                {
+                    'id': customer.id,
+                    'name': customer.name,
+                    'company_name': customer.company.name if customer.company else None,
+                    'address': customer.address,
+                    'email': customer.email,
+                    'contact_number': customer.contact_number,
+                    'country': customer.country.value if customer.country else None
+                }
+                for customer in customers
+            ]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/add_outbound_tracking', methods=['POST'])
+@login_required
+def add_outbound_tracking(ticket_id):
+    db_session = db_manager.get_session()
+    try:
+        data = request.json
+        tracking_number = data.get('tracking_number')
+        carrier = data.get('carrier', 'auto')
+        
+        if not tracking_number:
+            return jsonify({'success': False, 'message': 'Tracking number is required'}), 400
+        
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+        
+        # Update tracking information
+        ticket.shipping_tracking = tracking_number
+        ticket.shipping_carrier = carrier
+        
+        # Save changes
+        db_session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Outbound tracking information added successfully'
+        })
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error adding outbound tracking: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/mark_outbound_received', methods=['POST'])
+@login_required
+def mark_outbound_received(ticket_id):
+    db_session = db_manager.get_session()
+    try:
+        print(f"Starting mark_outbound_received for ticket {ticket_id}")
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            print(f"Ticket {ticket_id} not found")
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+        
+        # Update the shipping status to "Delivered" or "Item was received" if no tracking
+        old_status = ticket.shipping_status
+        if ticket.shipping_tracking:
+            ticket.shipping_status = "Delivered"
+        else:
+            ticket.shipping_status = "Item was received"
+        
+        print(f"Updating ticket {ticket_id} shipping_status from '{old_status}' to '{ticket.shipping_status}'")
+        
+        # Save changes to database
+        db_session.flush()  # Flush before commit to catch any DB errors
+        db_session.commit()
+        print(f"Database commit successful for ticket {ticket_id}")
+        
+        # Note: No need to update ticket_store since get_ticket() already queries the database directly
+        
+        return jsonify({
+            'success': True,
+            'message': 'Outbound shipment marked as received'
+        })
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error marking outbound as received: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/mark_return_received', methods=['POST'])
+@login_required
+def mark_return_received(ticket_id):
+    db_session = db_manager.get_session()
+    try:
+        print(f"Starting mark_return_received for ticket {ticket_id}")
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            print(f"Ticket {ticket_id} not found")
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+        
+        # Update the return status to "Delivered" or "Item was received" if no tracking
+        old_status = ticket.return_status
+        if ticket.return_tracking:
+            ticket.return_status = "Delivered"
+        else:
+            ticket.return_status = "Item was received"
+        
+        print(f"Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}'")
+        
+        # Save changes to database
+        db_session.flush()  # Flush before commit to catch any DB errors
+        db_session.commit()
+        print(f"Database commit successful for ticket {ticket_id}")
+        
+        # Note: No need to update ticket_store since get_ticket() already queries the database directly
+        
+        return jsonify({
+            'success': True,
+            'message': 'Return shipment marked as received'
+        })
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error marking return as received: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    finally:
+        db_session.close()

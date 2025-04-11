@@ -34,6 +34,9 @@ from werkzeug.security import generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
 from routes.intake import intake_bp
+# Import category blueprints
+from routes.ticket_categories.asset_checkout_claw import asset_checkout_claw_bp
+from routes.ticket_categories.asset_return_claw import asset_return_claw_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -130,6 +133,9 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp)
     app.register_blueprint(intake_bp)
+    # Register category blueprints
+    app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
+    app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
 
     @app.context_processor
     def utility_processor():

@@ -241,6 +241,12 @@ def create_user():
                         flash('Country selection is required for Country Admin', 'error')
                         return render_template('admin/create_user.html', companies=companies)
                     user_data['assigned_country'] = Country[assigned_country]
+                
+                # Company is required for CLIENT users
+                if user_type == 'CLIENT' and not company_id:
+                    flash('Company selection is required for Client users', 'error')
+                    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                    return render_template('admin/create_user.html', companies=companies_data)
 
                 user = User(**user_data)
                 db_session.add(user)
@@ -289,8 +295,15 @@ def edit_user(user_id):
             # Update basic user information
             user.username = username
             user.email = email
-            user.company_id = company_id if company_id else None
             user.user_type = UserType[user_type]
+
+            # Handle company assignment
+            user.company_id = company_id if company_id else None
+            
+            # Company is required for CLIENT users
+            if user_type == 'CLIENT' and not company_id:
+                flash('Company selection is required for Client users', 'error')
+                return render_template('admin/edit_user.html', user=user, companies=companies)
 
             # Update password if provided
             if password:

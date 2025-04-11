@@ -1,12 +1,20 @@
 import requests
 import os
 from config import FIRECRAWL_API_KEY
+from dotenv import load_dotenv
 
 class FirecrawlClient:
     def __init__(self, api_key=None):
-        self.api_key = api_key or FIRECRAWL_API_KEY
+        # Force reload environment variables
+        load_dotenv(override=True)
+        
+        # Use provided API key or get from freshly loaded environment
+        self.api_key = api_key or os.environ.get('FIRECRAWL_API_KEY') or FIRECRAWL_API_KEY
+        
         if not self.api_key:
             raise ValueError("Firecrawl API key not configured")
+        
+        print(f"FirecrawlClient initialized with API key: {self.api_key[:5]}...")
         self.base_url = "https://api.firecrawl.com/v1"
         
     def scrape_ship24(self, tracking_number):

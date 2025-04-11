@@ -61,6 +61,17 @@ def view_inventory():
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             tech_assets_query = tech_assets_query.filter(Asset.country == user.assigned_country.value)
         
+        # Filter by company if user is a client (can only see their company's assets)
+        if user.user_type == UserType.CLIENT and user.company:
+            # Filter by company_id and also by customer field matching company name
+            tech_assets_query = tech_assets_query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            )
+            print(f"DEBUG: Filtering assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+        
         # Get counts
         tech_assets_count = tech_assets_query.count()
         accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
@@ -85,6 +96,10 @@ def view_inventory():
         # For Country Admin or Supervisor, only show their assigned country
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             countries = [user.assigned_country.value]
+        # For Client users, only show countries relevant to their company's assets
+        elif user.user_type == UserType.CLIENT and user.company:
+            countries = tech_assets_query.with_entities(Asset.country).distinct().all()
+            countries = sorted(list(set([c[0] for c in countries if c[0]])))
         else:
             countries = tech_assets_query.with_entities(Asset.country).distinct().all()
             countries = sorted(list(set([c[0] for c in countries if c[0]])))
@@ -114,7 +129,8 @@ def view_inventory():
 
         # Debug template data
         is_supervisor = user.user_type == UserType.SUPERVISOR
-        print(f"DEBUG: Template vars - is_admin={user.is_admin}, is_country_admin={user.is_country_admin}, is_supervisor={is_supervisor}")
+        is_client = user.user_type == UserType.CLIENT
+        print(f"DEBUG: Template vars - is_admin={user.is_admin}, is_country_admin={user.is_country_admin}, is_supervisor={is_supervisor}, is_client={is_client}")
         
         return render_template(
             'inventory/view.html',
@@ -129,7 +145,8 @@ def view_inventory():
             user=user,
             is_admin=user.is_admin,
             is_country_admin=user.is_country_admin,
-            is_supervisor=is_supervisor
+            is_supervisor=is_supervisor,
+            is_client=is_client
         )
 
     finally:
@@ -149,6 +166,23 @@ def view_tech_assets():
         # Filter by country if user is Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
+        
+        # Filter by company if user is a client (can only see their company's assets)
+        if user.user_type == UserType.CLIENT and user.company:
+            # Filter by company_id and also by customer field matching company name
+            assets_query = assets_query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            )
+            # Log more detailed information for debugging client view
+            print(f"DEBUG: Filtering assets for client user. User ID: {user.id}, Company ID: {user.company_id}, Company Name: {user.company.name}")
+            
+            # Get counts for individual filters to help debug
+            company_id_count = db_session.query(Asset).filter(Asset.company_id == user.company_id).count()
+            customer_name_count = db_session.query(Asset).filter(Asset.customer == user.company.name).count()
+            print(f"DEBUG: Assets count by company_id: {company_id_count}, by customer name: {customer_name_count}")
         
         # Execute query
         assets = assets_query.all()
@@ -1771,6 +1805,12 @@ def list_customer_users():
     """List all customer users"""
     db_session = db_manager.get_session()
     try:
+        # Check if user is CLIENT type - if so, deny access
+        user = db_manager.get_user(session['user_id'])
+        if user.user_type == UserType.CLIENT:
+            flash('You do not have permission to access this page.', 'error')
+            return redirect(url_for('main.dashboard'))
+            
         customers = db_session.query(CustomerUser)\
             .options(joinedload(CustomerUser.company))\
             .options(joinedload(CustomerUser.assigned_assets))\
@@ -3192,3 +3232,56 @@ def bulk_update_erased():
         db_session.rollback()
         app.logger.error(f"Error updating assets: {str(e)}")
         return jsonify({'error': f"Error updating assets: {str(e)}"}), 500
+
+@inventory_bp.route('/update-erase-status', methods=['POST'])
+@login_required
+def update_erase_status():
+    """API endpoint to update the ERASED status of a single asset"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        asset_id = data.get('asset_id')
+        erased_status = data.get('erased_status')
+        
+        if not asset_id:
+            return jsonify({'error': 'No asset ID provided'}), 400
+            
+        if not erased_status:
+            return jsonify({'error': 'No erased status provided'}), 400
+        
+        # Update asset
+        asset = db_session.query(Asset).filter_by(id=asset_id).first()
+        if not asset:
+            return jsonify({'error': f'Asset with ID {asset_id} not found'}), 404
+            
+        # Update the asset
+        asset.erased = erased_status
+        
+        # Track changes in asset history
+        history_entry = asset.track_change(
+            user_id=session.get('user_id'),
+            action="UPDATE",
+            changes={'erased': {'from': asset.erased, 'to': erased_status}},
+            notes=f"Erase status updated to {erased_status}"
+        )
+        db_session.add(history_entry)
+        
+        # Commit changes
+        db_session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully updated erase status to {erased_status}',
+            'asset_id': asset_id
+        })
+        
+    except Exception as e:
+        db_session.rollback()
+        app.logger.error(f"Error updating erase status: {str(e)}")
+        return jsonify({'error': f"Error updating erase status: {str(e)}"}), 500
+    finally:
+        db_session.close()

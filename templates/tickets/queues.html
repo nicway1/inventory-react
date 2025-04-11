@@ -4,12 +4,38 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Support Queues</h1>
-        {% if session.get('user_type') == 'admin' %}
         <button onclick="toggleCreateQueueForm()" 
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
             Create New Queue
         </button>
-        {% endif %}
+    </div>
+
+    <!-- Create Queue Form (hidden by default) -->
+    <div id="createQueueForm" class="bg-white shadow-lg rounded-lg p-6 mb-6 hidden">
+        <h2 class="text-xl font-semibold mb-4">Create New Queue</h2>
+        <form action="{{ url_for('tickets.create_queue') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-4">
+                <label for="queue_name" class="block text-sm font-medium text-gray-700 mb-1">Queue Name</label>
+                <input type="text" id="queue_name" name="name" required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="queue_description" class="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                <textarea id="queue_description" name="description" rows="3" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="toggleCreateQueueForm()" 
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Create Queue
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Queue List -->
@@ -23,7 +49,7 @@
                 {% endif %}
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-500">
-                        {{ queue.tickets|length }} tickets
+                        {{ queue_ticket_counts[queue.id] }} tickets
                     </span>
                     <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}" 
                        class="text-blue-500 hover:text-blue-700">
@@ -35,4 +61,15 @@
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleCreateQueueForm() {
+        const form = document.getElementById('createQueueForm');
+        if (form) {
+            form.classList.toggle('hidden');
+        }
+    }
+</script>
 {% endblock %} 

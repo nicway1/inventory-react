@@ -66,6 +66,7 @@
                         <option value="SUPER_ADMIN">Super Admin</option>
                         <option value="SUPERVISOR">Supervisor</option>
                         <option value="COUNTRY_ADMIN">Country Admin</option>
+                        <option value="CLIENT">Client</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">
                         Super Admin: Full system access
@@ -73,6 +74,8 @@
                         Supervisor: View and search access only
                         <br>
                         Country Admin: Manage assigned country's inventory
+                        <br>
+                        Client: Limited access to assigned inventory
                     </p>
                 </div>
 
@@ -107,14 +110,23 @@
 document.addEventListener('DOMContentLoaded', function() {
     const userTypeSelect = document.getElementById('user_type');
     const countrySelect = document.getElementById('countrySelect');
+    const companySelect = document.getElementById('company_id');
     
     userTypeSelect.addEventListener('change', function() {
+        // Handle country select visibility
         if (this.value === 'COUNTRY_ADMIN') {
             countrySelect.style.display = 'block';
             document.getElementById('assigned_country').required = true;
         } else {
             countrySelect.style.display = 'none';
             document.getElementById('assigned_country').required = false;
+        }
+        
+        // Handle company requirement
+        if (this.value === 'CLIENT') {
+            companySelect.required = true;
+        } else {
+            companySelect.required = false;
         }
     });
 

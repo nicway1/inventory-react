@@ -30,6 +30,7 @@
                             onchange="toggleFormFields()"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select category...</option>
+                        {% if not is_client %}
                         <option value="PIN_REQUEST" {% if form and form.category == 'PIN_REQUEST' %}selected{% endif %}>PIN Request</option>
                         <option value="ASSET_REPAIR" {% if form and form.category == 'ASSET_REPAIR' %}selected{% endif %}>Asset Repair</option>
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
@@ -43,8 +44,9 @@
                         <option value="ASSET_CHECKOUT_DTDC" {% if form and form.category == 'ASSET_CHECKOUT_DTDC' %}selected{% endif %}>Asset Checkout (DTDC)</option>
                         <option value="ASSET_CHECKOUT_AUTO" {% if form and form.category == 'ASSET_CHECKOUT_AUTO' %}selected{% endif %}>Asset Checkout (Auto)</option>
                         <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout (claw)</option>
-                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return (claw)</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
+                        {% endif %}
+                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' or is_client %}selected{% endif %}>Asset Return (claw)</option>
                     </select>
                 </div>
 
@@ -240,19 +242,28 @@
                     <!-- Customer Selection -->
                     <div>
                         <label for="customer_id" class="block text-sm font-medium text-gray-700">Select Customer</label>
-                        <select id="customer_id" 
-                                name="customer_id"
-                                required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Select a customer...</option>
-                            {% for customer in customers %}
-                            <option value="{{ customer.id }}" 
-                                    data-address="{{ customer.address }}"
-                                    data-company="{{ customer.company.name if customer.company else '' }}">
-                                {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="flex items-center space-x-2">
+                            <select id="customer_id" 
+                                    name="customer_id"
+                                    required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select a customer...</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" 
+                                        data-address="{{ customer.address }}"
+                                        data-company="{{ customer.company.name if customer.company else '' }}">
+                                    {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" 
+                                    onclick="showCreateCustomerModal()"
+                                    class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Hidden field for asset checkout serial number -->
@@ -288,20 +299,9 @@
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
 
-                    <!-- Tracking Number -->
-                    <div>
-                        <label for="shipping_tracking" class="block text-sm font-medium text-gray-700">
-                            <span id="trackingLabel">Tracking Number</span>
-                            <span id="singpostNote" class="text-sm text-gray-500 hidden">(Format: XZD or XZB followed by numbers)</span>
-                        </label>
-                        <input type="text" 
-                               id="shipping_tracking" 
-                               name="shipping_tracking" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <p id="trackingHint" class="mt-1 text-sm text-gray-500 hidden">
-                            Please enter a valid tracking number starting with XZD or XZB followed by numbers
-                        </p>
-                    </div>
+                    <!-- Tracking Number - Removed as requested -->
+                    <!-- Hidden field for shipping_tracking to ensure it's always empty at creation -->
+                    <input type="hidden" id="shipping_tracking" name="shipping_tracking" value="">
 
                     <!-- Notes -->
                     <div>
@@ -491,19 +491,28 @@
                     <!-- Customer Selection -->
                     <div>
                         <label for="return_customer_id" class="block text-sm font-medium text-gray-700">Select Customer</label>
-                        <select id="return_customer_id" 
-                                name="customer_id"
-                                required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Select a customer...</option>
-                            {% for customer in customers %}
-                            <option value="{{ customer.id }}" 
-                                    data-address="{{ customer.address }}"
-                                    data-company="{{ customer.company.name if customer.company else '' }}">
-                                {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="flex items-center space-x-2">
+                            <select id="return_customer_id" 
+                                    name="customer_id"
+                                    required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select a customer...</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" 
+                                        data-address="{{ customer.address }}"
+                                        data-company="{{ customer.company.name if customer.company else '' }}">
+                                    {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" 
+                                    onclick="showCreateCustomerModal()"
+                                    class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Return Description -->
@@ -530,12 +539,11 @@
                     <!-- Outbound Tracking Number -->
                     <div>
                         <label for="outbound_tracking" class="block text-sm font-medium text-gray-700">
-                            Outbound Tracking Number (Any Carrier)
+                            Outbound Tracking Number (Any Carrier) <span class="text-sm text-gray-500">(Optional)</span>
                         </label>
                         <input type="text" 
                                id="outbound_tracking" 
                                name="shipping_tracking" 
-                               required
                                placeholder="Tracking number for shipment TO customer"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <p class="mt-1 text-sm text-gray-500" id="outboundTrackingHelp">
@@ -555,6 +563,24 @@
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <p class="mt-1 text-sm text-gray-500" id="inboundTrackingHelp">
                             This is the tracking number for the return shipment from the customer.
+                        </p>
+                    </div>
+                    
+                    <!-- Queue Selection -->
+                    <div>
+                        <label for="queue_id" class="block text-sm font-medium text-gray-700">
+                            Assign to Queue (Optional)
+                        </label>
+                        <select id="queue_id" 
+                                name="queue_id" 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">-- Select Queue --</option>
+                            {% for queue in queues %}
+                            <option value="{{ queue.id }}">{{ queue.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Select which support queue this return ticket should be assigned to.
                         </p>
                     </div>
 
@@ -615,11 +641,159 @@
     </div>
 </div>
 
+<!-- Create Customer Modal -->
+<div id="createCustomerModal" class="fixed inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Create New Customer
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Please fill in the customer information. All fields marked with * are required.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label for="new_customer_name" class="block text-sm font-medium text-gray-700">Customer Name *</label>
+                        <input type="text" id="new_customer_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="new_customer_contact" class="block text-sm font-medium text-gray-700">Contact Number *</label>
+                        <input type="text" id="new_customer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="new_customer_email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="new_customer_email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="new_customer_address" class="block text-sm font-medium text-gray-700">Address *</label>
+                        <textarea id="new_customer_address" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="new_customer_company" class="block text-sm font-medium text-gray-700">Company *</label>
+                        <input type="text" id="new_customer_company" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="new_customer_country" class="block text-sm font-medium text-gray-700">Country *</label>
+                        <select id="new_customer_country" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for country in Country %}
+                            <option value="{{ country.name }}">{{ country.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="createCustomer()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Create
+                </button>
+                <button type="button" onclick="hideCreateCustomerModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Add jQuery and Select2 JS before the closing body tag -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
+// Customer creation modal functions
+function showCreateCustomerModal() {
+    document.getElementById('createCustomerModal').classList.remove('hidden');
+}
+
+function hideCreateCustomerModal() {
+    document.getElementById('createCustomerModal').classList.add('hidden');
+}
+
+function createCustomer() {
+    // Get form values
+    const name = document.getElementById('new_customer_name').value;
+    const contact_number = document.getElementById('new_customer_contact').value;
+    const email = document.getElementById('new_customer_email').value;
+    const address = document.getElementById('new_customer_address').value;
+    const company = document.getElementById('new_customer_company').value;
+    const country = document.getElementById('new_customer_country').value;
+    
+    // Validate required fields
+    if (!name || !contact_number || !address || !company || !country) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Store current category selection
+    const currentCategory = document.getElementById('category').value;
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('contact_number', contact_number);
+    formData.append('email', email);
+    formData.append('address', address);
+    formData.append('company', company);
+    formData.append('country', country);
+    formData.append('csrf_token', csrfToken);
+    
+    // Show loading state
+    const createButton = document.querySelector('#createCustomerModal button[onclick="createCustomer()"]');
+    const originalButtonText = createButton.innerHTML;
+    createButton.disabled = true;
+    createButton.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Creating...';
+    
+    // Send AJAX request
+    fetch('/inventory/customer-users/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        // Successfully created customer
+        alert('Customer created successfully!');
+        
+        // Save category to session storage before reload
+        if (currentCategory) {
+            sessionStorage.setItem('selectedCategory', currentCategory);
+        }
+        
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating customer: ' + error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        createButton.disabled = false;
+        createButton.innerHTML = originalButtonText;
+    });
+}
+
 function toggleFormFields() {
     const category = document.getElementById('category').value;
     const pinRequestFields = document.getElementById('pinRequestFields');
@@ -680,7 +854,7 @@ function toggleFormFields() {
         document.getElementById('return_customer_id').required = true;
         document.getElementById('return_description').required = true;
         document.getElementById('return_shipping_address').required = true;
-        document.getElementById('outbound_tracking').required = true;
+        document.getElementById('outbound_tracking').required = false;
         
         // Set a dummy value in asset_checkout_serial for form validation
         document.getElementById('asset_checkout_serial').value = 'ASSET_RETURN_NO_ASSET';
@@ -761,7 +935,7 @@ function toggleFormFields() {
             trackingHint.classList.add('hidden');
             trackingInput.pattern = null;
             trackingInput.removeAttribute('pattern');
-            trackingInput.required = true;
+            trackingInput.required = false;
         } else {
             trackingLabel.textContent = 'Tracking Number';
             singpostNote.classList.add('hidden');
@@ -837,6 +1011,21 @@ function updateSubject() {
 
 // Initialize Select2 and form state
 $(document).ready(function() {
+    // For CLIENT users, ensure the category is set to ASSET_RETURN_CLAW and trigger the change
+    {% if is_client %}
+    $('#category').val('ASSET_RETURN_CLAW');
+    {% endif %}
+    
+    // Check for saved category selection from customer creation
+    const savedCategory = sessionStorage.getItem('selectedCategory');
+    if (savedCategory) {
+        // Set the category dropdown to saved value
+        $('#category').val(savedCategory);
+        console.log('Restored saved category:', savedCategory);
+        // Clear the saved value to avoid unintended restoration on future visits
+        sessionStorage.removeItem('selectedCategory');
+    }
+
     // Initialize Select2 for all asset selection dropdowns
     $('#serial_number, #repair_serial_number, #checkout_serial_number').select2({
         placeholder: 'Search by serial number, model, or asset tag...',
@@ -975,32 +1164,43 @@ $(document).ready(function() {
         }
     });
 
-    // Add form submission debugging
-    $('form').on('submit', function(e) {
+    // Add form submit handler
+    $('#ticketForm').on('submit', function(e) {
         const category = $('#category').val();
-        console.log('Form submit event triggered. Category:', category);
+        console.log(`Form submit event triggered for category: ${category}`);
         
-        // Check if this is an asset return form with the special flag
-        if ($('#asset_return_form_flag').val() === '1' && category === 'ASSET_RETURN_CLAW') {
-            console.log('Asset Return form detected with flag. Allowing default submission.');
-            return true;
-        }
-        
-        // Log the value of the hidden serial field *before* validation checks
-        const hiddenSerialValueBeforeCheck = $('#asset_checkout_serial').val();
-        console.log('Value of #asset_checkout_serial BEFORE validation:', hiddenSerialValueBeforeCheck);
-
-        // Handle Asset Return with special validation
+        // For ASSET_RETURN_CLAW, validate outbound tracking number is provided
         if (category === 'ASSET_RETURN_CLAW') {
             console.log('Validating ASSET_RETURN_CLAW category...');
-            // For Asset Return, check if outbound tracking is provided
-            const outboundTracking = $('#outbound_tracking').val();
-            if (!outboundTracking) {
-                console.log('Submit validation failed: #outbound_tracking is empty. Preventing submission.');
+            // Validate customer selection
+            const customerId = $('#return_customer_id').val();
+            if (!customerId) {
+                console.log('Submit validation failed: Customer not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please provide an outbound tracking number');
+                alert('Please select a customer');
                 return false;
             }
+            
+            // Validate description
+            const description = $('#return_description').val();
+            if (!description) {
+                console.log('Submit validation failed: Description not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a return description');
+                return false;
+            }
+            
+            // Validate shipping address
+            const shippingAddress = $('#return_shipping_address').val();
+            if (!shippingAddress) {
+                console.log('Submit validation failed: Shipping address not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a shipping address');
+                return false;
+            }
+            
+            // Tracking validation is now optional
+            // No check for outbound tracking - it's now optional
             
             // Set a default subject if not provided
             if (!$('#subject').val()) {
@@ -1031,18 +1231,9 @@ $(document).ready(function() {
             
             console.log('Submit validation passed for asset selection.');
 
-            // Ensure no tracking format validation for DHL
-            if (category === 'ASSET_CHECKOUT_DHL') {
-                $('#shipping_tracking').removeAttr('pattern');
-            }
+            // Ensure no tracking format validation for any carrier
+            $('#shipping_tracking').removeAttr('pattern');
             
-            // Ensure no tracking format validation for BlueDart
-            if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
-                $('#shipping_tracking').removeAttr('pattern');
-            }
-            
-            // The hidden field is already set by the change handler, this line is redundant but harmless
-            // $('#asset_checkout_serial').val(serialNumber);
             console.log('Form submitted with asset_checkout_serial:', $('#asset_checkout_serial').val());
         } else if (category === 'PIN_REQUEST') {
              console.log('Validating PIN_REQUEST category...');
@@ -1171,11 +1362,6 @@ function submitAssetReturnForm() {
         return false;
     }
     
-    if (!$('#outbound_tracking').val()) {
-        alert('Please provide an outbound tracking number');
-        return false;
-    }
-    
     // Set the subject for the ticket
     const customer = $('#return_customer_id option:selected').text();
     $('#return_subject').val(`Asset Return (claw) - ${customer}`);
@@ -1248,6 +1434,15 @@ function submitAssetReturnForm() {
         inboundInput.name = 'return_tracking';
         inboundInput.value = $('#inbound_tracking').val();
         form.appendChild(inboundInput);
+    }
+    
+    // Add queue_id if selected
+    if ($('#queue_id').val()) {
+        const queueInput = document.createElement('input');
+        queueInput.type = 'hidden';
+        queueInput.name = 'queue_id';
+        queueInput.value = $('#queue_id').val();
+        form.appendChild(queueInput);
     }
     
     // Add notes if provided
