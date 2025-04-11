@@ -359,6 +359,17 @@ def filter_inventory():
         # Base query
         query = db_session.query(Asset)
         
+        # CLIENT user permissions check - can only see their company's assets
+        if user.user_type == UserType.CLIENT and user.company:
+            # Filter by company_id and also by customer field matching company name
+            query = query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            )
+            print(f"DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+        
         # Country filter for Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             query = query.filter(Asset.country == user.assigned_country.value)
@@ -393,6 +404,10 @@ def filter_inventory():
                     Asset.customer.ilike(search)
                 )
             )
+        
+        # Log query information for debugging
+        if user.user_type == UserType.CLIENT:
+            print(f"CLIENT user search results count: {query.count()}")
         
         # Execute query
         assets = query.all()
@@ -1838,37 +1853,58 @@ def add_customer_user():
     db_session = db_manager.get_session()
     try:
         if request.method == 'POST':
-            # Get form data
-            name = request.form.get('name')
-            contact_number = request.form.get('contact_number')
-            email = request.form.get('email')
-            address = request.form.get('address')
-            company_name = request.form.get('company')  # Get company name instead of ID
-            country = Country[request.form.get('country')]
+            try:
+                # Get form data
+                name = request.form.get('name')
+                contact_number = request.form.get('contact_number')
+                email = request.form.get('email')
+                address = request.form.get('address')
+                company_name = request.form.get('company')  # Get company name instead of ID
+                country_name = request.form.get('country')
+                
+                # Validate required fields
+                if not name or not contact_number or not address or not company_name or not country_name:
+                    return "Missing required fields", 400
+                
+                # Handle country enum conversion
+                try:
+                    country = Country[country_name]
+                except (KeyError, TypeError):
+                    return f"Invalid country value: {country_name}", 400
 
-            # Create new customer user
-            customer = CustomerUser(
-                name=name,
-                contact_number=contact_number,
-                email=email if email else None,
-                address=address,
-                country=country
-            )
+                # Create new customer user
+                customer = CustomerUser(
+                    name=name,
+                    contact_number=contact_number,
+                    email=email if email and email.strip() else None,  # Handle empty email properly
+                    address=address,
+                    country=country
+                )
 
-            # Look for existing company by name
-            company = db_session.query(Company).filter(Company.name == company_name).first()
-            if not company:
-                # Create new company if it doesn't exist
-                company = Company(name=company_name)
-                db_session.add(company)
-                db_session.flush()
+                # Look for existing company by name
+                company = db_session.query(Company).filter(Company.name == company_name).first()
+                if not company:
+                    # Create new company if it doesn't exist
+                    company = Company(name=company_name)
+                    db_session.add(company)
+                    db_session.flush()
 
-            customer.company = company
-            db_session.add(customer)
-            db_session.commit()
-            
-            flash('Customer user added successfully!', 'success')
-            return redirect(url_for('inventory.list_customer_users'))
+                customer.company = company
+                db_session.add(customer)
+                db_session.commit()
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': True}), 200
+                
+                flash('Customer user added successfully!', 'success')
+                return redirect(url_for('inventory.list_customer_users'))
+            except Exception as e:
+                db_session.rollback()
+                print(f"Error creating customer: {str(e)}")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'error': str(e)}), 500
+                flash(f'Error creating customer: {str(e)}', 'error')
+                return redirect(url_for('inventory.list_customer_users'))
         
         # For GET request, get unique company names from both assets and companies table
         company_names_from_assets = db_session.query(Asset.customer)\
@@ -2034,6 +2070,16 @@ def search():
         asset_query = db_session.query(Asset)
         accessory_query = db_session.query(Accessory)
         customer_query = db_session.query(CustomerUser)
+
+        # Filter by company for CLIENT users - can only see their company's assets
+        if user.user_type == UserType.CLIENT and user.company:
+            asset_query = asset_query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            )
+            print(f"DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
 
         # Filter by country for country admins
         if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
@@ -2816,7 +2862,7 @@ def import_customers():
                         customer = CustomerUser(
                             name=name,
                             contact_number=contact_number,
-                            email=email if email else None,
+                            email=email if email and email.strip() else None,  # Ensure empty emails are stored as None
                             address=address,
                             country=country
                         )
@@ -3125,6 +3171,16 @@ def get_maintenance_assets():
                 func.lower(Asset.erased) != 'completed'
             )
         )
+        
+        # Filter by company for CLIENT users - can only see their company's assets
+        if user.user_type == UserType.CLIENT and user.company:
+            query = query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            )
+            print(f"DEBUG: Filtering maintenance assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Filter by country if user is Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:

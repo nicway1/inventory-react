@@ -679,7 +679,7 @@
                         <input type="text" id="new_customer_contact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="new_customer_email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <label for="new_customer_email" class="block text-sm font-medium text-gray-700">Email (Optional)</label>
                         <input type="email" id="new_customer_email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
                     <div>
@@ -735,14 +735,15 @@ function createCustomer() {
     const company = document.getElementById('new_customer_company').value;
     const country = document.getElementById('new_customer_country').value;
     
+    // Store current category selection
+    const currentCategory = document.getElementById('category').value;
+    const isAssetReturnClaw = currentCategory === 'ASSET_RETURN_CLAW';
+    
     // Validate required fields
     if (!name || !contact_number || !address || !company || !country) {
         alert('Please fill in all required fields');
         return;
     }
-    
-    // Store current category selection
-    const currentCategory = document.getElementById('category').value;
     
     // Get CSRF token
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
@@ -751,7 +752,7 @@ function createCustomer() {
     const formData = new FormData();
     formData.append('name', name);
     formData.append('contact_number', contact_number);
-    formData.append('email', email);
+    formData.append('email', email); // Email is optional for ASSET_RETURN_CLAW
     formData.append('address', address);
     formData.append('company', company);
     formData.append('country', country);
@@ -766,13 +767,21 @@ function createCustomer() {
     // Send AJAX request
     fetch('/inventory/customer-users/add', {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         body: formData
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            // Get error details if available
+            return response.text().then(text => {
+                throw new Error(`Error ${response.status}: ${text || response.statusText}`);
+            });
         }
-        
+        return response.text();
+    })
+    .then(data => {
         // Successfully created customer
         alert('Customer created successfully!');
         
@@ -784,7 +793,7 @@ function createCustomer() {
         window.location.reload();
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error creating customer:', error);
         alert('Error creating customer: ' + error.message);
     })
     .finally(() => {
