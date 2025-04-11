@@ -30,7 +30,6 @@
                             onchange="toggleFormFields()"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select category...</option>
-                        {% if not is_client %}
                         <option value="PIN_REQUEST" {% if form and form.category == 'PIN_REQUEST' %}selected{% endif %}>PIN Request</option>
                         <option value="ASSET_REPAIR" {% if form and form.category == 'ASSET_REPAIR' %}selected{% endif %}>Asset Repair</option>
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
@@ -45,8 +44,7 @@
                         <option value="ASSET_CHECKOUT_AUTO" {% if form and form.category == 'ASSET_CHECKOUT_AUTO' %}selected{% endif %}>Asset Checkout (Auto)</option>
                         <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout (claw)</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
-                        {% endif %}
-                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' or is_client %}selected{% endif %}>Asset Return (claw)</option>
+                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return (claw)</option>
                     </select>
                 </div>
 
@@ -1020,10 +1018,6 @@ function updateSubject() {
 
 // Initialize Select2 and form state
 $(document).ready(function() {
-    // For CLIENT users, ensure the category is set to ASSET_RETURN_CLAW and trigger the change
-    {% if is_client %}
-    $('#category').val('ASSET_RETURN_CLAW');
-    {% endif %}
     
     // Check for saved category selection from customer creation
     const savedCategory = sessionStorage.getItem('selectedCategory');
