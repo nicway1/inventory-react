@@ -1,16 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from models.base import Base
 
 class AccessoryHistory(Base):
+    """Model for accessory history"""
     __tablename__ = 'accessory_history'
     
     id = Column(Integer, primary_key=True)
     accessory_id = Column(Integer, ForeignKey('accessories.id'), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    action = Column(String(50), nullable=False)  # e.g., 'update', 'delete'
-    changes = Column(JSON)  # Store the changes made: {'field': {'old': value, 'new': value}}
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    action = Column(String(100), nullable=False)
+    changes = Column(JSON)
     notes = Column(String(1000))
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -20,6 +21,7 @@ class AccessoryHistory(Base):
     
     @staticmethod
     def create_history(accessory_id, user_id, action, changes, notes=None):
+        """Create a new history entry"""
         return AccessoryHistory(
             accessory_id=accessory_id,
             user_id=user_id,

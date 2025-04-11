@@ -8,37 +8,46 @@ from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.activity import Activity
 from models.queue import Queue
-from models.ticket import Ticket
+from models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority, RMAStatus, RepairStatus
 from models.location import Location
 from models.permission import Permission
+from models.comment import Comment
+from models.ticket_attachment import TicketAttachment
+from models.intake_ticket import IntakeTicket
+from models.user_company_permission import UserCompanyPermission
+from models.tracking_history import TrackingHistory
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
-from models.ticket_attachment import TicketAttachment
-from models.intake_ticket import IntakeTicket
-from models.user_company_permission import UserCompanyPermission
 
 __all__ = [
     "Base",
     "User",
     "UserType",
-    "Country",
     "Company",
     "Asset",
     "AssetStatus",
     "Accessory",
+    "Country",
     "CustomerUser",
     "Activity",
     "Queue",
     "Ticket",
+    "TicketStatus",
+    "TicketCategory",
+    "TicketPriority",
+    "RMAStatus",
+    "RepairStatus",
     "Location",
     "Permission",
+    "Comment",
+    "TicketAttachment",
+    "IntakeTicket",
+    "UserCompanyPermission",
+    "TrackingHistory",
     "AssetHistory",
     "AccessoryHistory",
     "AssetTransaction",
-    "AccessoryTransaction",
-    "TicketAttachment",
-    "IntakeTicket",
-    "UserCompanyPermission"
+    "AccessoryTransaction"
 ]

@@ -1,25 +1,24 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
-import random
-import uuid
 from models.base import Base
 
 class AccessoryTransaction(Base):
+    """Model for accessory transactions"""
     __tablename__ = 'accessory_transactions'
     
     id = Column(Integer, primary_key=True)
-    transaction_number = Column(String(50), unique=True, nullable=False)
     accessory_id = Column(Integer, ForeignKey('accessories.id'), nullable=False)
     customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
-    transaction_date = Column(DateTime, nullable=False, default=datetime.utcnow)
-    transaction_type = Column(String(50), nullable=False)  # 'checkout', 'checkin', 'add_stock'
-    quantity = Column(Integer, nullable=False, default=1)
-    notes = Column(Text, nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    transaction_type = Column(String(50), nullable=False)  # checkout, checkin, etc.
+    notes = Column(String(1000))
+    transaction_date = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     accessory = relationship("Accessory", back_populates="transactions")
     customer = relationship("CustomerUser", back_populates="accessory_transactions")
+    user = relationship("User")
     
     def __init__(self, accessory_id, transaction_type, quantity=1, transaction_number=None, 
                  customer_id=None, notes=None, transaction_date=None):

@@ -123,6 +123,7 @@ class Ticket(Base):
     accessory = relationship("Accessory", back_populates="tickets")
     customer = relationship('CustomerUser', back_populates='tickets')
     attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
+    tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
 
     @property
     def display_id(self):

@@ -28,18 +28,6 @@ class Accessory(Base):
     history = relationship("AccessoryHistory", back_populates="accessory", order_by="desc(AccessoryHistory.created_at)")
     transactions = relationship("AccessoryTransaction", back_populates="accessory", order_by="desc(AccessoryTransaction.transaction_date)")
 
-    def track_change(self, user_id, action, changes, notes=None):
-        """Track changes made to the accessory"""
-        from models.accessory_history import AccessoryHistory
-        history_entry = AccessoryHistory.create_history(
-            accessory_id=self.id,
-            user_id=user_id,
-            action=action,
-            changes=changes,
-            notes=notes
-        )
-        return history_entry
-
     def to_dict(self):
         return {
             'id': self.id,

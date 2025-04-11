@@ -1,7 +1,7 @@
 import datetime
 import os
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response
 from utils.auth_decorators import login_required, admin_required
 from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus
 from utils.store_instances import (
@@ -30,6 +30,10 @@ from flask_login import current_user
 from models.user import User, UserType, Country
 from datetime import timezone # Modified import
 import uuid
+from utils.tracking_cache import TrackingCache
+import re
+from models.tracking_history import TrackingHistory
+from datetime import timedelta
 
 # Initialize TrackingMore client
 try:
@@ -2848,169 +2852,246 @@ def track_auto(ticket_id):
 @tickets_bp.route('/<int:ticket_id>/track_claw', methods=['GET'])
 @login_required
 def track_claw(ticket_id):
-    """Fetches tracking data by scraping ship24.com using Firecrawl"""
+    """Fetches tracking data by scraping ship24.com using Firecrawl, with caching support"""
     ticket = ticket_store.get_ticket(ticket_id)
     if not ticket or not ticket.shipping_tracking:
         return jsonify({'success': False, 'error': 'Ticket or tracking number not found'}), 404
 
     tracking_number = ticket.shipping_tracking
-    print(f"Attempting to scrape ship24 for: {tracking_number}")
-
-    # Ensure we have the latest environment variables
-    load_dotenv(override=True)
+    db_session = ticket_store.db_manager.get_session()
     
-    # Initialize FirecrawlApp locally to avoid dependency on global variable
-    FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY')
-    firecrawl_client = None
-    
-    # Try to initialize Firecrawl client
     try:
-        from firecrawl import FirecrawlApp
-        if FIRECRAWL_API_KEY:
-            firecrawl_client = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
-            print(f"Firecrawl API client initialized successfully with key: {FIRECRAWL_API_KEY[:5]}...")
+        # Check for force refresh parameter
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        
+        # Check for cached tracking data if not forcing refresh
+        if not force_refresh:
+            # Check for cached tracking data
+            from utils.tracking_cache import TrackingCache
+            cached_data = TrackingCache.get_cached_tracking(
+                db_session, 
+                tracking_number, 
+                ticket_id=ticket_id, 
+                tracking_type='primary',
+                max_age_hours=24  # Cache for 24 hours
+            )
+            
+            if cached_data:
+                print(f"Using cached tracking data for {tracking_number}")
+                return jsonify(cached_data)
         else:
-            print("Error: No Firecrawl API key found in environment variables")
-    except Exception as e:
-        print(f"Error initializing Firecrawl client: {str(e)}")
-
-    # Check if Firecrawl is available
-    if not firecrawl_client:
-        print("Error: Firecrawl API client not initialized. Returning simulated data.")
-        # Return simulated data as fallback
-        current_date = datetime.datetime.now()
-        tracking_info = [
-            {
-                "status": "In Transit (Simulated)",
-                "location": "Scraping Hub (Simulated)",
-                "date": current_date.isoformat()
-            },
-            {
-                "status": "Shipment information received (Simulated)",
-                "location": "Origin Facility (Simulated)",
-                "date": (current_date - datetime.timedelta(days=1)).isoformat()
-            }
-        ]
+            print(f"Force refresh requested for {tracking_number}, bypassing cache")
         
-        return jsonify({
-            'success': True,
-            'tracking_info': tracking_info,
-            'is_real_data': False,
-            'debug_info': {
-                'source': 'ship24_scrape_fallback',
-                'tracking_number': tracking_number,
-                'status': 'In Transit (Simulated)'
-            }
-        })
-
-    try:
-        # Define Ship24 URL for the tracking number
-        ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-        print(f"Scraping URL: {ship24_url}")
+        # If we get here, need to fetch fresh data
+        print(f"Scraping ship24 for: {tracking_number}")
         
-        # Use Firecrawl to scrape the tracking page and extract structured data
-        scrape_result = firecrawl_client.scrape_url(ship24_url, {
-            'formats': ['json'],
-            'jsonOptions': {
-                'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                For each event, extract:
-                - date: The date and time of the event
-                - status: The status description/message of the event
-                - location: The location where the event occurred
-                
-                Also extract the current shipment status.
-                Return as: 
-                {{
-                    "current_status": "Current status of the shipment",
-                    "events": [
-                        {{
-                            "date": "Date of event", 
-                            "status": "Status description", 
-                            "location": "Location"
-                        }}
-                    ]
-                }}
-                """
-            }
-        })
+        # Ensure we have the latest environment variables
+        load_dotenv(override=True)
         
-        # Log the raw response for debugging
-        print(f"Firecrawl Raw Response: {scrape_result}")
+        # Initialize FirecrawlApp locally to avoid dependency on global variable
+        FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY')
+        firecrawl_client = None
         
-        # Process the extracted data
-        tracking_info = []
-        latest_status = "Unknown"
-        
-        if 'json' in scrape_result and scrape_result['json']:
-            data = scrape_result['json']
-            
-            # Extract the latest status
-            latest_status = data.get('current_status', 'Unknown')
-            
-            # Extract tracking events
-            events = data.get('events', [])
-            if events:
-                for event in events:
-                    tracking_info.append({
-                        'date': event.get('date', ''),
-                        'status': event.get('status', ''),
-                        'location': event.get('location', '')
-                    })
-            
-            # If no events were extracted but we have a current status,
-            # create at least one event with the current status
-            if not tracking_info and latest_status != "Unknown":
-                tracking_info.append({
-                    'date': datetime.datetime.now().isoformat(),
-                    'status': latest_status,
-                    'location': 'Ship24 System'
-                })
-        
-        # Fallback if no tracking info was extracted
-        if not tracking_info:
-            print("Warning: No tracking events extracted. Using fallback data.")
+        # Try to initialize Firecrawl client
+        try:
+            from firecrawl import FirecrawlApp
+            if FIRECRAWL_API_KEY:
+                firecrawl_client = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+                print(f"Firecrawl API client initialized successfully with key: {FIRECRAWL_API_KEY[:5]}...")
+            else:
+                print("Error: No Firecrawl API key found in environment variables")
+        except Exception as e:
+            print(f"Error initializing Firecrawl client: {str(e)}")
+    
+        # Check if Firecrawl is available
+        if not firecrawl_client:
+            print("Error: Firecrawl API client not initialized. Returning simulated data.")
+            # Return simulated data as fallback
             current_date = datetime.datetime.now()
             tracking_info = [
                 {
-                    "status": "Information Received",
-                    "location": "Ship24 System",
+                    "status": "In Transit (Simulated)",
+                    "location": "Scraping Hub (Simulated)",
                     "date": current_date.isoformat()
+                },
+                {
+                    "status": "Shipment information received (Simulated)",
+                    "location": "Origin Facility (Simulated)",
+                    "date": (current_date - datetime.timedelta(days=1)).isoformat()
                 }
             ]
-            latest_status = "Information Received"
-        
-        # Update ticket with tracking info
+            
+            # Save simulated data to cache (short TTL)
+            TrackingCache.save_tracking_data(
+                db_session,
+                tracking_number, 
+                tracking_info, 
+                "In Transit (Simulated)",
+                ticket_id=ticket_id,
+                tracking_type='primary',
+                carrier=ticket.shipping_carrier
+            )
+            
+            return jsonify({
+                'success': True,
+                'tracking_info': tracking_info,
+                'is_real_data': False,
+                'is_cached': False,
+                'debug_info': {
+                    'source': 'ship24_scrape_fallback',
+                    'tracking_number': tracking_number,
+                    'status': 'In Transit (Simulated)'
+                }
+            })
+    
         try:
-            db_session = ticket_store.db_manager.get_session()
-            # Get a fresh instance of the ticket
-            fresh_ticket = db_session.query(Ticket).get(ticket_id)
-            if fresh_ticket:
-                fresh_ticket.shipping_status = latest_status
-                fresh_ticket.shipping_history = tracking_info
-                fresh_ticket.updated_at = datetime.datetime.now()
-                db_session.commit()
-                print(f"Updated ticket {ticket_id} with status: {latest_status}")
-            db_session.close()
+            # Define Ship24 URL for the tracking number
+            ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
+            print(f"Scraping URL: {ship24_url}")
+            
+            # Use Firecrawl to scrape the tracking page and extract structured data
+            scrape_result = firecrawl_client.scrape_url(ship24_url, {
+                'formats': ['json'],
+                'jsonOptions': {
+                    'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
+                    For each event, extract:
+                    - date: The date and time of the event
+                    - status: The status description/message of the event
+                    - location: The location where the event occurred
+                    
+                    Also extract the current shipment status.
+                    Return as: 
+                    {{
+                        "current_status": "Current status of the shipment",
+                        "events": [
+                            {{
+                                "date": "Date of event", 
+                                "status": "Status description", 
+                                "location": "Location"
+                            }}
+                        ]
+                    }}
+                    """
+                }
+            })
+            
+            # Log the raw response for debugging
+            print(f"Firecrawl Raw Response: {scrape_result}")
+            
+            # Process the extracted data
+            tracking_info = []
+            latest_status = "Unknown"
+            
+            if 'json' in scrape_result and scrape_result['json']:
+                data = scrape_result['json']
+                
+                # Extract the latest status
+                latest_status = data.get('current_status', 'Unknown')
+                
+                # Extract tracking events
+                events = data.get('events', [])
+                if events:
+                    for event in events:
+                        tracking_info.append({
+                            'date': event.get('date', ''),
+                            'status': event.get('status', ''),
+                            'location': event.get('location', '')
+                        })
+                
+                # If no events were extracted but we have a current status,
+                # create at least one event with the current status
+                if not tracking_info and latest_status != "Unknown":
+                    tracking_info.append({
+                        'date': datetime.datetime.now().isoformat(),
+                        'status': latest_status,
+                        'location': 'Ship24 System'
+                    })
+            
+            # Fallback if no tracking info was extracted
+            if not tracking_info:
+                print("Warning: No tracking events extracted. Using fallback data.")
+                current_date = datetime.datetime.now()
+                tracking_info = [
+                    {
+                        "status": "Information Received",
+                        "location": "Ship24 System",
+                        "date": current_date.isoformat()
+                    }
+                ]
+                latest_status = "Information Received"
+            
+            # Update ticket with tracking info
+            try:
+                # Get a fresh instance of the ticket
+                fresh_ticket = db_session.query(Ticket).get(ticket_id)
+                if fresh_ticket:
+                    fresh_ticket.shipping_status = latest_status
+                    fresh_ticket.shipping_history = tracking_info
+                    fresh_ticket.updated_at = datetime.datetime.now()
+                    print(f"Updated ticket {ticket_id} with status: {latest_status}")
+                
+                # Save to cache for future requests
+                TrackingCache.save_tracking_data(
+                    db_session,
+                    tracking_number, 
+                    tracking_info, 
+                    latest_status,
+                    ticket_id=ticket_id,
+                    tracking_type='primary',
+                    carrier=ticket.shipping_carrier
+                )
+                
+                # Verify database has the cache record
+                verification = db_session.query(TrackingHistory).filter(
+                    TrackingHistory.tracking_number == tracking_number,
+                    TrackingHistory.ticket_id == ticket_id,
+                    TrackingHistory.tracking_type == 'primary'
+                ).first()
+                
+                if verification:
+                    print(f"Verification: Cache record exists for {tracking_number}")
+                    print(f"- Last updated: {verification.last_updated}")
+                    print(f"- Status: {verification.status}")
+                else:
+                    print(f"Warning: Cache verification failed. No record found for {tracking_number}")
+                
+            except Exception as e:
+                print(f"Warning: Could not update ticket or cache in database: {str(e)}")
+                import traceback
+                traceback.print_exc()
+            
+            return jsonify({
+                'success': True,
+                'tracking_info': tracking_info,
+                'shipping_status': latest_status,
+                'is_real_data': True,
+                'is_cached': False,
+                'debug_info': {
+                    'source': 'ship24_firecrawl',
+                    'tracking_number': tracking_number,
+                    'events_count': len(tracking_info),
+                    'url': ship24_url
+                }
+            })
+    
         except Exception as e:
-            print(f"Warning: Could not update ticket in database: {str(e)}")
-        
-        return jsonify({
-            'success': True,
-            'tracking_info': tracking_info,
-            'shipping_status': latest_status,
-            'is_real_data': True,
-            'debug_info': {
-                'source': 'ship24_firecrawl',
-                'tracking_number': tracking_number,
-                'events_count': len(tracking_info),
-                'url': ship24_url
-            }
-        })
-
-    except Exception as e:
-        print(f"Error scraping ship24 for {tracking_number}: {str(e)}")
-        traceback.print_exc()  # Print detailed traceback to server logs
-        return jsonify({'success': False, 'error': f'Failed to scrape tracking data: {str(e)}'}), 500
+            print(f"Error scraping ship24 for {tracking_number}: {str(e)}")
+            traceback.print_exc()  # Print detailed traceback to server logs
+            return jsonify({'success': False, 'error': f'Failed to scrape tracking data: {str(e)}'}), 500
+            
+    finally:
+        # Always close the session
+        try:
+            print(f"Closing database session in track_claw for ticket {ticket_id}")
+            # Check if session is still active
+            if db_session:
+                if db_session.is_active:
+                    print("Session is still active - committing any pending transactions")
+                    db_session.commit()
+                db_session.close()
+                print("Database session closed successfully")
+        except Exception as e:
+            print(f"Error closing database session: {str(e)}")
 
 @tickets_bp.route('/<int:ticket_id>/update_tracking', methods=['POST'])
 @login_required
@@ -3328,19 +3409,27 @@ def mark_outbound_received(ticket_id):
     db_session = db_manager.get_session()
     try:
         print(f"Starting mark_outbound_received for ticket {ticket_id}")
+        
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
             print(f"Ticket {ticket_id} not found")
             return jsonify({'success': False, 'message': 'Ticket not found'}), 404
         
-        # Update the shipping status to "Delivered" or "Item was received" if no tracking
+        # Get Singapore time (GMT+8)
+        singapore_time = datetime.datetime.now() + timedelta(hours=8)
+        singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
+        
+        # Update the shipping status to "Item was received" with timestamp
         old_status = ticket.shipping_status
-        if ticket.shipping_tracking:
-            ticket.shipping_status = "Delivered"
-        else:
-            ticket.shipping_status = "Item was received"
+        ticket.shipping_status = f"Item was received on {singapore_time_str}"
         
         print(f"Updating ticket {ticket_id} shipping_status from '{old_status}' to '{ticket.shipping_status}'")
+        
+        # For Asset Return (claw) tickets, also update the return_status to match
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
+            old_return_status = ticket.return_status
+            ticket.return_status = f"Item was received on {singapore_time_str}"
+            print(f"Also updating return_status from '{old_return_status}' to '{ticket.return_status}' for Asset Return (Claw) ticket")
         
         # Save changes to database
         db_session.flush()  # Flush before commit to catch any DB errors
@@ -3351,7 +3440,8 @@ def mark_outbound_received(ticket_id):
         
         return jsonify({
             'success': True,
-            'message': 'Outbound shipment marked as received'
+            'message': 'Outbound shipment marked as received',
+            'timestamp': singapore_time_str
         })
     except Exception as e:
         db_session.rollback()
@@ -3366,19 +3456,27 @@ def mark_return_received(ticket_id):
     db_session = db_manager.get_session()
     try:
         print(f"Starting mark_return_received for ticket {ticket_id}")
+        
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
             print(f"Ticket {ticket_id} not found")
             return jsonify({'success': False, 'message': 'Ticket not found'}), 404
         
-        # Update the return status to "Delivered" or "Item was received" if no tracking
+        # Get Singapore time (GMT+8)
+        singapore_time = datetime.datetime.now() + timedelta(hours=8)
+        singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
+        
+        # Update the return status to "Item was received" with timestamp
         old_status = ticket.return_status
-        if ticket.return_tracking:
-            ticket.return_status = "Delivered"
-        else:
-            ticket.return_status = "Item was received"
+        ticket.return_status = f"Item was received on {singapore_time_str}"
         
         print(f"Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}'")
+        
+        # For Asset Return (claw) tickets, also update the shipping_status to match
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
+            old_shipping_status = ticket.shipping_status
+            ticket.shipping_status = f"Item was received on {singapore_time_str}"
+            print(f"Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
         
         # Save changes to database
         db_session.flush()  # Flush before commit to catch any DB errors
@@ -3389,7 +3487,8 @@ def mark_return_received(ticket_id):
         
         return jsonify({
             'success': True,
-            'message': 'Return shipment marked as received'
+            'message': 'Return shipment marked as received',
+            'timestamp': singapore_time_str
         })
     except Exception as e:
         db_session.rollback()

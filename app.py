@@ -69,12 +69,16 @@ def create_app():
         WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
         WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
         # Email configuration for Gmail SMTP
-        MAIL_SERVER=os.environ.get('MAIL_SERVER', 'smtp.gmail.com'),
-        MAIL_PORT=int(os.environ.get('MAIL_PORT', '587')),
+        MAIL_SERVER='smtp.gmail.com',
+        MAIL_PORT=587,
         MAIL_USE_TLS=True,
-        MAIL_USERNAME=os.environ.get('MAIL_USERNAME', 'trueloginventory@gmail.com'),
-        MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD', 'lfve nald ymnl vrzf'),  # Gmail App Password
-        MAIL_DEFAULT_SENDER=os.environ.get('MAIL_DEFAULT_SENDER', 'trueloginventory@gmail.com'),
+        MAIL_USE_SSL=False,
+        MAIL_USERNAME='trueloginventory@gmail.com',
+        MAIL_PASSWORD='lfve nald ymnl vrzf',  # Gmail App Password
+        MAIL_DEFAULT_SENDER='trueloginventory@gmail.com',
+        MAIL_MAX_EMAILS=1,  # Limit for testing
+        MAIL_SUPPRESS_SEND=False,
+        MAIL_ASCII_ATTACHMENTS=False,
         MAIL_DEBUG=True  # Enable debug mode
     )
 
