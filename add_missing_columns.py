@@ -5,36 +5,17 @@ def add_missing_columns():
     """Add missing columns to the tickets table in SQLite database"""
     conn = None
     try:
-        # Determine the database path
-        # For PythonAnywhere, the path is likely in the project root
-        database_paths = [
-            'instance/app.db',  # Standard Flask path
-            'app.db',           # Root directory
-            '/home/nicway2/inventory/instance/app.db',  # Full path on PythonAnywhere
-            '/home/nicway2/inventory/app.db'            # Alternative full path
-        ]
+        # We now know the database file is 'inventory.db' in the root directory
+        db_path = 'inventory.db'  # Use the correct path directly
         
-        # Try each path until we find the database
-        for db_path in database_paths:
-            if os.path.exists(db_path):
-                print(f"Found database at: {db_path}")
-                conn = sqlite3.connect(db_path)
-                break
-        
-        # If we couldn't find the database, let the user provide the path
-        if conn is None:
-            print("Could not find the database file automatically.")
+        if os.path.exists(db_path):
+            print(f"Found database at: {db_path}")
+            conn = sqlite3.connect(db_path)
+        else:
+            print(f"Error: Database file {db_path} does not exist.")
             print("Current working directory:", os.getcwd())
-            print("Available files in current directory:", os.listdir())
-            print("Available files in 'instance' directory (if it exists):", 
-                  os.listdir('instance') if os.path.exists('instance') else "No instance directory")
-            
-            user_path = input("Please enter the full path to the database file: ")
-            if os.path.exists(user_path):
-                conn = sqlite3.connect(user_path)
-            else:
-                print(f"Error: File {user_path} does not exist.")
-                return
+            print("Available files in current directory:", sorted(os.listdir()))
+            return
         
         cursor = conn.cursor()
         
