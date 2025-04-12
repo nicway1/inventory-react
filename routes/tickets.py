@@ -651,8 +651,12 @@ def view_ticket(ticket_id):
     db_session = db_manager.get_session()
     try:
         print(f"Loading ticket {ticket_id} for viewing")
+        
         # Make sure we're getting fresh data, not cached
         db_session.expire_all()
+        
+        # Force clear any cache
+        db_session.commit()
         
         # Load ticket with all relationships directly from database
         ticket = db_session.query(Ticket)\
@@ -660,6 +664,12 @@ def view_ticket(ticket_id):
             .options(db_manager.joinedload(Ticket.accessory))\
             .filter(Ticket.id == ticket_id)\
             .first()
+        
+        # Debug the current ticket status
+        if ticket:
+            print(f"DEBUG VIEW - Ticket status: {ticket.status}")
+            if ticket.status:
+                print(f"DEBUG VIEW - Ticket status value: {ticket.status.value}")
             
         if not ticket:
             flash('Ticket not found')
@@ -801,25 +811,71 @@ def view_queue(queue_id):
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
 @login_required
 def update_ticket(ticket_id):
-    if session['user_type'] != 'admin':
-        flash('Only administrators can update tickets')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-
-    ticket = ticket_store.get_ticket(ticket_id)
-    if not ticket:
-        flash('Ticket not found')
-        return redirect(url_for('tickets.list_tickets'))
-
-    # Update ticket fields
-    ticket.status = request.form.get('status', ticket.status)
-    ticket.priority = request.form.get('priority', ticket.priority)
-    assigned_to_id = request.form.get('assigned_to_id')
-    if assigned_to_id:
-        ticket.assigned_to_id = int(assigned_to_id)
-
-    # Save changes
-    ticket_store.save_tickets()
-    flash('Ticket updated successfully')
+    # Use database session directly to update the ticket
+    db_session = db_manager.get_session()
+    
+    try:
+        # Get the ticket from database
+        ticket = db_session.query(Ticket).get(ticket_id)
+        
+        if not ticket:
+            flash('Ticket not found')
+            return redirect(url_for('tickets.list_tickets'))
+        
+        # Debug current status
+        print(f"DEBUG - Current ticket status before update: {ticket.status}")
+        if ticket.status:
+            print(f"DEBUG - Current ticket status value: {ticket.status.value}")
+        
+        # Update status
+        status_value = request.form.get('status')
+        print(f"DEBUG - Form status value: {status_value}")
+        
+        if status_value:
+            try:
+                # Try to get enum by name
+                new_status = TicketStatus[status_value]
+                print(f"DEBUG - Setting status to {new_status}")
+                ticket.status = new_status
+            except KeyError:
+                print(f"DEBUG - KeyError: {status_value} is not a valid TicketStatus name")
+        
+        # Update priority
+        priority_value = request.form.get('priority')
+        print(f"DEBUG - Form priority value: {priority_value}")
+        
+        if priority_value:
+            try:
+                # Try to get enum by name
+                new_priority = TicketPriority[priority_value]
+                print(f"DEBUG - Setting priority to {new_priority}")
+                ticket.priority = new_priority
+            except KeyError:
+                print(f"DEBUG - KeyError: {priority_value} is not a valid TicketPriority name")
+        
+        # Update assigned_to_id if admin
+        if session['user_type'] == 'admin' or session['user_type'] == 'SUPER_ADMIN':
+            assigned_to_id = request.form.get('assigned_to_id')
+            if assigned_to_id and assigned_to_id.strip():
+                ticket.assigned_to_id = int(assigned_to_id)
+                print(f"DEBUG - Set assigned_to_id to {assigned_to_id}")
+        
+        # Commit the changes directly to database
+        db_session.commit()
+        print(f"DEBUG - Committed changes to database")
+        print(f"DEBUG - Status after commit: {ticket.status}")
+        if ticket.status:
+            print(f"DEBUG - Status value after commit: {ticket.status.value}")
+        
+        flash('Ticket updated successfully')
+        
+    except Exception as e:
+        db_session.rollback()
+        print(f"ERROR - Failed to update ticket: {str(e)}")
+        flash(f'Error updating ticket: {str(e)}')
+    finally:
+        db_session.close()
+    
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
 
 @tickets_bp.route('/<int:ticket_id>/shipment', methods=['POST'])
@@ -3419,24 +3475,14 @@ def mark_outbound_received(ticket_id):
         singapore_time = datetime.datetime.now() + timedelta(hours=8)
         singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
         
-        # Update the shipping status to "Item was received" with timestamp
+        # Update ONLY the shipping status (outbound)
         old_status = ticket.shipping_status
         ticket.shipping_status = f"Item was received on {singapore_time_str}"
-        
         print(f"Updating ticket {ticket_id} shipping_status from '{old_status}' to '{ticket.shipping_status}'")
         
-        # For Asset Return (claw) tickets, also update the return_status to match
-        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
-            old_return_status = ticket.return_status
-            ticket.return_status = f"Item was received on {singapore_time_str}"
-            print(f"Also updating return_status from '{old_return_status}' to '{ticket.return_status}' for Asset Return (Claw) ticket")
-        
         # Save changes to database
-        db_session.flush()  # Flush before commit to catch any DB errors
         db_session.commit()
         print(f"Database commit successful for ticket {ticket_id}")
-        
-        # Note: No need to update ticket_store since get_ticket() already queries the database directly
         
         return jsonify({
             'success': True,
@@ -3466,7 +3512,7 @@ def mark_return_received(ticket_id):
         singapore_time = datetime.datetime.now() + timedelta(hours=8)
         singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
         
-        # Update the return status to "Item was received" with timestamp
+        # Update ONLY the return status (inbound)
         old_status = ticket.return_status
         ticket.return_status = f"Item was received on {singapore_time_str}"
         
@@ -3482,8 +3528,6 @@ def mark_return_received(ticket_id):
         db_session.flush()  # Flush before commit to catch any DB errors
         db_session.commit()
         print(f"Database commit successful for ticket {ticket_id}")
-        
-        # Note: No need to update ticket_store since get_ticket() already queries the database directly
         
         return jsonify({
             'success': True,

@@ -534,35 +534,11 @@
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
 
-                    <!-- Outbound Tracking Number -->
-                    <div>
-                        <label for="outbound_tracking" class="block text-sm font-medium text-gray-700">
-                            Outbound Tracking Number (Any Carrier) <span class="text-sm text-gray-500">(Optional)</span>
-                        </label>
-                        <input type="text" 
-                               id="outbound_tracking" 
-                               name="shipping_tracking" 
-                               placeholder="Tracking number for shipment TO customer"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <p class="mt-1 text-sm text-gray-500" id="outboundTrackingHelp">
-                            This is the tracking number for shipping the package to the customer.
-                        </p>
-                    </div>
+                    <!-- Outbound Tracking Number - Hidden -->
+                    <input type="hidden" id="outbound_tracking" name="shipping_tracking" value="">
 
-                    <!-- Inbound Tracking Number -->
-                    <div>
-                        <label for="inbound_tracking" class="block text-sm font-medium text-gray-700">
-                            Inbound Tracking Number (Optional)
-                        </label>
-                        <input type="text" 
-                               id="inbound_tracking" 
-                               name="return_tracking" 
-                               placeholder="Tracking number for return shipment FROM customer"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <p class="mt-1 text-sm text-gray-500" id="inboundTrackingHelp">
-                            This is the tracking number for the return shipment from the customer.
-                        </p>
-                    </div>
+                    <!-- Inbound Tracking Number - Hidden -->
+                    <input type="hidden" id="inbound_tracking" name="return_tracking" value="">
                     
                     <!-- Queue Selection -->
                     <div>

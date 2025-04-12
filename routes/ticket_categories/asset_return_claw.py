@@ -146,11 +146,8 @@ def track_inbound(ticket_id):
                 fresh_ticket = db_session.query(Ticket).get(ticket_id)
                 if fresh_ticket:
                     fresh_ticket.return_status = latest_status
-                    # Also update shipping_status to match for Asset Return (Claw) tickets
-                    fresh_ticket.shipping_status = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
                     print(f"Updated ticket {ticket_id} with return status: {latest_status}")
-                    print(f"Also updated shipping_status to match for Asset Return (Claw) ticket")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(
