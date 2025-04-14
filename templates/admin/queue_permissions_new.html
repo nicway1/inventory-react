@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Queue Permissions{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-semibold text-gray-900">Queue Permissions</h1>
+            <button id="resetAll" class="text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors">
+                General Reset to Default
+            </button>
+        </div>
+
+        <!-- Queue Cards -->
+        {% for queue in queues %}
+        <div id="queue-{{ queue.id }}" class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+            <div class="border-b border-gray-200 bg-gray-50 px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-medium text-gray-900">{{ queue.name }}</h2>
+                <button class="reset-link text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-200 px-3 py-1 rounded-md transition-colors" data-queue-id="{{ queue.id }}">
+                    Reset to Default
+                </button>
+            </div>
+
+            <div class="divide-y divide-gray-200">
+                {% for company in companies %}
+                {% set has_permission = permission_map.get(company.id, {}).get(queue.id) %}
+                <div class="px-6 py-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-medium text-gray-900">{{ company.name }}</h3>
+                        <button type="button" 
+                                class="edit-permissions-btn bg-truelog text-white hover:bg-truelog-dark px-3 py-1 rounded-md transition-colors"
+                                data-company-id="{{ company.id }}"
+                                data-company-name="{{ company.name }}"
+                                data-queue-id="{{ queue.id }}"
+                                data-queue-name="{{ queue.name }}"
+                                data-has-access="{{ '1' if has_permission else '0' }}"
+                                data-can-view="{{ '1' if has_permission and has_permission.can_view else '0' }}"
+                                data-can-create="{{ '1' if has_permission and has_permission.can_create else '0' }}">
+                            Edit Permissions
+                        </button>
+                    </div>
+                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="flex items-center space-x-3">
+                            <span class="inline-flex items-center justify-center w-4 h-4">
+                                <i class="fas fa-{{ 'check text-green-500' if has_permission else 'times text-red-500' }}"></i>
+                            </span>
+                            <span class="text-sm text-gray-700">Access Queue</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="inline-flex items-center justify-center w-4 h-4">
+                                <i class="fas fa-{{ 'check text-green-500' if has_permission and has_permission.can_view else 'times text-red-500' }}"></i>
+                            </span>
+                            <span class="text-sm text-gray-700">View Queue</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="inline-flex items-center justify-center w-4 h-4">
+                                <i class="fas fa-{{ 'check text-green-500' if has_permission and has_permission.can_create else 'times text-red-500' }}"></i>
+                            </span>
+                            <span class="text-sm text-gray-700">Create Tickets</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Permission Edit Modal -->
+<div id="permissionModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="display: none;">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Edit Queue Permissions
+                        </h3>
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-500 mb-4">Configure permissions for <strong id="modalCompanyName"></strong> to access the <strong id="modalQueueName"></strong> queue.</p>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="modalAccessQueue" class="h-4 w-4 text-truelog-dark border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-gray-900">Access Queue</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="modalViewQueue" class="h-4 w-4 text-truelog-dark border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-gray-900">View Queue</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="modalCreateTickets" class="h-4 w-4 text-truelog-dark border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-gray-900">Create Tickets</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" id="modalSave" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-truelog text-base font-medium text-white hover:bg-truelog-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-truelog-dark sm:ml-3 sm:w-auto sm:text-sm">
+                    Save Changes
+                </button>
+                <button type="button" id="modalCancel" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-truelog sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let currentCompanyId = null;
+    let currentQueueId = null;
+    const modal = $('#permissionModal');
+    
+    // Show modal when edit button is clicked
+    $('.edit-permissions-btn').click(function() {
+        currentCompanyId = $(this).data('company-id');
+        currentQueueId = $(this).data('queue-id');
+        const companyName = $(this).data('company-name');
+        const queueName = $(this).data('queue-name');
+        const hasAccess = $(this).data('has-access') === 1;
+        const canView = $(this).data('can-view') === 1;
+        const canCreate = $(this).data('can-create') === 1;
+        
+        $('#modalCompanyName').text(companyName);
+        $('#modalQueueName').text(queueName);
+        
+        // Set checkbox states
+        $('#modalAccessQueue').prop('checked', hasAccess);
+        $('#modalViewQueue').prop({
+            'checked': canView,
+            'disabled': !hasAccess
+        });
+        $('#modalCreateTickets').prop({
+            'checked': canCreate,
+            'disabled': !hasAccess
+        });
+        
+        modal.show();
+    });
+    
+    // Handle modal access checkbox change
+    $('#modalAccessQueue').change(function() {
+        const isEnabled = $(this).prop('checked');
+        $('#modalViewQueue, #modalCreateTickets').prop('disabled', !isEnabled);
+        if (isEnabled) {
+            $('#modalViewQueue').prop('checked', true);
+        } else {
+            $('#modalViewQueue, #modalCreateTickets').prop('checked', false);
+        }
+    });
+    
+    // Close modal
+    $('#modalCancel').click(function() {
+        modal.hide();
+    });
+    
+    // Save changes
+    $('#modalSave').click(function() {
+        const button = $(this);
+        button.prop('disabled', true).text('Saving...');
+        
+        const hasAccess = $('#modalAccessQueue').prop('checked');
+        const canView = $('#modalViewQueue').prop('checked');
+        const canCreate = $('#modalCreateTickets').prop('checked');
+        
+        $.ajax({
+            url: "{{ url_for('admin.update_queue_permissions') }}",
+            method: 'POST',
+            data: {
+                company_id: currentCompanyId,
+                queue_id: currentQueueId,
+                has_permission: hasAccess,
+                can_view: canView,
+                can_create: canCreate,
+                csrf_token: "{{ csrf_token() }}"
+            },
+            success: function() {
+                location.reload(); // Refresh to show updated permissions
+            },
+            error: function() {
+                toastr.error('Failed to update permissions');
+                button.prop('disabled', false).text('Save Changes');
+            }
+        });
+    });
+    
+    // Handle reset to default for a specific queue
+    $('.reset-link').click(function() {
+        const queueId = $(this).data('queue-id');
+        if (confirm('Are you sure you want to reset all permissions for this queue to default?')) {
+            $.ajax({
+                url: "{{ url_for('admin.update_queue_permissions') }}",
+                method: 'POST',
+                data: {
+                    queue_id: queueId,
+                    reset_all: true,
+                    csrf_token: "{{ csrf_token() }}"
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function() {
+                    toastr.error('Failed to reset permissions');
+                }
+            });
+        }
+    });
+    
+    // Handle general reset to default
+    $('#resetAll').click(function() {
+        if (confirm('Are you sure you want to reset ALL queue permissions to default?')) {
+            $.ajax({
+                url: "{{ url_for('admin.update_queue_permissions') }}",
+                method: 'POST',
+                data: {
+                    reset_all: true,
+                    csrf_token: "{{ csrf_token() }}"
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function() {
+                    toastr.error('Failed to reset permissions');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -102,6 +102,70 @@ class User(Base, UserMixin):
                 
         return False
 
+    def can_access_queue(self, queue_id):
+        """Check if user has access to a specific queue based on company permissions"""
+        from sqlalchemy.orm import Session
+        from database import engine
+        from models.company_queue_permission import CompanyQueuePermission
+        
+        # Super admins can access all queues
+        if self.is_super_admin:
+            return True
+        
+        session = Session(engine)
+        try:
+            # If user is not associated with a company, they can't access any queue
+            if not self.company_id:
+                return False
+                
+            # Check if there are specific permissions for this company and queue
+            permission = session.query(CompanyQueuePermission).filter_by(
+                company_id=self.company_id, queue_id=queue_id).first()
+                
+            # If a permission record exists, check the can_view flag
+            if permission:
+                return permission.can_view
+                
+            # If no specific permission exists, deny access by default
+            return False
+        except Exception as e:
+            logging.error(f"Error checking queue access: {str(e)}")
+            return False
+        finally:
+            session.close()
+
+    def can_create_in_queue(self, queue_id):
+        """Check if user has permission to create tickets in a specific queue"""
+        from sqlalchemy.orm import Session
+        from database import engine
+        from models.company_queue_permission import CompanyQueuePermission
+        
+        # Super admins can create tickets in all queues
+        if self.is_super_admin:
+            return True
+        
+        session = Session(engine)
+        try:
+            # If user is not associated with a company, they can't create tickets
+            if not self.company_id:
+                return False
+                
+            # Check if there are specific permissions for this company and queue
+            permission = session.query(CompanyQueuePermission).filter_by(
+                company_id=self.company_id, queue_id=queue_id).first()
+                
+            # If a permission record exists, check the can_create flag
+            if permission:
+                return permission.can_create
+                
+            # If no specific permission exists, deny access by default
+            return False
+        except Exception as e:
+            logging.error(f"Error checking queue create permission: {str(e)}")
+            return False
+        finally:
+            session.close()
+
     def can_edit_company_assets(self, company_id):
         """Check if user has edit permissions for a company's assets"""
         # Super admins can edit all companies

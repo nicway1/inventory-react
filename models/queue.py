@@ -14,6 +14,7 @@ class Queue(Base):
 
     # Relationships
     tickets = relationship("Ticket", back_populates="queue")
+    company_permissions = relationship("CompanyQueuePermission", back_populates="queue")
 
     def to_dict(self):
         return {

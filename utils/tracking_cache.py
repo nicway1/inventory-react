@@ -6,7 +6,7 @@ class TrackingCache:
     """Utility class for managing tracking data caching"""
     
     @staticmethod
-    def get_cached_tracking(db_session, tracking_number, ticket_id=None, tracking_type='primary', max_age_hours=24):
+    def get_cached_tracking(db_session, tracking_number, ticket_id=None, tracking_type='primary', max_age_hours=24, force=False):
         """
         Get cached tracking data if available and not expired
         
@@ -16,10 +16,16 @@ class TrackingCache:
             ticket_id: Optional ticket ID to associate with the tracking
             tracking_type: Type of tracking (primary, secondary, return)
             max_age_hours: Maximum age of cached data in hours before considered stale
+            force: If True, bypass cache completely and return None
             
         Returns:
             Dictionary with tracking data if available and fresh, None otherwise
         """
+        # If force is True, bypass cache completely
+        if force:
+            print(f"Force refresh requested for {tracking_number}, bypassing cache")
+            return None
+            
         try:
             # Try to find existing tracking history for this tracking number
             if ticket_id:

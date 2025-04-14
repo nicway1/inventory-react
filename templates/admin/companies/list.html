@@ -3,48 +3,36 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="mb-6 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">Companies</h1>
-        <a href="{{ url_for('admin.add_company') }}" 
-           class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-            Add Company
+        <h2 class="text-2xl">Company Management</h2>
+        <a href="{{ url_for('admin.create_company') }}" 
+           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Add New Company
         </a>
     </div>
 
     <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assets Count</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users Count</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        <table class="min-w-full">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact Email</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="divide-y divide-gray-200">
                 {% for company in companies %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ company.id }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{ company.name }}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ company.assets_count if company.assets_count else 0 }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ company.users_count if company.users_count else 0 }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div class="flex space-x-3">
-                            <a href="{{ url_for('admin.edit_company', company_id=company.id) }}" 
-                               class="text-indigo-600 hover:text-indigo-900">Edit</a>
-                            <a href="{{ url_for('admin.view_company', company_id=company.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
-                            <button onclick="deleteCompany('{{ company.id }}')" 
-                                    class="text-red-600 hover:text-red-900">Delete</button>
-                        </div>
+                    <td class="px-6 py-4 text-sm text-gray-900">{{ company.id }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">{{ company.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">{{ company.contact_name or 'N/A' }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">{{ company.contact_email or 'N/A' }}</td>
+                    <td class="px-6 py-4 text-sm text-center">
+                        <a href="{{ url_for('admin.edit_company', company_id=company.id) }}" 
+                           class="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
+                        <button onclick="deleteCompany('{{ company.id }}')" 
+                                class="text-red-600 hover:text-red-900">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}

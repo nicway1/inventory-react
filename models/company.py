@@ -24,6 +24,7 @@ class Company(Base):
     assets = relationship("Asset", back_populates="company", lazy="dynamic", viewonly=True)
     customer_users = relationship("CustomerUser", back_populates="company")
     user_permissions = relationship(UserCompanyPermission, back_populates="company")
+    queue_permissions = relationship("CompanyQueuePermission", back_populates="company")
 
     @property
     def logo_url(self):

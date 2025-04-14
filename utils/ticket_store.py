@@ -270,6 +270,15 @@ class TicketStore:
         finally:
             db_session.close()
 
+    def get_tickets_by_queue(self, queue_id):
+        """Get all tickets in a specific queue"""
+        db_session = self.db_manager.get_session()
+        try:
+            tickets = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).all()
+            return tickets
+        finally:
+            db_session.close()
+
     def clear_all_tickets(self):
         """Clear all tickets from both database and JSON storage"""
         # Clear from database

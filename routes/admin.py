@@ -8,6 +8,8 @@ from models.user import User, UserType, Country
 from models.permission import Permission
 from datetime import datetime
 from models.company import Company
+from models.queue import Queue
+from models.company_queue_permission import CompanyQueuePermission
 from utils.email_sender import send_welcome_email
 import os
 from werkzeug.utils import secure_filename
@@ -17,6 +19,7 @@ from database import SessionLocal
 from models.activity import Activity
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
+import traceback
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -98,7 +101,7 @@ def permission_management():
 def manage_companies():
     """List all companies"""
     companies = db_manager.get_all_companies()
-    return render_template('admin/companies.html', companies=companies)
+    return render_template('admin/companies/list.html', companies=companies)
 
 @admin_bp.route('/companies/create', methods=['GET', 'POST'])
 @admin_required
@@ -566,4 +569,170 @@ def update_user_type_permissions(user_type):
         return redirect(url_for('admin.manage_permissions'))
     except Exception as e:
         flash(f'Error updating permissions: {str(e)}', 'error')
-        return redirect(url_for('admin.manage_permissions')) 
+        return redirect(url_for('admin.manage_permissions'))
+
+@admin_bp.route('/queue-permissions')
+@super_admin_required
+def manage_queue_permissions():
+    """Manage which companies can see which queues"""
+    db_session = db_manager.get_session()
+    try:
+        companies = db_session.query(Company).all()
+        queues = db_session.query(Queue).all()
+        permissions = db_session.query(CompanyQueuePermission).all()
+        
+        # Create a mapping of company_id -> queue_id -> permission for easier access in template
+        permission_map = {}
+        for permission in permissions:
+            if permission.company_id not in permission_map:
+                permission_map[permission.company_id] = {}
+            permission_map[permission.company_id][permission.queue_id] = permission
+        
+        return render_template('admin/queue_permissions_new.html',
+                              companies=companies,
+                              queues=queues,
+                              permission_map=permission_map)
+    except Exception as e:
+        flash(f'Error loading queue permissions: {str(e)}', 'error')
+        return redirect(url_for('admin.index'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/queue-permissions/update', methods=['POST'])
+@super_admin_required
+def update_queue_permissions():
+    """Update queue permissions for companies"""
+    try:
+        # Debug incoming request data
+        print("Form data received:", request.form)
+        print("JSON data received:", request.get_json(silent=True))
+        
+        # Try multiple ways to get the data
+        if request.form:
+            company_id = request.form.get('company_id')
+            queue_id = request.form.get('queue_id')
+            has_permission = 'has_permission' in request.form
+            can_view = 'can_view' in request.form
+            can_create = 'can_create' in request.form
+        else:
+            data = request.get_json(silent=True) or {}
+            company_id = data.get('company_id')
+            queue_id = data.get('queue_id')
+            has_permission = data.get('has_permission', False)
+            can_view = data.get('can_view', False)
+            can_create = data.get('can_create', False)
+        
+        print(f"Raw company_id: {company_id}, type: {type(company_id)}")
+        print(f"Raw queue_id: {queue_id}, type: {type(queue_id)}")
+        
+        # Convert to integers with safer handling
+        try:
+            if company_id:
+                company_id = int(company_id)
+            if queue_id:
+                queue_id = int(queue_id)
+        except (ValueError, TypeError) as e:
+            print(f"Error converting IDs to integers: {str(e)}")
+            flash(f"Invalid ID format: {str(e)}", 'error')
+            return redirect(url_for('admin.manage_queue_permissions'))
+        
+        print(f"Converted company_id: {company_id}, queue_id: {queue_id}")
+        print(f"Permission values - has_permission: {has_permission}, can_view: {can_view}, can_create: {can_create}")
+        
+        if not company_id or not queue_id:
+            print("INVALID: Missing company_id or queue_id")
+            flash('Invalid company or queue ID', 'error')
+            return redirect(url_for('admin.manage_queue_permissions'))
+        
+        db_session = db_manager.get_session()
+        try:
+            # Verify company and queue exist
+            company = db_session.query(Company).get(company_id)
+            queue = db_session.query(Queue).get(queue_id)
+            
+            if not company:
+                print(f"Company with ID {company_id} not found")
+                flash(f"Company with ID {company_id} not found", 'error')
+                return redirect(url_for('admin.manage_queue_permissions'))
+                
+            if not queue:
+                print(f"Queue with ID {queue_id} not found")
+                flash(f"Queue with ID {queue_id} not found", 'error')
+                return redirect(url_for('admin.manage_queue_permissions'))
+            
+            # Check if permission already exists
+            permission = db_session.query(CompanyQueuePermission).filter_by(
+                company_id=company_id, queue_id=queue_id).first()
+            
+            print(f"Existing permission found: {permission is not None}")
+            
+            if not has_permission:
+                # If no permission should be granted, delete existing permission if it exists
+                if permission:
+                    db_session.delete(permission)
+                    db_session.commit()
+                    flash('Permission removed successfully', 'success')
+                    print("Permission removed")
+            else:
+                if permission:
+                    # Update existing permission
+                    permission.can_view = can_view
+                    permission.can_create = can_create
+                    print(f"Updated permission - can_view: {can_view}, can_create: {can_create}")
+                else:
+                    # Create new permission
+                    permission = CompanyQueuePermission(
+                        company_id=company_id,
+                        queue_id=queue_id,
+                        can_view=can_view,
+                        can_create=can_create
+                    )
+                    db_session.add(permission)
+                    print(f"Created new permission - can_view: {can_view}, can_create: {can_create}")
+            
+                db_session.commit()
+                flash('Queue permissions updated successfully', 'success')
+                print("Permission saved successfully")
+            
+            return jsonify({"status": "success", "message": "Permission updated successfully"})
+            
+        except Exception as e:
+            db_session.rollback()
+            print(f"ERROR: {str(e)}")
+            print(f"Stack trace: {traceback.format_exc()}")
+            flash(f'Error updating queue permissions: {str(e)}', 'error')
+            return jsonify({"status": "error", "message": str(e)}), 500
+        finally:
+            db_session.close()
+    
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+        print(f"Stack trace: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}"}), 500
+        
+    return redirect(url_for('admin.manage_queue_permissions'))
+
+@admin_bp.route('/queue-permissions/delete/<int:permission_id>', methods=['GET', 'POST'])
+@super_admin_required
+def delete_queue_permission(permission_id):
+    """Delete queue permission (reset to default)"""
+    if not permission_id:
+        flash('Invalid permission ID', 'error')
+        return redirect(url_for('admin.manage_queue_permissions'))
+    
+    db_session = db_manager.get_session()
+    try:
+        permission = db_session.query(CompanyQueuePermission).get(permission_id)
+        if permission:
+            db_session.delete(permission)
+            db_session.commit()
+            flash('Permission removed successfully', 'success')
+        else:
+            flash('Permission not found', 'error')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing permission: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_queue_permissions')) 
