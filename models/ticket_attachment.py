@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from utils.db_manager import Base
+from models.base import Base
 
 class TicketAttachment(Base):
     __tablename__ = 'ticket_attachments'

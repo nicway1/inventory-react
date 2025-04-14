@@ -8,6 +8,7 @@ from models.location import Location
 from models.accessory import Accessory
 from models.activity import Activity
 from models.permission import Permission
+from models.ticket import Ticket
 from datetime import datetime
 
 class DatabaseManager:
@@ -280,11 +281,22 @@ class DatabaseManager:
         session = self.get_session()
         try:
             user = session.query(User).filter(User.id == user_id).first()
-            if user:
-                session.delete(user)
-                session.commit()
-                return True
-            return False
+            if not user:
+                return False
+
+            # Check if user has any tickets (either as requester or assignee)
+            tickets_count = session.query(Ticket).filter(
+                (Ticket.requester_id == user_id) | 
+                (Ticket.assigned_to_id == user_id)
+            ).count()
+
+            if tickets_count > 0:
+                raise ValueError(f"Cannot delete user: User has {tickets_count} associated tickets. Please reassign or delete the tickets first.")
+
+            # If no tickets are found, proceed with deletion
+            session.delete(user)
+            session.commit()
+            return True
         except Exception as e:
             session.rollback()
             raise e

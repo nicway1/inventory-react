@@ -515,7 +515,13 @@
                                             <div class="sf-action-dropdown">
                                                 <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="sf-action-item">Edit</a>
                                                 <a href="#" class="sf-action-item">Close</a>
-                                                <a href="#" class="sf-action-item text-red-600">Delete</a>
+                                                <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" 
+                                                      method="POST" 
+                                                      class="inline"
+                                                      onsubmit="return confirm('Are you sure you want to delete this ticket? This action cannot be undone.');">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="sf-action-item text-red-600 w-full text-left">Delete</button>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>

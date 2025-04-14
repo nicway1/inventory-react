@@ -3781,3 +3781,43 @@ def clear_tracking_cache(ticket_id):
     except Exception as e:
         print(f"Database error: {str(e)}")
         return jsonify({"success": False, "error": "Database error"}), 500
+
+@tickets_bp.route('/<int:ticket_id>/delete', methods=['POST'])
+@login_required
+def delete_ticket(ticket_id):
+    """Delete a ticket and all its associated data"""
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        # Check permissions - only admin or ticket owner can delete
+        if not (current_user.is_admin or ticket.requester_id == current_user.id):
+            flash('You do not have permission to delete this ticket', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+        # Delete attachments from filesystem
+        if hasattr(ticket, 'attachments'):
+            for attachment in ticket.attachments:
+                if attachment.file_path and os.path.exists(attachment.file_path):
+                    try:
+                        os.remove(attachment.file_path)
+                    except Exception as e:
+                        print(f"Error deleting file {attachment.file_path}: {str(e)}")
+
+        # Delete the ticket (this will cascade delete comments, attachments, and other related records)
+        db_session.delete(ticket)
+        db_session.commit()
+
+        flash('Ticket deleted successfully', 'success')
+        return redirect(url_for('tickets.list_tickets'))
+
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error deleting ticket: {str(e)}")
+        flash(f'Error deleting ticket: {str(e)}', 'error')
+        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+    finally:
+        db_session.close()
