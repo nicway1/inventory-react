@@ -44,23 +44,22 @@
 <script>
 function deleteCompany(companyId) {
     if (confirm('Are you sure you want to delete this company? This action cannot be undone.')) {
-        fetch(`/admin/companies/${companyId}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Error deleting company');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error deleting company');
-        });
+        // Create form data object with CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/companies/${companyId}/delete`;
+        
+        // Add CSRF token as hidden input
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // Add form to body and submit
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 </script>

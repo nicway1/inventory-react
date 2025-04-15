@@ -184,18 +184,45 @@ def edit_company(company_id):
 @admin_required
 def delete_company(company_id):
     """Delete a company"""
-    company = db_manager.get_company(company_id)
-    if not company:
-        flash('Company not found', 'error')
-        return redirect(url_for('admin.manage_companies'))
-
+    print(f"DEBUG: Delete company request received for company_id={company_id}")
+    
+    db_session = db_manager.get_session()
     try:
-        db_manager.delete_company(company_id)
+        # Check if company exists
+        company = db_session.query(Company).get(company_id)
+        if not company:
+            print(f"DEBUG: Company with ID {company_id} not found")
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_companies'))
+        
+        # Check if company has associated users
+        users_count = db_session.query(User).filter_by(company_id=company_id).count()
+        if users_count > 0:
+            print(f"DEBUG: Cannot delete company - it has {users_count} associated users")
+            flash(f'Cannot delete company: It has {users_count} associated users. Please reassign or delete the users first.', 'error')
+            return redirect(url_for('admin.manage_companies'))
+        
+        # First delete all related company queue permissions
+        print(f"DEBUG: Deleting queue permissions for company_id={company_id}")
+        deleted_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=company_id).delete()
+        print(f"DEBUG: Deleted {deleted_permissions} queue permissions")
+        
+        # Then delete the company
+        print(f"DEBUG: Deleting company: {company.name} (ID: {company.id})")
+        db_session.delete(company)
+        db_session.commit()
         flash('Company deleted successfully', 'success')
+        return redirect(url_for('admin.manage_companies'))
+    
     except Exception as e:
+        db_session.rollback()
+        print(f"DEBUG: Error deleting company: {str(e)}")
+        print(f"DEBUG: {traceback.format_exc()}")
         flash(f'Error deleting company: {str(e)}', 'error')
-
-    return redirect(url_for('admin.manage_companies'))
+        return redirect(url_for('admin.manage_companies'))
+    
+    finally:
+        db_session.close()
 
 @admin_bp.route('/users')
 @admin_required
