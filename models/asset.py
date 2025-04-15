@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float, Boolean, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -13,6 +13,14 @@ class AssetStatus(enum.Enum):
     REPAIR = "Repair"
     ARCHIVED = "Archived"
     DISPOSED = "Disposed"
+
+# Association table for many-to-many relationship between tickets and assets
+ticket_assets = Table(
+    'ticket_assets',
+    Base.metadata,
+    Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('asset_id', Integer, ForeignKey('assets.id'), primary_key=True)
+)
 
 class Asset(Base):
     __tablename__ = 'assets'
@@ -61,7 +69,7 @@ class Asset(Base):
     # Relationships
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")
-    tickets = relationship("Ticket", back_populates="asset")
+    tickets = relationship("Ticket", secondary=ticket_assets, back_populates="assets")
     assigned_to = relationship("User", back_populates="assigned_assets")
     customer_user = relationship("CustomerUser", back_populates="assigned_assets")
     intake_ticket = relationship("IntakeTicket", back_populates="assets")
