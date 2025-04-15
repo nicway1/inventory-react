@@ -37,6 +37,7 @@ from datetime import timedelta
 from models.queue import Queue
 from sqlalchemy.orm import joinedload # Import joinedload
 from sqlalchemy import func, or_, and_
+from models.company import Company
 
 # Initialize TrackingMore client
 try:
@@ -125,9 +126,22 @@ def create_ticket():
         for queue in all_queues:
             if user.can_create_in_queue(queue.id):
                 queues.append(queue)
-
+                
+        # Get companies for the customer creation modal dropdown
+        # ONLY use company names from assets table - no Company table
+        company_names_from_assets = db_session.query(Asset.customer)\
+            .filter(Asset.customer.isnot(None))\
+            .distinct()\
+            .all()
+            
+        # Extract and sort company names from assets only
+        companies_list = [company[0] for company in company_names_from_assets if company[0]]
+        companies_list = sorted(companies_list)
+        print(f"Found {len(companies_list)} tech asset companies for dropdown")
+        
         if request.method == 'GET':
             print("Handling GET request")  # Debug log
+            
             return render_template('tickets/create.html', 
                                 assets=assets_data,
                                 customers=customers,
@@ -135,7 +149,8 @@ def create_ticket():
                                 queues=queues,
                                 Country=list(Country),
                                 is_client=is_client,
-                                user=user)
+                                user=user,
+                                companies=companies_list)  # Add companies to template
 
         if request.method == 'POST':
             print("Handling POST request")  # Debug log
@@ -163,7 +178,8 @@ def create_ticket():
                                     Country=list(Country),
                                     is_client=is_client,
                                     user=user,
-                                    form=request.form)
+                                    form=request.form,
+                                    companies=companies_list)
                                     
             # Get serial number based on category
             serial_number = None
@@ -4051,3 +4067,44 @@ def transfer_ticket(ticket_id):
         traceback.print_exc()
         flash(f'Error transferring ticket: {str(e)}', 'error')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+@tickets_bp.route('/api/companies')
+@login_required
+def get_companies():
+    """Get a list of all companies for use in AJAX requests"""
+    db_session = db_manager.get_session()
+    try:
+        # Get companies from Company table
+        companies = db_session.query(Company).order_by(Company.name).all()
+        
+        # Get unique company names from assets that might not have a company record
+        company_names_from_assets = db_session.query(Asset.customer)\
+            .filter(Asset.customer.isnot(None))\
+            .distinct()\
+            .all()
+            
+        # Create a set of all company names
+        company_names = set([company.name for company in companies])
+        
+        # Add company names from assets if they don't already exist
+        for company_name in company_names_from_assets:
+            if company_name[0] and company_name[0] not in company_names:
+                company_names.add(company_name[0])
+        
+        # Sort alphabetically
+        sorted_companies = sorted(list(company_names))
+        
+        # Format for response
+        result = [{"id": i, "name": name} for i, name in enumerate(sorted_companies, 1)]
+        
+        return jsonify({
+            'success': True,
+            'companies': result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        db_session.close()

@@ -662,7 +662,20 @@
                     </div>
                     <div>
                         <label for="new_customer_company" class="block text-sm font-medium text-gray-700">Company *</label>
-                        <input type="text" id="new_customer_company" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <div class="flex items-center space-x-2">
+                            <select id="new_customer_company" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select a company...</option>
+                                {% for company in companies %}
+                                <option value="{{ company }}">{{ company }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" id="new_company_name" placeholder="Or enter new company" class="mt-1 hidden w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <button type="button" id="toggleCompanyInput" class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label for="new_customer_country" class="block text-sm font-medium text-gray-700">Country *</label>
@@ -696,6 +709,27 @@ function showCreateCustomerModal() {
     document.getElementById('createCustomerModal').classList.remove('hidden');
 }
 
+// Toggle between company dropdown and text input
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleButton = document.getElementById('toggleCompanyInput');
+    const companySelect = document.getElementById('new_customer_company');
+    const companyInput = document.getElementById('new_company_name');
+    
+    toggleButton.addEventListener('click', function() {
+        if (companySelect.classList.contains('hidden')) {
+            // Switch to dropdown
+            companySelect.classList.remove('hidden');
+            companyInput.classList.add('hidden');
+            toggleButton.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>';
+        } else {
+            // Switch to text input
+            companySelect.classList.add('hidden');
+            companyInput.classList.remove('hidden');
+            toggleButton.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>';
+        }
+    });
+});
+
 function hideCreateCustomerModal() {
     document.getElementById('createCustomerModal').classList.add('hidden');
 }
@@ -706,7 +740,20 @@ function createCustomer() {
     const contact_number = document.getElementById('new_customer_contact').value;
     const email = document.getElementById('new_customer_email').value;
     const address = document.getElementById('new_customer_address').value;
-    const company = document.getElementById('new_customer_company').value;
+    
+    // Get company from either the dropdown or text input
+    let company;
+    const companySelect = document.getElementById('new_customer_company');
+    const companyInput = document.getElementById('new_company_name');
+    
+    if (companySelect.classList.contains('hidden')) {
+        // Use text input
+        company = companyInput.value;
+    } else {
+        // Use dropdown
+        company = companySelect.value;
+    }
+    
     const country = document.getElementById('new_customer_country').value;
     
     // Store current category selection
