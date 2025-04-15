@@ -4035,12 +4035,11 @@ def transfer_ticket(ticket_id):
         db_session.add(comment)
         
         # Log activity
-        activity = activity_store.log_activity(
-            "ticket_transfer",
-            f"Transferred ticket from {current_user.username} to {target_user.username}",
-            related_id=ticket_id,
-            related_type="Ticket",
-            user_id=current_user_id
+        activity_store.add_activity(
+            user_id=current_user_id,
+            type="ticket_transfer",
+            content=f"Transferred ticket from {current_user.username} to {target_user.username}",
+            reference_id=ticket_id
         )
         
         db_session.commit()
