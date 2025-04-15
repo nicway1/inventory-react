@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- DEBUG: Template loaded with company_selection visible -->
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-2xl mx-auto">
         <div class="mb-6">
@@ -51,6 +52,19 @@
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
+                <!-- Company (Always visible) -->
+                <div>
+                    <label for="company_id" class="block text-sm font-medium text-gray-700">Company</label>
+                    <select id="company_id" 
+                            name="company_id" 
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">No Company</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if user.company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <!-- User Type -->
                 <div>
                     <label for="user_type" class="block text-sm font-medium text-gray-700">User Type</label>
@@ -77,7 +91,7 @@
                 </div>
 
                 <!-- Country (for Country Admin) -->
-                <div id="countrySelect" style="display: {% if user.user_type.name == 'COUNTRY_ADMIN' %}block{% else %}none{% endif %};">
+                <div id="country_id" style="display: none;">
                     <label for="assigned_country" class="block text-sm font-medium text-gray-700">Assigned Country</label>
                     <select id="assigned_country" 
                             name="assigned_country"
@@ -104,33 +118,30 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const userTypeSelect = document.getElementById('user_type');
-    const countrySelect = document.getElementById('countrySelect');
-    const companySelect = document.getElementById('company_id');
-    
-    userTypeSelect.addEventListener('change', function() {
-        // Handle country select visibility
-        if (this.value === 'COUNTRY_ADMIN') {
-            countrySelect.style.display = 'block';
-            document.getElementById('assigned_country').required = true;
-        } else {
-            countrySelect.style.display = 'none';
-            document.getElementById('assigned_country').required = false;
+    document.addEventListener('DOMContentLoaded', function() {
+        const userTypeSelect = document.getElementById('user_type');
+        const countrySelection = document.getElementById('country_id');
+        
+        function toggleFields() {
+            const selectedType = userTypeSelect.value;
+            
+            // Control country visibility
+            if (selectedType === 'COUNTRY_ADMIN') {
+                countrySelection.style.display = 'block';
+            } else {
+                countrySelection.style.display = 'none';
+            }
+            // Company field is always visible
         }
         
-        // Handle company requirement
-        if (this.value === 'CLIENT') {
-            companySelect.required = true;
-        } else {
-            companySelect.required = false;
-        }
+        userTypeSelect.addEventListener('change', toggleFields);
+        
+        // Initial state - call the function to set correct visibility on page load
+        toggleFields();
     });
-
-    // Trigger the change event on load to handle initial state
-    userTypeSelect.dispatchEvent(new Event('change'));
-});
 </script>
 {% endblock %} 

@@ -278,13 +278,17 @@ def create_user():
 @admin_required
 def edit_user(user_id):
     """Edit an existing user"""
+    print(f"DEBUG: Entering edit_user route for user_id={user_id}")
     db_session = db_manager.get_session()
     user = db_session.query(User).get(user_id)
     if not user:
+        print("DEBUG: User not found")
         flash('User not found', 'error')
         return redirect(url_for('admin.manage_users'))
 
+    print(f"DEBUG: User found: {user.username}, type={user.user_type}")
     companies = db_session.query(Company).all()
+    print(f"DEBUG: Found {len(companies)} companies")
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -293,6 +297,8 @@ def edit_user(user_id):
         user_type = request.form.get('user_type')
         password = request.form.get('password')
         assigned_country = request.form.get('assigned_country')
+
+        print(f"DEBUG: Form submission - company_id={company_id}, user_type={user_type}")
 
         try:
             # Update basic user information
@@ -305,6 +311,7 @@ def edit_user(user_id):
             
             # Company is required for CLIENT users
             if user_type == 'CLIENT' and not company_id:
+                print("DEBUG: CLIENT type but no company selected")
                 flash('Company selection is required for Client users', 'error')
                 return render_template('admin/edit_user.html', user=user, companies=companies)
 
@@ -326,10 +333,12 @@ def edit_user(user_id):
             return redirect(url_for('admin.manage_users'))
         except Exception as e:
             db_session.rollback()
+            print(f"DEBUG: Error updating user: {str(e)}")
             flash(f'Error updating user: {str(e)}', 'error')
         finally:
             db_session.close()
 
+    print("DEBUG: Rendering edit_user template")
     return render_template('admin/edit_user.html', user=user, companies=companies)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
