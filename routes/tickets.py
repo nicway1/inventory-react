@@ -3907,57 +3907,124 @@ def update_shipping_status(ticket_id):
 @tickets_bp.route('/<int:ticket_id>/update-return-status', methods=['POST'])
 @login_required
 def update_return_status(ticket_id):
-    """Update the return status for a return package"""
+    # Get the database session
+    db_session = db_manager.get_session()
+    
     try:
-        # Get request data
+        # Parse request data
         data = request.json
-        if not data:
-            return jsonify({'success': False, 'error': 'No data provided'}), 400
-
         status = data.get('status')
-        timestamp = data.get('timestamp')  # ISO timestamp from JS
-
+        timestamp = data.get('timestamp')
+        
         if not status:
-            return jsonify({'success': False, 'error': 'Status is required'}), 400
-
-        # Get ticket from database
-        db_session = ticket_store.db_manager.get_session()
-        try:
-            ticket = db_session.query(Ticket).get(ticket_id)
-
-            if not ticket:
-                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
-
-            # Format timestamp for display
-            singapore_time = datetime.datetime.now() + timedelta(hours=8)
-            singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
-
-            # Update return status
-            old_status = ticket.return_status
-            ticket.return_status = f"{status} on {singapore_time_str}"
-            ticket.updated_at = datetime.datetime.now()
-
-            # Add system note
-            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return package marked as {status}"
-
-            # Commit changes
-            db_session.commit()
-            
-            # Store the values we need for the response BEFORE closing the session
-            new_status = ticket.return_status
-            
-            return jsonify({
-                'success': True,
-                'message': f'Return package status updated to {status}',
-                'new_status': new_status,
-                'old_status': old_status
-            })
-        finally:
-            # Always close the session
-            db_session.close()
-
+            return jsonify({"success": False, "error": "Status is required"}), 400
+        
+        # Get the ticket
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({"success": False, "error": "Ticket not found"}), 404
+        
+        # Update return status
+        ticket.return_status = status
+        
+        # Create tracking history entry
+        if timestamp:
+            history_timestamp = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        else:
+            history_timestamp = datetime.datetime.now(timezone.utc)
+        
+        tracking_history = TrackingHistory(
+            ticket_id=ticket_id,
+            status=status,
+            tracking_number=ticket.return_tracking,
+            timestamp=history_timestamp,
+            tracking_type="return"
+        )
+        db_session.add(tracking_history)
+        
+        # Log activity
+        activity = activity_store.log_activity(
+            "ticket_update",
+            f"Updated return status to {status}",
+            related_id=ticket_id,
+            related_type="Ticket",
+            user_id=session.get('user_id')
+        )
+        
+        db_session.commit()
+        return jsonify({"success": True, "message": f"Return status updated to {status}"})
+        
     except Exception as e:
-        print(f"Error updating return status: {str(e)}")
-        import traceback
+        db_session.rollback()
+        print(f"Error updating return status: {str(e)}", file=sys.stderr)
         traceback.print_exc()
-        return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@tickets_bp.route('/<int:ticket_id>/transfer', methods=['POST'], endpoint='transfer_ticket')
+@login_required
+def transfer_ticket(ticket_id):
+    """Transfer a ticket to another user"""
+    db_session = db_manager.get_session()
+    
+    try:
+        # Get the ticket
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+        
+        # Get the transfer target user ID
+        transfer_to_id = request.form.get('transfer_to_id', type=int)
+        if not transfer_to_id:
+            flash('Please select a user to transfer to', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+        # Get the transfer notes
+        transfer_notes = request.form.get('transfer_notes', '')
+        
+        # Get the target user
+        target_user = db_session.query(User).get(transfer_to_id)
+        if not target_user:
+            flash('Target user not found', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+        # Get the current user
+        current_user_id = session.get('user_id')
+        current_user = db_session.query(User).get(current_user_id)
+        
+        # Update the ticket's assigned user
+        previous_user_id = ticket.assigned_to_id
+        ticket.assigned_to_id = transfer_to_id
+        
+        # Add a comment about the transfer
+        comment_text = f"Ticket transferred from {current_user.username} to {target_user.username}"
+        if transfer_notes:
+            comment_text += f"\n\nNotes: {transfer_notes}"
+            
+        comment = Comment(
+            ticket_id=ticket_id,
+            user_id=current_user_id,
+            content=comment_text,
+            created_at=datetime.datetime.now(timezone.utc)
+        )
+        db_session.add(comment)
+        
+        # Log activity
+        activity = activity_store.log_activity(
+            "ticket_transfer",
+            f"Transferred ticket from {current_user.username} to {target_user.username}",
+            related_id=ticket_id,
+            related_type="Ticket",
+            user_id=current_user_id
+        )
+        
+        db_session.commit()
+        flash(f'Ticket successfully transferred to {target_user.username}', 'success')
+        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error transferring ticket: {str(e)}", file=sys.stderr)
+        traceback.print_exc()
+        flash(f'Error transferring ticket: {str(e)}', 'error')
+        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
