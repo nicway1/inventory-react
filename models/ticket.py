@@ -13,6 +13,7 @@ class TicketStatus(enum.Enum):
     IN_PROGRESS = "In Progress"
     ON_HOLD = "On Hold"
     RESOLVED = "Resolved"
+    RESOLVED_DELIVERED = "Resolved (All Package Delivered)"
 
 class TicketPriority(enum.Enum):
     LOW = "Low"
@@ -118,7 +119,8 @@ class Ticket(Base):
     requester = relationship('User', foreign_keys=[requester_id], back_populates='tickets_requested')
     assigned_to = relationship('User', foreign_keys=[assigned_to_id], back_populates='tickets_assigned')
     comments = relationship('Comment', back_populates='ticket', cascade='all, delete-orphan')
-    asset = relationship('Asset', back_populates='tickets')
+    asset = relationship('Asset', foreign_keys=[asset_id], back_populates='tickets')
+    assets = relationship('Asset', secondary='ticket_assets', back_populates='tickets')
     queue = relationship("Queue", back_populates="tickets")
     accessory = relationship("Accessory", back_populates="tickets")
     customer = relationship('CustomerUser', back_populates='tickets')
