@@ -2344,11 +2344,10 @@ def update_shipping_carrier(ticket_id):
         ticket.updated_at = datetime.datetime.now()
         
         # Add system comment
-        new_comment = Comment(
-            content=f"Updated {tracking_field.replace('_', ' ')} to {carrier}",
+        new_comment = Comment.create(
             ticket_id=ticket.id,
             user_id=current_user.id,
-            created_at=datetime.datetime.now()
+            content=f"Updated {tracking_field.replace('_', ' ')} to {carrier}"
         )
         db_session.add(new_comment)
         
@@ -4026,11 +4025,11 @@ def transfer_ticket(ticket_id):
         if transfer_notes:
             comment_text += f"\n\nNotes: {transfer_notes}"
             
-        comment = Comment(
+        # Use Comment.create() to automatically generate an ID
+        comment = Comment.create(
             ticket_id=ticket_id,
             user_id=current_user_id,
-            content=comment_text,
-            created_at=datetime.datetime.now(timezone.utc)
+            content=comment_text
         )
         db_session.add(comment)
         
