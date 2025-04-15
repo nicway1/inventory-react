@@ -35,6 +35,8 @@ import re
 from models.tracking_history import TrackingHistory
 from datetime import timedelta
 from models.queue import Queue
+from sqlalchemy.orm import joinedload # Import joinedload
+from sqlalchemy import func, or_, and_
 
 # Initialize TrackingMore client
 try:
@@ -651,91 +653,113 @@ def view_ticket(ticket_id):
     db_session = db_manager.get_session()
     try:
         print(f"Loading ticket {ticket_id} for viewing")
+        user = db_manager.get_user(session['user_id']) # Get current user
         
         # Make sure we're getting fresh data, not cached
         db_session.expire_all()
         
-        # Force clear any cache
-        db_session.commit()
-        
         # Load ticket with all relationships directly from database
         ticket = db_session.query(Ticket)\
-            .options(db_manager.joinedload(Ticket.asset))\
-            .options(db_manager.joinedload(Ticket.accessory))\
+            .options(
+                joinedload(Ticket.asset),
+                joinedload(Ticket.comments).joinedload(Comment.user),
+                joinedload(Ticket.assigned_to),
+                joinedload(Ticket.customer),
+                joinedload(Ticket.queue)
+            )\
             .filter(Ticket.id == ticket_id)\
             .first()
-        
-        # Debug the current ticket status
-        if ticket:
-            print(f"DEBUG VIEW - Ticket status: {ticket.status}")
-            if ticket.status:
-                print(f"DEBUG VIEW - Ticket status value: {ticket.status.value}")
             
         if not ticket:
-            flash('Ticket not found')
+            flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
-        
-        print(f"Loaded ticket {ticket_id} from database - shipping_status: '{ticket.shipping_status}', return_status: '{ticket.return_status}'")
-        
-        # Check if ticket exists in ticket_store and if data might be stale
-        store_ticket = ticket_store.get_ticket(ticket_id)
-        if store_ticket:
-            # If store has different status values, update the store to match database
-            if (store_ticket.shipping_status != ticket.shipping_status or 
-                store_ticket.return_status != ticket.return_status):
-                print(f"Ticket store data is stale. Updating ticket {ticket_id} in store.")
-                store_ticket.shipping_status = ticket.shipping_status
-                store_ticket.return_status = ticket.return_status
-                ticket_store.save_tickets()
-            
-            print(f"Ticket {ticket_id} from store - shipping_status: '{store_ticket.shipping_status}', return_status: '{store_ticket.return_status}'")
-        else:
-            print(f"Ticket {ticket_id} not found in ticket store")
-        
-        comments = comment_store.get_ticket_comments(ticket_id)
-        
-        # Add user information to comments
-        for comment in comments:
-            comment.user = user_store.get_user_by_id(comment.user_id)
 
-        # Convert users to a dictionary format that can be serialized to JSON
+        # Check queue access permission
+        if ticket.queue_id and not user.can_access_queue(ticket.queue_id):
+             flash('You do not have permission to view this ticket', 'error')
+             return redirect(url_for('tickets.list_tickets'))
+
+        # Load data needed for the Add Asset Modal
+        model_info = db_session.query(Asset.model, Asset.name, Asset.asset_type)\
+            .distinct().filter(Asset.model.isnot(None), Asset.name.isnot(None)).all()
+        unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            unique_countries = [user.assigned_country.value]
+        else:
+            unique_countries_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+            unique_countries = sorted([c[0] for c in unique_countries_query if c[0]])
+
+        unique_models = []
+        model_product_map = {}
+        model_type_map = {}
+        for model, product_name, asset_type in model_info:
+            if model and model not in model_product_map:
+                unique_models.append(model)
+                model_product_map[model] = product_name
+                model_type_map[model] = asset_type if asset_type else ''
+        
+        unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
+        unique_customers = sorted([c[0] for c in unique_customers if c[0]])
+        unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
+        unique_diags = sorted([d[0] for d in unique_diags if d[0]])
+        unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
+
+        comments = ticket.comments # Already loaded via joinedload
+        
+        # Convert users to a dictionary format for dropdowns/mentions
+        all_users = db_session.query(User).all() # Fetch all users for assignment dropdown
         users_dict = {}
-        for user in user_store.get_all_users():
-            users_dict[str(user.id)] = {
-                'id': user.id,
-                'username': user.username,
-                'user_type': user.user_type,
-                'company': user.company,
-                'role': user.role
+        for u in all_users:
+            users_dict[str(u.id)] = {
+                'id': u.id,
+                'username': u.username,
+                'user_type': u.user_type.value if u.user_type else None, # Use enum value
+                'company': u.company, # Assuming company is a direct attribute or loaded relationship
+                'role': u.role # Assuming role is a direct attribute
             }
 
-        # Get owner information
-        owner = None
-        if ticket.assigned_to_id:
-            owner = user_store.get_user_by_id(ticket.assigned_to_id)
-            if not owner:
-                # If owner not found, clear the assigned_to_id
-                ticket.assigned_to_id = None
-                ticket_store.save_tickets()
-
-        queues = {q.id: q for q in queue_store.get_all_queues()}
+        owner = ticket.assigned_to # Already loaded
+        queues = {q.id: q for q in db_session.query(Queue).all()} # Fetch all queues
         
-        # Get available assets and accessories from inventory store
-        available_assets = inventory_store.get_available_assets()
-        available_accessories = inventory_store.get_available_accessories()
+        # Get available assets and accessories (Consider if needed here or just rely on modal data)
+        # available_assets = inventory_store.get_available_assets()
+        # available_accessories = inventory_store.get_available_accessories()
         
         return render_template(
             'tickets/view.html',
-            ticket=ticket,  # Use the database version of the ticket
-            comments=sorted(comments, key=lambda x: x.created_at),
+            ticket=ticket,
+            comments=sorted(comments, key=lambda x: x.created_at, reverse=True),
             queues=queues,
             users=users_dict,
-            owner=owner,  # Pass owner separately
-            available_assets=available_assets,
-            available_accessories=available_accessories
+            owner=owner,
+            # Pass data for the Add Asset modal
+            asset_modal_statuses=AssetStatus,
+            asset_modal_models=unique_models,
+            asset_modal_model_product_map=model_product_map,
+            asset_modal_model_type_map=model_type_map,
+            asset_modal_chargers=unique_chargers,
+            asset_modal_customers=unique_customers,
+            asset_modal_countries=unique_countries,
+            asset_modal_conditions=unique_conditions,
+            asset_modal_diags=unique_diags,
+            asset_modal_asset_types=unique_asset_types,
+            user=user # Pass current user info
+            # available_assets=available_assets, # Commented out, likely not needed directly on view page
+            # available_accessories=available_accessories # Commented out
         )
+    except Exception as e:
+        db_session.rollback() # Rollback on error
+        current_app.logger.error(f"Error loading ticket {ticket_id}: {e}", exc_info=True)
+        flash('An error occurred while loading the ticket.', 'error')
+        return redirect(url_for('tickets.list_tickets'))
     finally:
-        db_session.close()
+        if db_session:
+             db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/comment', methods=['POST'])
 @login_required
@@ -3821,3 +3845,119 @@ def delete_ticket(ticket_id):
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
     finally:
         db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/update-shipping-status', methods=['POST'])
+@login_required
+def update_shipping_status(ticket_id):
+    """Update the shipping status for an outbound package"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        status = data.get('status')
+        timestamp = data.get('timestamp')  # ISO timestamp from JS
+
+        if not status:
+            return jsonify({'success': False, 'error': 'Status is required'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).get(ticket_id)
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            # Format timestamp for display
+            singapore_time = datetime.datetime.now() + timedelta(hours=8)
+            singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
+
+            # Update shipping status
+            old_status = ticket.shipping_status
+            ticket.shipping_status = f"{status} on {singapore_time_str}"
+            ticket.updated_at = datetime.datetime.now()
+
+            # Add system note
+            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Outbound package marked as {status}"
+
+            # Commit changes
+            db_session.commit()
+            
+            # Store the values we need for the response BEFORE closing the session
+            new_status = ticket.shipping_status
+
+            return jsonify({
+                'success': True,
+                'message': f'Outbound package status updated to {status}',
+                'new_status': new_status,
+                'old_status': old_status
+            })
+        finally:
+            # Always close the session
+            db_session.close()
+
+    except Exception as e:
+        print(f"Error updating shipping status: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/update-return-status', methods=['POST'])
+@login_required
+def update_return_status(ticket_id):
+    """Update the return status for a return package"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        status = data.get('status')
+        timestamp = data.get('timestamp')  # ISO timestamp from JS
+
+        if not status:
+            return jsonify({'success': False, 'error': 'Status is required'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).get(ticket_id)
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            # Format timestamp for display
+            singapore_time = datetime.datetime.now() + timedelta(hours=8)
+            singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
+
+            # Update return status
+            old_status = ticket.return_status
+            ticket.return_status = f"{status} on {singapore_time_str}"
+            ticket.updated_at = datetime.datetime.now()
+
+            # Add system note
+            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return package marked as {status}"
+
+            # Commit changes
+            db_session.commit()
+            
+            # Store the values we need for the response BEFORE closing the session
+            new_status = ticket.return_status
+            
+            return jsonify({
+                'success': True,
+                'message': f'Return package status updated to {status}',
+                'new_status': new_status,
+                'old_status': old_status
+            })
+        finally:
+            # Always close the session
+            db_session.close()
+
+    except Exception as e:
+        print(f"Error updating return status: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500

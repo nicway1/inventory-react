@@ -12,11 +12,12 @@ from models.asset_transaction import AssetTransaction
 from models.location import Location
 from models.company import Company
 from models.activity import Activity
+from models.ticket import Ticket
 from models.accessory_transaction import AccessoryTransaction
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
-from sqlalchemy import func, case, or_
+from sqlalchemy import func, case, or_, text
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
 from flask_login import current_user
@@ -29,6 +30,7 @@ from models.company import Company
 from io import StringIO, BytesIO
 import logging
 import random
+import traceback
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
@@ -1348,34 +1350,31 @@ def delete_accessory(id):
 def add_asset():
     db_session = db_manager.get_session()
     try:
-        # Get the current user
         user = db_manager.get_user(session['user_id'])
+        # ... (existing code to fetch unique models, chargers, etc.) ...
         
-        # Get all unique models and their exact product names from the database
+        # Get unique values for dropdown fields
         model_info = db_session.query(
             Asset.model, 
             Asset.name,
             Asset.asset_type
         ).distinct().filter(
             Asset.model.isnot(None),
-            Asset.name.isnot(None)  # Only get models that have a product name
+            Asset.name.isnot(None) # Only get models that have a product name
         ).all()
         
-        # Get unique values for dropdown fields
         unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
         unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
         unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
         unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
         unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
         
-        # For Country Admin, only show their assigned country
         if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
             unique_countries = [user.assigned_country.value]
         else:
-            unique_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
-            unique_countries = sorted([c[0] for c in unique_countries if c[0]])
+            unique_countries_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+            unique_countries = sorted([c[0] for c in unique_countries_query if c[0]])
         
-        # Process the lists to remove tuples and None values
         unique_models = []
         model_product_map = {}
         model_type_map = {}
@@ -1385,57 +1384,132 @@ def add_asset():
                 model_product_map[model] = product_name
                 model_type_map[model] = asset_type if asset_type else ''
 
-        # Clean up the unique values
         unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
         unique_customers = sorted([c[0] for c in unique_customers if c[0]])
         unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
         unique_diags = sorted([d[0] for d in unique_diags if d[0]])
         unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
-        
+
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         if request.method == 'POST':
             try:
-                # Map inventory status to AssetStatus enum
-                inventory_status = request.form.get('status', '').upper()
-                if inventory_status == 'READY TO DEPLOY':
-                    status = AssetStatus.READY_TO_DEPLOY
-                elif inventory_status == 'IN STOCK':
-                    status = AssetStatus.IN_STOCK
-                elif inventory_status == 'SHIPPED':
-                    status = AssetStatus.SHIPPED
-                elif inventory_status == 'DEPLOYED':
-                    status = AssetStatus.DEPLOYED
-                elif inventory_status == 'REPAIR':
-                    status = AssetStatus.REPAIR
-                elif inventory_status == 'ARCHIVED':
-                    status = AssetStatus.ARCHIVED
-                else:
-                    status = AssetStatus.IN_STOCK  # Default status
+                # Debug log the form data
+                current_app.logger.info("Form data received in add_asset:")
+                for key, value in request.form.items():
+                    current_app.logger.info(f"  {key}: '{value}'")
+                
+                # Check for required fields
+                required_fields = {
+                    'asset_tag': 'Asset Tag',
+                    'serial_num': 'Serial Number',
+                    'model': 'Model',
+                    'asset_type': 'Asset Type',
+                    'status': 'Status'
+                }
+                
+                missing_fields = []
+                empty_fields = []
+                
+                # First check if fields exist in request.form
+                for field, display_name in required_fields.items():
+                    if field not in request.form:
+                        missing_fields.append(f"{display_name} (missing from form)")
+                    elif not request.form.get(field, '').strip():
+                        # Allow either asset_tag or serial_num to be empty, but not both
+                        if (field == 'asset_tag' and request.form.get('serial_num', '').strip()) or \
+                           (field == 'serial_num' and request.form.get('asset_tag', '').strip()):
+                            continue
+                        empty_fields.append(f"{display_name} (empty)")
+                
+                all_missing = missing_fields + empty_fields
+                
+                if all_missing:
+                    error_msg = f"Missing required fields: {', '.join(all_missing)}"
+                    current_app.logger.warning(f"Form validation failed: {error_msg}")
+                    if is_ajax:
+                        return jsonify({'success': False, 'error': error_msg, 'missing_fields': all_missing}), 400
+                    else:
+                        flash(error_msg, 'error')
+                        return render_template('inventory/add_asset.html',
+                                        statuses=AssetStatus, models=unique_models, 
+                                        model_product_map=model_product_map, model_type_map=model_type_map, 
+                                        chargers=unique_chargers, customers=unique_customers, 
+                                        countries=unique_countries, conditions=unique_conditions, 
+                                        diags=unique_diags, asset_types=unique_asset_types, user=user, 
+                                        form_data=request.form)
+                
+                # Check for existing asset by serial number or asset tag
+                serial_num = request.form.get('serial_num', '').strip()
+                asset_tag = request.form.get('asset_tag', '').strip()
+                
+                if not serial_num and not asset_tag:
+                    error_msg = "Either Serial Number or Asset Tag is required."
+                    if is_ajax:
+                        return jsonify({'success': False, 'error': error_msg}), 400
+                    else:
+                        flash(error_msg, 'error')
+                        # Render template with error
+                        return render_template('inventory/add_asset.html',
+                                        statuses=AssetStatus, models=unique_models, 
+                                        model_product_map=model_product_map, model_type_map=model_type_map, 
+                                        chargers=unique_chargers, customers=unique_customers, 
+                                        countries=unique_countries, conditions=unique_conditions, 
+                                        diags=unique_diags, asset_types=unique_asset_types, user=user, 
+                                        form_data=request.form)
 
-                # Get model directly from the form
+                existing_asset = None
+                if serial_num:
+                    existing_asset = db_session.query(Asset).filter(func.lower(Asset.serial_num) == func.lower(serial_num)).first()
+                if not existing_asset and asset_tag:
+                    existing_asset = db_session.query(Asset).filter(func.lower(Asset.asset_tag) == func.lower(asset_tag)).first()
+
+                if existing_asset:
+                    error_msg = f"An asset with {'Serial Number ' + serial_num if serial_num and existing_asset.serial_num.lower() == serial_num.lower() else 'Asset Tag ' + asset_tag} already exists (ID: {existing_asset.id})."
+                    if is_ajax:
+                        return jsonify({'success': False, 'error': error_msg}), 409 # 409 Conflict
+                    else:
+                        flash(error_msg, 'error')
+                        # Render template with error
+                        return render_template('inventory/add_asset.html',
+                                        statuses=AssetStatus, models=unique_models, 
+                                        model_product_map=model_product_map, model_type_map=model_type_map, 
+                                        chargers=unique_chargers, customers=unique_customers, 
+                                        countries=unique_countries, conditions=unique_conditions, 
+                                        diags=unique_diags, asset_types=unique_asset_types, user=user, 
+                                        form_data=request.form)
+
+                inventory_status_str = request.form.get('status', '').upper()
+                try:
+                    status = AssetStatus[inventory_status_str] if inventory_status_str else AssetStatus.IN_STOCK
+                except KeyError:
+                    status = AssetStatus.IN_STOCK # Default if status string is invalid
+
                 model = request.form.get('model')
                 if not model:
-                    flash('Model is required', 'error')
-                    return render_template('inventory/add_asset.html',
-                                        statuses=AssetStatus,
-                                        models=unique_models,
-                                        model_product_map=model_product_map,
-                                        model_type_map=model_type_map,
-                                        chargers=unique_chargers,
-                                        customers=unique_customers,
-                                        countries=unique_countries,
-                                        conditions=unique_conditions,
-                                        diags=unique_diags,
-                                        asset_types=unique_asset_types,
-                                        user=user)
+                    error_msg = 'Model is required'
+                    if is_ajax:
+                         return jsonify({'success': False, 'error': error_msg}), 400
+                    else:
+                        flash(error_msg, 'error')
+                        return render_template('inventory/add_asset.html',
+                                            statuses=AssetStatus, models=unique_models, 
+                                            model_product_map=model_product_map, model_type_map=model_type_map, 
+                                            chargers=unique_chargers, customers=unique_customers, 
+                                            countries=unique_countries, conditions=unique_conditions, 
+                                            diags=unique_diags, asset_types=unique_asset_types, user=user, 
+                                            form_data=request.form)
 
-                # Create new asset from form data
+                receiving_date_str = request.form.get('receiving_date')
+                receiving_date = datetime.strptime(receiving_date_str, '%Y-%m-%d').date() if receiving_date_str else None
+
                 new_asset = Asset(
-                    asset_tag=request.form.get('asset_tag', ''),
-                    name=request.form.get('product', ''),  # Add product as name
-                    asset_type=request.form.get('asset_type', ''),  # Add asset type
-                    receiving_date=datetime.strptime(request.form.get('receiving_date', ''), '%Y-%m-%d').date() if request.form.get('receiving_date') else None,
+                    asset_tag=asset_tag,
+                    name=request.form.get('product', ''),
+                    asset_type=request.form.get('asset_type', ''),
+                    receiving_date=receiving_date,
                     keyboard=request.form.get('keyboard', ''),
-                    serial_num=request.form.get('serial_num', ''),
+                    serial_num=serial_num,
                     po=request.form.get('po', ''),
                     model=model,
                     erased=request.form.get('erased') == 'true',
@@ -1450,57 +1524,178 @@ def add_asset():
                     harddrive=request.form.get('harddrive', ''),
                     charger=request.form.get('charger', ''),
                     country=request.form.get('country', ''),
-                    status=status
+                    status=status,
+                    notes=request.form.get('notes', ''), 
+                    tech_notes=request.form.get('tech_notes', '') 
                 )
-                
-                db_session.add(new_asset)
-                db_session.commit()
-                
+
+                # Handle ticket linking
+                intake_ticket_id = request.form.get('intake_ticket_id')
+                if intake_ticket_id:
+                    try:
+                        ticket_id = int(intake_ticket_id)
+                        ticket = db_session.query(Ticket).get(ticket_id)
+                        if ticket:
+                            new_asset.intake_ticket_id = ticket.id
+                            
+                            # More careful approach to linking - check if already linked first
+                            current_app.logger.info(f"Linking asset to ticket {ticket.id}")
+                            
+                            # First add the asset
+                            db_session.add(new_asset)
+                            db_session.flush()  # Get the new asset ID
+                            
+                            # Then check if this asset is already linked to the ticket
+                            existing_link = False
+                            if hasattr(ticket, 'assets'):
+                                for asset in ticket.assets:
+                                    if asset.id == new_asset.id:
+                                        existing_link = True
+                                        current_app.logger.info(f"Asset {new_asset.id} already linked to ticket {ticket.id}")
+                                        break
+                            
+                            # Only add to ticket assets if not already linked
+                            if not existing_link:
+                                ticket.assets.append(new_asset)  # Add to the many-to-many relationship
+                                current_app.logger.info(f"Added asset {new_asset.id} to ticket {ticket.id} assets")
+                            
+                            # Log activity
+                            activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created and linked to ticket {ticket.display_id}."
+                        else:
+                            # Still create the asset, just don't link to a ticket
+                            db_session.add(new_asset)
+                            db_session.flush()
+                            activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Ticket ID {intake_ticket_id} not found for linking."
+                            current_app.logger.warning(f"Ticket ID {intake_ticket_id} not found for linking with new asset")
+                    except ValueError:
+                        # Still create the asset, just don't link to a ticket
+                        db_session.add(new_asset)
+                        db_session.flush()
+                        activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Invalid ticket ID {intake_ticket_id} provided."
+                        current_app.logger.warning(f"Invalid ticket ID format: {intake_ticket_id}")
+                else:
+                    # No ticket to link, just create the asset
+                    db_session.add(new_asset)
+                    db_session.flush() # Flush to get the new_asset ID
+                    activity_content = f'Created new asset: {new_asset.name} (Asset Tag: {new_asset.asset_tag or new_asset.serial_num})'
+
                 # Add activity tracking
                 activity = Activity(
                     user_id=current_user.id,
                     type='asset_created',
-                    content=f'Created new asset: {new_asset.name} (Asset Tag: {new_asset.asset_tag})',
+                    content=activity_content,
                     reference_id=new_asset.id
                 )
                 db_session.add(activity)
+                
+                # Commit asset and activity
                 db_session.commit()
-                
-                flash('Asset added successfully!', 'success')
-                return redirect(url_for('inventory.view_inventory'))
-                
+
+                # Prepare asset data for JSON response
+                asset_data = {
+                    'id': new_asset.id,
+                    'asset_tag': new_asset.asset_tag or '-',
+                    'serial_num': new_asset.serial_num or '-', # Changed from serial_number
+                    'name': new_asset.name or new_asset.model or '-',
+                    'status': new_asset.status.value if new_asset.status else 'Unknown'
+                }
+
+                if is_ajax:
+                    return jsonify({'success': True, 'message': 'Asset added successfully!', 'asset': asset_data})
+                else:
+                    flash('Asset added successfully!', 'success')
+                    # Check for redirect_url (from modal form)
+                    redirect_url = request.form.get('redirect_url')
+                    if redirect_url:
+                         return redirect(redirect_url)
+                    return redirect(url_for('inventory.view_inventory'))
+
             except Exception as e:
                 db_session.rollback()
-                flash(f'Error adding asset: {str(e)}', 'error')
-                return render_template('inventory/add_asset.html',
-                                    statuses=AssetStatus,
-                                    models=unique_models,
-                                    model_product_map=model_product_map,
-                                    model_type_map=model_type_map,
-                                    chargers=unique_chargers,
-                                    customers=unique_customers,
-                                    countries=unique_countries,
-                                    conditions=unique_conditions,
-                                    diags=unique_diags,
-                                    asset_types=unique_asset_types,
-                                    user=user)
-        
-        # GET request - render the form
-        return render_template('inventory/add_asset.html',
-                            statuses=AssetStatus,
-                            models=unique_models,
-                            model_product_map=model_product_map,
-                            model_type_map=model_type_map,
-                            chargers=unique_chargers,
-                            customers=unique_customers,
-                            countries=unique_countries,
-                            conditions=unique_conditions,
-                            diags=unique_diags,
-                            asset_types=unique_asset_types,
-                            user=user)
+                error_msg = str(e)
+                current_app.logger.error(f"Error adding asset: {error_msg}")
+                
+                # Log full exception for debugging
+                current_app.logger.error(traceback.format_exc())
+                
+                # Be more specific about the ticket_assets constraint
+                if "UNIQUE constraint failed: ticket_assets.ticket_id, ticket_assets.asset_id" in error_msg:
+                    current_app.logger.debug(f"Ticket-Asset constraint violation detected")
+                    current_app.logger.debug(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
+                    current_app.logger.debug(f"Asset data: {request.form}")
+                    
+                    # Check if this is really a constraint error or some other SQLite error
+                    ticket_id = request.form.get('intake_ticket_id')
+                    if ticket_id and new_asset and new_asset.id:
+                        # Double check if this is a legitimate constraint violation by querying directly
+                        try:
+                            stmt = text("""
+                                SELECT COUNT(*) FROM ticket_assets 
+                                WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+                            """)
+                            result = db_session.execute(stmt, {"ticket_id": ticket_id, "asset_id": new_asset.id})
+                            count = result.scalar()
                             
+                            if count > 0:
+                                # This is a legitimate constraint violation
+                                error = "This asset is already linked to this ticket."
+                                current_app.logger.info(f"Confirmed: Asset {new_asset.id} already linked to ticket {ticket_id}")
+                            else:
+                                # This might be a different issue or a false positive
+                                error = "An error occurred while linking the asset to the ticket."
+                                current_app.logger.warning(f"False positive? Asset {new_asset.id} not found linked to ticket {ticket_id}")
+                        except Exception as e2:
+                            # If we can't query, fall back to the original error
+                            error = "This asset is already linked to this ticket."
+                            current_app.logger.error(f"Error checking ticket-asset link: {str(e2)}")
+                    else:
+                        error = "This asset is already linked to this ticket."
+                    
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': error, 'duplicate': True}), 409
+                    else:
+                        flash(error, 'error')
+                elif "UNIQUE constraint failed: assets.serial_num" in error_msg:
+                    error = "An asset with this serial number already exists."
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': error}), 409
+                    else:
+                        flash(error, 'error')
+                elif "UNIQUE constraint failed: assets.asset_tag" in error_msg:
+                    error = "An asset with this asset tag already exists."
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': error}), 409
+                    else:
+                        flash(error, 'error')
+                else:
+                    error = f"An error occurred while adding the asset: {error_msg}"
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': error}), 500
+                    else:
+                        flash(error, 'error')
+
+        # GET request - render the form
+        # Check if intake_ticket_id is passed in query params for GET request
+        ticket_id_from_query = request.args.get('ticket_id')
+        
+        return render_template('inventory/add_asset.html',
+                                statuses=AssetStatus,
+                                models=unique_models,
+                                model_product_map=model_product_map,
+                                model_type_map=model_type_map,
+                                chargers=unique_chargers,
+                                customers=unique_customers,
+                                countries=unique_countries,
+                                conditions=unique_conditions,
+                                diags=unique_diags,
+                                asset_types=unique_asset_types,
+                                user=user,
+                                intake_ticket_id=ticket_id_from_query) # Pass ticket_id if available
+
     except Exception as e:
+        # ... existing error handling ...
         flash(f'Error loading form: {str(e)}', 'error')
+        current_app.logger.error(f"Error loading add_asset form: {e}", exc_info=True)
         return redirect(url_for('inventory.view_inventory'))
     finally:
         db_session.close()

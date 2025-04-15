@@ -405,15 +405,12 @@
 
         <!-- Action Toolbar -->
         <div class="sf-toolbar mb-6 rounded-t-md">
-            <form id="deleteForm" method="POST" action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this ticket? This action cannot be undone.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="sf-button">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                    Delete
-                </button>
-            </form>
+            <button class="sf-button">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete
+            </button>
             <button class="sf-button">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -440,6 +437,22 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
                 Transfer
+            </button>
+            {% endif %}
+            
+            <!-- Add tracking buttons for Asset Return (claw) -->
+            {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+            <button class="sf-button" onclick="showAddOutboundTrackingModal()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Add Outbound Tracking
+            </button>
+            <button class="sf-button" onclick="showAddReturnTrackingModal()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3" />
+                </svg>
+                Add Return Tracking
             </button>
             {% endif %}
         </div>
@@ -563,6 +576,33 @@
                                 <div class="sf-field-label">Service Type</div>
                                 <div class="sf-field-value">Hardware Support</div>
                             </div>
+                            
+                            {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                            <!-- Tracking Information Section -->
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Outbound Tracking</div>
+                                <div class="sf-field-value">
+                                    {% if ticket.shipping_tracking %}
+                                    <div>{{ ticket.shipping_tracking }} ({{ ticket.shipping_carrier }})</div>
+                                    <div class="text-sm text-gray-500">Status: {{ ticket.shipping_status }}</div>
+                                    {% else %}
+                                    <span class="text-gray-500">Not added yet</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="sf-field-row">
+                                <div class="sf-field-label">Return Tracking</div>
+                                <div class="sf-field-value">
+                                    {% if ticket.return_tracking %}
+                                    <div>{{ ticket.return_tracking }} ({{ ticket.shipping_carrier }})</div>
+                                    <div class="text-sm text-gray-500">Status: {{ ticket.return_status }}</div>
+                                    {% else %}
+                                    <span class="text-gray-500">Not added yet</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -574,7 +614,7 @@
                     <div class="flex justify-between items-center">
                         <h2 class="sf-card-title">Tech Asset</h2>
                         <div class="flex gap-2">
-                            <button class="sf-button primary-button" onclick="openAssetModal()">
+                            <button class="sf-button primary-button" onclick="showAssetModal()">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
@@ -606,7 +646,7 @@
                                     {% for asset in ticket.assets %}
                                     <tr>
                                         <td>{{ asset.asset_tag }}</td>
-                                        <td>{{ asset.serial_number }}</td>
+                                        <td>{{ asset.serial_num }}</td>
                                         <td>{{ asset.name }}</td>
                                         <td>
                                             <span class="sf-badge {% if asset.status and asset.status.value == 'Active' %}sf-badge-success{% endif %}">
@@ -619,7 +659,7 @@
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
+                                                    </svg>
                                                 </button>
                                                 <button onclick="unlinkAsset('{{ asset.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -641,598 +681,1037 @@
             </div>
         </div>
 
+        {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+        <!-- Outbound Tracking Card -->
+        <div class="sf-card mb-6">
+            <div class="sf-card-header">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <h2 class="sf-card-title">Outbound Tracking</h2>
+                        {% if ticket.shipping_status %}
+                        <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                            {{ ticket.shipping_status }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                    {% if ticket.shipping_status != 'Received' %}
+                    <button class="sf-button" onclick="markOutboundAsReceived('{{ ticket.id }}')">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Mark as Received
+                    </button>
+                    {% endif %}
+                    <button class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add Tracking
+                    </button>
+                    </div>
+                </div>
+            </div>
+            <div class="sf-card-body">
+                <div class="p-4">
+                    {% if ticket.shipping_tracking %}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Tracking Number</div>
+                            <div class="font-medium">{{ ticket.shipping_tracking }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Carrier</div>
+                            <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Status</div>
+                            <div class="font-medium">{{ ticket.shipping_status }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-gray-500 py-4">
+                        No outbound tracking information available
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Return Tracking Card -->
+        <div class="sf-card mb-6">
+            <div class="sf-card-header">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <h2 class="sf-card-title">Return Tracking</h2>
+                        {% if ticket.return_status %}
+                        <span class="sf-badge {% if ticket.return_status == 'Delivered' %}sf-badge-success{% elif ticket.return_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                            {{ ticket.return_status }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                    {% if ticket.return_status != 'Received' %}
+                    <button class="sf-button" onclick="markReturnAsReceived('{{ ticket.id }}')">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Mark as Received
+                    </button>
+                    {% endif %}
+                    <button class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add Tracking
+                    </button>
+                    </div>
+                </div>
+            </div>
+            <div class="sf-card-body">
+                <div class="p-4">
+                    {% if ticket.return_tracking %}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Tracking Number</div>
+                            <div class="font-medium">{{ ticket.return_tracking }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Carrier</div>
+                            <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Status</div>
+                            <div class="font-medium">{{ ticket.return_status }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-gray-500 py-4">
+                        No return tracking information available
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
             <!-- Add Asset Modal -->
             <div id="assetModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
-                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-10">
                         <h3 class="text-lg font-medium text-gray-900">Add Tech Asset</h3>
-                        <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeAssetModal()">
+                        <button type="button" class="text-gray-400 hover:text-gray-500" onclick="hideAssetModal()">
                             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                     </div>
-                    <div class="px-6 py-4">
-                        <form id="assetForm" class="space-y-4">
+                    <div class="p-6">
+                        <form id="assetForm" class="space-y-6" method="POST" action="{{ url_for('inventory.add_asset') }}" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                            <input type="hidden" name="intake_ticket_id" value="{{ ticket.id }}">
                             
-                            <!-- Asset Tag and Serial Number -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Basic Information -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="asset_tag" class="block text-sm font-medium text-gray-700">Asset Tag</label>
-                                    <input type="text" id="asset_tag" name="asset_tag" required
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                                <div>
-                                    <label for="serial_number" class="block text-sm font-medium text-gray-700">Serial Number</label>
-                                    <input type="text" id="serial_number" name="serial_number" required
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-            </div>
-            
-                            <!-- Model and Product -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
-                                    <input type="text" id="model" name="model"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                                <div>
-                                    <label for="name" class="block text-sm font-medium text-gray-700">Product</label>
-                                    <input type="text" id="name" name="name" required
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-            </div>
-
-                            <!-- Asset Type and Receiving Date -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="asset_type" class="block text-sm font-medium text-gray-700">Asset Type</label>
-                                    <select id="asset_type" name="asset_type" required
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="Laptop">Laptop</option>
-                                        <option value="Desktop">Desktop</option>
-                                        <option value="Monitor">Monitor</option>
-                                        <option value="Phone">Phone</option>
-                                        <option value="Tablet">Tablet</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-            </div>
-                                <div>
-                                    <label for="receiving_date" class="block text-sm font-medium text-gray-700">Receiving Date</label>
-                                    <input type="date" id="receiving_date" name="receiving_date"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
-
-                            <!-- PO Number and Hardware Type -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="po" class="block text-sm font-medium text-gray-700">PO Number</label>
-                                    <input type="text" id="po" name="po"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                </div>
-                                <div class="relative">
-                                    <label for="hardware_type" class="block text-sm font-medium text-gray-700">Hardware Type</label>
-                                    <div class="flex">
-                                        <input type="text" id="hardware_type" name="hardware_type"
-                                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                        <button type="button" id="generateBtn" class="ml-2 mt-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            Generate
-                        </button>
-                            </div>
-                </div>
-            </div>
-            
-                            <!-- CPU Type and Cores -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="cpu_type" class="block text-sm font-medium text-gray-700">CPU Type</label>
-                                    <input type="text" id="cpu_type" name="cpu_type"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                                <div>
-                                    <label for="cpu_cores" class="block text-sm font-medium text-gray-700">CPU Cores</label>
-                                    <input type="text" id="cpu_cores" name="cpu_cores"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-            </div>
-            
-                            <!-- GPU Cores and Memory -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="gpu_cores" class="block text-sm font-medium text-gray-700">GPU Cores</label>
-                                    <input type="text" id="gpu_cores" name="gpu_cores"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            </div>
-                                <div>
-                                    <label for="memory" class="block text-sm font-medium text-gray-700">Memory</label>
-                                    <input type="text" id="memory" name="memory"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                </div>
-                                        
-                            <!-- Hard Drive and Keyboard -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="harddrive" class="block text-sm font-medium text-gray-700">Hard Drive</label>
-                                    <input type="text" id="harddrive" name="harddrive"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <label for="asset_tag" class="block text-sm font-medium text-gray-700">Asset Tag *</label>
+                                    <input type="text" id="asset_tag" name="asset_tag" required maxlength="50" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                                 </div>
                                 <div>
-                                    <label for="keyboard" class="block text-sm font-medium text-gray-700">Keyboard</label>
-                                    <input type="text" id="keyboard" name="keyboard"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                        </div>
-                        
-                            <!-- Charger and Status -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number *</label>
+                                    <input type="text" id="serial_num" name="serial_num" required maxlength="50" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
                                 <div>
-                                    <label for="charger" class="block text-sm font-medium text-gray-700">Charger</label>
-                                    <input type="text" id="charger" name="charger"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            </div>
+                                    <label for="product" class="block text-sm font-medium text-gray-700">Product</label>
+                                    <input type="text" id="product" name="product" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
+                                <div>
+                                    <label for="model" class="block text-sm font-medium text-gray-700">Model *</label>
+                                    <input type="text" id="model" name="model" required list="asset-modal-model-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" onchange="handleModelChange(this)">
+                                    <datalist id="asset-modal-model-list">
+                                        {% for model_name in asset_modal_models %}
+                                        <option value="{{ model_name }}" 
+                                               data-product="{{ model_product_map[model_name] if model_product_map and model_name in model_product_map else '' }}"
+                                               data-asset-type="{{ model_type_map[model_name] if model_type_map and model_name in model_type_map else '' }}">
+                                        </option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                                 <div>
                                     <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                    <select id="status" name="status" required
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                        <option value="In Stock">In Stock</option>
-                                        <option value="Deployed">Deployed</option>
-                                        <option value="Repair">Repair</option>
+                                    <select id="status" name="status" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">Select a status...</option>
+                                        {% for status_enum in asset_modal_statuses %}
+                                        <option value="{{ status_enum.name }}">{{ status_enum.value }}</option>
+                                        {% endfor %}
                                     </select>
-                            </div>
-                        </div>
-
-                            <!-- Customer and Country -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                </div>
+                                <div>
+                                    <label for="asset_type" class="block text-sm font-medium text-gray-700">Asset Type *</label>
+                                    <input type="text" id="asset_type" name="asset_type" required list="asset-modal-type-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <datalist id="asset-modal-type-list">
+                                         {% for type in asset_modal_asset_types %}
+                                        <option value="{{ type }}"></option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label for="receiving_date" class="block text-sm font-medium text-gray-700">Receiving Date</label>
+                                    <input type="date" id="receiving_date" name="receiving_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
+                                <div>
+                                    <label for="po" class="block text-sm font-medium text-gray-700">PO Number</label>
+                                    <input type="text" id="po" name="po" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
                                 <div>
                                     <label for="customer" class="block text-sm font-medium text-gray-700">Customer</label>
-                                    <input type="text" id="customer" name="customer"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
+                                     <input type="text" id="customer" name="customer" list="asset-modal-customer-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <datalist id="asset-modal-customer-list">
+                                         {% for cust in asset_modal_customers %}
+                                        <option value="{{ cust }}"></option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                                 <div>
                                     <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                                    <input type="text" id="country" name="country"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                     <input type="text" id="country" name="country" list="asset-modal-country-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <datalist id="asset-modal-country-list">
+                                         {% for c in asset_modal_countries %}
+                                        <option value="{{ c }}"></option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label for="erased" class="flex items-center space-x-2">
+                                        <input type="checkbox" id="erased" name="erased" value="true" class="rounded border-gray-300 text-blue-600 shadow-sm">
+                                        <span class="text-sm text-gray-700">Data Erased</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Hardware Information -->
+                            <div class="border-t pt-4">
+                                <button type="button" onclick="toggleSection('hardwareSection')" class="flex justify-between items-center w-full text-left">
+                                    <h3 class="text-lg font-medium text-gray-900">Hardware Specifications</h3>
+                                    <svg id="hardwareSectionIcon" class="h-5 w-5 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div id="hardwareSection" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
+                                     <div>
+                                        <label for="hardware_type" class="block text-sm font-medium text-gray-700">Hardware Type</label>
+                                        <div class="flex space-x-2">
+                                            <input type="text" id="hardware_type" name="hardware_type" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <button type="button" onclick="generateHardwareType()" class="mt-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Generate</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="cpu_type" class="block text-sm font-medium text-gray-700">CPU Type</label>
+                                        <input type="text" id="cpu_type" name="cpu_type" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="cpu_cores" class="block text-sm font-medium text-gray-700">CPU Cores</label>
+                                        <input type="text" id="cpu_cores" name="cpu_cores" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="memory" class="block text-sm font-medium text-gray-700">Memory (GB)</label>
+                                        <input type="text" id="memory" name="memory" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="harddrive" class="block text-sm font-medium text-gray-700">Hard Drive (GB)</label>
+                                        <input type="text" id="harddrive" name="harddrive" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="gpu_cores" class="block text-sm font-medium text-gray-700">GPU Cores</label>
+                                        <input type="text" id="gpu_cores" name="gpu_cores" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="keyboard" class="block text-sm font-medium text-gray-700">Keyboard</label>
+                                        <input type="text" id="keyboard" name="keyboard" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="charger" class="block text-sm font-medium text-gray-700">Charger</label>
+                                        <input type="text" id="charger" name="charger" list="asset-modal-charger-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <datalist id="asset-modal-charger-list">
+                                            {% for chgr in asset_modal_chargers %}
+                                            <option value="{{ chgr }}"></option>
+                                            {% endfor %}
+                                        </datalist>
                                     </div>
                                 </div>
-                                        
-                            <!-- Condition and Diagnostics -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
-                                    <input type="text" id="condition" name="condition"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+
+                            <!-- Additional Information -->
+                            <div class="border-t pt-4">
+                                <button type="button" onclick="toggleSection('notesSection')" class="flex justify-between items-center w-full text-left">
+                                    <h3 class="text-lg font-medium text-gray-900">Additional Information</h3>
+                                    <svg id="notesSectionIcon" class="h-5 w-5 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div id="notesSection" class="mt-4 grid grid-cols-1 gap-6 hidden">
+                                     <div>
+                                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                        <textarea id="notes" name="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="tech_notes" class="block text-sm font-medium text-gray-700">Technical Notes</label>
+                                        <textarea id="tech_notes" name="tech_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
+                                        <input type="text" id="condition" name="condition" list="asset-modal-condition-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <datalist id="asset-modal-condition-list">
+                                            {% for cond in asset_modal_conditions %}
+                                            <option value="{{ cond }}"></option>
+                                            {% endfor %}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label for="diag" class="block text-sm font-medium text-gray-700">Diagnostics</label>
+                                        <input type="text" id="diag" name="diag" list="asset-modal-diag-list" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <datalist id="asset-modal-diag-list">
+                                            {% for d in asset_modal_diags %}
+                                            <option value="{{ d }}"></option>
+                                            {% endfor %}
+                                        </datalist>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label for="diag" class="block text-sm font-medium text-gray-700">Diagnostics</label>
-                                    <input type="text" id="diag" name="diag"
-                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+
+                            <div id="formFeedback" class="hidden mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                                <p class="text-sm font-medium mb-1">Error submitting form:</p>
+                                <p class="text-sm"></p>
+                                <ul class="text-sm list-disc ml-5 mt-1" id="errorDetails"></ul>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-2 sticky bottom-0">
+                        <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="hideAssetModal()">
+                            Cancel
+                        </button>
+                        <button type="button" id="assetSubmitBtn" onclick="submitAssetForm()" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center">
+                            Add Asset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Shipment Modal -->
+        <div id="addShipmentModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                </div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Add Tracking Information
+                                </h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        Please enter the tracking number and select the carrier for this shipment.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         
-                            <!-- Data Erased checkbox -->
+                        <form id="addShipmentForm" class="mt-4 space-y-4">
                             <div>
-                                <div class="flex items-center">
-                                    <input id="erased" name="erased" type="checkbox" value="true"
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                    <label for="erased" class="ml-2 block text-sm text-gray-900">
-                                        Data Erased
-                                    </label>
+                                <label for="tracking_number" class="block text-sm font-medium text-gray-700">Tracking Number</label>
+                                <input type="text" id="tracking_number" name="tracking_number" required 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
-                        </div>
-
-                            <!-- Notes -->
                             <div>
-                                <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                                <textarea id="notes" name="notes" rows="3"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
-                        </div>
-
-                            <div id="formFeedback" class="hidden">
-                                <p class="text-red-500 text-sm mt-1"></p>
-                        </div>
+                                <label for="carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                <select id="carrier" name="carrier" required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="auto">Auto-Detect</option>
+                                    <option value="singpost">SingPost</option>
+                                    <option value="dhl">DHL</option>
+                                    <option value="ups">UPS</option>
+                                    <option value="bluedart">BlueDart</option>
+                                    <option value="dtdc">DTDC</option>
+                                </select>
+                            </div>
                         </form>
                     </div>
-                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-                        <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="closeAssetModal()">
+                    
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="submit" form="addShipmentForm" 
+                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Add Shipment
+                        </button>
+                        <button type="button" onclick="hideAddShipmentModal()"
+                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                             Cancel
-                    </button>
-                        <button type="button" id="assetSubmitBtn" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="submitAssetForm()">
-                            Add Asset
-                    </button>
+                        </button>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Add Return Tracking Modal -->
+        <div id="addReturnTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                </div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Add Return Tracking Information
+                                </h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        Please enter the return tracking number and select the carrier for this return shipment.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="addReturnTrackingForm" class="mt-4 space-y-4">
+                            <div>
+                                <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
+                                <input type="text" id="return_tracking_number" name="return_tracking_number" required 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                <select id="return_carrier" name="return_carrier" required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                    <option value="auto">Auto-Detect</option>
+                                    <option value="singpost">SingPost</option>
+                                    <option value="dhl">DHL</option>
+                                    <option value="ups">UPS</option>
+                                    <option value="bluedart">BlueDart</option>
+                                    <option value="dtdc">DTDC</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" id="submitReturnTrackingBtn" 
+                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Add Return Tracking
+                        </button>
+                        <button type="button" onclick="hideAddReturnTrackingModal()"
+                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Outbound Tracking Modal -->
+        <div id="addOutboundTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                </div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Add Outbound Tracking Information
+                                </h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        Please enter the outbound tracking number and select the carrier for this shipment.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="addOutboundTrackingForm" class="mt-4 space-y-4">
+                            <div>
+                                <label for="outbound_tracking_number" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
+                                <input type="text" id="outbound_tracking_number" name="outbound_tracking_number" required 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="outbound_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                <select id="outbound_carrier" name="outbound_carrier" required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="auto">Auto-Detect</option>
+                                    <option value="singpost">SingPost</option>
+                                    <option value="dhl">DHL</option>
+                                    <option value="ups">UPS</option>
+                                    <option value="bluedart">BlueDart</option>
+                                    <option value="dtdc">DTDC</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" id="submitOutboundTrackingBtn" 
+                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Add Outbound Tracking
+                        </button>
+                        <button type="button" onclick="hideAddOutboundTrackingModal()"
+                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-            <!-- Add the JavaScript for the asset functionality -->
+<!-- Add the JavaScript for the asset functionality -->
 <script>
-                // Initialize the Generate button for Hardware Type generation
-    document.addEventListener('DOMContentLoaded', function() {
-                    const generateBtn = document.getElementById('generateBtn');
-                    if (generateBtn) {
-                        generateBtn.addEventListener('click', function() {
-                            // Get values from the relevant fields
-                            const product = document.getElementById('name').value;
-                            const assetType = document.getElementById('asset_type').value;
-                            const cpuType = document.getElementById('cpu_type').value;
-                            const cpuCores = document.getElementById('cpu_cores').value;
-                            const gpuCores = document.getElementById('gpu_cores').value;
-                            const memory = document.getElementById('memory').value;
-                            const hardDrive = document.getElementById('harddrive').value;
-                            
-                            // Check if the required fields are filled
-                            if (!product || !assetType || !cpuType) {
-                                showNotification('Please fill in at least Product, Asset Type, and CPU Type fields', 'error');
-                                return;
-                            }
-                            
-                            // Show loading state
-                            generateBtn.disabled = true;
-                            generateBtn.innerHTML = `
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Generating...
-                            `;
-                            
-                            // Combine the values to create the hardware type
-                            setTimeout(function() {
-                                let hardwareInfo = "";
-                                
-                                // Format the hardware info based on Apple or non-Apple products
-                                if (assetType === 'Laptop' && product.includes('MacBook')) {
-                                    // For MacBooks, format like: "MacBook Pro 16" Apple APPLE M3 10-Core 36-Core GPU 512GB"
-                                    const sizePart = product.includes('16') ? '16"' : product.includes('14') ? '14"' : '13"';
-                                    const cpuPart = `${cpuType} ${cpuCores}-Core`;
-                                    const gpuPart = `${gpuCores}-Core GPU`;
-                                    const storagePart = `${hardDrive}${hardDrive.endsWith('GB') ? '' : 'GB'}`;
-                                    
-                                    hardwareInfo = `${product} ${sizePart} Apple APPLE ${cpuPart} ${gpuPart} ${storagePart}`;
-                                } else if (assetType === 'Desktop' && (product.includes('Mac') || product.includes('Apple'))) {
-                                    // For Mac desktops, similar format
-                                    const cpuPart = `${cpuType} ${cpuCores}-Core`;
-                                    const gpuPart = `${gpuCores}-Core GPU`;
-                                    const storagePart = `${hardDrive}${hardDrive.endsWith('GB') ? '' : 'GB'}`;
-                                    
-                                    hardwareInfo = `${product} Apple APPLE ${cpuPart} ${gpuPart} ${storagePart}`;
-                                } else if (assetType === 'Tablet' && product.includes('iPad')) {
-                                    // For iPads
-                                    const sizePart = product.includes('12.9') ? '12.9"' : 
-                                                     product.includes('11') ? '11"' : 
-                                                     product.includes('10.9') ? '10.9"' : '';
-                                    const cpuPart = `${cpuType} ${cpuCores}-Core`;
-                                    const gpuPart = `${gpuCores}-Core GPU`;
-                                    const storagePart = `${hardDrive}${hardDrive.endsWith('GB') ? '' : 'GB'}`;
-                                    
-                                    hardwareInfo = `${product} ${sizePart} Apple APPLE ${cpuPart} ${gpuPart} ${storagePart}`;
-                                } else if (assetType === 'Phone' && (product.includes('iPhone') || product.includes('Apple'))) {
-                                    // For iPhones
-                                    const cpuPart = `${cpuType} ${cpuCores}-Core`;
-                                    const gpuPart = `${gpuCores}-Core GPU`;
-                                    const storagePart = `${hardDrive}${hardDrive.endsWith('GB') ? '' : 'GB'}`;
-                                    
-                                    hardwareInfo = `${product} Apple APPLE ${cpuPart} ${gpuPart} ${storagePart}`;
+// Tech Asset Modal functions
+window.showAssetModal = function() {
+    console.log('showAssetModal called');
+    const modal = document.getElementById('assetModal');
+    if (modal) {
+        console.log('Found assetModal, removing hidden class');
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden'); // Prevent scrolling
+    } else {
+        console.error('assetModal element not found!');
+    }
+};
+
+window.hideAssetModal = function() {
+    console.log('hideAssetModal called');
+    const modal = document.getElementById('assetModal');
+    if (modal) {
+        console.log('Found assetModal, adding hidden class');
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden'); // Restore scrolling
+        
+        // Reset form
+        const form = document.getElementById('assetForm');
+        if (form) form.reset();
+        
+        // Reset feedback message
+        const formFeedback = document.getElementById('formFeedback');
+        if (formFeedback) formFeedback.classList.add('hidden');
+    } else {
+        console.error('assetModal element not found!');
+    }
+};
+
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const icon = document.getElementById(sectionId + 'Icon');
+    
+    if (section && icon) {
+        if (section.classList.contains('hidden')) {
+            section.classList.remove('hidden');
+            icon.classList.remove('rotate-180');
+            icon.classList.add('rotate-0');
         } else {
-                                    // For other products, use a simpler format
-                                    hardwareInfo = `${product} ${cpuType} ${cpuCores}Core ${memory}RAM ${hardDrive}Storage`;
-                                }
-                                
-                                // Set the hardware type field
-                                document.getElementById('hardware_type').value = hardwareInfo;
-                                
-                                // Reset button
-                                generateBtn.disabled = false;
-                                generateBtn.innerHTML = 'Generate';
-                                
-                                showNotification('Hardware Type generated', 'success');
-                            }, 500);
+            section.classList.add('hidden');
+            icon.classList.remove('rotate-0');
+            icon.classList.add('rotate-180');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize collapsible sections
+    const hardwareSection = document.getElementById('hardwareSection');
+    const notesSection = document.getElementById('notesSection');
+    
+    // Initially collapse sections
+    if (hardwareSection) hardwareSection.classList.add('hidden');
+    if (notesSection) notesSection.classList.add('hidden');
+});
+
+function generateHardwareType() {
+    const product = document.getElementById('product').value;
+    const assetType = document.getElementById('asset_type').value;
+    const cpuType = document.getElementById('cpu_type').value;
+    const cpuCores = document.getElementById('cpu_cores').value;
+    const gpuCores = document.getElementById('gpu_cores').value;
+    const memory = document.getElementById('memory').value;
+    const harddrive = document.getElementById('harddrive').value;
+
+    let hardwareType = '';
+
+    // Build the hardware type string
+    if (product) hardwareType += product + ' ';
+    if (assetType) hardwareType += assetType + ' ';
+    if (cpuType) hardwareType += cpuType + ' ';
+    if (cpuCores) hardwareType += cpuCores + '-Core ';
+    if (gpuCores) hardwareType += gpuCores + '-Core GPU ';
+    if (memory) hardwareType += memory + 'GB RAM ';
+    if (harddrive) hardwareType += harddrive + 'GB HDD';
+
+    // Set the generated hardware type
+    document.getElementById('hardware_type').value = hardwareType.trim();
+}
+
+function submitAssetForm() {
+    const form = document.getElementById('assetForm');
+    const formData = new FormData(form);
+    const submitBtn = document.getElementById('assetSubmitBtn');
+    const formFeedback = document.getElementById('formFeedback');
+    
+    // Clear previous error messages
+    formFeedback.classList.add('hidden');
+    formFeedback.querySelector('p').textContent = '';
+    
+    // Debug: Log complete form data 
+    console.log("Form data to be submitted:");
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}: '${value}'`);
+    }
+    
+    // Validate required fields client-side (optional but good practice)
+    const requiredFields = form.querySelectorAll('[required]');
+    let missingFields = [];
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('border-red-500');
+            missingFields.push(field.name);
+        } else {
+            field.classList.remove('border-red-500');
+        }
+    });
+    
+    if (missingFields.length > 0) {
+        console.log("Missing required fields (client-side validation):", missingFields);
+        formFeedback.classList.remove('hidden');
+        formFeedback.querySelector('p').textContent = `Please fill out these required fields: ${missingFields.join(', ')}`;
+        return; // Stop submission
+    }
+    
+    // Disable button and show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Saving...
+    `;
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make sure the ticket ID is included in the form data
+    formData.append('intake_ticket_id', '{{ ticket.id }}');
+    
+    // Submit the form using fetch API
+    fetch('{{ url_for("inventory.add_asset") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        console.log("Server response status:", response.status);
+        // Always try to parse response as JSON for more detailed error info
+        return response.json().then(data => {
+            // Add status to data object for error handling
+            return { ...data, status: response.status };
+        }).catch(err => {
+            // If JSON parsing fails, return text with status
+            return response.text().then(text => {
+                return { error: `Failed to parse response: ${text}`, status: response.status };
+            });
+        });
+    })
+    .then(data => {
+        console.log("Full server response:", data);
+        
+        if (data.success) {
+            console.log("Asset added successfully:", data.asset);
+            
+            // Add the new asset to the table
+            const tableBody = document.querySelector('#assetTableBody');
+            if (!tableBody) {
+                console.error("Asset table body not found");
+                return;
+            }
+            
+            // If this is the first asset, clear the "No assets" message
+            if (tableBody.querySelector('tr td[colspan="5"]')) {
+                tableBody.innerHTML = '';
+            }
+            
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-asset-id', data.asset.id);
+            newRow.innerHTML = `
+                <td>${data.asset.asset_tag || '-'}</td>
+                <td>${data.asset.serial_num || '-'}</td>
+                <td>${data.asset.name || data.asset.model || '-'}</td>
+                <td>
+                    <span class="sf-badge sf-badge-success">
+                        ${data.asset.status || 'Active'}
+                    </span>
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <button onclick="viewAsset('${data.asset.id}')" class="text-blue-600 hover:text-blue-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                        <button onclick="unlinkAsset('${data.asset.id}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+            
+            // Close the modal and reset the form
+            hideAssetModal();
+            form.reset();
+            
+            // Show success notification
+            showNotification('Asset added successfully!', 'success');
+        } else {
+            console.error("Server reported error:", data);
+            
+            // Check if this is a duplicate asset error
+            if (data.error && data.error.includes('UNIQUE constraint failed')) {
+                formFeedback.classList.remove('hidden');
+                formFeedback.querySelector('p').textContent = 'This asset is already linked to this ticket.';
+            } else {
+                // Show general error message
+                formFeedback.classList.remove('hidden');
+                formFeedback.querySelector('p').textContent = data.error || 'Failed to add asset. Please try again.';
+                
+                // Display detailed error information if available
+                const errorDetails = document.getElementById('errorDetails');
+                if (errorDetails) {
+                    errorDetails.innerHTML = ''; // Clear existing error details
+                    
+                    if (data.missing_fields && Array.isArray(data.missing_fields)) {
+                        data.missing_fields.forEach(field => {
+                            const li = document.createElement('li');
+                            li.textContent = field;
+                            errorDetails.appendChild(li);
                         });
                     }
-                });
-                
-                function openAssetModal() {
-                    document.getElementById('assetModal').classList.remove('hidden');
-                    document.body.classList.add('overflow-hidden'); // Prevent scrolling
                 }
-                
-                function closeAssetModal() {
-                    document.getElementById('assetModal').classList.add('hidden');
-                    document.body.classList.remove('overflow-hidden');
-                    document.getElementById('assetForm').reset();
-                    document.getElementById('formFeedback').classList.add('hidden');
-                }
-                
-                function submitAssetForm() {
-                    const form = document.getElementById('assetForm');
-        const formData = new FormData(form);
-                    const submitBtn = document.getElementById('assetSubmitBtn');
-                    const formFeedback = document.getElementById('formFeedback');
-                    
-                    // Disable button and show loading state
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = `
-                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-                        Saving...
-                    `;
-                    
-                    // Submit the form using fetch API
-                    fetch('/assets/add', {
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        formFeedback.classList.remove('hidden');
+        formFeedback.querySelector('p').textContent = error.message || 'An unexpected error occurred. Please try again.';
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Add Asset';
+    });
+}
+
+function viewAsset(assetId) {
+    window.location.href = `/assets/${assetId}`;
+}
+
+function unlinkAsset(assetId, ticketId) {
+    if (confirm('Are you sure you want to unlink this asset from the ticket?')) {
+        fetch(`/tickets/${ticketId}/unlink-asset/${assetId}`, {
             method: 'POST',
-            body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                            // Add the new asset to the table
-                            const tableBody = document.getElementById('assetTableBody');
-                            
-                            // If table had "No assets" message, clear it
-                            if (tableBody.querySelector('td[colspan="5"]')) {
-                                tableBody.innerHTML = '';
-                            }
-                            
-                            // Add the new row
-                            const newRow = document.createElement('tr');
-                            newRow.innerHTML = `
-                                <td>${data.asset.asset_tag}</td>
-                                <td>${data.asset.serial_number}</td>
-                                <td>${data.asset.name}</td>
-                                <td>
-                                    <span class="sf-badge sf-badge-success">
-                                        ${data.asset.status}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="flex gap-2">
-                                        <button onclick="viewAsset('${data.asset.id}')" class="text-blue-600 hover:text-blue-800">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                        </button>
-                                        <button onclick="unlinkAsset('${data.asset.id}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                        </button>
-                                </div>
-                                </td>
-                            `;
-                            tableBody.appendChild(newRow);
-                            
-                            // Close the modal and reset the form
-                            closeAssetModal();
-                            
-                            // Show a success notification
-                            showNotification('Asset added successfully!', 'success');
-    } else {
-                            // Show error message
-                            formFeedback.classList.remove('hidden');
-                            formFeedback.querySelector('p').textContent = data.error || 'Failed to add asset. Please try again.';
+                // Remove the row from the table
+                const row = document.querySelector(`tr[data-asset-id="${assetId}"]`);
+                if (row) row.remove();
+                
+                // Show success message
+                showNotification('Asset unlinked successfully', 'success');
+            } else {
+                showNotification(data.error || 'Failed to unlink asset', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-                        formFeedback.classList.remove('hidden');
-                        formFeedback.querySelector('p').textContent = 'An unexpected error occurred. Please try again.';
-    })
-    .finally(() => {
-        // Reset button state
-        submitBtn.disabled = false;
-                        submitBtn.innerHTML = 'Add Asset';
-                    });
+            showNotification('An unexpected error occurred', 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'success') {
+    // Implementation of showing notifications
+    // You can use your preferred notification system here
+    alert(message);
+}
+
+function handleModelChange(input) {
+    const productInput = document.getElementById('product');
+    const assetTypeInput = document.getElementById('asset_type');
+    const modelList = document.getElementById('asset-modal-model-list');
+    const options = modelList.options;
+    
+    console.log("Model changed to: " + input.value);
+    
+    // Find if the current input value matches any existing model
+    let matchingOption = null;
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value === input.value) {
+            matchingOption = options[i];
+            break;
+        }
+    }
+    
+    if (matchingOption) {
+        // If it's an existing model, set the product and asset type
+        const product = matchingOption.getAttribute('data-product');
+        const assetType = matchingOption.getAttribute('data-asset-type');
+        
+        console.log("Found matching model with product: " + product + ", asset type: " + assetType);
+        
+        if (product) {
+            productInput.value = product;
+        }
+        
+        if (assetType) {
+            assetTypeInput.value = assetType;
+        }
+    }
+}
+
+// Tracking Modal Functions
+function showAddOutboundTrackingModal() {
+    const modal = document.getElementById('addOutboundTrackingModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function hideAddOutboundTrackingModal() {
+    const modal = document.getElementById('addOutboundTrackingModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function showAddReturnTrackingModal() {
+    const modal = document.getElementById('addReturnTrackingModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function hideAddReturnTrackingModal() {
+    const modal = document.getElementById('addReturnTrackingModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Initialize tracking form submissions
+document.addEventListener('DOMContentLoaded', function() {
+    // Outbound tracking form submission
+    const outboundTrackingBtn = document.getElementById('submitOutboundTrackingBtn');
+    if (outboundTrackingBtn) {
+        outboundTrackingBtn.addEventListener('click', function() {
+            const trackingNumber = document.getElementById('outbound_tracking_number').value;
+            const carrier = document.getElementById('outbound_carrier').value;
+            
+            if (!trackingNumber) {
+                alert('Please enter a tracking number');
+                return;
+            }
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Submit form data
+            fetch(`/tickets/{{ ticket.id }}/add-shipping-tracking`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    tracking_number: trackingNumber,
+                    carrier: carrier
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    hideAddOutboundTrackingModal();
+                    showNotification('Outbound tracking added successfully', 'success');
+                    // Reload page to show new tracking info
+                    window.location.reload();
+                } else {
+                    showNotification(data.error || 'Failed to add tracking information', 'error');
                 }
-                
-                function viewAsset(assetId) {
-                    window.location.href = `/assets/${assetId}`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'error');
+            });
+        });
+    }
+    
+    // Return tracking form submission
+    const returnTrackingBtn = document.getElementById('submitReturnTrackingBtn');
+    if (returnTrackingBtn) {
+        returnTrackingBtn.addEventListener('click', function() {
+            const trackingNumber = document.getElementById('return_tracking_number').value;
+            const carrier = document.getElementById('return_carrier').value;
+            
+            if (!trackingNumber) {
+                alert('Please enter a tracking number');
+                return;
+            }
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Submit form data
+            fetch(`/tickets/{{ ticket.id }}/add-return-tracking`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    tracking_number: trackingNumber,
+                    carrier: carrier
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    hideAddReturnTrackingModal();
+                    showNotification('Return tracking added successfully', 'success');
+                    // Reload page to show new tracking info
+                    window.location.reload();
+                } else {
+                    showNotification(data.error || 'Failed to add tracking information', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'error');
+            });
+        });
+    }
+});
+
+// Mark tracking as received functions
+function markOutboundAsReceived(ticketId) {
+    if (confirm('Are you sure you want to mark this package as received?')) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Submit status update
+        fetch(`/tickets/${ticketId}/update-shipping-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                status: 'Received',
+                timestamp: new Date().toISOString()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Package marked as received', 'success');
+                // Reload page to show updated status
+                window.location.reload();
+            } else {
+                showNotification(data.error || 'Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+    }
+}
+
+function markReturnAsReceived(ticketId) {
+    if (confirm('Are you sure you want to mark this return package as received?')) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Submit status update
+        fetch(`/tickets/${ticketId}/update-return-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                status: 'Received',
+                timestamp: new Date().toISOString()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Return package marked as received', 'success');
+                // Reload page to show updated status
+                window.location.reload();
+            } else {
+                showNotification(data.error || 'Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+    }
 }
 </script>
-
-<!-- Add Shipment Modal -->
-<div id="addShipmentModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                        </svg>
-                    </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                            Add Tracking Information
-                        </h3>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-500">
-                                Please enter the tracking number and select the carrier for this shipment.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                
-                <form id="addShipmentForm" class="mt-4 space-y-4">
-                    <div>
-                        <label for="tracking_number" class="block text-sm font-medium text-gray-700">Tracking Number</label>
-                        <input type="text" id="tracking_number" name="tracking_number" required 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                        <select id="carrier" name="carrier" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="auto">Auto-Detect</option>
-                            <option value="singpost">SingPost</option>
-                            <option value="dhl">DHL</option>
-                            <option value="ups">UPS</option>
-                            <option value="bluedart">BlueDart</option>
-                            <option value="dtdc">DTDC</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="submit" form="addShipmentForm" 
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Add Shipment
-                </button>
-                <button type="button" onclick="hideAddShipmentModal()"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Add Return Tracking Modal -->
-<div id="addReturnTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                        </svg>
-                    </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                            Add Return Tracking Information
-                        </h3>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-500">
-                                Please enter the return tracking number and select the carrier for this return shipment.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                
-                <form id="addReturnTrackingForm" class="mt-4 space-y-4">
-                    <div>
-                        <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
-                        <input type="text" id="return_tracking_number" name="return_tracking_number" required 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                    </div>
-                    <div>
-                        <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                        <select id="return_carrier" name="return_carrier" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                            <option value="auto">Auto-Detect</option>
-                            <option value="singpost">SingPost</option>
-                            <option value="dhl">DHL</option>
-                            <option value="ups">UPS</option>
-                            <option value="bluedart">BlueDart</option>
-                            <option value="dtdc">DTDC</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" id="submitReturnTrackingBtn" 
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Add Return Tracking
-                </button>
-                <button type="button" onclick="hideAddReturnTrackingModal()"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Add Outbound Tracking Modal -->
-<div id="addOutboundTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                        </svg>
-                    </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                            Add Outbound Tracking Information
-                        </h3>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-500">
-                                Please enter the outbound tracking number and select the carrier for this shipment.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                
-                <form id="addOutboundTrackingForm" class="mt-4 space-y-4">
-                    <div>
-                        <label for="outbound_tracking_number" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
-                        <input type="text" id="outbound_tracking_number" name="outbound_tracking_number" required 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="outbound_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                        <select id="outbound_carrier" name="outbound_carrier" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="auto">Auto-Detect</option>
-                            <option value="singpost">SingPost</option>
-                            <option value="dhl">DHL</option>
-                            <option value="ups">UPS</option>
-                            <option value="bluedart">BlueDart</option>
-                            <option value="dtdc">DTDC</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" id="submitOutboundTrackingBtn" 
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Add Outbound Tracking
-                </button>
-                <button type="button" onclick="hideAddOutboundTrackingModal()"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancel
-                </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 {% endblock %} 
