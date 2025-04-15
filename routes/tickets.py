@@ -56,7 +56,7 @@ except Exception as e:
     trackingmore_client = None
 
 # Define allowed file extensions
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv'}
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 
@@ -3809,40 +3809,69 @@ def clear_tracking_cache(ticket_id):
 @tickets_bp.route('/<int:ticket_id>/delete', methods=['POST'])
 @login_required
 def delete_ticket(ticket_id):
-    """Delete a ticket and all its associated data"""
+    """Delete a ticket (super admin only)"""
+    # Check if user is super admin
+    if session.get('user_type') != 'super_admin':
+        return jsonify({
+            'success': False, 
+            'error': 'You do not have permission to delete tickets'
+        }), 403
+    
     db_session = db_manager.get_session()
     try:
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
-            flash('Ticket not found', 'error')
-            return redirect(url_for('tickets.list_tickets'))
-
-        # Check permissions - only admin or ticket owner can delete
-        if not (current_user.is_admin or ticket.requester_id == current_user.id):
-            flash('You do not have permission to delete this ticket', 'error')
-            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-
-        # Delete attachments from filesystem
-        if hasattr(ticket, 'attachments'):
-            for attachment in ticket.attachments:
-                if attachment.file_path and os.path.exists(attachment.file_path):
-                    try:
-                        os.remove(attachment.file_path)
-                    except Exception as e:
-                        print(f"Error deleting file {attachment.file_path}: {str(e)}")
-
-        # Delete the ticket (this will cascade delete comments, attachments, and other related records)
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+        
+        # Log the deletion
+        print(f"User {session.get('username')} (ID: {session.get('user_id')}) is deleting ticket {ticket_id}")
+        
+        # Get ticket details for logging
+        ticket_display_id = ticket.display_id
+        ticket_subject = ticket.subject
+        
+        # Delete related records first (comments, activities, etc.)
+        # Comments
+        db_session.query(Comment).filter_by(ticket_id=ticket_id).delete()
+        
+        # Activities related to this ticket
+        db_session.query(Activity).filter_by(reference_id=ticket_id).delete()
+        
+        # Tracking histories
+        db_session.query(TrackingHistory).filter_by(ticket_id=ticket_id).delete()
+        
+        # Unlink but don't delete assets
+        for asset in ticket.assets:
+            ticket.assets.remove(asset)
+            
+        # Delete any attachments
+        attachments = db_session.query(Attachment).filter_by(ticket_id=ticket_id).all()
+        for attachment in attachments:
+            # Delete the file from disk if it exists
+            file_path = os.path.join(UPLOAD_FOLDER, attachment.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            # Delete the attachment record
+            db_session.delete(attachment)
+        
+        # Finally delete the ticket
         db_session.delete(ticket)
         db_session.commit()
-
-        flash('Ticket deleted successfully', 'success')
-        return redirect(url_for('tickets.list_tickets'))
-
+        
+        # Log the successful deletion
+        print(f"Successfully deleted ticket {ticket_display_id}: {ticket_subject}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Ticket {ticket_display_id} has been deleted'
+        })
+        
     except Exception as e:
         db_session.rollback()
-        print(f"Error deleting ticket: {str(e)}")
-        flash(f'Error deleting ticket: {str(e)}', 'error')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        print(f"Error deleting ticket {ticket_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
     finally:
         db_session.close()
 
@@ -3857,7 +3886,6 @@ def update_shipping_status(ticket_id):
             return jsonify({'success': False, 'error': 'No data provided'}), 400
 
         status = data.get('status')
-        timestamp = data.get('timestamp')  # ISO timestamp from JS
 
         if not status:
             return jsonify({'success': False, 'error': 'Status is required'}), 400
@@ -3914,7 +3942,6 @@ def update_return_status(ticket_id):
         # Parse request data
         data = request.json
         status = data.get('status')
-        timestamp = data.get('timestamp')
         
         if not status:
             return jsonify({"success": False, "error": "Status is required"}), 400
@@ -3924,35 +3951,33 @@ def update_return_status(ticket_id):
         if not ticket:
             return jsonify({"success": False, "error": "Ticket not found"}), 404
         
+        # Format timestamp for display
+        singapore_time = datetime.datetime.now() + timedelta(hours=8)
+        singapore_time_str = singapore_time.strftime("%Y-%m-%d %H:%M:%S (GMT+8)")
+        
         # Update return status
-        ticket.return_status = status
+        old_status = ticket.return_status
+        ticket.return_status = f"{status} on {singapore_time_str}"
+        ticket.updated_at = datetime.datetime.now()
         
-        # Create tracking history entry
-        if timestamp:
-            history_timestamp = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        else:
-            history_timestamp = datetime.datetime.now(timezone.utc)
+        # Add system note
+        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return package marked as {status}"
         
-        tracking_history = TrackingHistory(
-            ticket_id=ticket_id,
-            status=status,
-            tracking_number=ticket.return_tracking,
-            timestamp=history_timestamp,
-            tracking_type="return"
-        )
-        db_session.add(tracking_history)
-        
-        # Log activity
-        activity = activity_store.log_activity(
-            "ticket_update",
-            f"Updated return status to {status}",
-            related_id=ticket_id,
-            related_type="Ticket",
-            user_id=session.get('user_id')
+        # Log activity using the correct method
+        activity_store.add_activity(
+            user_id=session.get('user_id'),
+            type="ticket_update",
+            content=f"Updated return status to {status}",
+            reference_id=ticket_id
         )
         
         db_session.commit()
-        return jsonify({"success": True, "message": f"Return status updated to {status}"})
+        return jsonify({
+            "success": True, 
+            "message": f"Return status updated to {status}",
+            "new_status": ticket.return_status,
+            "old_status": old_status
+        })
         
     except Exception as e:
         db_session.rollback()
