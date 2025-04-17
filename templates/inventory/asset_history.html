@@ -54,12 +54,24 @@
                     {% if entry.changes %}
                     <div class="mt-3 space-y-2">
                         {% for field, change in entry.changes.items() %}
-                        <div class="flex items-center space-x-2 text-sm">
-                            <span class="font-medium">{{ field|title }}:</span>
-                            <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
-                            <span class="text-green-500">→</span>
-                            <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
-                        </div>
+                            {% if not (change is mapping and 
+                                      ((change.old == None and change.new == None) or 
+                                       (change.from == None and change.to == None))) %}
+                            <div class="flex items-center space-x-2 text-sm">
+                                <span class="font-medium">{{ field|title }}:</span>
+                                {% if 'old' in change and 'new' in change %}
+                                    <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                    <span class="text-green-500">→</span>
+                                    <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                {% elif 'from' in change and 'to' in change %}
+                                    <span class="text-red-500 line-through">{{ change.from if change.from else 'None' }}</span>
+                                    <span class="text-green-500">→</span>
+                                    <span class="text-green-500">{{ change.to if change.to else 'None' }}</span>
+                                {% else %}
+                                    {{ change }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
                         {% endfor %}
                     </div>
                     {% endif %}

@@ -621,15 +621,26 @@
                                 {% if entry.changes %}
                                 <div class="text-sm">
                                     {% for key, value in entry.changes.items() %}
-                                    <div class="mb-1">
-                                        <span class="font-medium">{{ key|replace('_', ' ')|capitalize }}:</span> 
-                                        {% if value is mapping %}
-                                            <span class="line-through text-red-600">{{ value.from or 'None' }}</span> → 
-                                            <span class="text-green-600">{{ value.to or 'None' }}</span>
-                                        {% else %}
-                                            {{ value }}
+                                        {% if not (value is mapping and 
+                                                  ((value.from == None and value.to == None) or 
+                                                   (value.old == None and value.new == None))) %}
+                                        <div class="mb-1">
+                                            <span class="font-medium">{{ key|replace('_', ' ')|capitalize }}:</span> 
+                                            {% if value is mapping %}
+                                                {% if 'from' in value and 'to' in value %}
+                                                    <span class="line-through text-red-600">{{ value.from or 'None' }}</span> → 
+                                                    <span class="text-green-600">{{ value.to or 'None' }}</span>
+                                                {% elif 'old' in value and 'new' in value %}
+                                                    <span class="line-through text-red-600">{{ value.old or 'None' }}</span> → 
+                                                    <span class="text-green-600">{{ value.new or 'None' }}</span>
+                                                {% else %}
+                                                    {{ value }}
+                                                {% endif %}
+                                            {% else %}
+                                                {{ value }}
+                                            {% endif %}
+                                        </div>
                                         {% endif %}
-                                    </div>
                                     {% endfor %}
                                 </div>
                                 {% endif %}

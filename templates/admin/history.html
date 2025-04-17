@@ -105,12 +105,24 @@
                                 {% if entry.changes %}
                                 <div class="mt-2 space-y-1">
                                     {% for field, change in entry.changes.items() %}
-                                    <div class="text-sm">
-                                        <span class="font-medium text-gray-500">{{ field|title }}:</span>
-                                        <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
-                                        <span class="text-green-500 mx-1">→</span>
-                                        <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
-                                    </div>
+                                        {% if not (change is mapping and 
+                                                  ((change.old == None and change.new == None) or 
+                                                   (change.from == None and change.to == None))) %}
+                                        <div class="text-sm">
+                                            <span class="font-medium text-gray-500">{{ field|title }}:</span>
+                                            {% if 'old' in change and 'new' in change %}
+                                                <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                                <span class="text-green-500 mx-1">→</span>
+                                                <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                            {% elif 'from' in change and 'to' in change %}
+                                                <span class="text-red-500 line-through">{{ change.from if change.from else 'None' }}</span>
+                                                <span class="text-green-500 mx-1">→</span>
+                                                <span class="text-green-500">{{ change.to if change.to else 'None' }}</span>
+                                            {% else %}
+                                                {{ change }}
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
@@ -150,12 +162,24 @@
                                 {% if entry.changes %}
                                 <div class="mt-2 space-y-1">
                                     {% for field, change in entry.changes.items() %}
-                                    <div class="text-sm">
-                                        <span class="font-medium text-gray-500">{{ field|title }}:</span>
-                                        <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
-                                        <span class="text-green-500 mx-1">→</span>
-                                        <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
-                                    </div>
+                                        {% if not (change is mapping and 
+                                                  ((change.old == None and change.new == None) or 
+                                                   (change.from == None and change.to == None))) %}
+                                        <div class="text-sm">
+                                            <span class="font-medium text-gray-500">{{ field|title }}:</span>
+                                            {% if 'old' in change and 'new' in change %}
+                                                <span class="text-red-500 line-through">{{ change.old if change.old else 'None' }}</span>
+                                                <span class="text-green-500 mx-1">→</span>
+                                                <span class="text-green-500">{{ change.new if change.new else 'None' }}</span>
+                                            {% elif 'from' in change and 'to' in change %}
+                                                <span class="text-red-500 line-through">{{ change.from if change.from else 'None' }}</span>
+                                                <span class="text-green-500 mx-1">→</span>
+                                                <span class="text-green-500">{{ change.to if change.to else 'None' }}</span>
+                                            {% else %}
+                                                {{ change }}
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
