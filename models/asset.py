@@ -74,4 +74,26 @@ class Asset(Base):
     customer_user = relationship("CustomerUser", back_populates="assigned_assets")
     intake_ticket = relationship("IntakeTicket", back_populates="assets")
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
-    transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)") 
+    transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)")
+    
+    def track_change(self, user_id, action, changes, notes=None):
+        """Create a history entry for asset changes
+        
+        Args:
+            user_id: ID of the user who made the change
+            action: Description of the action (e.g., "UPDATE", "STATUS_CHANGE")
+            changes: Dictionary of changes in the format {field: {'old': old_value, 'new': new_value}}
+            notes: Any additional notes about the change
+            
+        Returns:
+            AssetHistory object (not yet added to session)
+        """
+        from models.asset_history import AssetHistory
+        
+        return AssetHistory(
+            asset_id=self.id,
+            user_id=user_id,
+            action=action,
+            changes=changes,
+            notes=notes
+        ) 
