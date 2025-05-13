@@ -196,7 +196,7 @@ def index():
             
             # Get user count
             user_count = db.session.query(User).count()
-
+            
             # Get ticket counts
             ticket_counts = {
                 'total': db.session.query(Ticket).count(),
@@ -283,27 +283,20 @@ def fix_supervisor_permissions():
                 user_type=UserType.SUPERVISOR
             ).first()
             
-            # If no permission record exists, create one with default permissions
             if not supervisor_permission:
-                default_permissions = Permission.get_default_permissions(UserType.SUPERVISOR)
-                supervisor_permission = Permission(
-                    user_type=UserType.SUPERVISOR, 
-                    **default_permissions
-                )
-                supervisor_permission.can_edit_assets = True
-                db_session.add(supervisor_permission)
-            else:
-                # Force set can_edit_assets to True
-                supervisor_permission.can_edit_assets = True
+                return "No supervisor permission record found."
+            
+            # Update the can_edit_assets permission
+            supervisor_permission.can_edit_assets = True
             
             # Commit the changes
             db_session.commit()
             
             # Return success
-            return "Supervisor permissions updated successfully! Can edit assets is now set to TRUE. Please log out and log back in to see the changes."
+            return "Successfully set can_edit_assets=True for supervisors!"
             
         finally:
             db_session.close()
             
     except Exception as e:
-        return f"Error updating permissions: {str(e)}"
+        return f"Error updating permissions: {str(e)}" 

@@ -746,6 +746,19 @@ def view_ticket(ticket_id):
         # Get customers for the template
         customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
         
+        # Get asset model names for the model dropdown
+        asset_models = db_session.query(Asset.model).filter(Asset.model.isnot(None)).distinct().all()
+        asset_modal_models = [model[0] for model in asset_models if model[0]]
+        
+        # Create lookup mappings for model-product relationships
+        model_product_map = {}
+        model_type_map = {}
+        
+        # Get asset types and status options for dropdowns
+        asset_types = db_session.query(Asset.asset_type).filter(
+            Asset.asset_type.isnot(None)).distinct().all()
+        asset_modal_types = [t[0] for t in asset_types if t[0]]
+        
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -755,7 +768,12 @@ def view_ticket(ticket_id):
             assets_data=assets_data,
             customers=customers,
             UserType=UserType,
-            Country=Country
+            Country=Country,
+            asset_modal_statuses=list(AssetStatus),
+            asset_modal_models=asset_modal_models,
+            asset_modal_types=asset_modal_types,
+            model_product_map=model_product_map,
+            model_type_map=model_type_map
         )
         
     except Exception as e:
@@ -815,7 +833,6 @@ def list_queues():
 @admin_required
 def create_queue():
     """Create a new support queue"""
-    db_session = db_manager.get_session()
     try:
         name = request.form.get('name')
         description = request.form.get('description', '')
@@ -824,23 +841,17 @@ def create_queue():
             flash('Queue name is required', 'error')
             return redirect(url_for('tickets.list_queues'))
             
-        # Create the new queue
-        new_queue = Queue(
-            name=name,
-            description=description
-        )
+        # Create the new queue using queue_store to ensure in-memory cache is updated
+        new_queue = queue_store.add_queue(name, description)
         
-        db_session.add(new_queue)
-        db_session.commit()
+        # Refresh the queue_store to ensure it has the latest data
+        queue_store.load_queues()
         
         flash(f'Queue "{name}" created successfully', 'success')
         return redirect(url_for('tickets.list_queues'))
     except Exception as e:
-        db_session.rollback()
         flash(f'Error creating queue: {str(e)}', 'error')
         return redirect(url_for('tickets.list_queues'))
-    finally:
-        db_session.close()
 
 @tickets_bp.route('/queues/<int:queue_id>')
 @login_required

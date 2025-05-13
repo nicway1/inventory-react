@@ -192,4 +192,4 @@ def change_password():
         except Exception as e:
             flash(f'Error changing password: {str(e)}', 'error')
             
-    return render_template('change_password.html')
+    return render_template('change_password.html') 
