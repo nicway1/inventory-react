@@ -7,6 +7,7 @@ from flask_login import login_required, current_user, login_user, logout_user
 from datetime import datetime
 from models.user import User
 from models.permission import Permission
+import logging
 
 auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
@@ -25,42 +26,33 @@ def login():
         
         try:
             # Use DatabaseManager to get user with permissions
-            user = db_manager.get_user_by_username(username)
-            if user and user.check_password(password):
-                # Get permission record for this user's type
-                db_session = db_manager.get_session()
-                try:
-                    # Check if permissions exist for this user type
-                    permission = db_session.query(Permission).filter_by(user_type=user.user_type).first()
+            with db_manager as db:
+                user = db.get_user_by_username(username)
+                if user and user.check_password(password):
+                    # Get permission record for this user's type
+                    permission = db.session.query(Permission).filter_by(user_type=user.user_type).first()
                     
                     if not permission:
                         # Create default permissions if none exist
                         default_permissions = Permission.get_default_permissions(user.user_type)
                         permission = Permission(user_type=user.user_type, **default_permissions)
-                        db_session.add(permission)
-                        db_session.commit()
-                finally:
-                    db_session.close()
+                        db.session.add(permission)
+                    
+                    login_user(user)
+                    session['user_id'] = user.id
+                    session['user_type'] = user.user_type.value
+                    session['username'] = user.username
+                    
+                    # Update last login time
+                    user.last_login = datetime.utcnow()
+                    
+                    return redirect(url_for('main.index'))
                 
-                login_user(user)
-                session['user_id'] = user.id
-                session['user_type'] = user.user_type.value
-                session['username'] = user.username
-                
-                # Update last login time
-                user.last_login = datetime.utcnow()
-                db_session = db_manager.get_session()
-                try:
-                    db_session.commit()
-                finally:
-                    db_session.close()
-                
-                return redirect(url_for('main.index'))
-                
-            flash('Invalid username or password')
+                flash('Invalid username or password')
         except Exception as e:
             flash('An error occurred during login')
             print(f"Login error: {str(e)}")
+            logging.error(f"Login error: {str(e)}", exc_info=True)
     
     return render_template('auth/login.html')
 

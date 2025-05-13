@@ -13,12 +13,23 @@ from datetime import datetime
 
 class DatabaseManager:
     def __init__(self, db_url="sqlite:///inventory.db"):
-        self.engine = create_engine(db_url)
+        self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         
     def get_session(self):
         return self.Session()
+
+    def __enter__(self):
+        self.session = self.get_session()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.session.rollback()
+        else:
+            self.session.commit()
+        self.session.close()
 
     @staticmethod
     def joinedload(relationship):
