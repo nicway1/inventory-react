@@ -38,8 +38,9 @@
             {% if user.user_type.value == 'CLIENT' %}
             <p class="text-gray-600">Manage Support Tickets</p>
             {% else %}
-            <p class="text-3xl font-bold text-green-600">{{ stats.total_shipments }}</p>
-            <p class="text-gray-600">Active Tickets</p>
+            <p class="text-3xl font-bold text-green-600">{{ ticket_counts.open }}</p>
+            <p class="text-gray-600">Open Tickets</p>
+            <p class="text-sm text-gray-500">Total: {{ ticket_counts.total }} | Resolved: {{ ticket_counts.resolved }}</p>
             {% endif %}
             <a href="{{ url_for('tickets.list_tickets') }}" class="mt-4 inline-block text-green-600 hover:text-green-800">View Tickets →</a>
         </div>
