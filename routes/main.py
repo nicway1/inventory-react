@@ -185,8 +185,8 @@ def index():
             
             # Ticket counts
             open_tickets = db.session.query(Ticket).filter(
-                Ticket.status != TicketStatus.CLOSED,
-                Ticket.status != TicketStatus.RESOLVED
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
             ).count()
             
             # Get the 5 most recent activities for all users
@@ -196,6 +196,18 @@ def index():
             
             # Get user count
             user_count = db.session.query(User).count()
+
+            # Get ticket counts
+            ticket_counts = {
+                'total': db.session.query(Ticket).count(),
+                'open': db.session.query(Ticket).filter(
+                    Ticket.status != TicketStatus.RESOLVED,
+                    Ticket.status != TicketStatus.RESOLVED_DELIVERED
+                ).count(),
+                'resolved': db.session.query(Ticket).filter(
+                    Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
+                ).count()
+            }
 
             return render_template('home.html',
                 queues=queues,
@@ -211,7 +223,8 @@ def index():
                 total_accessories=total_accessories,
                 open_tickets=open_tickets,
                 recent_activities=recent_activities,
-                user_count=user_count
+                user_count=user_count,
+                ticket_counts=ticket_counts
             )
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}", exc_info=True)
