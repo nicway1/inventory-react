@@ -1131,27 +1131,25 @@ def update_asset_status(asset_id):
         
         # Track changes
         changes = {}
-        for field in old_values:
-            new_value = getattr(asset, field)
-            if isinstance(new_value, AssetStatus):
-                new_value = new_value.value
-            
-            # Only record changes where values are actually different
-            # and avoid tracking None → None changes
-            if old_values[field] != new_value and not (old_values[field] is None and new_value is None):
-                changes[field] = {
-                    'old': old_values[field],
-                    'new': new_value
-                }
+        if original_status != new_status:
+            changes['status'] = {
+                'from': original_status.value if original_status else None,
+                'to': new_status.value
+            }
         
-        print(f"Changes detected: {changes}")  # Debug log
+        if original_customer_id != asset.customer_id:
+            changes['customer_id'] = {
+                'from': original_customer_id,
+                'to': asset.customer_id
+            }
         
+        # If changes were made, update the asset
         if changes:
             history_entry = asset.track_change(
-                user_id=current_user.id,
-                action='update',
+                user_id=session.get('user_id'),
+                action="UPDATE",
                 changes=changes,
-                notes=f"Asset updated by {current_user.username}"
+                notes=data.get('notes')
             )
             db_session.add(history_entry)
         
@@ -1898,6 +1896,7 @@ def edit_asset(asset_id):
                         notes=f"Asset updated by {current_user.username}"
                     )
                     db_session.add(history_entry)
+                    print("History entry added")  # Debug log
                 
                 db_session.commit()
                 print("Changes committed to database")  # Debug log

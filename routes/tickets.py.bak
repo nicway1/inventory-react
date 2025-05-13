@@ -1,9 +1,9 @@
 import datetime
 import os
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response
 from utils.auth_decorators import login_required, admin_required
-from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus, TicketAccessory
+from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus
 from utils.store_instances import (
     ticket_store,
     user_store,
@@ -28,20 +28,17 @@ from dotenv import load_dotenv
 from models.comment import Comment
 from flask_login import current_user
 from models.user import User, UserType, Country
-from datetime import timezone, datetime, timedelta # Modified import
+from datetime import timezone # Modified import
 import uuid
 from utils.tracking_cache import TrackingCache
 import re
 from models.tracking_history import TrackingHistory
+from datetime import timedelta
+from models.queue import Queue
 from sqlalchemy.orm import joinedload # Import joinedload
 from sqlalchemy import func, or_, and_
 from models.company import Company
 from models.activity import Activity
-from models.accessory import Accessory
-from models.accessory_transaction import AccessoryTransaction
-from models.queue import Queue
-import time
-from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 # Initialize TrackingMore client
 try:
@@ -679,93 +676,170 @@ Additional Notes:
                         queues=queues,
                         Country=Country)
 
-@tickets_bp.route('/<int:ticket_id>', methods=['GET'])
+@tickets_bp.route('/<int:ticket_id>')
 @login_required
 def view_ticket(ticket_id):
-    """View a ticket"""
+    # Get ticket with eagerly loaded relationships
     db_session = db_manager.get_session()
     try:
+        print(f"[DEBUG] Loading ticket {ticket_id} for viewing")
+        user = db_manager.get_user(session['user_id']) # Get current user
+        
+        # Make sure we're getting fresh data, not cached
         db_session.expire_all()
         
-        # Load ticket with all relationships
-        print("Loading ticket with relationships...")
-        ticket = db_session.query(Ticket).options(
-            joinedload(Ticket.requester),
-            joinedload(Ticket.assigned_to),
-            joinedload(Ticket.customer),
-            joinedload(Ticket.queue),
-            joinedload(Ticket.assets),
-            joinedload(Ticket.accessories),
-            joinedload(Ticket.comments).joinedload(Comment.user)
-        ).get(ticket_id)
-
+        # Check if ticket exists before loading relationships
+        ticket_exists = db_session.query(Ticket.id).filter(Ticket.id == ticket_id).scalar() is not None
+        if not ticket_exists:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+            
+        # Load ticket with all relationships directly from database
+        ticket = db_session.query(Ticket)\
+            .options(
+                joinedload(Ticket.asset),
+                joinedload(Ticket.comments).joinedload(Comment.user),
+                joinedload(Ticket.assigned_to),
+                joinedload(Ticket.customer).joinedload(CustomerUser.company),  # Ensure company is loaded
+                joinedload(Ticket.queue)
+            )\
+            .filter(Ticket.id == ticket_id)\
+            .first()
+            
         if not ticket:
-            print(f"Ticket {ticket_id} not found")
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
-        print("Loading additional data...")
-        # Load additional data needed for the template
-        all_users = db_session.query(User).order_by(User.username).all()
-        owner = ticket.assigned_to
-        
-        # Convert users to a dictionary format for the template
-        users_dict = {}
-        for user in all_users:
-            users_dict[str(user.id)] = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'is_active': user.is_active
-            }
-        
-        # Get all queues
-        queues = db_session.query(Queue).all()
-        
-        # Get assets data for the template
-        assets_data = []
-        assets_query = db_session.query(Asset)
-        
-        # Filter assets based on user type and permissions
-        if current_user.is_super_admin:
-            assets = assets_query.all()
-        elif current_user.user_type == UserType.COUNTRY_ADMIN and current_user.assigned_country:
-            assets = assets_query.filter(Asset.country == current_user.assigned_country.value).all()
+        # Check queue access permission
+        if ticket.queue_id and not user.can_access_queue(ticket.queue_id):
+             flash('You do not have permission to view this ticket', 'error')
+             return redirect(url_for('tickets.list_tickets'))
+
+        # Load data needed for the Add Asset Modal
+        model_info = db_session.query(Asset.model, Asset.name, Asset.asset_type)\
+            .distinct().filter(Asset.model.isnot(None), Asset.name.isnot(None)).all()
+        unique_chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        unique_customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        unique_conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            unique_countries = [user.assigned_country.value]
         else:
-            assets = []
+            unique_countries_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+            unique_countries = sorted([c[0] for c in unique_countries_query if c[0]])
+
+        unique_models = []
+        model_product_map = {}
+        model_type_map = {}
+        for model, product_name, asset_type in model_info:
+            if model and model not in model_product_map:
+                unique_models.append(model)
+                model_product_map[model] = product_name
+                model_type_map[model] = asset_type if asset_type else ''
         
-        for asset in assets:
-            assets_data.append({
-                'id': asset.id,
-                'name': asset.name,
-                'asset_tag': asset.asset_tag,
-                'serial_num': asset.serial_num,
-                'status': asset.status.value if asset.status else None
-            })
+        unique_chargers = sorted([c[0] for c in unique_chargers if c[0]])
+        unique_customers = sorted([c[0] for c in unique_customers if c[0]])
+        unique_conditions = sorted([c[0] for c in unique_conditions if c[0]])
+        unique_diags = sorted([d[0] for d in unique_diags if d[0]])
+        unique_asset_types = sorted([t[0] for t in unique_asset_types if t[0]])
+
+        # Debug: Check if ticket has comments relationship loaded
+        print(f"[DEBUG] Loaded ticket ID {ticket_id}, has comments attribute: {hasattr(ticket, 'comments')}")
         
-        # Get customers for the template
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Try to get comments from both sources - database and JSON file
+        db_comments = ticket.comments if hasattr(ticket, 'comments') else [] # Comments from database via ORM
+        print(f"[DEBUG] ORM comments count: {len(db_comments)}")
+        for i, comment in enumerate(db_comments):
+            # Safely access ORM comment content without triggering the property
+            try:
+                # Use getattr to safely access the content column directly
+                # This avoids the property getter that requires _raw_content
+                comment_id = getattr(comment, 'id', 'unknown')
+                # Access the content column directly, avoiding the property
+                content_value = db_session.query(Comment.content).filter(Comment.id == comment_id).scalar()
+                print(f"[DEBUG] ORM comment {i+1}: id={comment_id}, db_content='{content_value}'")
+            except Exception as e:
+                print(f"[DEBUG] Error accessing ORM comment content: {e}")
+        
+        # Get comments from the comment_store (JSON file)
+        json_comments = comment_store.get_ticket_comments(ticket_id)
+        print(f"[DEBUG] JSON comments count: {len(json_comments)}")
+        for i, comment in enumerate(json_comments):
+            # For JSON comments, we can use the property
+            print(f"[DEBUG] JSON comment {i+1}: id={comment.id}, content='{comment.content}'")
+        
+        # CRITICAL FIX: ALWAYS use JSON comments from comment_store
+        comments = json_comments
+        
+        # Convert users to a dictionary format for dropdowns/mentions
+        all_users = db_session.query(User).all() # Fetch all users for assignment dropdown
+        users_dict = {}
+        for u in all_users:
+            users_dict[str(u.id)] = {
+                'id': u.id,
+                'username': u.username,
+                'user_type': u.user_type.value if u.user_type else None, # Use enum value
+                'company': u.company, # Assuming company is a direct attribute or loaded relationship
+                'role': u.role # Assuming role is a direct attribute
+            }
+
+        owner = ticket.assigned_to # Already loaded
+        queues = {q.id: q for q in db_session.query(Queue).all()} # Fetch all queues
+        
+        # Special handling for ASSET_RETURN_CLAW tickets if they have a customer
+        if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' and ticket.customer_id:
+            # Ensure customer is fully loaded with company
+            if ticket.customer and not hasattr(ticket.customer, 'company'):
+                customer = db_session.query(CustomerUser).options(
+                    joinedload(CustomerUser.company)
+                ).filter(CustomerUser.id == ticket.customer_id).first()
+                ticket.customer = customer
+        
+        # Check if comments are non-empty before sorting
+        if comments:
+            sorted_comments = sorted(comments, key=lambda x: x.created_at, reverse=True)
+            print(f"[DEBUG] Sorted comments count: {len(sorted_comments)}")
+        else:
+            sorted_comments = []
+            print("[DEBUG] No comments to sort")
+        
+        # Debug: Validate ticket and comments are going to template
+        print(f"[DEBUG] Rendering template with ticket ID {ticket.id}, comments count: {len(sorted_comments)}")
         
         return render_template(
             'tickets/view.html',
             ticket=ticket,
-            owner=owner,
-            users=users_dict,
+            comments=sorted_comments,
             queues=queues,
-            assets_data=assets_data,
-            customers=customers,
-            UserType=UserType,
-            Country=Country
+            users=users_dict,
+            owner=owner,
+            # Pass data for the Add Asset modal
+            asset_modal_statuses=AssetStatus,
+            asset_modal_models=unique_models,
+            asset_modal_model_product_map=model_product_map,
+            asset_modal_model_type_map=model_type_map,
+            asset_modal_chargers=unique_chargers,
+            asset_modal_customers=unique_customers,
+            asset_modal_countries=unique_countries,
+            asset_modal_conditions=unique_conditions,
+            asset_modal_diags=unique_diags,
+            asset_modal_asset_types=unique_asset_types,
+            user=user # Pass current user info
+            # available_assets=available_assets, # Commented out, likely not needed directly on view page
+            # available_accessories=available_accessories # Commented out
         )
-        
     except Exception as e:
-        print(f"Error loading ticket: {str(e)}")
-        print("Error traceback:")
-        traceback.print_exc()
-        flash('Error loading the ticket', 'error')
+        db_session.rollback() # Rollback on error
+        current_app.logger.error(f"[ERROR] Error loading ticket {ticket_id}: {e}", exc_info=True)
+        import traceback
+        print(f"[ERROR] Exception details: {traceback.format_exc()}")
+        flash('An error occurred while loading the ticket.', 'error')
         return redirect(url_for('tickets.list_tickets'))
     finally:
-        db_session.close()
+        if db_session:
+             db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/comment', methods=['POST'])
 @login_required
@@ -3885,11 +3959,9 @@ def delete_ticket(ticket_id):
         attachments = db_session.query(Attachment).filter_by(ticket_id=ticket_id).all()
         for attachment in attachments:
             # Delete the file from disk if it exists
-            if attachment.file_path and os.path.exists(attachment.file_path):
-                try:
-                    os.remove(attachment.file_path)
-                except Exception as e:
-                    print(f"Error deleting file {attachment.file_path}: {str(e)}")
+            file_path = os.path.join(UPLOAD_FOLDER, attachment.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
             # Delete the attachment record
             db_session.delete(attachment)
         
@@ -4249,6 +4321,83 @@ def get_attachment(ticket_id, attachment_id):
     finally:
         db_session.close()
 
+@tickets_bp.route('/<int:ticket_id>/debug_comments')
+@login_required
+def debug_comments(ticket_id):
+    """Debug endpoint to help troubleshoot comments issues"""
+    try:
+        print(f"[DEBUG] Entering debug_comments for ticket {ticket_id}")
+        
+        # Get comments from the JSON store
+        json_comments = comment_store.get_ticket_comments(ticket_id)
+        print(f"[DEBUG] JSON store comments for ticket {ticket_id}: {len(json_comments)}")
+        
+        # Get the database session and query for the ticket with comments
+        db_session = db_manager.get_session()
+        ticket = db_session.query(Ticket).options(
+            joinedload(Ticket.comments).joinedload(Comment.user)
+        ).filter(Ticket.id == ticket_id).first()
+        
+        if not ticket:
+            return jsonify({
+                'error': 'Ticket not found',
+                'ticket_id': ticket_id
+            }), 404
+            
+        # Get comments from the database
+        db_comments = ticket.comments if hasattr(ticket, 'comments') else []
+        print(f"[DEBUG] Database comments for ticket {ticket_id}: {len(db_comments)}")
+        
+        # Format the output
+        result = {
+            'ticket_id': ticket_id,
+            'json_comments': [],
+            'db_comments': []
+        }
+        
+        # Format JSON store comments
+        for comment in json_comments:
+            result['json_comments'].append({
+                'id': comment.id,
+                'user_id': comment.user_id,
+                'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                'content': comment.content,
+                'raw_content': comment._raw_content if hasattr(comment, '_raw_content') else 'N/A',
+                'mentions': comment.mentions if hasattr(comment, 'mentions') else []
+            })
+            
+        # Format database comments
+        for comment in db_comments:
+            result['db_comments'].append({
+                'id': comment.id,
+                'user_id': comment.user_id,
+                'user_name': comment.user.username if comment.user else 'Unknown',
+                'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                'content': comment.content,
+                'mentions': []  # Database comments don't have mentions attribute
+            })
+        
+        # Check if we should return JSON or HTML (based on Accept header)
+        accept_header = request.headers.get('Accept', '')
+        if 'application/json' in accept_header or request.args.get('format') == 'json':
+            return jsonify(result)
+        else:
+            # Render HTML template with the data
+            return render_template('tickets/debug_comments.html', 
+                                  ticket=ticket,
+                                  json_comments=result['json_comments'],
+                                  db_comments=result['db_comments'],
+                                  json_data=json.dumps(result, indent=2))
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[ERROR] Error in debug_comments: {e}\n{error_details}")
+        return jsonify({
+            'error': str(e),
+            'details': error_details
+        }), 500
+
 @tickets_bp.route('/cleanup-comments', methods=['POST'])
 @admin_required
 def cleanup_orphaned_comments():
@@ -4272,590 +4421,3 @@ def cleanup_orphaned_comments():
             'success': False,
             'error': str(e)
         }), 500
-
-@tickets_bp.route('/<int:ticket_id>/add-accessory', methods=['POST'])
-@login_required
-def add_accessory(ticket_id):
-    """Add an accessory to a ticket"""
-    db_session = db_manager.get_session()
-    try:
-        # Get the ticket
-        ticket = db_session.query(Ticket).get(ticket_id)
-        if not ticket:
-            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
-
-        # Get JSON data if it's an AJAX request, otherwise form data
-        if request.is_json:
-            data = request.get_json()
-            existing_accessory_id = data.get('existing_accessory_id')
-            # Use the quantity submitted by the user
-            quantity = int(data.get('accessory_quantity', 1))
-            condition = data.get('accessory_condition', 'Good')
-            notes = data.get('accessory_notes', '')
-
-            if existing_accessory_id:
-                # Get the existing accessory
-                accessory = db_session.query(Accessory).get(existing_accessory_id)
-                if not accessory:
-                    return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-
-                # Create ticket accessory record
-                ticket_accessory = TicketAccessory(
-                    ticket_id=ticket_id,
-                    name=accessory.name,
-                    category=accessory.category,
-                    quantity=quantity,  # Use the quantity from the form
-                    condition=condition,
-                    notes=notes,
-                    original_accessory_id=accessory.id
-                )
-                db_session.add(ticket_accessory)
-
-                # Don't modify available_quantity when adding to ticket
-                print(f"=== INVENTORY UPDATE START ===")
-                print(f"INVENTORY QUANTITY UNCHANGED FOR: {accessory.name}")
-                print(f"Available quantity remains: {accessory.available_quantity}")
-                print(f"=== INVENTORY UPDATE END ===")
-
-                # Create transaction record
-                transaction = AccessoryTransaction(
-                    accessory_id=accessory.id,
-                    transaction_type='Ticket Assignment',
-                    quantity=quantity,  # Use the quantity from the form
-                    user_id=current_user.id,
-                    notes=f'Accessory assigned to ticket #{ticket_id}'
-                )
-                db_session.add(transaction)
-
-                db_session.commit()
-
-                return jsonify({
-                    'success': True,
-                    'message': 'Accessory added successfully',
-                    'accessory': accessory.to_dict()
-                })
-
-        else:
-            # Handle form submission for new accessory
-            name = request.form.get('accessory_name')
-            category = request.form.get('accessory_category')
-            manufacturer = request.form.get('manufacturer')
-            model_no = request.form.get('model_no')
-            total_quantity = int(request.form.get('total_quantity', 1))
-            country = request.form.get('country')
-            # Use the quantity submitted by the user
-            quantity = int(request.form.get('accessory_quantity', 1))
-            condition = request.form.get('accessory_condition', 'Good')
-            notes = request.form.get('accessory_notes', '')
-            
-            # No need to check if quantity is greater than total quantity since it's always 1
-
-            # Create new accessory in inventory
-            # Set available_quantity to total_quantity initially
-            new_accessory = Accessory(
-                name=name,
-                category=category,
-                manufacturer=manufacturer,
-                model_no=model_no,
-                total_quantity=total_quantity,
-                available_quantity=total_quantity,  # Initialize with full quantity
-                country=country,
-                status='Available'
-            )
-            db_session.add(new_accessory)
-            db_session.flush()  # Get the ID of the new accessory
-            
-            # Don't modify available_quantity, it should stay exactly as total_quantity
-            print(f"=== INVENTORY UPDATE START ===")
-            print(f"INVENTORY QUANTITY REMAINS: {total_quantity} {name}")
-            print(f"Available quantity: {new_accessory.available_quantity}")
-            print(f"=== INVENTORY UPDATE END ===")
-            
-            # Create ticket accessory record
-            ticket_accessory = TicketAccessory(
-                ticket_id=ticket_id,
-                name=name,
-                category=category,
-                quantity=quantity,  # Use the quantity from the form
-                condition=condition,
-                notes=notes,
-                original_accessory_id=new_accessory.id
-            )
-            db_session.add(ticket_accessory)
-
-            # Create transaction record for the assignment
-            transaction = AccessoryTransaction(
-                accessory_id=new_accessory.id,
-                transaction_type='Ticket Assignment',
-                quantity=quantity,  # Use the quantity from the form
-                user_id=current_user.id,
-                notes=f'Accessory assigned to ticket #{ticket_id}'
-            )
-            db_session.add(transaction)
-            
-            # Create a transaction record for the initial inventory addition
-            inventory_transaction = AccessoryTransaction(
-                accessory_id=new_accessory.id,
-                transaction_type='Inventory Addition',
-                quantity=total_quantity,
-                user_id=current_user.id,
-                notes=f'Initial inventory addition'
-            )
-            db_session.add(inventory_transaction)
-
-            db_session.commit()
-
-            flash('Accessory added successfully', 'success')
-            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-
-    except Exception as e:
-        db_session.rollback()
-        print(f"Error adding accessory: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'message': f'Error processing accessory data: {str(e)}'}), 500
-        flash(f'Error adding accessory: {str(e)}', 'error')
-        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-    finally:
-        db_session.close()
-
-@tickets_bp.route('/accessory/<int:accessory_id>', methods=['GET'])
-@login_required
-def get_accessory(accessory_id):
-    """Get accessory details for editing"""
-    try:
-        # Get database session using db_manager
-        db_session = db_manager.get_session()
-        from models.ticket import TicketAccessory
-        
-        # Get the accessory
-        accessory = db_session.query(TicketAccessory).get(accessory_id)
-        if not accessory:
-            return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-            
-        return jsonify({
-            'success': True,
-            'accessory': {
-                'id': accessory.id,
-                'name': accessory.name,
-                'category': accessory.category,
-                'quantity': accessory.quantity,
-                'condition': accessory.condition,
-                'notes': accessory.notes
-            }
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"Error getting accessory: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error getting accessory: {str(e)}'}), 500
-    finally:
-        db_session.close()
-
-@tickets_bp.route('/<int:ticket_id>/accessory/<int:accessory_id>/update', methods=['POST'])
-@login_required
-def update_accessory(ticket_id, accessory_id):
-    """Update an accessory record"""
-    db_session = db_manager.get_session()
-    try:
-        # Get the ticket and accessory
-        ticket = db_session.query(Ticket).get(ticket_id)
-        accessory = db_session.query(TicketAccessory).get(accessory_id)
-        
-        if not ticket:
-            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
-            
-        if not accessory:
-            return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-            
-        # Verify the accessory belongs to this ticket
-        if accessory.ticket_id != ticket_id:
-            return jsonify({'success': False, 'message': 'Accessory does not belong to this ticket'}), 400
-            
-        # Get data from request
-        data = request.json
-        name = data.get('name')
-        category = data.get('category')
-        quantity = data.get('quantity')
-        condition = data.get('condition')
-        notes = data.get('notes')
-        
-        # Validate required fields
-        if not name or not category:
-            return jsonify({'success': False, 'message': 'Name and category are required'}), 400
-            
-        # Update accessory record
-        accessory.name = name
-        accessory.category = category
-        accessory.quantity = int(quantity)
-        accessory.condition = condition
-        accessory.notes = notes
-        
-        # Add a comment to the ticket
-        comment = Comment.create(
-            ticket_id=ticket_id,
-            user_id=current_user.id,
-            content=f"Updated accessory: {name} (Category: {category}, Quantity: {quantity}, Condition: {condition})"
-        )
-        db_session.add(comment)
-        
-        # Commit changes
-        db_session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Accessory updated successfully',
-            'accessory': {
-                'id': accessory.id,
-                'name': accessory.name,
-                'category': accessory.category,
-                'quantity': accessory.quantity,
-                'condition': accessory.condition,
-                'notes': accessory.notes
-            }
-        })
-        
-    except Exception as e:
-        db_session.rollback()
-        print(f"Error updating accessory: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error updating accessory: {str(e)}'}), 500
-    finally:
-        db_session.close()
-
-@tickets_bp.route('/<int:ticket_id>/accessory/<int:accessory_id>/remove', methods=['POST'])
-@login_required
-def remove_accessory(ticket_id, accessory_id):
-    """Remove an accessory from a ticket and update inventory"""
-    db_session = db_manager.get_session()
-    try:
-        # Get the ticket and accessory
-        ticket = db_session.query(Ticket).get(ticket_id)
-        accessory = db_session.query(TicketAccessory).get(accessory_id)
-        
-        if not ticket:
-            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
-            
-        if not accessory:
-            return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-            
-        # Verify the accessory belongs to this ticket
-        if accessory.ticket_id != ticket_id:
-            return jsonify({'success': False, 'message': 'Accessory does not belong to this ticket'}), 400
-            
-        # Store accessory details before deletion
-        accessory_name = accessory.name
-        quantity = accessory.quantity
-        original_id = accessory.original_accessory_id
-        
-        # Check if this accessory was taken from inventory
-        if original_id:
-            # Get the original accessory from inventory with a fresh query
-            original_accessory = db_session.query(Accessory).filter(Accessory.id == original_id).with_for_update().first()
-            
-            if original_accessory:
-                # Don't modify inventory quantity when removing from ticket
-                print(f"=== INVENTORY UPDATE START ===")
-                print(f"REMOVING ACCESSORY: {quantity} {accessory_name}")
-                print(f"Inventory quantity remains: {original_accessory.available_quantity}")
-                
-                # No need to update the quantity - we want to keep it consistent with total_quantity
-                print(f"=== INVENTORY UPDATE END ===")
-                
-                # Create a transaction record
-                try:
-                    transaction = AccessoryTransaction(
-                        accessory_id=original_id,
-                        transaction_type="Ticket Removal",
-                        quantity=quantity,
-                        transaction_number=f"OUT-{ticket_id}-{original_id}-{int(datetime.now().timestamp())}",
-                        user_id=current_user.id,
-                        notes=f"Accessory removed from ticket #{ticket_id}"
-                    )
-                    db_session.add(transaction)
-                except Exception as tx_error:
-                    print(f"Error creating transaction: {str(tx_error)}")
-                    raise tx_error
-        
-        # Create a comment about the removal
-        comment = Comment.create(
-            ticket_id=ticket_id,
-            user_id=current_user.id,
-            content=f"Removed {quantity} x {accessory_name} accessory"
-        )
-        db_session.add(comment)
-        
-        # Delete the accessory record
-        db_session.delete(accessory)
-        
-        # Commit all changes
-        db_session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Accessory removed successfully'
-        })
-        
-    except Exception as e:
-        db_session.rollback()
-        print(f"Error removing accessory: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error removing accessory: {str(e)}'}), 500
-    finally:
-        db_session.close()
-
-@tickets_bp.route('/available-accessories', methods=['GET'])
-@login_required
-def get_available_accessories():
-    """Get list of available accessories"""
-    db_session = db_manager.get_session()
-    try:
-        # Query all accessories with available quantity > 0
-        accessories = db_session.query(Accessory).filter(Accessory.available_quantity > 0).all()
-        
-        # Convert to list of dictionaries
-        accessories_list = []
-        for accessory in accessories:
-            accessories_list.append({
-                'id': accessory.id,
-                'name': accessory.name,
-                'category': accessory.category,
-                'manufacturer': accessory.manufacturer,
-                'model_no': accessory.model_no,
-                'available_quantity': accessory.available_quantity,
-                'total_quantity': accessory.total_quantity,
-                'country': accessory.country,
-                'status': accessory.status
-            })
-            
-        return jsonify({
-            'success': True,
-            'accessories': accessories_list
-        })
-        
-    except Exception as e:
-        print(f"Error getting available accessories: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error getting available accessories: {str(e)}'}), 500
-    finally:
-        db_session.close()
-
-@tickets_bp.route('/fix-accessory-inventory/<int:accessory_id>', methods=['POST'])
-@login_required
-def fix_accessory_inventory(accessory_id):
-    """Emergency endpoint to fix accessory inventory quantities"""
-    try:
-        # Get database session using db_manager
-        db_session = db_manager.get_session()
-        from models.accessory import Accessory
-        from models.accessory_transaction import AccessoryTransaction
-        from flask_login import current_user
-        import time
-        
-        # Get the accessory with exclusive lock
-        accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).with_for_update().first()
-        
-        if not accessory:
-            return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-        
-        # Get the new quantity value from the request
-        data = request.get_json()
-        if not data or 'new_quantity' not in data:
-            return jsonify({'success': False, 'message': 'New quantity is required'}), 400
-            
-        try:
-            new_quantity = int(data['new_quantity'])
-            if new_quantity < 0:
-                return jsonify({'success': False, 'message': 'Quantity cannot be negative'}), 400
-        except (ValueError, TypeError):
-            return jsonify({'success': False, 'message': 'Invalid quantity format'}), 400
-            
-        # Calculate the difference
-        old_quantity = accessory.available_quantity
-        difference = new_quantity - old_quantity
-        
-        # Update the accessory quantity
-        accessory.available_quantity = new_quantity
-        
-        # Create a transaction record
-        timestamp = int(time.time())
-        tx_number = f"FIX-{accessory.id}-{timestamp}"
-        
-        transaction = AccessoryTransaction(
-            accessory_id=accessory.id,
-            transaction_type="Manual Fix",
-            quantity=abs(difference),
-            transaction_number=tx_number,
-            user_id=current_user.id,
-            notes=f"Manual inventory correction from {old_quantity} to {new_quantity} ({'+' if difference >= 0 else '-'}{abs(difference)})"
-        )
-        db_session.add(transaction)
-        
-        # Commit changes
-        db_session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Accessory quantity updated from {old_quantity} to {new_quantity}',
-            'accessory': {
-                'id': accessory.id,
-                'name': accessory.name,
-                'category': accessory.category,
-                'old_quantity': old_quantity,
-                'new_quantity': new_quantity,
-                'difference': difference
-            }
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"Error fixing accessory inventory: {str(e)}")
-        db_session.rollback()
-        return jsonify({'success': False, 'message': f'Error fixing accessory inventory: {str(e)}'}), 500
-
-@tickets_bp.route('/api/accessories')
-@login_required
-def get_accessories():
-    """Get all accessories for dropdown"""
-    print("API endpoint /api/accessories called")
-    db_session = None
-    try:
-        db_session = db_manager.get_session()
-        result = []
-        
-        # Get all accessories with available quantity > 0
-        print("Querying accessories with available_quantity > 0")
-        accessories = db_session.query(Accessory).filter(
-            Accessory.available_quantity > 0
-        ).all()
-        
-        print(f"Found {len(accessories)} accessories with available quantity")
-        
-        # Convert to list of dicts
-        for acc in accessories:
-            result.append({
-                'id': acc.id,
-                'name': acc.name,
-                'category': acc.category,
-                'available_quantity': acc.available_quantity,
-                'manufacturer': acc.manufacturer,
-                'model_no': acc.model_no
-            })
-        
-        print(f"Returning {len(result)} accessories in JSON response")
-        return jsonify({'success': True, 'accessories': result})
-        
-    except Exception as e:
-        print(f"Error in get_accessories: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': f'Error retrieving accessories: {str(e)}'}), 500
-    finally:
-        if db_session:
-            db_session.close()
-
-@tickets_bp.route('/<int:ticket_id>/accessory-transactions', methods=['GET'])
-@login_required
-def view_accessory_transactions(ticket_id):
-    """View transactions for accessories related to a ticket"""
-    db_session = db_manager.get_session()
-    try:
-        # Get the ticket and its accessories
-        ticket = db_session.query(Ticket).get(ticket_id)
-        if not ticket:
-            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
-            
-        # Get all accessories for this ticket
-        accessories = db_session.query(TicketAccessory).filter(
-            TicketAccessory.ticket_id == ticket_id
-        ).all()
-        
-        # Get original accessory IDs
-        original_accessory_ids = [acc.original_accessory_id for acc in accessories if acc.original_accessory_id]
-        
-        # Get transactions for these accessories
-        transactions = []
-        
-        if original_accessory_ids:
-            raw_transactions = db_session.query(AccessoryTransaction).filter(
-                AccessoryTransaction.accessory_id.in_(original_accessory_ids)
-            ).order_by(AccessoryTransaction.transaction_date.desc()).all()
-            
-            for tx in raw_transactions:
-                accessory = db_session.query(Accessory).get(tx.accessory_id)
-                accessory_name = accessory.name if accessory else "Unknown"
-                
-                transactions.append({
-                    'id': tx.id,
-                    'transaction_number': tx.transaction_number,
-                    'accessory_id': tx.accessory_id,
-                    'accessory_name': accessory_name,
-                    'transaction_type': tx.transaction_type,
-                    'quantity': tx.quantity,
-                    'notes': tx.notes,
-                    'transaction_date': tx.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if tx.transaction_date else None
-                })
-                
-        # Also check if any updates are needed for accessories
-        inventory_checks = []
-        for acc in accessories:
-            if acc.original_accessory_id:
-                original = db_session.query(Accessory).get(acc.original_accessory_id)
-                if original:
-                    inventory_checks.append({
-                        'ticket_accessory_id': acc.id,
-                        'ticket_accessory_name': acc.name,
-                        'ticket_accessory_quantity': acc.quantity,
-                        'inventory_id': original.id,
-                        'inventory_name': original.name,
-                        'inventory_quantity': original.available_quantity
-            })
-            
-        return jsonify({
-            'success': True,
-            'ticket_id': ticket_id,
-            'transactions': transactions,
-            'inventory_checks': inventory_checks
-        })
-        
-    except Exception as e:
-        print(f"Error retrieving accessory transactions: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error retrieving transactions: {str(e)}'}), 500
-    finally:
-            db_session.close()
-
-@tickets_bp.route('/<int:ticket_id>/accessory/<int:accessory_id>', methods=['GET'])
-@login_required
-def get_ticket_accessory(ticket_id, accessory_id):
-    """Get accessory details for editing"""
-    try:
-        # Get database session using db_manager
-        db_session = db_manager.get_session()
-        from models.ticket import TicketAccessory
-        
-        # Get the accessory
-        accessory = db_session.query(TicketAccessory).get(accessory_id)
-        if not accessory:
-            return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-            
-        # Verify the accessory belongs to this ticket
-        if accessory.ticket_id != ticket_id:
-            return jsonify({'success': False, 'message': 'Accessory does not belong to this ticket'}), 400
-            
-        return jsonify({
-            'success': True,
-            'accessory': {
-                'id': accessory.id,
-                'name': accessory.name,
-                'category': accessory.category,
-                'quantity': accessory.quantity,
-                'condition': accessory.condition,
-                'notes': accessory.notes
-            }
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"Error getting accessory: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error getting accessory: {str(e)}'}), 500
-    finally:
-        db_session.close()

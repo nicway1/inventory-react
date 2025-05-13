@@ -10,8 +10,8 @@ from datetime import datetime
 def update_model():
     print("Updating Accessory model file...")
     
-    # Path to the model file
-    model_path = '/home/nicway2/inventory/models/accessory.py'
+    # Path to the model file - use current directory for local development
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'accessory.py')
     
     if not os.path.exists(model_path):
         print(f"Error: Model file not found at {model_path}")

@@ -183,9 +183,9 @@ class InventoryStore:
         db_session = self.db_manager.get_session()
         try:
             accessory = db_session.query(Accessory).get(accessory_id)
-            if accessory and accessory.available_quantity >= quantity:
+            if accessory:
                 # Update available quantity
-                accessory.available_quantity -= quantity
+                accessory.available_quantity += quantity
                 db_session.commit()
                 return True
             return False

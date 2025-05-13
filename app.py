@@ -9,6 +9,7 @@ from routes.users import users_bp
 from routes.admin import admin_bp
 from routes.api import api_bp
 from routes.assets import assets_bp
+from routes.debug_routes import debug_bp
 from utils.auth_decorators import login_required
 from utils.store_instances import (
     user_store,
@@ -139,6 +140,7 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)
+    app.register_blueprint(debug_bp)
     # Register category blueprints
     app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file

@@ -39,6 +39,13 @@ class Permission(Base):
     can_delete_users = Column(Boolean, default=False)
     can_create_users = Column(Boolean, default=False)
     
+    # Ticket Permissions
+    can_view_tickets = Column(Boolean, default=True)
+    can_edit_tickets = Column(Boolean, default=False)
+    can_delete_tickets = Column(Boolean, default=False)
+    can_delete_own_tickets = Column(Boolean, default=False)
+    can_create_tickets = Column(Boolean, default=True)
+    
     # Report Permissions
     can_view_reports = Column(Boolean, default=True)
     can_generate_reports = Column(Boolean, default=False)
@@ -80,6 +87,11 @@ class Permission(Base):
                 'can_edit_users': True,
                 'can_delete_users': True,
                 'can_create_users': True,
+                'can_view_tickets': True,
+                'can_edit_tickets': True,
+                'can_delete_tickets': True,
+                'can_delete_own_tickets': True,
+                'can_create_tickets': True,
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
@@ -107,6 +119,11 @@ class Permission(Base):
                 'can_edit_users': False,
                 'can_delete_users': False,
                 'can_create_users': False,
+                'can_view_tickets': True,
+                'can_edit_tickets': True,
+                'can_delete_tickets': False,
+                'can_delete_own_tickets': True,
+                'can_create_tickets': True,
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
@@ -134,6 +151,11 @@ class Permission(Base):
                 'can_edit_users': False,
                 'can_delete_users': False,
                 'can_create_users': False,
+                'can_view_tickets': True,
+                'can_edit_tickets': False,
+                'can_delete_tickets': False,
+                'can_delete_own_tickets': False,
+                'can_create_tickets': True,
                 'can_view_reports': False,
                 'can_generate_reports': False,
                 'can_import_data': False,
@@ -161,6 +183,11 @@ class Permission(Base):
                 'can_edit_users': False,
                 'can_delete_users': False,
                 'can_create_users': False,
+                'can_view_tickets': True,
+                'can_edit_tickets': True,
+                'can_delete_tickets': False,
+                'can_delete_own_tickets': True,
+                'can_create_tickets': True,
                 'can_view_reports': True,
                 'can_generate_reports': False,
                 'can_import_data': False,

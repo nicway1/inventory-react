@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from models.base import Base
 
@@ -11,6 +11,7 @@ class TicketAttachment(Base):
     filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
     file_type = Column(String(100))
+    file_size = Column(BigInteger, nullable=True)
     uploaded_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

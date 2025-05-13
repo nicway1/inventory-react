@@ -3,10 +3,35 @@
 {% block head %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+
+<!-- Initialize global variables -->
+<script>
+    // Initialize global loadingIndicator to fix the "Cannot access before initialization" error
+    var loadingIndicator = null; // Will be set to DOM element later
+    
+    // Initialize when the document is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        loadingIndicator = document.getElementById('loadingIndicator');
+    });
+</script>
+
+<!-- Fix for documents tab visibility -->
+<style>
+    /* Simple tab system */
+    .sf-tab-content {
+        display: block; /* All tabs are blocks by default */
+    }
+    
+    .sf-tab-content.hidden {
+        display: none; /* Hidden tabs are not displayed */
+    }
+</style>
+
 <!-- Debug Info -->
 <div style="background-color: #f0f0f0; padding: 10px; margin: 10px;">
     <p>Current user type: {{ session.get('user_type') }}</p>
 </div>
+
 <!-- Load 17TRACK script only for SingPost tickets -->
 {% if ticket.shipping_tracking and (ticket.shipping_tracking.startswith('XZD') or ticket.shipping_tracking.startswith('XZB')) %}
 <!-- SingPost Tracking Widget Script -->
@@ -324,518 +349,1270 @@
 .pdf-inline-container iframe {
     z-index: 5;
 }
+
+/* Direct Modal Styles */
+.direct-modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.direct-modal-content {
+    background-color: white;
+    margin: 50px auto;
+    padding: 20px;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.direct-form-group {
+    margin-bottom: 15px;
+}
+
+.direct-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.direct-form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.direct-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.direct-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.direct-btn-primary {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.direct-btn-secondary {
+    background-color: #f1f1f1;
+    color: #333;
+}
+
+.direct-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.direct-modal-title {
+    margin: 0;
+    font-size: 18px;
+}
+
+.direct-close {
+    font-size: 24px;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
 </style>
+
+<div style="display: none; position: fixed; bottom: 20px; left: 20px; z-index: 9999; background: yellow; padding: 10px; font-size: 14px;">
+  ⚠️ Using direct form instead of modal
+</div>
 {% endblock head %}
 
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Case Header -->
-        <div class="sf-card mb-6">
-            <div class="sf-card-header">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-                        </svg>
-                        <h1 class="sf-card-title">{{ ticket.subject }}</h1>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                            </svg>
-                            Back to Tickets
-                        </a>
-                    </div>
-                </div>
+        <!-- Notification container -->
+        <div id="notification" class="fixed top-4 right-4 z-50 hidden"></div>
+        
+        <!-- Loading indicator -->
+        <div id="loadingIndicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-4 rounded-lg shadow-lg">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="text-center mt-2 text-gray-700">Loading...</p>
             </div>
-            <div class="sf-card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="space-y-2">
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Priority</div>
-                        <div class="sf-field-value">
-                            <span class="sf-badge {% if ticket.priority and ticket.priority.value == 'HIGH' %}sf-badge-warning{% endif %}">
-                                {{ ticket.priority.value if ticket.priority else 'None' }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Status</div>
-                        <div class="sf-field-value">
-                            <span class="sf-badge {% if ticket.status and ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
-                                {{ ticket.status.value if ticket.status else 'None' }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Case Number</div>
-                        <div class="sf-field-value font-mono">{{ ticket.display_id }}</div>
-                    </div>
-                    {% if ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Customer Name</div>
-                        <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="space-y-2">
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Created Date</div>
-                        <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else 'N/A' }}</div>
-                    </div>
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Last Modified</div>
-                        <div class="sf-field-value">{{ ticket.updated_at.strftime('%Y-%m-%d') if ticket.updated_at else 'N/A' }}</div>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Case Owner</div>
-                        <div class="sf-field-value">{{ owner.username if owner else 'Unassigned' }}</div>
-                    </div>
-                    <div class="sf-field-row">
-                        <div class="sf-field-label">Category</div>
-                        <div class="sf-field-value">{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'None' }}</div>
-                    </div>
-                </div>
-            </div>
-
-        <!-- Action Toolbar -->
-        <div class="sf-toolbar mb-6 rounded-t-md">
-            {% if session.get('user_type')|upper == 'SUPER_ADMIN' %}
-            <button class="sf-button" onclick="confirmDeleteTicket('{{ ticket.id }}')">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-                Delete
-            </button>
-            {% endif %}
-            <button class="sf-button">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-                Email
-            </button>
-            {% if session.get('user_type')|upper == 'SUPER_ADMIN' %}
-            <button class="sf-button">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                </svg>
-                Edit
-            </button>
-            {% endif %}
-            <button class="sf-button primary-button" onclick="toggleUpdateForm()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-                Change Status
-            </button>
-            {% if session.get('user_type') == 'admin' or session.get('user_id')|int == ticket.assigned_to_id|int %}
-            <button class="sf-button primary-button" onclick="toggleAssignForm()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                Change Case Owner
-            </button>
-            {% endif %}
-            
-            <!-- Add tracking buttons for Asset Return (claw) -->
-            {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
-            <button class="sf-button" onclick="showAddOutboundTrackingModal()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                Add Outbound Tracking
-            </button>
-            <button class="sf-button" onclick="showAddReturnTrackingModal()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3" />
-                </svg>
-                Add Return Tracking
-            </button>
-            {% endif %}
         </div>
-
-        <!-- Update Form -->
-        <div id="updateForm" class="hidden mb-6">
-            <div class="sf-card">
+        
+        <!-- Main content -->
+        <div class="sf-page-header flex items-center justify-between mb-6">
+            <!-- Case Header -->
+            <div class="sf-card mb-6">
                 <div class="sf-card-header">
-                    <h2 class="sf-card-title">Update Ticket Status</h2>
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            <h1 class="sf-card-title">{{ ticket.subject }}</h1>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                </svg>
+                                Back to Tickets
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="sf-card-body">
-                    <form method="POST" action="{{ url_for('tickets.update_ticket', ticket_id=ticket.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="mb-4">
-                                <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="NEW" {% if ticket.status and ticket.status.name == 'NEW' %}selected{% endif %}>
-                                        New
-                                    </option>
-                                    <option value="IN_PROGRESS" {% if ticket.status and ticket.status.name == 'IN_PROGRESS' %}selected{% endif %}>
-                                        In Progress
-                                    </option>
-                                    <option value="ON_HOLD" {% if ticket.status and ticket.status.name == 'ON_HOLD' %}selected{% endif %}>
-                                        On Hold
-                                    </option>
-                                    <option value="RESOLVED" {% if ticket.status and ticket.status.name == 'RESOLVED' %}selected{% endif %}>
-                                        Resolved
-                                    </option>
-                                    <option value="RESOLVED_DELIVERED" {% if ticket.status and ticket.status.name == 'RESOLVED_DELIVERED' %}selected{% endif %}>
-                                        Resolved (All Package Delivered)
-                                    </option>
-                                </select>
+                <div class="sf-card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="space-y-2">
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Priority</div>
+                            <div class="sf-field-value">
+                                <span class="sf-badge {% if ticket.priority and ticket.priority.value == 'HIGH' %}sf-badge-warning{% endif %}">
+                                    {{ ticket.priority.value if ticket.priority else 'None' }}
+                                </span>
                             </div>
-                            <div class="mb-4">
-                                <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
-                                <select id="priority" name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="LOW" {% if ticket.priority and ticket.priority.name == 'LOW' %}selected{% endif %}>
-                                        Low
-                                    </option>
-                                    <option value="MEDIUM" {% if ticket.priority and ticket.priority.name == 'MEDIUM' %}selected{% endif %}>
-                                        Medium
-                                    </option>
-                                    <option value="HIGH" {% if ticket.priority and ticket.priority.name == 'HIGH' %}selected{% endif %}>
-                                        High
-                                    </option>
-                                    <option value="CRITICAL" {% if ticket.priority and ticket.priority.name == 'CRITICAL' %}selected{% endif %}>
-                                        Critical
-                                    </option>
-                                </select>
+                        </div>
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Status</div>
+                            <div class="sf-field-value">
+                                <span class="sf-badge {% if ticket.status and ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
+                                    {{ ticket.status.value if ticket.status else 'None' }}
+                                </span>
                             </div>
-                            {% if session.get('user_type') == 'admin' %}
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Case Number</div>
+                            <div class="sf-field-value font-mono">{{ ticket.display_id }}</div>
+                        </div>
+                        {% if ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Customer Name</div>
+                            <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
+                        </div>
+                        {% endif %}
+                        {% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' and ticket.customer %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Customer Name</div>
+                            <div class="sf-field-value">{{ ticket.customer.name }}</div>
+                        </div>
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Company</div>
+                            <div class="sf-field-value">
+                                {% if ticket.customer.company %}
+                                    {{ ticket.customer.company.name }}
+                                {% else %}
+                                    No Company
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="space-y-2">
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Created Date</div>
+                            <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else 'N/A' }}</div>
+                        </div>
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Last Modified</div>
+                            <div class="sf-field-value">{{ ticket.updated_at.strftime('%Y-%m-%d') if ticket.updated_at else 'N/A' }}</div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Case Owner</div>
+                            <div class="sf-field-value">{{ owner.username if owner else 'Unassigned' }}</div>
+                        </div>
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Category</div>
+                            <div class="sf-field-value">{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'None' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Action Toolbar -->
+            <div class="sf-toolbar mb-6 rounded-t-md">
+                {% if current_user.is_super_admin or current_user.permissions.can_delete_tickets or (current_user.permissions.can_delete_own_tickets and current_user.id == ticket.requester_id) %}
+                <button class="sf-button" onclick="confirmDeleteTicket('{{ ticket.id }}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete
+                </button>
+                {% endif %}
+                <button class="sf-button">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    Email
+                </button>
+                {% if current_user.is_super_admin or current_user.id == ticket.requester_id %}
+                <button class="sf-button" onclick="toggleUpdateForm()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Edit / Change Status
+                </button>
+                {% endif %}
+                {% if current_user.is_admin %}
+                <button class="sf-button primary-button" onclick="toggleAssignForm()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    Change Case Owner
+                </button>
+                {% endif %}
+                
+                <!-- Add tracking buttons for Asset Return (claw) -->
+                {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                <button class="sf-button" onclick="showAddOutboundTrackingModal()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Add Outbound Tracking
+                </button>
+                <button class="sf-button" onclick="showAddReturnTrackingModal()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3" />
+                    </svg>
+                    Add Return Tracking
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Update Form -->
+            <div id="updateForm" class="hidden mb-6">
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <h2 class="sf-card-title">Update Ticket Status</h2>
+                    </div>
+                    <div class="sf-card-body">
+                        <form method="POST" action="{{ url_for('tickets.update_ticket', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                    <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="NEW" {% if ticket.status and ticket.status.name == 'NEW' %}selected{% endif %}>
+                                            New
+                                        </option>
+                                        <option value="IN_PROGRESS" {% if ticket.status and ticket.status.name == 'IN_PROGRESS' %}selected{% endif %}>
+                                            In Progress
+                                        </option>
+                                        <option value="ON_HOLD" {% if ticket.status and ticket.status.name == 'ON_HOLD' %}selected{% endif %}>
+                                            On Hold
+                                        </option>
+                                        <option value="RESOLVED" {% if ticket.status and ticket.status.name == 'RESOLVED' %}selected{% endif %}>
+                                            Resolved
+                                        </option>
+                                        <option value="RESOLVED_DELIVERED" {% if ticket.status and ticket.status.name == 'RESOLVED_DELIVERED' %}selected{% endif %}>
+                                            Resolved (All Package Delivered)
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                                    <select id="priority" name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="LOW" {% if ticket.priority and ticket.priority.name == 'LOW' %}selected{% endif %}>
+                                            Low
+                                        </option>
+                                        <option value="MEDIUM" {% if ticket.priority and ticket.priority.name == 'MEDIUM' %}selected{% endif %}>
+                                            Medium
+                                        </option>
+                                        <option value="HIGH" {% if ticket.priority and ticket.priority.name == 'HIGH' %}selected{% endif %}>
+                                            High
+                                        </option>
+                                        <option value="CRITICAL" {% if ticket.priority and ticket.priority.name == 'CRITICAL' %}selected{% endif %}>
+                                            Critical
+                                        </option>
+                                    </select>
+                                </div>
+                                {% if session.get('user_type') == 'admin' %}
+                                <div class="mb-4">
+                                    <label for="assigned_to_id" class="block text-sm font-medium text-gray-700">Assigned To</label>
+                                    <select id="assigned_to_id" name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">-- Unassigned --</option>
+                                        {% for user_id, user in users.items() %}
+                                            <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
+                                                {{ user.username }} {% if user.company %}({{ user.company }}){% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex justify-end mt-4">
+                                <button type="button" onclick="toggleUpdateForm()" class="mr-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Update Ticket
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assign Form -->
+            <div id="assignForm" class="hidden mb-6">
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <h2 class="sf-card-title">Change Case Owner</h2>
+                    </div>
+                    <div class="sf-card-body">
+                        <form method="POST" action="{{ url_for('tickets.transfer_ticket', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-4">
-                                <label for="assigned_to_id" class="block text-sm font-medium text-gray-700">Assigned To</label>
-                                <select id="assigned_to_id" name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="">-- Unassigned --</option>
+                                <label for="transfer_to_id" class="block text-sm font-medium text-gray-700">Assign To</label>
+                                <select id="transfer_to_id" name="transfer_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                                    <option value="">-- Select User --</option>
                                     {% for user_id, user in users.items() %}
-                                        <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
+                                        <option value="{{ user.id }}">
                                             {{ user.username }} {% if user.company %}({{ user.company }}){% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            {% endif %}
-                        </div>
-                        <div class="flex justify-end mt-4">
-                            <button type="button" onclick="toggleUpdateForm()" class="mr-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Cancel
-                            </button>
-                            <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Update Ticket
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Assign Form -->
-        <div id="assignForm" class="hidden mb-6">
-            <div class="sf-card">
-                <div class="sf-card-header">
-                    <h2 class="sf-card-title">Change Case Owner</h2>
-                </div>
-                <div class="sf-card-body">
-                    <form method="POST" action="{{ url_for('tickets.transfer_ticket', ticket_id=ticket.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-4">
-                            <label for="transfer_to_id" class="block text-sm font-medium text-gray-700">Assign To</label>
-                            <select id="transfer_to_id" name="transfer_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
-                                <option value="">-- Select User --</option>
-                                {% for user_id, user in users.items() %}
-                                    <option value="{{ user.id }}">
-                                        {{ user.username }} {% if user.company %}({{ user.company }}){% endif %}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-4">
-                            <label for="transfer_notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                            <textarea id="transfer_notes" name="transfer_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Add any notes about this assignment..."></textarea>
-                        </div>
-                        <div class="flex justify-end mt-4">
-                            <button type="button" onclick="toggleAssignForm()" class="mr-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Cancel
-                            </button>
-                            <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Change Owner
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabs Navigation -->
-        <div class="sf-tabs mb-6 rounded-t-md">
-            <a href="#details" class="sf-tab active" onclick="showTab('details')">Case Details</a>
-            <a href="#comments" class="sf-tab" onclick="showTab('comments')">Comments</a>
-            <a href="#documents" class="sf-tab" onclick="showTab('documents')">Documents</a>
-        </div>
-
-        <!-- Details Section - Tab Content -->
-        <div id="details" class="sf-tab-content">
-            <div class="sf-card mb-6">
-                <div class="sf-card-header">
-                    <h2 class="sf-card-title">Case Information</h2>
-                </div>
-                <div class="sf-card-body">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Subject</div>
-                                <div class="sf-field-value">{{ ticket.subject }}</div>
+                            <div class="mb-4">
+                                <label for="transfer_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                <textarea id="transfer_notes" name="transfer_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Add any notes about this assignment..."></textarea>
                             </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Description</div>
-                                <div class="sf-field-value whitespace-pre-wrap">{{ ticket.description }}</div>
+                            <div class="flex justify-end mt-4">
+                                <button type="button" onclick="toggleAssignForm()" class="mr-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Change Owner
+                                </button>
                             </div>
-                            {% if ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Notes</div>
-                                <div class="sf-field-value whitespace-pre-wrap">{{ ticket.notes if ticket.notes else 'No notes available' }}</div>
-                            </div>
-                            {% endif %}
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Case Origin</div>
-                                <div class="sf-field-value">Web</div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Date/Time Opened</div>
-                                <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}</div>
-                            </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Date/Time Closed</div>
-                                <div class="sf-field-value">-</div>
-                            </div>
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Service Type</div>
-                                <div class="sf-field-value">Hardware Support</div>
-                            </div>
-                            
-                            {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
-                            <!-- Tracking Information Section -->
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Outbound Tracking</div>
-                                <div class="sf-field-value">
-                                    {% if ticket.shipping_tracking %}
-                                    <div>{{ ticket.shipping_tracking }} ({{ ticket.shipping_carrier }})</div>
-                                    <div class="text-sm text-gray-500">Status: {{ ticket.shipping_status }}</div>
-                                    {% else %}
-                                    <span class="text-gray-500">Not added yet</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="sf-field-row">
-                                <div class="sf-field-label">Return Tracking</div>
-                                <div class="sf-field-value">
-                                    {% if ticket.return_tracking %}
-                                    <div>{{ ticket.return_tracking }} ({{ ticket.shipping_carrier }})</div>
-                                    <div class="text-sm text-gray-500">Status: {{ ticket.return_status }}</div>
-                                    {% else %}
-                                    <span class="text-gray-500">Not added yet</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
+                        </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Related Records Section -->
-            <div class="sf-card mb-6">
-                <div class="sf-card-header">
-                    <div class="flex justify-between items-center">
-                        <h2 class="sf-card-title">Tech Asset</h2>
-                        <div class="flex gap-2">
-                            <button class="sf-button primary-button" onclick="showAssetModal()">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                </svg>
-                                Add Tech Asset
-                            </button>
-                            <button class="sf-button" onclick="window.location.href='/assets/add?ticket_id={{ ticket.id }}'">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                                </svg>
-                                Import Tech Asset
-                            </button>
+            <!-- Tabs Navigation -->
+            <div class="sf-tabs mb-6 rounded-t-md">
+                <a href="javascript:void(0)" class="sf-tab active" data-target="details">Case Details</a>
+                <a href="javascript:void(0)" class="sf-tab" data-target="comments">Comments</a>
+                <a href="javascript:void(0)" class="sf-tab" data-target="documents">Documents</a>
+            </div>
+            
+            <!-- Debug button -->
+            <!-- <button onclick="debugTabStructure()" class="mb-4 px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm">Debug Tab Structure</button> -->
+            
+            <script>
+            // Debug function - REMOVING
+            /* function debugTabStructure() {
+                console.log("--- DEBUGGING TAB STRUCTURE ---");
+                
+                // Check tab links
+                console.log("Tab Links:");
+                document.querySelectorAll('.sf-tab').forEach(function(tab, index) {
+                    console.log(index + ": " + tab.textContent.trim() + " - data-target=" + tab.getAttribute('data-target'));
+                });
+                
+                // Check tab contents
+                console.log("\nTab Contents:");
+                document.querySelectorAll('.sf-tab-content').forEach(function(content, index) {
+                    console.log(index + ": id=" + content.id + 
+                        ", display=" + window.getComputedStyle(content).display + 
+                        ", childNodes=" + content.childNodes.length);
+                    
+                    // Show first child element for debugging
+                    if (content.firstElementChild) {
+                        console.log("  First child: " + content.firstElementChild.tagName + 
+                            " - class=" + content.firstElementChild.className);
+                    }
+                });
+                
+                // Try to manually show the details tab
+                var detailsTab = document.getElementById('details');
+                if (detailsTab) {
+                    detailsTab.style.display = 'block';
+                    console.log("\nForced display:block on details tab");
+                } else {
+                    console.log("\nCould not find details tab!");
+                }
+            }
+            */
+            </script>
+
+            <!-- Tab Content Panels -->
+            <div id="tab-content-wrapper">
+                <!-- Details Section - Tab Content -->
+                <div id="details" class="sf-tab-content" style="display: block;">
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <h2 class="sf-card-title">Case Information</h2>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Subject</div>
+                                        <div class="sf-field-value">{{ ticket.subject }}</div>
+                                    </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Description</div>
+                                        <div class="sf-field-value whitespace-pre-wrap">{{ ticket.description }}</div>
+                                    </div>
+                                    {% if ticket.category and (ticket.category.value == 'ASSET_INTAKE' or ticket.category.name == 'ASSET_RETURN_CLAW') %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Notes</div>
+                                        <div class="sf-field-value whitespace-pre-wrap">{{ ticket.notes if ticket.notes else 'No notes available' }}</div>
+                                    </div>
+                                    {% endif %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Case Origin</div>
+                                        <div class="sf-field-value">Web</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Date/Time Opened</div>
+                                        <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}</div>
+                                    </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Date/Time Closed</div>
+                                        <div class="sf-field-value">-</div>
+                                    </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Service Type</div>
+                                        <div class="sf-field-value">Hardware Support</div>
+                                    </div>
+                                    
+                                    {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                                    <!-- Tracking Information Section -->
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Outbound Tracking</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.shipping_tracking %}
+                                            <div>{{ ticket.shipping_tracking }} ({{ ticket.shipping_carrier }})</div>
+                                            <div class="text-sm text-gray-500">Status: {{ ticket.shipping_status }}</div>
+                                            {% else %}
+                                            <span class="text-gray-500">Not added yet</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Return Tracking</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.return_tracking %}
+                                            <div>{{ ticket.return_tracking }} ({{ ticket.shipping_carrier }})</div>
+                                            <div class="text-sm text-gray-500">Status: {{ ticket.return_status }}</div>
+                                            {% else %}
+                                            <span class="text-gray-500">Not added yet</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Related Records Section -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <h2 class="sf-card-title">Tech Asset</h2>
+                                <div class="flex gap-2">
+                                    <button class="sf-button primary-button" onclick="showAssetModal()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add Tech Asset
+                                    </button>
+                                    <button class="sf-button" onclick="window.location.href='/assets/add?ticket_id={{ ticket.id }}'">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                        </svg>
+                                        Import Tech Asset
+                                    </button>
+                                    </div>
+                                </div>
+                                </div>
+                        <div class="sf-card-body">
+                                <div class="overflow-x-auto">
+                                    <table class="sf-data-table">
+                                        <thead>
+                                            <tr>
+                                            <th>ASSET TAG</th>
+                                            <th>SERIAL NUMBER</th>
+                                            <th>NAME</th>
+                                            <th>STATUS</th>
+                                            <th>ACTIONS</th>
+                                            </tr>
+                                        </thead>
+                                    <tbody id="assetTableBody">
+                                        {% if ticket.assets %}
+                                            {% for asset in ticket.assets %}
+                                            <tr>
+                                                <td>{{ asset.asset_tag }}</td>
+                                                <td>{{ asset.serial_num }}</td>
+                                                <td>{{ asset.name }}</td>
+                                                <td>
+                                                    <span class="sf-badge {% if asset.status and asset.status.value == 'Active' %}sf-badge-success{% endif %}">
+                                                        {{ asset.status.value if asset.status else 'Unknown' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-2">
+                                                        <button onclick="viewAsset('{{ asset.id }}')" class="text-blue-600 hover:text-blue-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button onclick="unlinkAsset('{{ asset.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
                         </div>
-                <div class="sf-card-body">
-                        <div class="overflow-x-auto">
-                            <table class="sf-data-table">
-                                <thead>
-                                    <tr>
-                                    <th>ASSET TAG</th>
-                                    <th>SERIAL NUMBER</th>
-                                    <th>NAME</th>
-                                    <th>STATUS</th>
-                                    <th>ACTIONS</th>
-                                    </tr>
-                                </thead>
-                            <tbody id="assetTableBody">
-                                {% if ticket.assets %}
-                                    {% for asset in ticket.assets %}
-                                    <tr>
-                                        <td>{{ asset.asset_tag }}</td>
-                                        <td>{{ asset.serial_num }}</td>
-                                        <td>{{ asset.name }}</td>
-                                        <td>
-                                            <span class="sf-badge {% if asset.status and asset.status.value == 'Active' %}sf-badge-success{% endif %}">
-                                                {{ asset.status.value if asset.status else 'Unknown' }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="flex gap-2">
-                                                <button onclick="viewAsset('{{ asset.id }}')" class="text-blue-600 hover:text-blue-800">
+                    </div>
+
+                    {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                    <!-- Outbound Tracking Card -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="sf-card-title">Outbound Tracking</h2>
+                                    {% if ticket.shipping_status %}
+                                    <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.shipping_status }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                {% if ticket.shipping_status != 'Received' %}
+                                <button class="sf-button" onclick="markOutboundAsReceived('{{ ticket.id }}')">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Mark as Received
+                                </button>
+                                {% endif %}
+                                <button class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    Add Tracking
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="p-4">
+                                {% if ticket.shipping_tracking %}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <div class="text-sm text-gray-500">Tracking Number</div>
+                                        <div class="font-medium">{{ ticket.shipping_tracking }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Carrier</div>
+                                        <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Status</div>
+                                        <div class="font-medium">{{ ticket.shipping_status }}</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="text-center text-gray-500 py-4">
+                                    No outbound tracking information available
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Return Tracking Card -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="sf-card-title">Return Tracking</h2>
+                                    {% if ticket.return_status %}
+                                    <span class="sf-badge {% if ticket.return_status == 'Delivered' %}sf-badge-success{% elif ticket.return_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.return_status }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                {% if ticket.return_status != 'Received' %}
+                                <button class="sf-button" onclick="markReturnAsReceived('{{ ticket.id }}')">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Mark as Received
+                                </button>
+                                {% endif %}
+                                <button class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    Add Tracking
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="p-4">
+                                {% if ticket.return_tracking %}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <div class="text-sm text-gray-500">Tracking Number</div>
+                                        <div class="font-medium">{{ ticket.return_tracking }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Carrier</div>
+                                        <div class="font-medium">{{ ticket.return_carrier|title }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Status</div>
+                                        <div class="font-medium">{{ ticket.return_status }}</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="text-center text-gray-500 py-4">
+                                    No return tracking information available
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Accessories Card -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <h2 class="sf-card-title">Received Accessories</h2>
+                                <div class="flex gap-2">
+                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySection').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add Accessory
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="overflow-x-auto">
+                                <table class="sf-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>NAME</th>
+                                            <th>CATEGORY</th>
+                                            <th>QUANTITY</th>
+                                            <th>CONDITION</th>
+                                            <th>ACTIONS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accessoryTableBody">
+                                        {% if ticket.accessories %}
+                                            {% for accessory in ticket.accessories %}
+                                            <tr>
+                                                <td>{{ accessory.name }}</td>
+                                                <td>{{ accessory.category }}</td>
+                                                <td>{{ accessory.quantity }}</td>
+                                                <td>
+                                                    <span class="sf-badge {% if accessory.condition == 'Good' %}sf-badge-success{% elif accessory.condition == 'Fair' %}sf-badge-warning{% else %}sf-badge-danger{% endif %}">
+                                                        {{ accessory.condition }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-2">
+                                                        <button onclick="editAccessory('{{ accessory.id }}')" class="text-blue-600 hover:text-blue-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button onclick="removeAccessory('{{ accessory.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="5" class="text-center text-gray-500 py-4">No accessories recorded for this return</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Method 3: Direct link to form action -->
+                    <div id="directAccessorySection" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="margin-bottom: 15px;">Add Accessories directly</h3>
+                        
+                        <!-- Tab navigation for "New Accessory" and "Select Existing" -->
+                        <div style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                            <button id="newAccessoryTab" onclick="switchTab('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
+                                Add New
+                            </button>
+                            <button id="existingAccessoryTab" onclick="switchTab('existing')" style="flex: 1; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 0 4px 0 0; cursor: pointer;">
+                                Select Existing
+                            </button>
+                        </div>
+                        
+                        <!-- New Accessory Form -->
+                        <form id="simpleAccessoryForm" method="POST" action="{{ url_for('tickets.add_accessory', ticket_id=ticket.id) | replace('/add_accessory', '/add-accessory') }}" style="display: none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Accessory Name</label>
+                                <input type="text" name="accessory_name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+                                <select name="accessory_category" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Select Category --</option>
+                                    <option value="Keyboard">Keyboard</option>
+                                    <option value="Mouse">Mouse</option>
+                                    <option value="Cable">Cable</option>
+                                    <option value="Adapter">Adapter</option>
+                                    <option value="Power Brick">Power Brick</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Manufacturer</label>
+                                <input type="text" name="manufacturer" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Model Number</label>
+                                <input type="text" name="model_no" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Total Quantity</label>
+                                <input type="number" name="total_quantity" min="1" value="1" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country</label>
+                                <select name="country" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select a country...</option>
+                                    <option value="USA">USA</option>
+                                    <option value="Japan">Japan</option>
+                                    <option value="Philippines">Philippines</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="Israel">Israel</option>
+                                    <option value="India">India</option>
+                                    <option value="Singapore">Singapore</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity for this Ticket</label>
+                                <input type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add New Accessory
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Existing Accessory Selection Form -->
+                        <form id="existingAccessoryForm" onsubmit="submitExistingAccessoryForm(event)" style="display: block;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Select Existing Accessory</label>
+                                <select id="existing_accessory_select" name="existing_accessory_id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Loading Accessories --</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity</label>
+                                <input id="accessory_quantity_input" type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add Selected Accessory
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- JavaScript for tab switching and loading accessories -->
+                        <script>
+                            // Store the CSRF token for JavaScript use
+                            const csrfToken = '{{ csrf_token() }}';
+                            console.log("CSRF token initialized:", csrfToken ? "OK" : "MISSING");
+                            
+                            // Function to switch between tabs
+                            function switchTab(tab) {
+                                console.log(`Switching to tab: ${tab}`);
+                                if (tab === 'new') {
+                                    document.getElementById('simpleAccessoryForm').style.display = 'block';
+                                    document.getElementById('existingAccessoryForm').style.display = 'none';
+                                    document.getElementById('newAccessoryTab').style.backgroundColor = '#3b82f6';
+                                    document.getElementById('newAccessoryTab').style.color = 'white';
+                                    document.getElementById('existingAccessoryTab').style.backgroundColor = '#e5e7eb';
+                                    document.getElementById('existingAccessoryTab').style.color = '#374151';
+                                } else {
+                                    document.getElementById('simpleAccessoryForm').style.display = 'none';
+                                    document.getElementById('existingAccessoryForm').style.display = 'block';
+                                    document.getElementById('newAccessoryTab').style.backgroundColor = '#e5e7eb';
+                                    document.getElementById('newAccessoryTab').style.color = '#374151';
+                                    document.getElementById('existingAccessoryTab').style.backgroundColor = '#3b82f6';
+                                    document.getElementById('existingAccessoryTab').style.color = 'white';
+                                    
+                                    // Load accessories regardless of whether they've been loaded before
+                                    // This ensures accessories are always loaded when this tab is selected
+                                    console.log('Loading accessories for existing tab');
+                                    loadAccessories();
+                                }
+                            }
+                            
+                            // Function to load available accessories
+                            function loadAccessories() {
+                                console.log("LOADING ACCESSORIES: Starting fetch request...");
+                                
+                                // Use the correct API endpoint
+                                const absoluteUrl = '/tickets/api/accessories';
+                                
+                                console.log("Using URL:", absoluteUrl);
+                                
+                                // Show loading state in dropdown
+                                const select = document.getElementById('existing_accessory_select');
+                                if (select) {
+                                    select.innerHTML = '<option value="">-- Loading Accessories... --</option>';
+                                    select.disabled = true;
+                                }
+                                
+                                try {
+                                    fetch(absoluteUrl, {
+                                        method: 'GET',
+                                        credentials: 'include',  // Include cookies for authentication
+                                        headers: {
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                            'Accept': 'application/json',
+                                            'X-CSRFToken': csrfToken
+                                        }
+                                    })
+                                    .then(response => {
+                                        console.log("FETCH RESPONSE:", response.status, response.statusText);
+                                        if (!response.ok) {
+                                            throw new Error(`HTTP error! Status: ${response.status}`);
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(data => {
+                                        console.log("FETCH SUCCESS, data:", data);
+                                        const select = document.getElementById('existing_accessory_select');
+                                        if (!select) {
+                                            console.error("Select element not found!");
+                                            return;
+                                        }
+                                        
+                                        // Enable the select
+                                        select.disabled = false;
+                                        
+                                        // Clear existing options
+                                        select.innerHTML = '<option value="">-- Select an Accessory --</option>';
+                                        
+                                        // Add accessories to dropdown
+                                        if (data.success && data.accessories && data.accessories.length > 0) {
+                                            // Sort accessories by name for better usability
+                                            data.accessories.sort((a, b) => a.name.localeCompare(b.name));
+                                            
+                                            data.accessories.forEach(acc => {
+                                                const option = document.createElement('option');
+                                                option.value = acc.id;
+                                                const displayName = `${acc.name} (${acc.category}) - Qty: ${acc.available_quantity}`;
+                                                option.text = displayName;
+                                                select.appendChild(option);
+                                            });
+                                            console.log(`Loaded ${data.accessories.length} accessories successfully`);
+                                        } else {
+                                            // No accessories found
+                                            const option = document.createElement('option');
+                                            option.value = "";
+                                            option.text = "No accessories available";
+                                            select.appendChild(option);
+                                            console.log('No accessories found');
+                                        }
+                                        
+                                        window.accessoriesLoaded = true;
+                                    })
+                                    .catch(error => {
+                                        console.error('Error loading accessories:', error);
+                                        
+                                        // Update the dropdown to show the error
+                                        const select = document.getElementById('existing_accessory_select');
+                                        if (select) {
+                                            select.disabled = false;
+                                            select.innerHTML = '<option value="">-- Error Loading Accessories --</option>';
+                                        }
+                                    });
+                                } catch (error) {
+                                    console.error('Critical error in fetch:', error);
+                                    const select = document.getElementById('existing_accessory_select');
+                                    if (select) {
+                                        select.disabled = false;
+                                        select.innerHTML = '<option value="">-- Error Loading Accessories --</option>';
+                                    }
+                                }
+                            }
+                            
+                            // Function to handle existing accessory form submission
+                            window.submitExistingAccessoryForm = function(event) {
+                                event.preventDefault();
+                                console.log("Form submission detected for existing accessory");
+                                
+                                // Get form data
+                                const form = event.target;
+                                const accessoryId = document.getElementById('existing_accessory_select').value;
+                                // Get quantity from input
+                                const quantity = parseInt(document.getElementById('accessory_quantity_input').value);
+                                const condition = document.querySelector('#existingAccessoryForm select[name="accessory_condition"]').value;
+                                const notes = document.querySelector('#existingAccessoryForm textarea[name="accessory_notes"]').value;
+                                
+                                // Validation
+                                if (!accessoryId || accessoryId === "") {
+                                    alert("Please select an accessory");
+                                    return;
+                                }
+                                
+                                if (isNaN(quantity) || quantity < 1) {
+                                    alert("Quantity must be at least 1");
+                                    return;
+                                }
+                                
+                                console.log(`Submitting: Accessory ID=${accessoryId}, Quantity=${quantity}, Condition=${condition}`);
+                                
+                                // Create the data to send - matching what the server expects
+                                const formData = {
+                                    existing_accessory_id: accessoryId,
+                                    accessory_quantity: quantity,
+                                    accessory_condition: condition,
+                                    accessory_notes: notes
+                                };
+                                
+                                // Show loading indicator
+                                const submitButton = form.querySelector('button[type="submit"]');
+                                const originalText = submitButton.textContent;
+                                submitButton.disabled = true;
+                                submitButton.textContent = "Processing...";
+                                
+                                // Send the data via AJAX
+                                fetch(`/tickets/{{ ticket.id }}/add-accessory`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfToken,
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: JSON.stringify(formData)
+                                })
+                                .then(response => {
+                                    console.log("Response status:", response.status);
+                                    // Check if response is ok before trying to parse JSON
+                                    if (response.ok) {
+                                        return response.json();
+                                    } else {
+                                        // For error responses, just get the text
+                                        return response.text().then(text => {
+                                            // Try to parse JSON error response if possible
+                                            try {
+                                                return JSON.parse(text);
+                                            } catch (e) {
+                                                // If not JSON, return simple error object
+                                                throw new Error(`HTTP error! Status: ${response.status}, Message: ${text || "Unknown error"}`);
+                                            }
+                                        });
+                                    }
+                                })
+                                .then(data => {
+                                    console.log("Form submission response:", data);
+                                    if (data.success) {
+                                        // Show success message
+                                        alert(`Successfully added ${quantity} ${data.accessory ? data.accessory.name : 'accessory'} to the ticket`);
+                                        
+                                        // Clear the form
+                                        form.reset();
+                                        
+                                        // Reload the page to show the updated accessories list
+                                        window.location.reload();
+                                    } else {
+                                        alert("Error: " + (data.message || "Unknown error occurred"));
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error("Error submitting form:", error);
+                                    alert(`Error: ${error.message || "Unknown error occurred"}`);
+                                })
+                                .finally(() => {
+                                    // Re-enable the button
+                                    submitButton.disabled = false;
+                                    submitButton.textContent = originalText;
+                                });
+                            };
+                            
+                            // Call loadAccessories right away on page load
+                            console.log("Calling loadAccessories() immediately");
+                            loadAccessories();
+                            
+                            // Also set up DOMContentLoaded event just in case
+                            document.addEventListener('DOMContentLoaded', function() {
+                                console.log("DOMContentLoaded: Calling loadAccessories() again");
+                                loadAccessories();
+                            });
+                        </script>
+                    </div>
+                    
+                    {% endif %}
+                </div>
+
+                <!-- Comments Section - Tab Content -->
+                <div id="comments" class="sf-tab-content" style="display: none;">
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <h2 class="sf-card-title">Case Comments</h2>
+                            <div class="text-xs text-gray-500">
+                                <!-- Comment count info -->
+                                Comments count: {{ comments|length }}
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <!-- Comments Form -->
+                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" class="mb-6">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="mb-3">
+                                    <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Add a Comment</label>
+                                    <textarea id="message" name="message" rows="4" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter your comment here..."></textarea>
+                                </div>
+                                <div class="flex justify-end">
+                                    <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        Add Comment
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            
+                            <!-- Comments List -->
+                            <div class="space-y-4">
+                                {% if comments and comments|length > 0 %}
+                                    {% for comment in comments %}
+                                    <div class="border-b border-gray-200 pb-4 mb-4 last:border-0 last:mb-0 last:pb-0">
+                                        <div class="flex justify-between mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-medium text-gray-900">{{ comment.user.username if comment.user else 'Anonymous' }}</span>
+                                                <span class="text-sm text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-gray-700 whitespace-pre-wrap">{{ comment.content|safe }}</div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center text-gray-500 py-6">
+                                        No comments yet
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Section - Tab Content -->
+                <div id="documents" class="sf-tab-content" style="display: none;">
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <h2 class="sf-card-title">Attachments & Documents</h2>
+                        </div>
+                        <div class="sf-card-body">
+                            <!-- Document Upload Form -->
+                            <form method="POST" action="{{ url_for('tickets.upload_attachment', ticket_id=ticket.id) }}" enctype="multipart/form-data" class="mb-6">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="mb-3">
+                                    <label for="attachments" class="block text-sm font-medium text-gray-700 mb-1">Upload Documents</label>
+                                    <div class="flex flex-wrap items-center gap-3">
+                                        <input type="file" id="documentUpload" name="attachments" multiple class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv,.txt">
+                                        <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                            Upload Files
+                                        </button>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">
+                                        Upload PDF, images, or documents related to this ticket
+                                    </p>
+                                </div>
+                            </form>
+                            
+                            <!-- Documents List -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {% if ticket.attachments %}
+                                    {% for attachment in ticket.attachments %}
+                                    <div class="bg-gray-50 border border-gray-200 rounded-md overflow-hidden">
+                                        {% if attachment.file_type in ['pdf'] %}
+                                        <div class="p-4 flex items-center justify-between border-b border-gray-200">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                </svg>
+                                                <div class="truncate">
+                                                    <span class="text-sm font-medium text-gray-900">{{ attachment.original_filename }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <button
+                                                    data-pdf-url="{{ url_for('tickets.get_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}"
+                                                    onclick="previewPdf(this.getAttribute('data-pdf-url'))"
+                                                    class="text-blue-600 hover:text-blue-800 p-1">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                     </svg>
                                                 </button>
-                                                <button onclick="unlinkAsset('{{ asset.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                                                <a href="{{ url_for('tickets.get_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" download class="text-gray-600 hover:text-gray-800 p-1">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                    </svg>
+                                                </a>
+                                                <button onclick="deleteAttachment('{{ attachment.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800 p-1">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                     </svg>
                                                 </button>
                                             </div>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                        {% else %}
+                                        <div class="p-4 flex items-center justify-between border-b border-gray-200">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                </svg>
+                                                <div class="truncate">
+                                                    <span class="text-sm font-medium text-gray-900">{{ attachment.original_filename }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <a href="{{ url_for('tickets.get_attachment', ticket_id=ticket.id, attachment_id=attachment.id) }}" download class="text-gray-600 hover:text-gray-800 p-1">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                    </svg>
+                                                </a>
+                                                <button onclick="deleteAttachment('{{ attachment.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800 p-1">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="text-xs text-gray-500 p-2">
+                                            <div>Uploaded {{ attachment.created_at.strftime('%Y-%m-%d %H:%M') if attachment.created_at else 'Unknown date' }}</div>
+                                            <div>{{ attachment.file_size | filesizeformat if attachment.file_size else 'Unknown size' }}</div>
+                                        </div>
+                                    </div>
                                     {% endfor %}
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this case</td>
-                                    </tr>
-                                    {% endif %}
-                                </tbody>
-                            </table>
+                                {% else %}
+                                    <div class="col-span-full text-center text-gray-500 py-6">
+                                        No documents attached to this ticket
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
-        <!-- Outbound Tracking Card -->
-        <div class="sf-card mb-6">
-            <div class="sf-card-header">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <h2 class="sf-card-title">Outbound Tracking</h2>
-                        {% if ticket.shipping_status %}
-                        <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
-                            {{ ticket.shipping_status }}
-                        </span>
-                        {% endif %}
+            <!-- PDF Preview Modal -->
+            <div id="pdfPreviewModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg w-full max-w-5xl max-h-screen overflow-hidden flex flex-col">
+                    <div class="p-4 bg-gray-100 flex justify-between items-center border-b border-gray-200">
+                        <h3 id="previewTitle" class="text-lg font-medium text-gray-900">PDF Preview</h3>
+                        <div class="flex items-center gap-2">
+                            <a id="pdfDownloadBtn" href="#" download class="text-gray-600 hover:text-gray-800 p-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                            </a>
+                            <button onclick="closePdfPreview()" class="text-gray-600 hover:text-gray-800 p-1">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                    {% if ticket.shipping_status != 'Received' %}
-                    <button class="sf-button" onclick="markOutboundAsReceived('{{ ticket.id }}')">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Mark as Received
-                    </button>
-                    {% endif %}
-                    <button class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                        </svg>
-                        Add Tracking
-                    </button>
+                    <div class="flex-1 overflow-auto">
+                        <iframe id="pdfViewer" src="" width="100%" height="800" style="border: none;"></iframe>
                     </div>
                 </div>
             </div>
-            <div class="sf-card-body">
-                <div class="p-4">
-                    {% if ticket.shipping_tracking %}
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <div class="text-sm text-gray-500">Tracking Number</div>
-                            <div class="font-medium">{{ ticket.shipping_tracking }}</div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500">Carrier</div>
-                            <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500">Status</div>
-                            <div class="font-medium">{{ ticket.shipping_status }}</div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-gray-500 py-4">
-                        No outbound tracking information available
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Return Tracking Card -->
-        <div class="sf-card mb-6">
-            <div class="sf-card-header">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <h2 class="sf-card-title">Return Tracking</h2>
-                        {% if ticket.return_status %}
-                        <span class="sf-badge {% if ticket.return_status == 'Delivered' %}sf-badge-success{% elif ticket.return_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
-                            {{ ticket.return_status }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    <div>
-                    {% if ticket.return_status != 'Received' %}
-                    <button class="sf-button" onclick="markReturnAsReceived('{{ ticket.id }}')">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Mark as Received
-                    </button>
-                    {% endif %}
-                    <button class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                        </svg>
-                        Add Tracking
-                    </button>
-                    </div>
-                </div>
-            </div>
-            <div class="sf-card-body">
-                <div class="p-4">
-                    {% if ticket.return_tracking %}
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <div class="text-sm text-gray-500">Tracking Number</div>
-                            <div class="font-medium">{{ ticket.return_tracking }}</div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500">Carrier</div>
-                            <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500">Status</div>
-                            <div class="font-medium">{{ ticket.return_status }}</div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-gray-500 py-4">
-                        No return tracking information available
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
             <!-- Add Asset Modal -->
             <div id="assetModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
@@ -845,8 +1622,8 @@
                         <button type="button" class="text-gray-400 hover:text-gray-500" onclick="hideAssetModal()">
                             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                            </svg>
+                        </button>
                     </div>
                     <div class="p-6">
                         <form id="assetForm" class="space-y-6" method="POST" action="{{ url_for('inventory.add_asset') }}" enctype="multipart/form-data">
@@ -1032,201 +1809,319 @@
                         <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="hideAssetModal()">
                             Cancel
                         </button>
-                        <button type="button" id="assetSubmitBtn" onclick="submitAssetForm()" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center">
+                        <button type="button" id="assetSubmitBtn" onclick="submitAssetForm()" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center">
                             Add Asset
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Add Shipment Modal -->
-        <div id="addShipmentModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-                </div>
+            <!-- Add Shipment Modal -->
+            <div id="addShipmentModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    </div>
 
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                                </svg>
-                            </div>
-                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                    Add Tracking Information
-                                </h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500">
-                                        Please enter the tracking number and select the carrier for this shipment.
-                                    </p>
+                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <div class="sm:flex sm:items-start">
+                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                    </svg>
+                                </div>
+                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        Add Tracking Information
+                                    </h3>
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-500">
+                                            Please enter the tracking number and select the carrier for this shipment.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
+                            
+                            <form id="addShipmentForm" class="mt-4 space-y-4">
+                                <div>
+                                    <label for="tracking_number" class="block text-sm font-medium text-gray-700">Tracking Number</label>
+                                    <input type="text" id="tracking_number" name="tracking_number" required 
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label for="carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                    <select id="carrier" name="carrier" required
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="auto">Auto-Detect</option>
+                                        <option value="singpost">SingPost</option>
+                                        <option value="dhl">DHL</option>
+                                        <option value="ups">UPS</option>
+                                        <option value="bluedart">BlueDart</option>
+                                        <option value="dtdc">DTDC</option>
+                                    </select>
+                                </div>
+                            </form>
                         </div>
                         
-                        <form id="addShipmentForm" class="mt-4 space-y-4">
-                            <div>
-                                <label for="tracking_number" class="block text-sm font-medium text-gray-700">Tracking Number</label>
-                                <input type="text" id="tracking_number" name="tracking_number" required 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-                            <div>
-                                <label for="carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                                <select id="carrier" name="carrier" required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="auto">Auto-Detect</option>
-                                    <option value="singpost">SingPost</option>
-                                    <option value="dhl">DHL</option>
-                                    <option value="ups">UPS</option>
-                                    <option value="bluedart">BlueDart</option>
-                                    <option value="dtdc">DTDC</option>
-                                </select>
-                            </div>
-                        </form>
+                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                            <button type="submit" form="addShipmentForm" 
+                                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                Add Shipment
+                            </button>
+                            <button type="button" onclick="hideAddShipmentModal()"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                    
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="submit" form="addShipmentForm" 
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                            Add Shipment
-                        </button>
-                        <button type="button" onclick="hideAddShipmentModal()"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                </div>
+            </div>
+
+            <!-- Add Return Tracking Modal -->
+            <div id="addReturnTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    </div>
+
+                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <div class="sm:flex sm:items-start">
+                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                    </svg>
+                                </div>
+                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        Add Return Tracking Information
+                                    </h3>
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-500">
+                                            Please enter the return tracking number and select the carrier for this return shipment.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <form id="addReturnTrackingForm" class="mt-4 space-y-4">
+                                <div>
+                                    <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
+                                    <input type="text" id="return_tracking_number" name="return_tracking_number" required 
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                </div>
+                                <div>
+                                    <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                    <select id="return_carrier" name="return_carrier" required
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                        <option value="auto">Auto-Detect</option>
+                                        <option value="singpost">SingPost</option>
+                                        <option value="dhl">DHL</option>
+                                        <option value="ups">UPS</option>
+                                        <option value="bluedart">BlueDart</option>
+                                        <option value="dtdc">DTDC</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                            <button type="button" id="submitReturnTrackingBtn" 
+                                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                Add Return Tracking
+                            </button>
+                            <button type="button" onclick="hideAddReturnTrackingModal()"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Outbound Tracking Modal -->
+            <div id="addOutboundTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
+                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    </div>
+
+                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <div class="sm:flex sm:items-start">
+                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                    </svg>
+                                </div>
+                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        Add Outbound Tracking Information
+                                    </h3>
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-500">
+                                            Please enter the outbound tracking number and select the carrier for this shipment.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <form id="addOutboundTrackingForm" class="mt-4 space-y-4">
+                                <div>
+                                    <label for="outbound_tracking_number" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
+                                    <input type="text" id="outbound_tracking_number" name="outbound_tracking_number" required 
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label for="outbound_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
+                                    <select id="outbound_carrier" name="outbound_carrier" required
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="auto">Auto-Detect</option>
+                                        <option value="singpost">SingPost</option>
+                                        <option value="dhl">DHL</option>
+                                        <option value="ups">UPS</option>
+                                        <option value="bluedart">BlueDart</option>
+                                        <option value="dtdc">DTDC</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                            <button type="button" id="submitOutboundTrackingBtn" 
+                                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                Add Outbound Tracking
+                            </button>
+                            <button type="button" onclick="hideAddOutboundTrackingModal()"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                             Cancel
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Add Return Tracking Modal -->
-        <div id="addReturnTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-                </div>
-
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                                </svg>
-                            </div>
-                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                    Add Return Tracking Information
-                                </h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500">
-                                        Please enter the return tracking number and select the carrier for this return shipment.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <form id="addReturnTrackingForm" class="mt-4 space-y-4">
-                            <div>
-                                <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
-                                <input type="text" id="return_tracking_number" name="return_tracking_number" required 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                            </div>
-                            <div>
-                                <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                                <select id="return_carrier" name="return_carrier" required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                                    <option value="auto">Auto-Detect</option>
-                                    <option value="singpost">SingPost</option>
-                                    <option value="dhl">DHL</option>
-                                    <option value="ups">UPS</option>
-                                    <option value="bluedart">BlueDart</option>
-                                    <option value="dtdc">DTDC</option>
-                                </select>
-                            </div>
-                        </form>
+            <!-- Replace the Add Accessory Modal with a simpler implementation -->
+            <div id="simpleAccessoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10000;">
+                <div style="background-color: white; width: 90%; max-width: 500px; margin: 50px auto; padding: 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <h3 style="font-size: 18px; font-weight: bold; margin: 0;">Add Accessory</h3>
+                        <button onclick="closeSimpleModal()" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
                     </div>
                     
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" id="submitReturnTrackingBtn" 
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
-                            Add Return Tracking
-                        </button>
-                        <button type="button" onclick="hideAddReturnTrackingModal()"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                            Cancel
-                        </button>
-                    </div>
+                    <form id="simpleAccessoryForm" method="POST" action="{{ url_for('tickets.add_accessory', ticket_id=ticket.id) | replace('/add_accessory', '/add-accessory') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Accessory Name</label>
+                            <input type="text" id="simple_accessory_name" name="accessory_name" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+                            <select id="simple_accessory_category" name="accessory_category" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">-- Select Category --</option>
+                                <option value="Keyboard">Keyboard</option>
+                                <option value="Mouse">Mouse</option>
+                                <option value="Cable">Cable</option>
+                                <option value="Adapter">Adapter</option>
+                                <option value="Power Brick">Power Brick</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity</label>
+                            <input type="number" id="simple_accessory_quantity" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                            <select id="simple_accessory_condition" name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="Good">Good</option>
+                                <option value="Fair">Fair</option>
+                                <option value="Poor">Poor</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                            <textarea id="simple_accessory_notes" name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="closeSimpleModal()" style="padding: 8px 15px; background-color: #f1f1f1; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                            <button type="submit" style="padding: 8px 15px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Accessory</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
 
-        <!-- Add Outbound Tracking Modal -->
-        <div id="addOutboundTrackingModal" class="fixed inset-0 overflow-y-auto hidden z-50">
-            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-                </div>
-
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                                </svg>
-                            </div>
-                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                    Add Outbound Tracking Information
-                                </h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500">
-                                        Please enter the outbound tracking number and select the carrier for this shipment.
-                                    </p>
+            <!-- Edit Accessory Modal -->
+            <div id="editAccessoryModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <!-- Background overlay -->
+                    <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    </div>
+                    
+                    <!-- Modal panel -->
+                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <div class="sm:flex sm:items-start">
+                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                                        Edit Accessory
+                                    </h3>
+                                    <div class="mt-2">
+                                        <input type="hidden" id="edit_accessory_id">
+                                        <div class="mb-4">
+                                            <label for="edit_accessory_name" class="block text-sm font-medium text-gray-700">Accessory Name</label>
+                                            <input type="text" id="edit_accessory_name" name="edit_accessory_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="edit_accessory_category" class="block text-sm font-medium text-gray-700">Category</label>
+                                            <select id="edit_accessory_category" name="edit_accessory_category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="Charger">Charger</option>
+                                                <option value="Cable">Cable</option>
+                                                <option value="Case">Case</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="edit_accessory_quantity" class="block text-sm font-medium text-gray-700">Quantity</label>
+                                            <input type="number" id="edit_accessory_quantity" name="edit_accessory_quantity" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="edit_accessory_condition" class="block text-sm font-medium text-gray-700">Condition</label>
+                                            <select id="edit_accessory_condition" name="edit_accessory_condition" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="Good">Good</option>
+                                                <option value="Fair">Fair</option>
+                                                <option value="Poor">Poor</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="edit_accessory_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                            <textarea id="edit_accessory_notes" name="edit_accessory_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <form id="addOutboundTrackingForm" class="mt-4 space-y-4">
-                            <div>
-                                <label for="outbound_tracking_number" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
-                                <input type="text" id="outbound_tracking_number" name="outbound_tracking_number" required 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-                            <div>
-                                <label for="outbound_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
-                                <select id="outbound_carrier" name="outbound_carrier" required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="auto">Auto-Detect</option>
-                                    <option value="singpost">SingPost</option>
-                                    <option value="dhl">DHL</option>
-                                    <option value="ups">UPS</option>
-                                    <option value="bluedart">BlueDart</option>
-                                    <option value="dtdc">DTDC</option>
-                                </select>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" id="submitOutboundTrackingBtn" 
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                            Add Outbound Tracking
-                        </button>
-                        <button type="button" onclick="hideAddOutboundTrackingModal()"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                            Cancel
-                        </button>
+                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                            <button type="button" id="updateAccessoryBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                Update Accessory
+                            </button>
+                            <button type="button" onclick="hideEditAccessoryModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1236,6 +2131,9 @@
 
 <!-- Add the JavaScript for the asset functionality -->
 <script>
+// Store ticket ID for use in JavaScript
+const ticketId = "{{ ticket.id }}";
+
 // Tech Asset Modal functions
 window.showAssetModal = function() {
     console.log('showAssetModal called');
@@ -1347,13 +2245,55 @@ function toggleAssignForm() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize collapsible sections
-    const hardwareSection = document.getElementById('hardwareSection');
-    const notesSection = document.getElementById('notesSection');
+    console.log("Initializing simple tab system");
     
-    // Initially collapse sections
-    if (hardwareSection) hardwareSection.classList.add('hidden');
-    if (notesSection) notesSection.classList.add('hidden');
+    // Get all tab links
+    const tabLinks = document.querySelectorAll('.sf-tab');
+    
+    // Add click handler to each tab link
+    tabLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent hash navigation
+            
+            // Get the target tab ID
+            const tabId = this.getAttribute('data-target');
+            // Skip tab debugging
+            
+            // Hide all tabs
+            document.querySelectorAll('.sf-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active class from all links
+            tabLinks.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show the selected tab
+            const selectedTab = document.getElementById(tabId);
+            if (selectedTab) {
+                selectedTab.classList.remove('hidden');
+                console.log("Tab displayed:", tabId);
+            }
+            
+            // Add active class to clicked link
+            this.classList.add('active');
+            
+            // Update URL hash
+            history.replaceState(null, null, '#' + tabId);
+        });
+    });
+    
+    // Initialize based on hash or default to 'details'
+    let tabId = window.location.hash.substring(1) || 'details';
+    const defaultTab = document.querySelector(`.sf-tab[data-target="${tabId}"]`) || 
+                        document.querySelector('.sf-tab[data-target="details"]');
+    
+    // Simulate click on default tab
+    if (defaultTab) {
+        console.log("Initializing default tab:", defaultTab.getAttribute('data-target'));
+        defaultTab.click();
+    }
 });
 
 function generateHardwareType() {
@@ -1493,7 +2433,7 @@ function submitAssetForm() {
                         </button>
                         <button onclick="unlinkAsset('${data.asset.id}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
                         </button>
                     </div>
@@ -1581,9 +2521,27 @@ function unlinkAsset(assetId, ticketId) {
 }
 
 function showNotification(message, type = 'success') {
-    // Implementation of showing notifications
-    // You can use your preferred notification system here
-    alert(message);
+    // Use notification div instead of alert
+    const notification = document.getElementById('notification');
+    if (notification) {
+        // Create notification content
+        notification.innerHTML = `
+            <div class="bg-${type === 'success' ? 'green' : 'red'}-100 border-l-4 border-${type === 'success' ? 'green' : 'red'}-500 text-${type === 'success' ? 'green' : 'red'}-700 p-4 rounded shadow-md">
+                <p>${message}</p>
+            </div>
+        `;
+        
+        // Show notification
+        notification.classList.remove('hidden');
+        
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 3000);
+    } else {
+        // Fallback to alert if notification div is not found
+        alert(message);
+    }
 }
 
 function handleModelChange(input) {
@@ -1620,6 +2578,47 @@ function handleModelChange(input) {
     }
 }
 
+// PDF preview functionality
+window.previewPdf = function(url) {
+    document.getElementById('pdfViewer').src = url;
+    document.getElementById('pdfPreviewModal').classList.remove('hidden');
+    document.getElementById('previewTitle').textContent = 'PDF Preview';
+    document.getElementById('pdfDownloadBtn').href = url;
+};
+
+window.closePdfPreview = function() {
+    document.getElementById('pdfPreviewModal').classList.add('hidden');
+    // Clear the iframe source when closing to stop PDF rendering
+    document.getElementById('pdfViewer').src = '';
+};
+
+function deleteAttachment(attachmentId, ticketId) {
+    if (confirm('Are you sure you want to delete this document?')) {
+        fetch(`/tickets/${ticketId}/attachment/${attachmentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add a parameter to prevent infinite refreshes
+                const separator = window.location.href.includes('?') ? '&' : '?';
+                window.location.href = window.location.href + separator + 'refreshed=true';
+            } else {
+                alert('Error deleting document: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document');
+        });
+    }
+}
+
 // Tracking Modal Functions
 function showAddOutboundTrackingModal() {
     const modal = document.getElementById('addOutboundTrackingModal');
@@ -1651,6 +2650,21 @@ function hideAddReturnTrackingModal() {
 
 // Initialize tracking form submissions
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize global variables that might be used elsewhere
+    window.showLoading = function() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.classList.remove('hidden');
+        }
+    };
+    
+    window.hideLoading = function() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+        }
+    };
+    
     // Outbound tracking form submission
     const outboundTrackingBtn = document.getElementById('submitOutboundTrackingBtn');
     if (outboundTrackingBtn) {
@@ -1742,6 +2756,134 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    // Accessory form submission
+    const submitAccessoryBtn = document.getElementById('submitAccessoryBtn');
+    console.log('Submit accessory button element:', submitAccessoryBtn);
+    if (submitAccessoryBtn) {
+        submitAccessoryBtn.addEventListener('click', function() {
+            console.log('Submit accessory button clicked');
+            const name = document.getElementById('accessory_name').value;
+            const category = document.getElementById('accessory_category').value;
+            const quantity = document.getElementById('accessory_quantity').value;
+            const condition = document.getElementById('accessory_condition').value;
+            const notes = document.getElementById('accessory_notes').value;
+            
+            console.log('Form values:', { name, category, quantity, condition, notes });
+            
+            if (!name) {
+                alert('Please enter an accessory name');
+                return;
+            }
+            
+            if (!category) {
+                alert('Please select a category');
+                return;
+            }
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            console.log('CSRF token found:', !!csrfToken);
+            
+            // Submit form data
+            console.log('Submitting form data to endpoint:', `/tickets/${ticketId}/add-accessory`);
+            fetch(`/tickets/${ticketId}/add-accessory`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    category: category,
+                    quantity: quantity,
+                    condition: condition,
+                    notes: notes
+                })
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    hideAddAccessoryModal();
+                    showNotification('Accessory added successfully', 'success');
+                    // Reload page to show new accessory
+                    window.location.reload();
+                } else {
+                    showNotification(data.error || 'Failed to add accessory', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'error');
+            });
+        });
+    } else {
+        // Silently ignore if button is not found
+    }
+    
+    // Update accessory form submission
+    const updateAccessoryBtn = document.getElementById('updateAccessoryBtn');
+    if (updateAccessoryBtn) {
+        updateAccessoryBtn.addEventListener('click', function() {
+            const accessoryId = document.getElementById('edit_accessory_id').value;
+            const name = document.getElementById('edit_accessory_name').value;
+            const category = document.getElementById('edit_accessory_category').value;
+            // Get quantity from input
+            const quantity = document.getElementById('edit_accessory_quantity').value;
+            const condition = document.getElementById('edit_accessory_condition').value;
+            const notes = document.getElementById('edit_accessory_notes').value;
+            
+            if (!name) {
+                alert('Please enter an accessory name');
+                return;
+            }
+            
+            if (!category) {
+                alert('Please select a category');
+                return;
+            }
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Submit form data
+            fetch(`/tickets/{{ ticket.id }}/accessory/${accessoryId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    category: category,
+                    quantity: quantity,
+                    condition: condition,
+                    notes: notes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    hideEditAccessoryModal();
+                    showNotification('Accessory updated successfully', 'success');
+                    // Reload page to show updated accessory
+                    window.location.reload();
+                } else {
+                    showNotification(data.error || 'Failed to update accessory', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'error');
+            });
+        });
+    }
 });
 
 // Mark tracking as received functions
@@ -1812,6 +2954,370 @@ function markReturnAsReceived(ticketId) {
         });
     }
 }
+
+// Accessory Modal Functions
+function showAddAccessoryModal() {
+    const modal = document.getElementById('addAccessoryModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+}
+
+function hideAddAccessoryModal() {
+    const modal = document.getElementById('addAccessoryModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function showEditAccessoryModal() {
+    const modal = document.getElementById('editAccessoryModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+}
+
+function hideEditAccessoryModal() {
+    const modal = document.getElementById('editAccessoryModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+let isEditingAccessory = false;
+
+function editAccessory(accessoryId) {
+    if (isEditingAccessory) {
+        console.log('Already editing an accessory, ignoring request');
+        return;
+    }
+    
+    console.log('Editing accessory:', accessoryId);
+    isEditingAccessory = true;
+    
+    // Get accessory data
+    fetch(`/tickets/{{ ticket.id }}/accessory/${accessoryId}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Accessory data:', data);
+        if (data.success) {
+            const accessory = data.accessory;
+            
+            // Populate form with accessory data
+            document.getElementById('edit_accessory_id').value = accessory.id;
+            document.getElementById('edit_accessory_name').value = accessory.name;
+            document.getElementById('edit_accessory_category').value = accessory.category;
+            document.getElementById('edit_accessory_quantity').value = accessory.quantity;
+            document.getElementById('edit_accessory_condition').value = accessory.condition;
+            document.getElementById('edit_accessory_notes').value = accessory.notes || '';
+            
+            // Show modal
+            const modal = document.getElementById('editAccessoryModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } else {
+                console.error('Edit accessory modal not found');
+                showNotification('Error: Modal not found', 'error');
+            }
+        } else {
+            showNotification(data.message || 'Failed to get accessory data', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An unexpected error occurred', 'error');
+    })
+    .finally(() => {
+        isEditingAccessory = false;
+    });
+}
+
+function removeAccessory(accessoryId, ticketId) {
+    if (confirm('Are you sure you want to remove this accessory?')) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Submit remove request
+        fetch(`/tickets/${ticketId}/accessory/${accessoryId}/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Accessory removed successfully', 'success');
+                // Reload page to update UI
+                window.location.reload();
+            } else {
+                showNotification(data.message || 'Failed to remove accessory', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+    }
+}
 </script>
 
-{% endblock %} 
+<!-- Simple tab system - Added at the end of the page -->
+<script>
+// Simple modal functions
+function openSimpleModal() {
+    document.getElementById('simpleAccessoryModal').style.display = 'block';
+    console.log('Simple modal opened');
+}
+
+function closeSimpleModal() {
+    document.getElementById('simpleAccessoryModal').style.display = 'none';
+    console.log('Simple modal closed');
+}
+
+// Wait for the DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug modal existence
+    console.log('Checking modal existence...');
+    const simpleModal = document.getElementById('simpleAccessoryModal');
+    console.log('Simple modal exists:', !!simpleModal);
+    if (simpleModal) {
+        console.log('Modal element found with ID simpleAccessoryModal');
+    } else {
+        console.error('Modal element NOT found with ID simpleAccessoryModal');
+        // Try to find all elements that might be the modal
+        const allDivs = document.querySelectorAll('div');
+        console.log('Total divs:', allDivs.length);
+        const possibleModals = Array.from(allDivs).filter(div => 
+            div.id && div.id.toLowerCase().includes('modal'));
+        console.log('Possible modal divs:', possibleModals.map(m => m.id));
+    }
+    
+    // Fix accessory modal issue once and for all
+    const addAccessoryModal = document.getElementById('addAccessoryModal');
+    
+    // Find the Add Accessory button more reliably
+    let addAccessoryBtn = null;
+    const buttons = document.querySelectorAll('button.sf-button.primary-button');
+    buttons.forEach(button => {
+        if (button.textContent.trim().includes('Add Accessory')) {
+            addAccessoryBtn = button;
+        }
+    });
+    
+    if (addAccessoryBtn) {
+        console.log('Found Add Accessory button, adding direct event listener');
+        // Remove existing onclick handler and add new event listener
+        addAccessoryBtn.removeAttribute('onclick');
+        addAccessoryBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Add Accessory button clicked via event listener');
+            
+            if (addAccessoryModal) {
+                console.log('Showing accessory modal');
+                addAccessoryModal.style.display = 'block';
+                addAccessoryModal.style.zIndex = '9999';
+                addAccessoryModal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } else {
+                console.error('Modal element not found!');
+            }
+            return false;
+        });
+    } else {
+        console.warn('Add Accessory button not found');
+    }
+    
+    // Initialize global variables that might be used elsewhere
+    window.showLoading = function() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.classList.remove('hidden');
+        }
+    };
+    
+    window.hideLoading = function() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+        }
+    };
+    
+    // Basic tab switching function - extremely minimal
+    function setupTabs() {
+        // Get tab links
+        var tabLinks = document.querySelectorAll('.sf-tab');
+        
+        // Add click handlers to each tab
+        tabLinks.forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent hash navigation
+                
+                var targetId = this.getAttribute('data-target');
+                
+                // 1. Hide all tabs
+                document.querySelectorAll('.sf-tab-content').forEach(function(tab) {
+                    tab.style.display = 'none';
+                });
+                
+                // 2. Remove active class from all links
+                tabLinks.forEach(function(tab) {
+                    tab.classList.remove('active');
+                });
+                
+                // 3. Show selected tab
+                var targetTab = document.getElementById(targetId);
+                if (targetTab) {
+                    targetTab.style.display = 'block';
+                }
+                
+                // 4. Add active class to clicked link
+                this.classList.add('active');
+            });
+        });
+        
+        // Initialize - click the first tab or the one in the hash
+        var initialTab = document.querySelector('.sf-tab');
+            
+        if (initialTab) {
+            initialTab.click();
+        }
+    }
+    
+    // Run setup
+    setupTabs();
+});
+</script>
+{% endblock %}
+
+<!-- Debug button for accessory modal (will be removed after fixing) -->
+<div style="position: fixed; bottom: 10px; right: 10px; z-index: 10001;">
+    <button id="debugOpenModal" style="padding: 10px; background-color: #ff5722; color: white; font-weight: bold; border-radius: 4px;">
+        Go to Accessory Form
+    </button>
+</div>
+
+<script>
+    // Direct debug function to open the modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const debugBtn = document.getElementById('debugOpenModal');
+        if (debugBtn) {
+            debugBtn.addEventListener('click', function() {
+                console.log('Debug button clicked - scrolling to form');
+                const formSection = document.getElementById('directAccessorySection');
+                if (formSection) {
+                    formSection.scrollIntoView({behavior: 'smooth'});
+                    // Highlight the form section
+                    formSection.style.boxShadow = '0 0 20px rgba(255, 87, 34, 0.8)';
+                    setTimeout(() => {
+                        formSection.style.boxShadow = 'none';
+                    }, 2000);
+                } else {
+                    console.error('Form section not found');
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Add simple modal functions -->
+<script>
+function openSimpleModal() {
+    document.getElementById('simpleAccessoryModal').style.display = 'block';
+    console.log('Simple modal opened');
+}
+
+function closeSimpleModal() {
+    document.getElementById('simpleAccessoryModal').style.display = 'none';
+    console.log('Simple modal closed');
+}
+</script>
+
+<!-- Simple tab system - Added at the end of the page -->
+</script>
+
+<script>
+// Call loadAccessories right away on page load
+console.log("Calling loadAccessories() immediately");
+loadAccessories();
+
+// Also set up DOMContentLoaded event just in case
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOMContentLoaded: Calling loadAccessories() again");
+    loadAccessories();
+});
+
+// Store the quantities of accessories to track updates
+const accessoryQuantities = {};
+
+// Function to update the accessory table with new data
+function updateAccessoryTable(accessory) {
+    const tableBody = document.getElementById('accessoryTableBody');
+    
+    // Check if there's a "No accessories" row that needs to be removed
+    const noAccessoriesRow = tableBody.querySelector('tr td[colspan="5"]');
+    if (noAccessoriesRow) {
+        tableBody.innerHTML = '';
+    }
+    
+    // Check if the accessory already exists in the table
+    const existingRow = Array.from(tableBody.querySelectorAll('tr')).find(row => {
+        const accessoryIdCell = row.querySelector('td[data-accessory-id]');
+        return accessoryIdCell && accessoryIdCell.dataset.accessoryId === accessory.id.toString();
+    });
+    
+    if (existingRow) {
+        // Update existing row
+        const quantityCell = existingRow.querySelector('td:nth-child(3)');
+        const currentQuantity = parseInt(quantityCell.textContent);
+        quantityCell.textContent = currentQuantity + accessory.quantity;
+    } else {
+        // Create new row
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td data-accessory-id="${accessory.id}">${accessory.name}</td>
+            <td>${accessory.category}</td>
+            <td>${accessory.quantity}</td>
+            <td>
+                <span class="sf-badge ${accessory.condition === 'Good' ? 'sf-badge-success' : accessory.condition === 'Fair' ? 'sf-badge-warning' : 'sf-badge-danger'}">
+                    ${accessory.condition}
+                </span>
+            </td>
+            <td>
+                <div class="flex gap-2">
+                    <button onclick="editAccessory('${accessory.id}')" class="text-blue-600 hover:text-blue-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                    <button onclick="removeAccessory('${accessory.id}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(newRow);
+    }
+}

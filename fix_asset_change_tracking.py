@@ -10,8 +10,8 @@ from datetime import datetime
 def fix_asset_edit_route():
     print("Fixing asset change tracking logic...")
     
-    # Path to the routes file
-    routes_path = '/home/nicway2/inventory/routes/inventory.py'
+    # Path to the routes file - use current directory for local development
+    routes_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'routes', 'inventory.py')
     
     if not os.path.exists(routes_path):
         print(f"Error: Routes file not found at {routes_path}")
@@ -21,11 +21,10 @@ def fix_asset_edit_route():
     with open(routes_path, 'r') as f:
         content = f.read()
     
-    # Look for the track_change section in the edit_asset route
-    # We'll identify this by searching for the pattern where changes are collected and the history entry is created
-    pattern = r'(changes = \{\}.*?if changes:.*?history_entry = asset\.track_change\(.*?\))'
+    # Look for the specific pattern where the edit_asset route builds the changes dictionary
+    pattern = re.compile(r'(# Track changes\s+changes = \{\}\s+for field in old_values[^\n]+\s+new_value = getattr\(asset, field\).*?db_session\.add\(history_entry\))', re.DOTALL)
     
-    match = re.search(pattern, content, re.DOTALL)
+    match = pattern.search(content)
     if not match:
         print("Could not locate the change tracking code in the edit_asset route.")
         return False
@@ -34,7 +33,8 @@ def fix_asset_edit_route():
     old_code = match.group(1)
     
     # Create improved code that properly handles None values and empty changes
-    new_code = '''changes = {}
+    new_code = """# Track changes
+                changes = {}
                 for field in old_values:
                     new_value = getattr(asset, field)
                     if isinstance(new_value, AssetStatus):
@@ -57,7 +57,7 @@ def fix_asset_edit_route():
                         changes=changes,
                         notes=f"Asset updated by {current_user.username}"
                     )
-                    db_session.add(history_entry)'''
+                    db_session.add(history_entry)"""
     
     # Replace the old code with the new code
     new_content = content.replace(old_code, new_code)

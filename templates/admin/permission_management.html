@@ -13,19 +13,19 @@
 
         <!-- Permissions Management Section -->
         {% if user.is_super_admin %}
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">User Type Permissions</h2>
-            
+        <div class="space-y-6">
             {% for permission in permissions %}
-            <div class="mb-8 border-b pb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium">{{ permission.user_type.value }}</h3>
-                    <form action="{{ url_for('admin.reset_permissions', user_type=permission.user_type.name) }}" method="POST" class="inline">
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">{{ permission.user_type.value }} Permissions</h2>
+                
+                <!-- Reset permissions button -->
+                <div class="mb-4">
+                    <form action="{{ url_for('admin.reset_permissions', user_type=permission.user_type.name) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to reset permissions to default values? This cannot be undone.');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="text-sm text-blue-600 hover:text-blue-800">Reset to Default</button>
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-800">Reset to Default</button>
                     </form>
                 </div>
-
+                
                 <form action="{{ url_for('admin.update_permissions') }}" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="user_type" value="{{ permission.user_type.name }}">
@@ -136,6 +136,31 @@
                             </label>
                         </div>
 
+                        <!-- Ticket Permissions -->
+                        <div class="space-y-2">
+                            <h4 class="font-medium text-gray-700">Ticket Management</h4>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_view_tickets" value="true" {% if permission.can_view_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">View Tickets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_edit_tickets" value="true" {% if permission.can_edit_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Edit Tickets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_delete_tickets" value="true" {% if permission.can_delete_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Delete All Tickets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_delete_own_tickets" value="true" {% if permission.can_delete_own_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Delete Own Tickets</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_create_tickets" value="true" {% if permission.can_create_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Create Tickets</span>
+                            </label>
+                        </div>
+
                         <!-- Other Permissions -->
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Other Permissions</h4>
@@ -171,13 +196,13 @@
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <div class="flex">
                 <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                     </svg>
                 </div>
                 <div class="ml-3">
                     <p class="text-sm text-yellow-700">
-                        You need to be a Super Admin to manage permissions.
+                        You need Super Admin privileges to manage permissions.
                     </p>
                 </div>
             </div>

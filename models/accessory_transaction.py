@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from models.base import Base
+import uuid
 
 class AccessoryTransaction(Base):
     """Model for accessory transactions"""
@@ -14,6 +15,8 @@ class AccessoryTransaction(Base):
     transaction_type = Column(String(50), nullable=False)  # checkout, checkin, etc.
     notes = Column(String(1000))
     transaction_date = Column(DateTime, default=datetime.utcnow)
+    transaction_number = Column(String(100))
+    quantity = Column(Integer, default=1)
     
     # Relationships
     accessory = relationship("Accessory", back_populates="transactions")
@@ -21,11 +24,12 @@ class AccessoryTransaction(Base):
     user = relationship("User")
     
     def __init__(self, accessory_id, transaction_type, quantity=1, transaction_number=None, 
-                 customer_id=None, notes=None, transaction_date=None):
+                 customer_id=None, user_id=None, notes=None, transaction_date=None):
         self.accessory_id = accessory_id
         self.transaction_type = transaction_type
         self.quantity = quantity
         self.customer_id = customer_id
+        self.user_id = user_id
         self.notes = notes
         
         # Generate a transaction number if not provided

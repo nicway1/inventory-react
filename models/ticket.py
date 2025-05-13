@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -126,6 +126,9 @@ class Ticket(Base):
     customer = relationship('CustomerUser', back_populates='tickets')
     attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
     tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
+    accessories = relationship('TicketAccessory', back_populates='ticket', cascade='all, delete-orphan')
+    # Remove non-existent relationships
+    # shipments, rma_pickups, and rma_replacements are not defined in the model
 
     @property
     def display_id(self):
@@ -167,4 +170,26 @@ class Ticket(Base):
     def assign_case_owner(self, user_id):
         """Assign ticket to a user"""
         self.assigned_to_id = user_id
-        self.updated_at = datetime.utcnow() 
+        self.updated_at = datetime.utcnow()
+
+class TicketAccessory(Base):
+    """Model for accessories received with Asset Return (Claw) tickets"""
+    __tablename__ = 'ticket_accessories'
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey('tickets.id'), nullable=False)
+    name = Column(String(200), nullable=False)
+    category = Column(String(100), nullable=False)  # e.g., Keyboard, Mouse, Cable, Adapter, etc.
+    quantity = Column(Integer, default=1)
+    condition = Column(String(50), default='Good')  # e.g., Good, Fair, Poor
+    notes = Column(Text)
+    original_accessory_id = Column(Integer, ForeignKey('accessories.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    ticket = relationship('Ticket', back_populates='accessories')
+    original_accessory = relationship('Accessory', foreign_keys=[original_accessory_id])
+
+    def __repr__(self):
+        return f"<TicketAccessory(id={self.id}, name='{self.name}', category='{self.category}')>" 

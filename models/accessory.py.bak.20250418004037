@@ -27,28 +27,6 @@ class Accessory(Base):
     customer_user = relationship("CustomerUser", back_populates="assigned_accessories")
     history = relationship("AccessoryHistory", back_populates="accessory", order_by="desc(AccessoryHistory.created_at)")
     transactions = relationship("AccessoryTransaction", back_populates="accessory", order_by="desc(AccessoryTransaction.transaction_date)")
-    
-    def track_change(self, user_id, action, changes, notes=None):
-        """Create a history entry for accessory changes
-        
-        Args:
-            user_id: ID of the user who made the change
-            action: Description of the action (e.g., "UPDATE", "STATUS_CHANGE")
-            changes: Dictionary of changes in the format {field: {'old': old_value, 'new': new_value}}
-            notes: Any additional notes about the change
-            
-        Returns:
-            AccessoryHistory object (not yet added to session)
-        """
-        from models.accessory_history import AccessoryHistory
-        
-        return AccessoryHistory(
-            accessory_id=self.id,
-            user_id=user_id,
-            action=action,
-            changes=changes,
-            notes=notes
-        )
 
     def to_dict(self):
         return {

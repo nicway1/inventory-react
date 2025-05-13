@@ -12,6 +12,29 @@
     
     // This will be replaced with the actual filtered count from the API for client users
     var initialTechAssetCount = {% if is_client %}0{% else %}{{ tech_assets_count }}{% endif %};
+    
+    // Initialize loadingIndicator variable to prevent "Cannot access before initialization" error
+    var loadingIndicator = null; // Will be set to DOM element later
+    
+    // Initialize when the document is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        loadingIndicator = document.getElementById('loadingIndicator');
+    });
+
+    // Safe loading indicator function that can be used immediately
+    function setLoading(isLoading) {
+        // Always get the most current reference to the element, or use the cached one if it exists
+        var indicator = loadingIndicator || document.getElementById('loadingIndicator');
+        
+        // Skip if indicator not found
+        if (!indicator) return;
+        
+        if (isLoading) {
+            indicator.classList.remove('hidden');
+        } else {
+            indicator.classList.add('hidden');
+        }
+    }
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -520,7 +543,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const maintenanceCount = document.getElementById('maintenanceCount');
     const errorAlert = document.getElementById('errorAlert');
     const errorMessage = document.getElementById('errorMessage');
-    const loadingIndicator = document.getElementById('loadingIndicator');
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const companyFilter = document.getElementById('companyFilter');
@@ -788,11 +810,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to show/hide loading indicator
     function setLoading(isLoading) {
-        if (isLoading) {
-            loadingIndicator.classList.remove('hidden');
-        } else {
-            loadingIndicator.classList.add('hidden');
-        }
+        // Use the global function defined earlier that safely handles the loading indicator
+        window.setLoading(isLoading);
     }
 
     // Function to handle fetch with CSRF token

@@ -406,6 +406,33 @@
                             <option value="ASSET_INTAKE">Asset Intake</option>
                             <option value="ASSET_CHECKOUT_DTDC">Asset Checkout (DTDC)</option>
                         </select>
+                        
+                        <div class="flex items-center ml-auto">
+                            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button mr-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Refresh
+                            </a>
+                            <a href="{{ url_for('tickets.create_ticket') }}" class="sf-button primary-button">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                New Ticket
+                            </a>
+                            
+                            {% if user.is_super_admin %}
+                            <!-- Admin Tools Section -->
+                            <div class="ml-4">
+                                <button id="cleanupCommentsBtn" class="sf-button danger-button" title="Remove comments from deleted tickets">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3H4"></path>
+                                    </svg>
+                                    Clean Orphaned Comments
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -518,6 +545,7 @@
                                             <div class="sf-action-dropdown">
                                                 <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="sf-action-item">Edit</a>
                                                 <a href="#" class="sf-action-item">Close</a>
+                                                {% if current_user.is_super_admin or current_user.permissions.can_delete_tickets or (current_user.permissions.can_delete_own_tickets and current_user.id == ticket.requester_id) %}
                                                 <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" 
                                                       method="POST" 
                                                       class="inline"
@@ -525,6 +553,7 @@
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <button type="submit" class="sf-action-item text-red-600 w-full text-left">Delete</button>
                                                 </form>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -585,6 +614,50 @@
         filteredItems = Array.from(table.querySelectorAll('tbody tr'));
         updatePagination();
         showPage(1);
+        
+        // Handle cleanup comments button
+        const cleanupBtn = document.getElementById('cleanupCommentsBtn');
+        if (cleanupBtn) {
+            cleanupBtn.addEventListener('click', function() {
+                if (confirm('This will remove all comments associated with deleted tickets. Continue?')) {
+                    // Show loading state
+                    cleanupBtn.disabled = true;
+                    cleanupBtn.innerHTML = '<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Cleaning...';
+                    
+                    // Get CSRF token from meta tag
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    
+                    // Call the API
+                    fetch('{{ url_for("tickets.cleanup_orphaned_comments") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(`Success: ${data.message}`);
+                            // Reload the page to refresh data
+                            window.location.reload();
+                        } else {
+                            alert(`Error: ${data.error || 'Unknown error'}`);
+                            // Reset button state
+                            cleanupBtn.disabled = false;
+                            cleanupBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3H4"></path></svg> Clean Orphaned Comments';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Check console for details.');
+                        // Reset button state
+                        cleanupBtn.disabled = false;
+                        cleanupBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3H4"></path></svg> Clean Orphaned Comments';
+                    });
+                }
+            });
+        }
     });
     
     function filterTickets(tabFilter) {
