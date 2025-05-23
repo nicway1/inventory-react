@@ -1,1 +1,142 @@
-[]
+[
+  {
+    "id": 1132,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-10T17:13:38.158142"
+  },
+  {
+    "id": 2890,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-04-22T16:25:44.845306"
+  },
+  {
+    "id": 2903,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-09T16:04:21.189762"
+  },
+  {
+    "id": 3416,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-09T16:04:24.323156"
+  },
+  {
+    "id": 3696,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-09T16:04:12.210768"
+  },
+  {
+    "id": 4112,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-08T16:20:35.054014"
+  },
+  {
+    "id": 4779,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-08T16:22:49.339418"
+  },
+  {
+    "id": 4953,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-08T16:29:05.490658"
+  },
+  {
+    "id": 5193,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-10T17:13:22.656752"
+  },
+  {
+    "id": 5303,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-08T16:53:04.246505"
+  },
+  {
+    "id": 7246,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-08T16:20:58.144915"
+  },
+  {
+    "id": 7365,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-09T16:04:15.565277"
+  },
+  {
+    "id": 9436,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-10T17:13:19.954044"
+  },
+  {
+    "id": 9646,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "",
+    "created_at": "2025-05-09T16:04:04.720664"
+  },
+  {
+    "id": 3635,
+    "ticket_id": 5,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@ronny</span> hi",
+    "created_at": "2025-05-23T04:20:44.455879"
+  },
+  {
+    "id": 5730,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "Test comment for functionality check <span class=\"mention\">@admin</span>",
+    "created_at": "2025-05-23T04:27:33.848643"
+  },
+  {
+    "id": 9640,
+    "ticket_id": 5,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@ronny</span> ",
+    "created_at": "2025-05-23T04:33:24.445389"
+  },
+  {
+    "id": 2437,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "Hey <span class=\"mention\">@admin</span>, please check this urgent issue! It needs immediate attention.",
+    "created_at": "2025-05-23T07:05:02.674938"
+  },
+  {
+    "id": 3246,
+    "ticket_id": 4,
+    "user_id": 2,
+    "content": "<span class=\"mention\">@admin</span> please fix cthis \r\n",
+    "created_at": "2025-05-23T07:06:50.126408"
+  },
+  {
+    "id": 4714,
+    "ticket_id": 6,
+    "user_id": 1,
+    "content": "hi <span class=\"mention\">@ronny</span>  please check if address is correct ",
+    "created_at": "2025-05-23T07:53:08.131766"
+  }
+]

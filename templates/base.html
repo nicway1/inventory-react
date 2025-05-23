@@ -11,6 +11,39 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <title>Asset Management System</title>
+    
+    <!-- Fix for port issues -->
+    <script>
+        // Override fetch to handle port issues
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            // Check if it's an absolute URL with port 5000
+            if (typeof url === 'string' && url.includes('127.0.0.1:5000')) {
+                // Replace with current origin
+                const newUrl = url.replace('http://127.0.0.1:5000', window.location.origin);
+                console.log('Redirecting fetch from', url, 'to', newUrl);
+                return originalFetch(newUrl, options);
+            }
+            return originalFetch(url, options);
+        };
+        
+        // Global fix for XMLHttpRequest as well (for older code that might not use fetch)
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+            // Check if it's an absolute URL with port 5000
+            if (typeof url === 'string' && url.includes('127.0.0.1:5000')) {
+                // Replace with current origin
+                const newUrl = url.replace('http://127.0.0.1:5000', window.location.origin);
+                console.log('Redirecting XHR from', url, 'to', newUrl);
+                return originalXHROpen.call(this, method, newUrl, async, user, password);
+            }
+            return originalXHROpen.call(this, method, url, async, user, password);
+        };
+        
+        // Store current origin as a global variable for direct access in templates
+        window.CURRENT_ORIGIN = window.location.origin;
+        console.log('Set current origin:', window.CURRENT_ORIGIN);
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>

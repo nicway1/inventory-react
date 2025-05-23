@@ -110,19 +110,50 @@ class CommentStore:
 
     def _notify_mentions(self, comment):
         """Send notifications to mentioned users"""
-        ticket = self.ticket_store.get_ticket(comment.ticket_id)
-        commenter = self.user_store.get_user_by_id(comment.user_id)
-        
-        for username in comment.mentions:
-            user = self.user_store.get_user_by_username(username)
-            if user:
-                print(f"[DEBUG] Notifying user {username} about mention")
-                self.activity_store.add_activity(
-                    user_id=user.id,
-                    type='mention',
-                    content=f"{commenter.username} mentioned you in ticket {ticket.display_id}: {comment.content[:100]}...",
-                    reference_id=comment.ticket_id
-                )
+        try:
+            # Get ticket from database instead of ticket_store
+            from utils.store_instances import db_manager
+            from models.ticket import Ticket
+            from models.user import User
+            
+            db_session = db_manager.get_session()
+            try:
+                # Get ticket and commenter from database
+                ticket = db_session.query(Ticket).get(comment.ticket_id)
+                commenter = db_session.query(User).get(comment.user_id)
+                
+                if not ticket or not commenter:
+                    print(f"[WARNING] Could not find ticket {comment.ticket_id} or user {comment.user_id}")
+                    return
+                
+                print(f"[DEBUG] Found ticket {ticket.display_id} and commenter {commenter.username}")
+                
+                for username in comment.mentions:
+                    # Find mentioned user by username
+                    mentioned_user = db_session.query(User).filter(User.username == username).first()
+                    if mentioned_user:
+                        print(f"[DEBUG] Notifying user {username} (ID: {mentioned_user.id}) about mention")
+                        
+                        # Clean up the content for notification (remove HTML tags)
+                        import re
+                        clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment.content)
+                        clean_content = re.sub(r'<[^>]+>', '', clean_content)  # Remove any other HTML tags
+                        
+                        self.activity_store.add_activity(
+                            user_id=mentioned_user.id,
+                            type='mention',
+                            content=f"{commenter.username} mentioned you in ticket {ticket.display_id}: {clean_content[:100]}...",
+                            reference_id=comment.ticket_id
+                        )
+                    else:
+                        print(f"[WARNING] User {username} not found for mention notification")
+            finally:
+                db_session.close()
+                
+        except Exception as e:
+            print(f"[ERROR] Error sending mention notifications: {e}")
+            import traceback
+            traceback.print_exc()
 
     def get_ticket_comments(self, ticket_id):
         comments = [

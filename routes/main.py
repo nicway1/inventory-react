@@ -88,144 +88,145 @@ def index():
     try:
         with db_manager as db:
             user = db.get_user(user_id)
-            if not user:
-                session.clear()
-                return redirect(url_for('auth.login'))
-
-            # Handle file upload if POST request
-            if request.method == 'POST' and user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
-                if 'file' not in request.files:
-                    flash('No file uploaded')
-                    return redirect(request.url)
-                    
-                file = request.files['file']
-                if file.filename == '':
-                    flash('No file selected')
-                    return redirect(request.url)
-                    
-                if file and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    filepath = os.path.join(UPLOAD_FOLDER, filename)
-                    file.save(filepath)
-                    
-                    if inventory_store.import_from_excel(filepath):
-                        flash('Inventory imported successfully')
-                        # Clean up the uploaded file
-                        os.remove(filepath)
-                    else:
-                        flash('Error importing inventory')
-                        
-                    return redirect(url_for('main.index'))
+            
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+        
+        # Handle file upload if POST request
+        if request.method == 'POST' and user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
+            if 'file' not in request.files:
+                flash('No file uploaded')
+                return redirect(request.url)
+            
+            file = request.files['file']
+            if file.filename == '':
+                flash('No file selected')
+                return redirect(request.url)
+            
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(filepath)
+                
+                if inventory_store.import_from_excel(filepath):
+                    flash('Inventory imported successfully')
+                    # Clean up the uploaded file
+                    os.remove(filepath)
                 else:
-                    flash('Invalid file type. Please upload an Excel file (.xlsx or .xls)')
-                    return redirect(request.url)
-            elif request.method == 'POST':
-                flash('You do not have permission to import data')
+                    flash('Error importing inventory')
+                    
                 return redirect(url_for('main.index'))
+            else:
+                flash('Invalid file type. Please upload an Excel file (.xlsx or .xls)')
+                return redirect(request.url)
+        elif request.method == 'POST':
+            flash('You do not have permission to import data')
+            return redirect(url_for('main.index'))
 
-            # Get queues
-            queues = queue_store.get_all_queues()
+        # Get queues
+        queues = queue_store.get_all_queues()
 
-            # Get counts from database
-            # Load ticket counts for each queue to avoid detached session issues
-            queue_ticket_counts = {}
-            for queue in queues:
-                # Count tickets for this queue to avoid lazy loading issues in template
-                queue_ticket_counts[queue.id] = db.session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
-            
-            tech_assets_count = db.session.query(Asset).count()
-            accessories_count = db.session.query(func.sum(Accessory.total_quantity)).scalar() or 0
-            total_inventory = tech_assets_count + accessories_count
-            total_customers = db.session.query(CustomerUser).count()
-            total_tickets = db.session.query(Ticket).count()
-            
-            # Get all shipment tickets (all carriers)
-            shipment_tickets = []
-            # Only load shipment tickets for non-CLIENT users
-            if user.user_type != UserType.CLIENT:
-                shipment_tickets = db.session.query(Ticket).filter(
-                    Ticket.category.in_([
-                        TicketCategory.ASSET_CHECKOUT,
-                        TicketCategory.ASSET_CHECKOUT_SINGPOST,
-                        TicketCategory.ASSET_CHECKOUT_DHL,
-                        TicketCategory.ASSET_CHECKOUT_UPS,
-                        TicketCategory.ASSET_CHECKOUT_BLUEDART,
-                        TicketCategory.ASSET_CHECKOUT_DTDC,
-                        TicketCategory.ASSET_CHECKOUT_AUTO,
-                        TicketCategory.ASSET_CHECKOUT_CLAW,
-                        TicketCategory.ASSET_RETURN_CLAW
-                    ])
-                ).order_by(Ticket.created_at.desc()).all()
+        # Get counts from database
+        # Load ticket counts for each queue to avoid detached session issues
+        queue_ticket_counts = {}
+        for queue in queues:
+            # Count tickets for this queue to avoid lazy loading issues in template
+            queue_ticket_counts[queue.id] = db.session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+        
+        tech_assets_count = db.session.query(Asset).count()
+        accessories_count = db.session.query(func.sum(Accessory.total_quantity)).scalar() or 0
+        total_inventory = tech_assets_count + accessories_count
+        total_customers = db.session.query(CustomerUser).count()
+        total_tickets = db.session.query(Ticket).count()
+        
+        # Get all shipment tickets (all carriers)
+        shipment_tickets = []
+        # Only load shipment tickets for non-CLIENT users
+        if user.user_type != UserType.CLIENT:
+            shipment_tickets = db.session.query(Ticket).filter(
+                Ticket.category.in_([
+                    TicketCategory.ASSET_CHECKOUT,
+                    TicketCategory.ASSET_CHECKOUT_SINGPOST,
+                    TicketCategory.ASSET_CHECKOUT_DHL,
+                    TicketCategory.ASSET_CHECKOUT_UPS,
+                    TicketCategory.ASSET_CHECKOUT_BLUEDART,
+                    TicketCategory.ASSET_CHECKOUT_DTDC,
+                    TicketCategory.ASSET_CHECKOUT_AUTO,
+                    TicketCategory.ASSET_CHECKOUT_CLAW,
+                    TicketCategory.ASSET_RETURN_CLAW
+                ])
+            ).order_by(Ticket.created_at.desc()).all()
 
-            # Calculate summary statistics
-            stats = {
-                'total_inventory': total_inventory,
-                'total_shipments': total_tickets,  # Using total_tickets instead of shipments
-                'total_queues': len(queues),
-                'total_customers': total_customers
-            }
+        # Calculate summary statistics
+        stats = {
+            'total_inventory': total_inventory,
+            'total_shipments': total_tickets,  # Using total_tickets instead of shipments
+            'total_queues': len(queues),
+            'total_customers': total_customers
+        }
 
-            # Get activities
-            activities = activity_store.get_user_activities(user_id)
+        # Get activities
+        activities = activity_store.get_user_activities(user_id)
 
-            # Get user activities
-            user_activities = []
-            if 'user_id' in session:
-                user_id = session['user_id']
-                user_activities = activity_store.get_user_activities(user_id)
-            
-            # Get counts for dashboard
-            # Asset counts
-            total_assets = db.session.query(Asset).count()
-            deployed_assets = db.session.query(Asset).filter(Asset.status == 'DEPLOYED').count()
-            in_stock_assets = db.session.query(Asset).filter(Asset.status == 'IN_STOCK').count()
-            
-            # Accessory counts
-            total_accessories = db.session.query(Accessory).count()
-            
-            # Ticket counts
-            open_tickets = db.session.query(Ticket).filter(
+        # Get user activities
+        user_activities = []
+        if 'user_id' in session:
+            user_id = session['user_id']
+            user_activities = activity_store.get_user_activities(user_id)
+        
+        # Get counts for dashboard
+        # Asset counts
+        total_assets = db.session.query(Asset).count()
+        deployed_assets = db.session.query(Asset).filter(Asset.status == 'DEPLOYED').count()
+        in_stock_assets = db.session.query(Asset).filter(Asset.status == 'IN_STOCK').count()
+        
+        # Accessory counts
+        total_accessories = db.session.query(Accessory).count()
+        
+        # Ticket counts
+        open_tickets = db.session.query(Ticket).filter(
+            Ticket.status != TicketStatus.RESOLVED,
+            Ticket.status != TicketStatus.RESOLVED_DELIVERED
+        ).count()
+        
+        # Get the 5 most recent activities for all users
+        recent_activities = db.session.query(Activity).order_by(
+            Activity.created_at.desc()
+        ).limit(5).all()
+        
+        # Get user count
+        user_count = db.session.query(User).count()
+        
+        # Get ticket counts
+        ticket_counts = {
+            'total': db.session.query(Ticket).count(),
+            'open': db.session.query(Ticket).filter(
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            ).count(),
+            'resolved': db.session.query(Ticket).filter(
+                Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
             ).count()
-            
-            # Get the 5 most recent activities for all users
-            recent_activities = db.session.query(Activity).order_by(
-                Activity.created_at.desc()
-            ).limit(5).all()
-            
-            # Get user count
-            user_count = db.session.query(User).count()
-            
-            # Get ticket counts
-            ticket_counts = {
-                'total': db.session.query(Ticket).count(),
-                'open': db.session.query(Ticket).filter(
-                    Ticket.status != TicketStatus.RESOLVED,
-                    Ticket.status != TicketStatus.RESOLVED_DELIVERED
-                ).count(),
-                'resolved': db.session.query(Ticket).filter(
-                    Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
-                ).count()
-            }
+        }
 
-            return render_template('home.html',
-                queues=queues,
-                queue_ticket_counts=queue_ticket_counts,
-                stats=stats,
-                activities=activities,
-                user=user,
-                singpost_tickets=shipment_tickets,
-                user_activities=user_activities,
-                total_assets=total_assets,
-                deployed_assets=deployed_assets,
-                in_stock_assets=in_stock_assets,
-                total_accessories=total_accessories,
-                open_tickets=open_tickets,
-                recent_activities=recent_activities,
-                user_count=user_count,
-                ticket_counts=ticket_counts
-            )
+        return render_template('home.html',
+            queues=queues,
+            queue_ticket_counts=queue_ticket_counts,
+            stats=stats,
+            activities=activities,
+            user=user,
+            singpost_tickets=shipment_tickets,
+            user_activities=user_activities,
+            total_assets=total_assets,
+            deployed_assets=deployed_assets,
+            in_stock_assets=in_stock_assets,
+            total_accessories=total_accessories,
+            open_tickets=open_tickets,
+            recent_activities=recent_activities,
+            user_count=user_count,
+            ticket_counts=ticket_counts
+        )
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}", exc_info=True)
         flash('An error occurred while loading the dashboard')
@@ -299,4 +300,4 @@ def fix_supervisor_permissions():
             db_session.close()
             
     except Exception as e:
-        return f"Error updating permissions: {str(e)}" 
+        return f"Error updating permissions: {str(e)}"

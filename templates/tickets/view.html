@@ -4,6 +4,30 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
 
+<!-- Add HTTP request interception for any internal references to port 5000 -->
+<script>
+    // Make sure all requests go to the current server port
+    document.addEventListener('DOMContentLoaded', function() {
+        // Force all XMLHttpRequests and fetch requests to use the current origin
+        console.log('Current origin:', window.CURRENT_ORIGIN);
+        
+        // Special fix for hardcoded XHRs that might be coming from included JS files
+        if (!window.XMLHttpRequestFixed) {
+            const originalOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function() {
+                let args = Array.from(arguments);
+                if (typeof args[1] === 'string' && args[1].includes('127.0.0.1:5000')) {
+                    console.log('Intercepted hardcoded XHR URL:', args[1]);
+                    args[1] = args[1].replace('http://127.0.0.1:5000', window.CURRENT_ORIGIN);
+                    console.log('Redirected to:', args[1]);
+                }
+                return originalOpen.apply(this, args);
+            };
+            window.XMLHttpRequestFixed = true;
+        }
+    });
+</script>
+
 <!-- Initialize global variables -->
 <script>
     // Initialize global loadingIndicator to fix the "Cannot access before initialization" error
@@ -15,15 +39,12 @@
     });
 </script>
 
-<!-- Fix for documents tab visibility -->
+<!-- No tabs - all sections visible -->
 <style>
-    /* Simple tab system */
-    .sf-tab-content {
-        display: block; /* All tabs are blocks by default */
-    }
-    
-    .sf-tab-content.hidden {
-        display: none; /* Hidden tabs are not displayed */
+    /* All content sections visible by default */
+    #details, #comments, #documents {
+        display: block;
+        margin-bottom: 2rem;
     }
 </style>
 
@@ -99,6 +120,14 @@
 
 .mention-suggestion.selected {
     background-color: #e5e7eb;
+}
+
+.mention {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
 }
 
 .tracking-iframe {
@@ -706,57 +735,13 @@
                 </div>
             </div>
 
-            <!-- Tabs Navigation -->
-            <div class="sf-tabs mb-6 rounded-t-md">
-                <a href="javascript:void(0)" class="sf-tab active" data-target="details">Case Details</a>
-                <a href="javascript:void(0)" class="sf-tab" data-target="comments">Comments</a>
-                <a href="javascript:void(0)" class="sf-tab" data-target="documents">Documents</a>
-            </div>
-            
-            <!-- Debug button -->
-            <!-- <button onclick="debugTabStructure()" class="mb-4 px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm">Debug Tab Structure</button> -->
-            
-            <script>
-            // Debug function - REMOVING
-            /* function debugTabStructure() {
-                console.log("--- DEBUGGING TAB STRUCTURE ---");
-                
-                // Check tab links
-                console.log("Tab Links:");
-                document.querySelectorAll('.sf-tab').forEach(function(tab, index) {
-                    console.log(index + ": " + tab.textContent.trim() + " - data-target=" + tab.getAttribute('data-target'));
-                });
-                
-                // Check tab contents
-                console.log("\nTab Contents:");
-                document.querySelectorAll('.sf-tab-content').forEach(function(content, index) {
-                    console.log(index + ": id=" + content.id + 
-                        ", display=" + window.getComputedStyle(content).display + 
-                        ", childNodes=" + content.childNodes.length);
-                    
-                    // Show first child element for debugging
-                    if (content.firstElementChild) {
-                        console.log("  First child: " + content.firstElementChild.tagName + 
-                            " - class=" + content.firstElementChild.className);
-                    }
-                });
-                
-                // Try to manually show the details tab
-                var detailsTab = document.getElementById('details');
-                if (detailsTab) {
-                    detailsTab.style.display = 'block';
-                    console.log("\nForced display:block on details tab");
-                } else {
-                    console.log("\nCould not find details tab!");
-                }
-            }
-            */
-            </script>
+            <!-- All sections displayed sequentially -->
+            <h2 class="text-xl font-semibold mb-4 bg-blue-50 p-3 rounded border-l-4 border-blue-500">Case Details</h2>
 
-            <!-- Tab Content Panels -->
-            <div id="tab-content-wrapper">
-                <!-- Details Section - Tab Content -->
-                <div id="details" class="sf-tab-content" style="display: block;">
+            <!-- Content Sections -->
+            <div id="page-content-wrapper">
+                <!-- Details Section -->
+                <div id="details" class="mb-8">
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <h2 class="sf-card-title">Case Information</h2>
@@ -922,11 +907,15 @@
                                     Mark as Received
                                 </button>
                                 {% endif %}
-                                <button class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                                <button id="addOutboundTrackingBtn" class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                     </svg>
+                                    {% if ticket.shipping_tracking %}
+                                    Edit Tracking
+                                    {% else %}
                                     Add Tracking
+                                    {% endif %}
                                 </button>
                                 </div>
                             </div>
@@ -946,6 +935,19 @@
                                     <div>
                                         <div class="text-sm text-gray-500">Status</div>
                                         <div class="font-medium">{{ ticket.shipping_status }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 border-t pt-3">
+                                    <button id="refreshShippingTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchShippingTracking()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Refresh Tracking Information
+                                    </button>
+                                    <div id="trackingResults" class="mt-4">
+                                        <input type="hidden" id="trackingNumber" value="{{ ticket.shipping_tracking }}">
+                                        <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
+                                        <div id="trackingEvents" class="bg-gray-50 p-3 rounded text-sm">Loading tracking data...</div>
                                     </div>
                                 </div>
                                 {% else %}
@@ -978,11 +980,15 @@
                                     Mark as Received
                                 </button>
                                 {% endif %}
-                                <button class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
+                                <button id="addReturnTrackingBtn" class="sf-button primary-button" onclick="showAddReturnTrackingModal()">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                     </svg>
+                                    {% if ticket.return_tracking %}
+                                    Edit Tracking
+                                    {% else %}
                                     Add Tracking
+                                    {% endif %}
                                 </button>
                                 </div>
                             </div>
@@ -1002,6 +1008,30 @@
                                     <div>
                                         <div class="text-sm text-gray-500">Status</div>
                                         <div class="font-medium">{{ ticket.return_status }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 border-t pt-3">
+                                    <button id="refreshReturnTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchReturnTracking()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Refresh Tracking Information
+                                    </button>
+                                    <div id="returnTrackingResults" class="mt-4">
+                                        <input type="hidden" id="returnTrackingNumber" value="{{ ticket.return_tracking }}">
+                                        <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
+                                        <div id="returnTrackingEvents" class="bg-gray-50 p-3 rounded text-sm">
+                                            <div class="text-center">
+                                                <div role="status">
+                                                    <svg aria-hidden="true" class="inline w-8 h-8 text-gray-200 animate-spin fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                                                        <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                                                    </svg>
+                                                    <span class="sr-only">Loading...</span>
+                                                </div>
+                                                <p class="mt-2 text-sm text-gray-600">Loading tracking data...</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 {% else %}
@@ -1243,7 +1273,7 @@
                                 console.log("LOADING ACCESSORIES: Starting fetch request...");
                                 
                                 // Use the correct API endpoint
-                                const absoluteUrl = '/tickets/api/accessories';
+                                const absoluteUrl = `${window.CURRENT_ORIGIN}/tickets/api/accessories`;
                                 
                                 console.log("Using URL:", absoluteUrl);
                                 
@@ -1370,7 +1400,7 @@
                                 submitButton.textContent = "Processing...";
                                 
                                 // Send the data via AJAX
-                                fetch(`/tickets/{{ ticket.id }}/add-accessory`, {
+                                fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add-accessory`, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -1438,8 +1468,9 @@
                     {% endif %}
                 </div>
 
-                <!-- Comments Section - Tab Content -->
-                <div id="comments" class="sf-tab-content" style="display: none;">
+                <!-- Comments Section -->
+                <h2 class="text-xl font-semibold mb-4 bg-blue-50 p-3 rounded border-l-4 border-blue-500">Comments</h2>
+                <div id="comments" class="mb-8">
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <h2 class="sf-card-title">Case Comments</h2>
@@ -1454,7 +1485,11 @@
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="mb-3">
                                     <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Add a Comment</label>
-                                    <textarea id="message" name="message" rows="4" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter your comment here..."></textarea>
+                                    <div class="relative">
+                                        <textarea id="message" name="message" rows="4" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Type @ to mention users..."></textarea>
+                                        <!-- Mention Suggestions Dropdown -->
+                                        <div id="mentionSuggestions" class="mention-suggestions hidden"></div>
+                                    </div>
                                 </div>
                                 <div class="flex justify-end">
                                     <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -1488,8 +1523,9 @@
                     </div>
                 </div>
 
-                <!-- Documents Section - Tab Content -->
-                <div id="documents" class="sf-tab-content" style="display: none;">
+                <!-- Documents Section -->
+                <h2 class="text-xl font-semibold mb-4 bg-blue-50 p-3 rounded border-l-4 border-blue-500">Documents</h2>
+                <div id="documents" class="mb-8">
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <h2 class="sf-card-title">Attachments & Documents</h2>
@@ -1899,7 +1935,11 @@
                                 </div>
                                 <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                                     <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        {% if ticket.return_tracking %}
+                                        Edit Return Tracking Information
+                                        {% else %}
                                         Add Return Tracking Information
+                                        {% endif %}
                                     </h3>
                                     <div class="mt-2">
                                         <p class="text-sm text-gray-500">
@@ -1912,8 +1952,8 @@
                             <form id="addReturnTrackingForm" class="mt-4 space-y-4">
                                 <div>
                                     <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
-                                    <input type="text" id="return_tracking_number" name="return_tracking_number" required 
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                    <input type="text" id="return_tracking_number" name="tracking_number" required 
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Enter return tracking number">
                                 </div>
                                 <div>
                                     <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
@@ -1933,7 +1973,11 @@
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                             <button type="button" id="submitReturnTrackingBtn" 
                                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                {% if ticket.return_tracking %}
+                                Update Return Tracking
+                                {% else %}
                                 Add Return Tracking
+                                {% endif %}
                             </button>
                             <button type="button" onclick="hideAddReturnTrackingModal()"
                                     class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
@@ -1963,7 +2007,11 @@
                                 </div>
                                 <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                                     <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                        {% if ticket.shipping_tracking %}
+                                        Edit Outbound Tracking Information
+                                        {% else %}
                                         Add Outbound Tracking Information
+                                        {% endif %}
                                     </h3>
                                     <div class="mt-2">
                                         <p class="text-sm text-gray-500">
@@ -1997,7 +2045,11 @@
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                             <button type="button" id="submitOutboundTrackingBtn" 
                                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                {% if ticket.shipping_tracking %}
+                                Update Outbound Tracking
+                                {% else %}
                                 Add Outbound Tracking
+                                {% endif %}
                             </button>
                             <button type="button" onclick="hideAddOutboundTrackingModal()"
                                     class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
@@ -2132,7 +2184,7 @@
 <!-- Add the JavaScript for the asset functionality -->
 <script>
 // Store ticket ID for use in JavaScript
-const ticketId = "{{ ticket.id }}";
+const ticketId = "{{ ticket.id }}"; // This will be rendered as the actual ticket ID
 
 // Tech Asset Modal functions
 window.showAssetModal = function() {
@@ -2154,7 +2206,7 @@ function confirmDeleteTicket(ticketId) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
         // Submit delete request
-        fetch(`/tickets/${ticketId}/delete`, {
+        fetch(`${window.CURRENT_ORIGIN}/tickets/${ticketId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2493,7 +2545,7 @@ function viewAsset(assetId) {
 
 function unlinkAsset(assetId, ticketId) {
     if (confirm('Are you sure you want to unlink this asset from the ticket?')) {
-        fetch(`/tickets/${ticketId}/unlink-asset/${assetId}`, {
+        fetch(`${window.CURRENT_ORIGIN}/tickets/${ticketId}/unlink-asset/${assetId}`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -2594,7 +2646,7 @@ window.closePdfPreview = function() {
 
 function deleteAttachment(attachmentId, ticketId) {
     if (confirm('Are you sure you want to delete this document?')) {
-        fetch(`/tickets/${ticketId}/attachment/${attachmentId}/delete`, {
+        fetch(`${window.CURRENT_ORIGIN}/tickets/${ticketId}/attachment/${attachmentId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2680,8 +2732,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             
-            // Submit form data
-            fetch(`/tickets/{{ ticket.id }}/add-shipping-tracking`, {
+            // Submit form data with direct origin URL
+            fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add_outbound_tracking`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2726,8 +2778,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             
-            // Submit form data
-            fetch(`/tickets/{{ ticket.id }}/add-return-tracking`, {
+            // Show a loading indication
+            returnTrackingBtn.textContent = "{{ 'true' if ticket.return_tracking else 'false' }}" === "true" ? 'Updating...' : 'Saving...';
+            returnTrackingBtn.disabled = true;
+            
+            // Submit form data with direct origin URL
+            fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add_return_tracking`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2739,18 +2795,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     carrier: carrier
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Reset button state based on whether we're adding or updating
+                const hasExistingTracking = "{{ 'true' if ticket.return_tracking else 'false' }}" === "true";
+                returnTrackingBtn.textContent = hasExistingTracking ? 'Update Return Tracking' : 'Add Return Tracking';
+                returnTrackingBtn.disabled = false;
+                
                 if (data.success) {
                     hideAddReturnTrackingModal();
-                    showNotification('Return tracking added successfully', 'success');
+                    const actionText = hasExistingTracking ? 'updated' : 'added';
+                    showNotification(`Return tracking ${actionText} successfully`, 'success');
                     // Reload page to show new tracking info
                     window.location.reload();
                 } else {
-                    showNotification(data.error || 'Failed to add tracking information', 'error');
+                    showNotification(data.message || 'Failed to add tracking information', 'error');
                 }
             })
             .catch(error => {
+                // Reset button state based on whether we're adding or updating
+                const hasExistingTracking = "{{ 'true' if ticket.return_tracking else 'false' }}" === "true";
+                returnTrackingBtn.textContent = hasExistingTracking ? 'Update Return Tracking' : 'Add Return Tracking';
+                returnTrackingBtn.disabled = false;
+                
                 console.error('Error:', error);
                 showNotification('An unexpected error occurred', 'error');
             });
@@ -2785,9 +2857,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             console.log('CSRF token found:', !!csrfToken);
             
-            // Submit form data
-            console.log('Submitting form data to endpoint:', `/tickets/${ticketId}/add-accessory`);
-            fetch(`/tickets/${ticketId}/add-accessory`, {
+            // Submit form data with dynamic base URL
+            console.log('Submitting form data to endpoint:', `${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add-accessory`);
+            fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add-accessory`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2851,8 +2923,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             
-            // Submit form data
-            fetch(`/tickets/{{ ticket.id }}/accessory/${accessoryId}/update`, {
+            // Submit form data with dynamic base URL
+            fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2892,8 +2964,8 @@ function markOutboundAsReceived(ticketId) {
         // Get CSRF token
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
-        // Submit status update
-        fetch(`/tickets/${ticketId}/update-shipping-status`, {
+        // Submit status update with direct origin URL
+        fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/update-shipping-status`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2926,8 +2998,8 @@ function markReturnAsReceived(ticketId) {
         // Get CSRF token
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
-        // Submit status update
-        fetch(`/tickets/${ticketId}/update-return-status`, {
+        // Submit status update with direct origin URL
+        fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/update-return-status`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2999,8 +3071,8 @@ function editAccessory(accessoryId) {
     console.log('Editing accessory:', accessoryId);
     isEditingAccessory = true;
     
-    // Get accessory data
-    fetch(`/tickets/{{ ticket.id }}/accessory/${accessoryId}`, {
+    // Get accessory data with dynamic base URL
+    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -3054,8 +3126,8 @@ function removeAccessory(accessoryId, ticketId) {
         // Get CSRF token
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
-        // Submit remove request
-        fetch(`/tickets/${ticketId}/accessory/${accessoryId}/remove`, {
+        // Submit remove request with dynamic base URL
+        fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}/remove`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3081,6 +3153,416 @@ function removeAccessory(accessoryId, ticketId) {
 }
 </script>
 
+<script>
+// Helper function to safely parse and format dates
+function formatTrackingDate(dateString) {
+    if (!dateString) return 'Unknown Date';
+    
+    try {
+        // Try to parse the date string
+        var dateObj = new Date(dateString);
+        
+        // Check if we got a valid date
+        if (!isNaN(dateObj.getTime())) {
+            return dateObj.toLocaleString();
+        } else {
+            console.log('Failed to parse date:', dateString);
+            // Return the original string if parsing failed
+            return dateString;
+        }
+    } catch (e) {
+        console.error('Error parsing date:', e);
+        return dateString;
+    }
+}
+
+// Function to fetch shipping tracking information from cache (no force refresh)
+function fetchShippingTrackingFromCache() {
+    var trackingResults = document.getElementById('trackingResults');
+    var trackingEvents = document.getElementById('trackingEvents');
+    
+    // First, determine the correct URL to use
+    // Get the current location without any query parameters
+    var baseUrl = window.location.protocol + '//' + window.location.host;
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw';
+    console.log('Fetching cached tracking info from:', apiUrl);
+    
+    // Call the tracking API with cached data
+    fetch(apiUrl)
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP error! Status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                // Format tracking events
+                var eventsHtml = '';
+                data.tracking_info.forEach(function(event) {
+                    var date = formatTrackingDate(event.date);
+                    var status = event.status || 'Status unavailable';
+                    var location = event.location || 'Location unavailable';
+                    eventsHtml += '<div class="mb-2 pb-2 border-b border-gray-200">' +
+                        '<div class="font-medium">' + status + '</div>' +
+                        '<div class="text-gray-600 text-xs flex justify-between">' +
+                        '<span>' + location + '</span>' +
+                        '<span>' + date + '</span>' +
+                        '</div>' +
+                        '</div>';
+                });
+                trackingEvents.innerHTML = eventsHtml;
+            } else {
+                trackingEvents.innerHTML = 
+                    '<div class="text-gray-500 p-2">' +
+                    'No tracking information available at this time. Click "Refresh Tracking Information" to check for updates.' +
+                    '</div>';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error fetching tracking data:', error);
+            trackingEvents.innerHTML = 
+                '<div class="text-red-500 p-2">' +
+                'Error fetching tracking data: ' + error.message +
+                '</div>';
+        });
+}
+
+// Function to fetch shipping tracking information from firecrawl with force refresh
+function fetchShippingTracking() {
+    var trackingBtn = document.getElementById('refreshShippingTrackingBtn');
+    var trackingResults = document.getElementById('trackingResults');
+    var trackingEvents = document.getElementById('trackingEvents');
+    
+    // Show loading state
+    trackingBtn.disabled = true;
+    trackingBtn.innerHTML = 
+        '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+        '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+        '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>' +
+        '</svg>' +
+        'Loading tracking data...';
+    
+    // First, determine the correct URL to use
+    // Get the current location without any query parameters
+    var baseUrl = window.location.protocol + '//' + window.location.host;
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw?force_refresh=true';
+    console.log('Fetching tracking info with force refresh from:', apiUrl);
+    
+    // Call the tracking API
+    fetch(apiUrl)
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP error! Status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            // Display tracking data
+            trackingResults.classList.remove('hidden');
+            
+            // Update current status in the UI if possible (ADDED STATUS UPDATE)
+            try {
+                var statusElement = document.querySelector('.sf-badge');
+                if (statusElement && data.shipping_status) {
+                    statusElement.textContent = data.shipping_status;
+                    console.log('Updated outbound status to:', data.shipping_status);
+                }
+                
+                // Also try to update the status in the grid display
+                var gridStatusElement = document.querySelector('[class*="grid"] [class*="Status"] .font-medium, [class*="grid"] [class*="status"] .font-medium');
+                if (gridStatusElement && data.shipping_status) {
+                    gridStatusElement.textContent = data.shipping_status;
+                    console.log('Updated grid status to:', data.shipping_status);
+                }
+            } catch(statusUpdateError) {
+                console.warn('Could not update status display:', statusUpdateError);
+            }
+            
+            if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                // Format tracking events
+                var eventsHtml = '';
+                data.tracking_info.forEach(function(event) {
+                    var date = formatTrackingDate(event.date);
+                    var status = event.status || 'Status unavailable';
+                    var location = event.location || 'Location unavailable';
+                    eventsHtml += '<div class="mb-2 pb-2 border-b border-gray-200">' +
+                        '<div class="font-medium">' + status + '</div>' +
+                        '<div class="text-gray-600 text-xs flex justify-between">' +
+                        '<span>' + location + '</span>' +
+                        '<span>' + date + '</span>' +
+                        '</div>' +
+                        '</div>';
+                });
+                trackingEvents.innerHTML = eventsHtml;
+            } else {
+                var debugInfo = data.debug_info ? '<div class="text-xs mt-1">Debug: ' + JSON.stringify(data.debug_info) + '</div>' : '';
+                trackingEvents.innerHTML = 
+                    '<div class="text-gray-500 p-2">' +
+                    'No tracking information available at this time. ' + 
+                    debugInfo +
+                    '</div>';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error fetching tracking data:', error);
+            trackingResults.classList.remove('hidden');
+            trackingEvents.innerHTML = 
+                '<div class="text-red-500 p-2">' +
+                'Error fetching tracking data: ' + error.message +
+                '</div>';
+        })
+        .finally(function() {
+            // Reset button
+            trackingBtn.disabled = false;
+            trackingBtn.innerHTML = 
+                '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>' +
+                '</svg>' +
+                'Refresh Tracking Information';
+        });
+}
+
+    // Function to fetch return tracking information from cache (no force refresh)
+function fetchReturnTrackingFromCache() {
+    var trackingResults = document.getElementById('returnTrackingResults');
+    var trackingEvents = document.getElementById('returnTrackingEvents');
+    
+    // First, determine the correct URL to use
+    // Get the current location without any query parameters
+    var baseUrl = window.location.protocol + '//' + window.location.host;
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_return';
+    console.log('Fetching cached return tracking info from:', apiUrl);
+    
+    // Call the tracking API with cached data
+    fetch(apiUrl)
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP error! Status: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            // Log data for debugging but don't display it in UI
+            console.log('Return tracking data (cached):', data);
+            
+            if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                // Format tracking events
+                var eventsHtml = '';
+                data.tracking_info.forEach(function(event) {
+                    var date = formatTrackingDate(event.date);
+                    var status = event.status || 'Status unavailable';
+                    var location = event.location || 'Location unavailable';
+                    eventsHtml += '<div class="mb-2 pb-2 border-b border-gray-200">' +
+                        '<div class="font-medium">' + status + '</div>' +
+                        '<div class="text-gray-600 text-xs flex justify-between">' +
+                        '<span>' + location + '</span>' +
+                        '<span>' + date + '</span>' +
+                        '</div>' +
+                        '</div>';
+                });
+                
+                // Show formatted tracking events
+                trackingEvents.innerHTML = 
+                    '<div class="mb-4">' +
+                    '<h5 class="font-bold text-gray-800 mb-2">Tracking Events:</h5>' +
+                    eventsHtml +
+                    '</div>';
+            } else {
+                trackingEvents.innerHTML = 
+                    '<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded mb-3">' +
+                    'No return tracking information available at this time. Click "Refresh Tracking Information" to check for updates.' +
+                    '</div>';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error fetching return tracking data:', error);
+            trackingEvents.innerHTML = 
+                '<div class="bg-red-100 border border-red-400 text-red-700 p-2 rounded mb-3">' +
+                'Error fetching tracking data: ' + error.message +
+                '</div>';
+        });
+}
+
+// Function to fetch return tracking information with force refresh
+function fetchReturnTracking() {
+    console.log('fetchReturnTracking called - starting refresh process');
+    var trackingBtn = document.getElementById('refreshReturnTrackingBtn');
+    var trackingResults = document.getElementById('returnTrackingResults');
+    var trackingEvents = document.getElementById('returnTrackingEvents');
+    
+    // Immediately update UI to show loading is in progress
+    if (trackingEvents) {
+        trackingEvents.innerHTML = 
+            '<div class="text-center p-4">' +
+            '<svg aria-hidden="true" class="inline w-8 h-8 text-gray-200 animate-spin fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+            '<path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>' +
+            '<path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>' +
+            '</svg>' +
+            '<p class="mt-2">Loading tracking data...</p>' +
+            '</div>';
+    }
+    
+    // Show loading state on button if it exists
+    if (trackingBtn) {
+        trackingBtn.disabled = true;
+        trackingBtn.innerHTML = 
+            '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+            '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>' +
+            '</svg>' +
+            'Loading tracking data...';
+    }
+    
+    // First, determine the correct URL to use
+    var baseUrl = window.location.protocol + '//' + window.location.host;
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_return?force_refresh=true&t=' + new Date().getTime();
+    console.log('Fetching return tracking info with force refresh from:', apiUrl);
+    
+    // Set a timeout in case the request takes too long
+    var timeoutId = setTimeout(function() {
+        console.log('Request timeout - showing fallback data');
+        if (trackingEvents) {
+            trackingEvents.innerHTML = 
+                '<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded mb-3">' +
+                'Request timed out. The server may be busy. Please try again.' +
+                '<button onclick="fetchReturnTracking()" class="ml-2 text-blue-600 underline">Retry</button>' +
+                '</div>';
+        }
+        if (trackingBtn) {
+            trackingBtn.disabled = false;
+            trackingBtn.innerHTML = 
+                '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>' +
+                '</svg>' +
+                'Refresh Tracking Information';
+        }
+    }, 15000); // 15 second timeout
+    
+    // Call the tracking API with a fresh AJAX request
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', apiUrl, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            clearTimeout(timeoutId); // Clear the timeout since we got a response
+            
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    console.log('XHR data received:', data);
+                    
+                    if (trackingResults) {
+                        trackingResults.classList.remove('hidden');
+                    }
+                    
+                    // Update current status in the UI if possible
+                    try {
+                        var statusElement = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-3.gap-4 div:nth-child(3) .font-medium');
+                        if (statusElement) {
+                            var latestStatus = data.status || 
+                                              (data.ticket_data && data.ticket_data.return_status) || 
+                                              (data.tracking_info && data.tracking_info.length > 0 ? data.tracking_info[0].status : null) || 
+                                              'Pending';
+                            
+                            statusElement.textContent = latestStatus;
+                            
+                            // Update carrier if available
+                            if (data.ticket_data) {
+                                var carrierElement = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-3.gap-4 div:nth-child(2) .font-medium');
+                                if (carrierElement && data.ticket_data.return_carrier) {
+                                    var carrier = data.ticket_data.return_carrier.charAt(0).toUpperCase() + data.ticket_data.return_carrier.slice(1);
+                                    carrierElement.textContent = carrier;
+                                }
+                            }
+                        }
+                    } catch(e) {
+                        console.error('Error updating status display:', e);
+                    }
+                    
+                    // Update tracking events display
+                    if (trackingEvents) {
+                        if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                            // Format tracking events
+                            var eventsHtml = '';
+                            data.tracking_info.forEach(function(event) {
+                                var date = formatTrackingDate(event.date);
+                                var status = event.status || 'Status unavailable';
+                                var location = event.location || 'Location unavailable';
+                                eventsHtml += '<div class="mb-2 pb-2 border-b border-gray-200">' +
+                                    '<div class="font-medium">' + status + '</div>' +
+                                    '<div class="text-gray-600 text-xs flex justify-between">' +
+                                    '<span>' + location + '</span>' +
+                                    '<span>' + date + '</span>' +
+                                    '</div>' +
+                                    '</div>';
+                            });
+                            
+                            trackingEvents.innerHTML = 
+                                '<div class="mb-4">' +
+                                '<h5 class="font-bold text-gray-800 mb-2">Tracking Events:</h5>' +
+                                eventsHtml +
+                                '</div>';
+                        } else {
+                            trackingEvents.innerHTML = 
+                                '<div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded mb-3">' +
+                                'No return tracking information available at this time.' +
+                                '</div>';
+                        }
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing JSON response:', parseError);
+                    if (trackingEvents) {
+                        trackingEvents.innerHTML = 
+                            '<div class="bg-red-100 border border-red-400 text-red-700 p-2 rounded mb-3">' +
+                            'Error processing tracking data. Please try again.' +
+                            '</div>';
+                    }
+                }
+            } else {
+                console.error('XHR Error:', xhr.status, xhr.statusText);
+                if (trackingEvents) {
+                    trackingEvents.innerHTML = 
+                        '<div class="bg-red-100 border border-red-400 text-red-700 p-2 rounded mb-3">' +
+                        'Error fetching tracking data: ' + xhr.status + ' ' + xhr.statusText +
+                        '</div>';
+                }
+            }
+            
+            // Reset button state
+            if (trackingBtn) {
+                trackingBtn.disabled = false;
+                trackingBtn.innerHTML = 
+                    '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>' +
+                    '</svg>' +
+                    'Refresh Tracking Information';
+            }
+        }
+    };
+    
+    xhr.onerror = function() {
+        clearTimeout(timeoutId);
+        console.error('XHR Network Error');
+        if (trackingEvents) {
+            trackingEvents.innerHTML = 
+                '<div class="bg-red-100 border border-red-400 text-red-700 p-2 rounded mb-3">' +
+                'Network error fetching tracking data. Please check your connection and try again.' +
+                '</div>';
+        }
+        if (trackingBtn) {
+            trackingBtn.disabled = false;
+            trackingBtn.innerHTML = 
+                '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>' +
+                '</svg>' +
+                'Refresh Tracking Information';
+        }
+    };
+    
+    xhr.send();
+}
+</script>
+
 <!-- Simple tab system - Added at the end of the page -->
 <script>
 // Simple modal functions
@@ -3096,6 +3578,34 @@ function closeSimpleModal() {
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-load shipping tracking data on page load if tracking number exists
+    if (document.getElementById('trackingResults')) {
+        // Check if we have a tracking number based on ticket data
+        var hasShippingTracking = "{{ 'true' if ticket.shipping_tracking else 'false' }}" === "true";
+        if (hasShippingTracking) {
+            console.log('Loading shipping tracking data automatically');
+            // Load tracking data automatically with a small delay to ensure page is fully loaded
+            setTimeout(function() {
+                // Call the tracking function but without force refresh to use cached data
+                fetchShippingTrackingFromCache();
+            }, 300);
+        }
+    }
+    
+    // Auto-load return tracking data on page load if tracking number exists
+    if (document.getElementById('returnTrackingResults')) {
+        // Check if we have a return tracking number based on ticket data
+        var hasReturnTracking = "{{ 'true' if ticket.return_tracking else 'false' }}" === "true";
+        if (hasReturnTracking) {
+            console.log('Loading return tracking data automatically from cache');
+            // Load tracking data automatically with a small delay to ensure page is fully loaded
+            setTimeout(function() {
+                // Call the tracking function WITHOUT force refresh to use cached data first
+                fetchReturnTrackingFromCache();
+            }, 500);
+        }
+    }
+    
     // Debug modal existence
     console.log('Checking modal existence...');
     const simpleModal = document.getElementById('simpleAccessoryModal');
@@ -3163,49 +3673,208 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Basic tab switching function - extremely minimal
-    function setupTabs() {
-        // Get tab links
-        var tabLinks = document.querySelectorAll('.sf-tab');
-        
-        // Add click handlers to each tab
-        tabLinks.forEach(function(link) {
-            link.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent hash navigation
-                
-                var targetId = this.getAttribute('data-target');
-                
-                // 1. Hide all tabs
-                document.querySelectorAll('.sf-tab-content').forEach(function(tab) {
-                    tab.style.display = 'none';
-                });
-                
-                // 2. Remove active class from all links
-                tabLinks.forEach(function(tab) {
-                    tab.classList.remove('active');
-                });
-                
-                // 3. Show selected tab
-                var targetTab = document.getElementById(targetId);
-                if (targetTab) {
-                    targetTab.style.display = 'block';
-                }
-                
-                // 4. Add active class to clicked link
-                this.classList.add('active');
-            });
-        });
-        
-        // Initialize - click the first tab or the one in the hash
-        var initialTab = document.querySelector('.sf-tab');
-            
-        if (initialTab) {
-            initialTab.click();
-        }
+    // Tab system removed - all sections now display sequentially
+    
+    // ========================================
+    // @MENTION FUNCTIONALITY
+    // ========================================
+    
+    // Store user data for @mentions
+    var userDataJson = '{{ users|tojson|safe }}';
+    var userData;
+    try {
+        userData = JSON.parse(userDataJson.replace(/&quot;/g, '"'));
+    } catch (e) {
+        userData = [];
+        console.error('Error parsing user data:', e);
     }
     
-    // Run setup
-    setupTabs();
+    var currentMentionStart = -1;
+    var selectedIndex = -1;
+    var textarea;
+    var suggestions;
+
+    // Initialize @mention functionality
+    textarea = document.getElementById('message');
+    suggestions = document.getElementById('mentionSuggestions');
+    
+    if (textarea && suggestions) {
+        textarea.addEventListener('input', handleInput);
+        textarea.addEventListener('keydown', handleKeydown);
+        console.log('✅ @Mention functionality initialized');
+    } else {
+        console.warn('❌ @Mention elements not found:', {textarea: !!textarea, suggestions: !!suggestions});
+    }
+
+    function handleInput(e) {
+        var pos = textarea.selectionStart;
+        var text = textarea.value;
+    
+        // Find @ symbol before cursor
+        var i = pos;
+        while (i > 0 && text[i-1] !== ' ' && text[i-1] !== '\n') i--;
+        var word = text.slice(i, pos);
+    
+        if (word.startsWith('@')) {
+            currentMentionStart = i;
+            var search = word.slice(1).toLowerCase();
+            showSuggestions(search);
+        } else {
+            hideSuggestions();
+        }
+    }
+
+    function handleKeydown(e) {
+        if (!suggestions.classList.contains('hidden')) {
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    selectNext();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    selectPrevious();
+                    break;
+                case 'Enter':
+                case 'Tab':
+                    if (selectedIndex >= 0) {
+                        e.preventDefault();
+                        insertMention();
+                    }
+                    break;
+                case 'Escape':
+                    hideSuggestions();
+                    break;
+            }
+        }
+    }
+
+    function showSuggestions(search) {
+        var matches = [];
+        
+        // Only proceed if userData is an object
+        if (typeof userData === 'object' && userData !== null) {
+            // Convert object to array if needed
+            var users = Array.isArray(userData) ? userData : Object.values(userData);
+            
+            matches = users.filter(function(user) {
+                return user && user.username && 
+                       user.username.toLowerCase().includes(search);
+            });
+        }
+    
+        if (matches.length > 0) {
+            suggestions.innerHTML = matches.map(function(user, index) {
+                return '<div class="mention-suggestion" data-username="' + 
+                       user.username + '" data-index="' + index + '">' +
+                       user.username + '</div>';
+            }).join('');
+            
+            suggestions.querySelectorAll('.mention-suggestion').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    selectedIndex = parseInt(el.dataset.index);
+                    insertMention();
+                });
+                el.addEventListener('mouseover', function() {
+                    selectedIndex = parseInt(el.dataset.index);
+                    updateSelection();
+                });
+            });
+        
+            selectedIndex = 0;
+            updateSelection();
+        
+            // Position suggestions below cursor
+            var coords = getCaretCoordinates(textarea, textarea.selectionStart);
+            suggestions.style.top = (coords.top + 20) + 'px';
+            suggestions.style.left = coords.left + 'px';
+            suggestions.classList.remove('hidden');
+        } else {
+            hideSuggestions();
+        }
+    }
+
+    function hideSuggestions() {
+        suggestions.classList.add('hidden');
+        currentMentionStart = -1;
+        selectedIndex = -1;
+    }
+
+    function selectNext() {
+        var items = suggestions.querySelectorAll('.mention-suggestion');
+        selectedIndex = (selectedIndex + 1) % items.length;
+        updateSelection();
+    }
+
+    function selectPrevious() {
+        var items = suggestions.querySelectorAll('.mention-suggestion');
+        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+        updateSelection();
+    }
+
+    function updateSelection() {
+        suggestions.querySelectorAll('.mention-suggestion').forEach(function(el, i) {
+            el.classList.toggle('selected', i === selectedIndex);
+        });
+    }
+
+    function insertMention() {
+        var selected = suggestions.querySelector('.mention-suggestion.selected');
+        if (selected && currentMentionStart >= 0) {
+            var username = selected.dataset.username;
+            var text = textarea.value;
+            var before = text.slice(0, currentMentionStart);
+            var after = text.slice(textarea.selectionStart);
+            textarea.value = before + '@' + username + ' ' + after;
+            var cursorPos = currentMentionStart + username.length + 2;
+            textarea.setSelectionRange(cursorPos, cursorPos);
+            textarea.focus();
+        }
+        hideSuggestions();
+    }
+
+    // Helper function to get caret coordinates
+    function getCaretCoordinates(element, position) {
+        var div = document.createElement('div');
+        var styles = getComputedStyle(element);
+        var properties = [
+            'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+            'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+            'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+            'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+            'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform',
+            'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing'
+        ];
+
+        properties.forEach(function(prop) {
+            div.style[prop] = styles[prop];
+        });
+
+        div.style.position = 'absolute';
+        div.style.visibility = 'hidden';
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.wordWrap = 'break-word';
+
+        div.textContent = element.value.substring(0, position);
+
+        var span = document.createElement('span');
+        span.textContent = element.value.substring(position) || '.';
+        div.appendChild(span);
+
+        document.body.appendChild(div);
+
+        var coordinates = {
+            top: span.offsetTop + parseInt(styles.borderTopWidth),
+            left: span.offsetLeft + parseInt(styles.borderLeftWidth)
+        };
+
+        document.body.removeChild(div);
+
+        return coordinates;
+    }
+    
+    console.log('✅ @Mention system fully loaded');
+
 });
 </script>
 {% endblock %}

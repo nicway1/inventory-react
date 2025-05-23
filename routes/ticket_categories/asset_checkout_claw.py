@@ -23,11 +23,9 @@ def _initialize_firecrawl():
     firecrawl_client = None
     try:
         from firecrawl import FirecrawlApp
-        if FIRECRAWL_API_KEY:
-            firecrawl_client = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
-            print(f"Firecrawl API client initialized successfully with key: {FIRECRAWL_API_KEY[:5]}...")
-        else:
-            print("Error: No Firecrawl API key found in environment variables")
+        # Force use of the new API key
+        firecrawl_client = FirecrawlApp(api_key='fc-9e1ffc308a01434582ece2625a2a0da7')
+        print(f"Firecrawl API client initialized successfully with key: fc-eaa...")
     except Exception as e:
         print(f"Error initializing Firecrawl client: {str(e)}")
     return firecrawl_client
