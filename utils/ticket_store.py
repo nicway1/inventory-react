@@ -100,7 +100,7 @@ class TicketStore:
     def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
                      asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
                      image_path=None, repair_status=None, customer_id=None, shipping_address=None,
-                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None):
+                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None, notes=None, return_description=None):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -131,7 +131,9 @@ class TicketStore:
                 shipping_tracking=shipping_tracking,
                 shipping_carrier=shipping_carrier,
                 return_tracking=return_tracking,
-                queue_id=queue_id
+                queue_id=queue_id,
+                notes=notes,
+                return_description=return_description
             )
             db_session.add(ticket)
             db_session.commit()

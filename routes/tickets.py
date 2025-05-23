@@ -363,7 +363,8 @@ Additional Notes:
                         customer_id=customer_id,
                         shipping_address=shipping_address,
                         shipping_tracking=shipping_tracking if shipping_tracking else None,
-                        shipping_carrier=shipping_carrier
+                        shipping_carrier=shipping_carrier,
+                        notes=notes
                     )
 
                     # Update asset status and assign to customer
@@ -391,6 +392,7 @@ Additional Notes:
                 # PIN Request logic
                 lock_type = request.form.get('lock_type')
                 queue_id = request.form.get('queue_id', type=int)  # Get queue_id
+                notes = request.form.get('notes', '')
 
                 try:
                     ticket_id = ticket_store.create_ticket(
@@ -400,7 +402,8 @@ Additional Notes:
                         category=TicketCategory.PIN_REQUEST,
                         priority=priority,
                         asset_id=asset.id,
-                        queue_id=queue_id  # Pass queue_id to create_ticket
+                        queue_id=queue_id,  # Pass queue_id to create_ticket
+                        notes=notes
                     )
                     flash('PIN request ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -424,6 +427,12 @@ Additional Notes:
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
                 notes = request.form.get('notes', '')
                 queue_id = request.form.get('queue_id')  # Get selected queue
+                # Extract the return description from the form
+                user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
+                
+                print(f"DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
+                print(f"DEBUG - Form description: {request.form.get('description')}")  # Debug log
+                print(f"DEBUG - Final user_return_description: {user_return_description}")  # Debug log
                 
                 # Convert queue_id to int if provided
                 if queue_id:
@@ -480,8 +489,8 @@ Additional Notes:
                         print(f"Error accessing company name: {str(e)}")
                         company_name = 'N/A'
                 
-                # Prepare description
-                return_description = f"""Asset Return (Claw) Details:
+                # Prepare system description (separate from user return description)
+                system_description = f"""Asset Return (Claw) Details:
 Customer Information:
 Name: {customer.name}
 Company: {company_name}
@@ -492,16 +501,13 @@ Return Information:
 Address: {shipping_address}
 Outbound Tracking Number: {outbound_tracking if outbound_tracking else 'Not provided yet'}
 Inbound Tracking Number: {inbound_tracking if inbound_tracking else 'Not provided yet'}
-Shipping Method: Claw (Ship24)
-
-Additional Notes:
-{notes}"""
+Shipping Method: Claw (Ship24)"""
 
                 try:
                     # Create the ticket
                     ticket_id = ticket_store.create_ticket(
                         subject=subject if subject else f"Asset Return (claw) - {customer.name}",
-                        description=return_description,
+                        description=system_description,
                         requester_id=user_id,
                         category=TicketCategory.ASSET_RETURN_CLAW,
                         priority=priority,
@@ -511,7 +517,9 @@ Additional Notes:
                         shipping_tracking=outbound_tracking if outbound_tracking else None,
                         shipping_carrier='claw',
                         return_tracking=inbound_tracking if inbound_tracking else None,
-                        queue_id=queue_id
+                        queue_id=queue_id,
+                        notes=notes,
+                        return_description=user_return_description
                     )
 
                     print(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
@@ -639,7 +647,8 @@ Additional Notes:
                         description=description,
                         requester_id=user_id,
                         category=TicketCategory.ASSET_INTAKE,
-                        priority=priority
+                        priority=priority,
+                        notes=notes
                     )
 
                     flash('Asset intake ticket created successfully')
@@ -657,6 +666,7 @@ Additional Notes:
                                         form=request.form)
 
             # Create the ticket for other categories
+            notes = request.form.get('notes', '')
             ticket_id = ticket_store.create_ticket(
                 subject=subject,
                 description=description,
@@ -664,7 +674,8 @@ Additional Notes:
                 category=category,
                 priority=priority,
                 asset_id=asset.id,
-                country=request.form.get('country')
+                country=request.form.get('country'),
+                notes=notes
             )
 
             flash('Ticket created successfully')
@@ -906,6 +917,46 @@ def update_ticket(ticket_id):
             flash('You do not have permission to update this ticket.', 'error')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         # --- END PERMISSION CHECK ---
+        
+        # Update basic fields
+        subject = request.form.get('subject')
+        if subject and subject.strip():
+            ticket.subject = subject.strip()
+            print(f"DEBUG - Updated subject to: {ticket.subject}")
+        
+        description = request.form.get('description')
+        if description and description.strip():
+            ticket.description = description.strip()
+            print(f"DEBUG - Updated description")
+        
+        # Update return description for Asset Return tickets
+        return_description = request.form.get('return_description')
+        if return_description is not None:  # Allow empty string to clear field
+            ticket.return_description = return_description.strip() if return_description else None
+            print(f"DEBUG - Updated return_description")
+        
+        # Update notes
+        notes = request.form.get('notes')
+        if notes is not None:  # Allow empty string to clear field
+            ticket.notes = notes.strip() if notes else None
+            print(f"DEBUG - Updated notes")
+        
+        # Update shipping address
+        shipping_address = request.form.get('shipping_address')
+        if shipping_address is not None:  # Allow empty string to clear field
+            ticket.shipping_address = shipping_address.strip() if shipping_address else None
+            print(f"DEBUG - Updated shipping_address")
+        
+        # Update tracking numbers for Asset Return tickets
+        shipping_tracking = request.form.get('shipping_tracking')
+        if shipping_tracking is not None:  # Allow empty string to clear field
+            ticket.shipping_tracking = shipping_tracking.strip() if shipping_tracking else None
+            print(f"DEBUG - Updated shipping_tracking")
+        
+        return_tracking = request.form.get('return_tracking')
+        if return_tracking is not None:  # Allow empty string to clear field
+            ticket.return_tracking = return_tracking.strip() if return_tracking else None
+            print(f"DEBUG - Updated return_tracking")
         
         # Debug current status
         print(f"DEBUG - Current ticket status before update: {ticket.status}")

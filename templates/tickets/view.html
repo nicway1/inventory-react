@@ -628,65 +628,126 @@
             <div id="updateForm" class="hidden mb-6">
                 <div class="sf-card">
                     <div class="sf-card-header">
-                        <h2 class="sf-card-title">Update Ticket Status</h2>
+                        <h2 class="sf-card-title">Edit Ticket</h2>
                     </div>
                     <div class="sf-card-body">
                         <form method="POST" action="{{ url_for('tickets.update_ticket', ticket_id=ticket.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="mb-4">
-                                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                                    <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        <option value="NEW" {% if ticket.status and ticket.status.name == 'NEW' %}selected{% endif %}>
-                                            New
-                                        </option>
-                                        <option value="IN_PROGRESS" {% if ticket.status and ticket.status.name == 'IN_PROGRESS' %}selected{% endif %}>
-                                            In Progress
-                                        </option>
-                                        <option value="ON_HOLD" {% if ticket.status and ticket.status.name == 'ON_HOLD' %}selected{% endif %}>
-                                            On Hold
-                                        </option>
-                                        <option value="RESOLVED" {% if ticket.status and ticket.status.name == 'RESOLVED' %}selected{% endif %}>
-                                            Resolved
-                                        </option>
-                                        <option value="RESOLVED_DELIVERED" {% if ticket.status and ticket.status.name == 'RESOLVED_DELIVERED' %}selected{% endif %}>
-                                            Resolved (All Package Delivered)
-                                        </option>
-                                    </select>
+                            
+                            <!-- Basic Information Section -->
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
+                                        <input type="text" id="subject" name="subject" value="{{ ticket.subject }}" 
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                                        <textarea id="description" name="description" rows="4" 
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ ticket.description }}</textarea>
+                                    </div>
+                                    
+                                    {% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' %}
+                                    <div>
+                                        <label for="return_description" class="block text-sm font-medium text-gray-700">Return Description</label>
+                                        <textarea id="return_description" name="return_description" rows="3" 
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                                                  placeholder="Describe what assets are being returned and why">{{ ticket.return_description or '' }}</textarea>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="shipping_tracking" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
+                                            <input type="text" id="shipping_tracking" name="shipping_tracking" 
+                                                   value="{{ ticket.shipping_tracking or '' }}" 
+                                                   placeholder="e.g., XZD0002556450"
+                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        </div>
+                                        
+                                        <div>
+                                            <label for="return_tracking" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
+                                            <input type="text" id="return_tracking" name="return_tracking" 
+                                                   value="{{ ticket.return_tracking or '' }}" 
+                                                   placeholder="e.g., XZD0002556451"
+                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div>
+                                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                        <textarea id="notes" name="notes" rows="3" 
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ ticket.notes or '' }}</textarea>
+                                    </div>
+                                    
+                                    {% if ticket.shipping_address %}
+                                    <div>
+                                        <label for="shipping_address" class="block text-sm font-medium text-gray-700">{% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' %}Return Address{% else %}Shipping Address{% endif %}</label>
+                                        <textarea id="shipping_address" name="shipping_address" rows="3" 
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ ticket.shipping_address or '' }}</textarea>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <div class="mb-4">
-                                    <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
-                                    <select id="priority" name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        <option value="LOW" {% if ticket.priority and ticket.priority.name == 'LOW' %}selected{% endif %}>
-                                            Low
-                                        </option>
-                                        <option value="MEDIUM" {% if ticket.priority and ticket.priority.name == 'MEDIUM' %}selected{% endif %}>
-                                            Medium
-                                        </option>
-                                        <option value="HIGH" {% if ticket.priority and ticket.priority.name == 'HIGH' %}selected{% endif %}>
-                                            High
-                                        </option>
-                                        <option value="CRITICAL" {% if ticket.priority and ticket.priority.name == 'CRITICAL' %}selected{% endif %}>
-                                            Critical
-                                        </option>
-                                    </select>
-                                </div>
-                                {% if session.get('user_type') == 'admin' %}
-                                <div class="mb-4">
-                                    <label for="assigned_to_id" class="block text-sm font-medium text-gray-700">Assigned To</label>
-                                    <select id="assigned_to_id" name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        <option value="">-- Unassigned --</option>
-                                        {% for user_id, user in users.items() %}
-                                            <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
-                                                {{ user.username }} {% if user.company %}({{ user.company }}){% endif %}
+                                
+                                <!-- Status and Priority Section -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                        <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="NEW" {% if ticket.status and ticket.status.name == 'NEW' %}selected{% endif %}>
+                                                New
                                             </option>
-                                        {% endfor %}
-                                    </select>
+                                            <option value="IN_PROGRESS" {% if ticket.status and ticket.status.name == 'IN_PROGRESS' %}selected{% endif %}>
+                                                In Progress
+                                            </option>
+                                            <option value="ON_HOLD" {% if ticket.status and ticket.status.name == 'ON_HOLD' %}selected{% endif %}>
+                                                On Hold
+                                            </option>
+                                            <option value="RESOLVED" {% if ticket.status and ticket.status.name == 'RESOLVED' %}selected{% endif %}>
+                                                Resolved
+                                            </option>
+                                            <option value="RESOLVED_DELIVERED" {% if ticket.status and ticket.status.name == 'RESOLVED_DELIVERED' %}selected{% endif %}>
+                                                Resolved (All Package Delivered)
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                                        <select id="priority" name="priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="LOW" {% if ticket.priority and ticket.priority.name == 'LOW' %}selected{% endif %}>
+                                                Low
+                                            </option>
+                                            <option value="MEDIUM" {% if ticket.priority and ticket.priority.name == 'MEDIUM' %}selected{% endif %}>
+                                                Medium
+                                            </option>
+                                            <option value="HIGH" {% if ticket.priority and ticket.priority.name == 'HIGH' %}selected{% endif %}>
+                                                High
+                                            </option>
+                                            <option value="CRITICAL" {% if ticket.priority and ticket.priority.name == 'CRITICAL' %}selected{% endif %}>
+                                                Critical
+                                            </option>
+                                        </select>
+                                    </div>
+                                    {% if session.get('user_type') == 'admin' %}
+                                    <div class="md:col-span-2">
+                                        <label for="assigned_to_id" class="block text-sm font-medium text-gray-700">Assigned To</label>
+                                        <select id="assigned_to_id" name="assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">-- Unassigned --</option>
+                                            {% for user_id, user in users.items() %}
+                                                <option value="{{ user.id }}" {% if ticket.assigned_to_id == user.id %}selected{% endif %}>
+                                                    {{ user.username }} {% if user.company %}({{ user.company }}){% endif %}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                             </div>
-                            <div class="flex justify-end mt-4">
-                                <button type="button" onclick="toggleUpdateForm()" class="mr-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            
+                            <div class="flex justify-end mt-6 space-x-3">
+                                <button type="button" onclick="toggleUpdateForm()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                     Cancel
                                 </button>
                                 <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -757,10 +818,16 @@
                                         <div class="sf-field-label">Description</div>
                                         <div class="sf-field-value whitespace-pre-wrap">{{ ticket.description }}</div>
                                     </div>
-                                    {% if ticket.category and (ticket.category.value == 'ASSET_INTAKE' or ticket.category.name == 'ASSET_RETURN_CLAW') %}
+                                    {% if ticket.return_description and ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Return Description</div>
+                                        <div class="sf-field-value whitespace-pre-wrap">{{ ticket.return_description }}</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if ticket.notes %}
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Notes</div>
-                                        <div class="sf-field-value whitespace-pre-wrap">{{ ticket.notes if ticket.notes else 'No notes available' }}</div>
+                                        <div class="sf-field-value whitespace-pre-wrap">{{ ticket.notes }}</div>
                                     </div>
                                     {% endif %}
                                     <div class="sf-field-row">

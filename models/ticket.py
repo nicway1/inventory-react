@@ -78,6 +78,7 @@ class Ticket(Base):
     damage_description = Column(String(1000))
     apple_diagnostics = Column(String(100))
     image_path = Column(String(500))
+    return_description = Column(String(1000))  # Dedicated field for Asset Return descriptions
     return_tracking = Column(String(100))
     replacement_tracking = Column(String(100))
     warranty_number = Column(String(100))

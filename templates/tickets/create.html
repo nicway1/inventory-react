@@ -1457,6 +1457,13 @@ function submitAssetReturnForm() {
     descriptionInput.value = $('#return_description').val();
     form.appendChild(descriptionInput);
     
+    // ALSO add return description as separate field
+    const returnDescriptionInput = document.createElement('input');
+    returnDescriptionInput.type = 'hidden';
+    returnDescriptionInput.name = 'return_description';
+    returnDescriptionInput.value = $('#return_description').val();
+    form.appendChild(returnDescriptionInput);
+    
     // Add shipping address
     const addressInput = document.createElement('input');
     addressInput.type = 'hidden';
