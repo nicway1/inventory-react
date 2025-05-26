@@ -136,6 +136,16 @@ class TicketStore:
                 return_description=return_description
             )
             db_session.add(ticket)
+            db_session.flush()  # Flush to get the ticket ID
+            
+            # If asset_id is provided, add the asset to the many-to-many relationship
+            if asset_id:
+                from models.asset import Asset
+                asset = db_session.query(Asset).get(asset_id)
+                if asset:
+                    ticket.assets.append(asset)
+                    print(f"Added asset {asset_id} to ticket {ticket.id} assets relationship")
+            
             db_session.commit()
             return ticket.id  # Return the ID instead of the ticket object
         finally:
