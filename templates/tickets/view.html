@@ -535,7 +535,7 @@
                             <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
                         </div>
                         {% endif %}
-                        {% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' and ticket.customer %}
+                        {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' and ticket.customer %}
                         <div class="sf-field-row">
                             <div class="sf-field-label">Customer Name</div>
                             <div class="sf-field-value">{{ ticket.customer.name }}</div>
@@ -649,7 +649,7 @@
                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ ticket.description }}</textarea>
                                     </div>
                                     
-                                    {% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' %}
+                                    {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
                                     <div>
                                         <label for="return_description" class="block text-sm font-medium text-gray-700">Return Description</label>
                                         <textarea id="return_description" name="return_description" rows="3" 
@@ -684,7 +684,7 @@
                                     
                                     {% if ticket.shipping_address %}
                                     <div>
-                                        <label for="shipping_address" class="block text-sm font-medium text-gray-700">{% if ticket.category and ticket.category.value == 'ASSET_RETURN_CLAW' %}Return Address{% else %}Shipping Address{% endif %}</label>
+                                        <label for="shipping_address" class="block text-sm font-medium text-gray-700">{% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}Return Address{% else %}Shipping Address{% endif %}</label>
                                         <textarea id="shipping_address" name="shipping_address" rows="3" 
                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ ticket.shipping_address or '' }}</textarea>
                                     </div>
@@ -952,6 +952,88 @@
                         </div>
                     </div>
 
+                    <!-- Outbound Tracking Section for Asset Checkout Categories -->
+                    {% if ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_CLAW' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DHL' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_UPS' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_BLUEDART' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DTDC' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_AUTO') %}
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="sf-card-title">Outbound Tracking</h2>
+                                    {% if ticket.shipping_status %}
+                                    <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.shipping_status }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                {% if ticket.shipping_status != 'Received' %}
+                                <button class="sf-button" onclick="markOutboundAsReceived('{{ ticket.id }}')">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Mark as Received
+                                </button>
+                                {% endif %}
+                                <button id="addOutboundTrackingBtn" class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    {% if ticket.shipping_tracking %}
+                                    Edit Tracking
+                                    {% else %}
+                                    Add Tracking
+                                    {% endif %}
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="p-4">
+                                {% if ticket.shipping_tracking %}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <div class="text-sm text-gray-500">Tracking Number</div>
+                                        <div class="font-medium">{{ ticket.shipping_tracking }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Carrier</div>
+                                        <div class="font-medium">{{ ticket.shipping_carrier|title }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Status</div>
+                                        <div class="font-medium">{{ ticket.shipping_status }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 border-t pt-3">
+                                    <button id="refreshShippingTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchShippingTracking()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Refresh Tracking Information
+                                    </button>
+                                    <div id="trackingResults" class="mt-4">
+                                        <input type="hidden" id="trackingNumber" value="{{ ticket.shipping_tracking }}">
+                                        <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
+                                        <div id="trackingEvents" class="bg-gray-50 p-3 rounded text-sm">Loading tracking data...</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="text-center text-gray-500 py-4">
+                                    No outbound tracking information available
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
                     <!-- Outbound Tracking Card -->
                     <div class="sf-card mb-6">
@@ -1116,7 +1198,7 @@
                             <div class="flex justify-between items-center">
                                 <h2 class="sf-card-title">Received Accessories</h2>
                                 <div class="flex gap-2">
-                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySection').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
+                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySectionCheckout').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                         </svg>
@@ -1177,7 +1259,7 @@
                     </div>
                     
                     <!-- Method 3: Direct link to form action -->
-                    <div id="directAccessorySection" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+                    <div id="directAccessorySectionCheckout" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
                         <h3 style="margin-bottom: 15px;">Add Accessories directly</h3>
                         
                         <!-- Tab navigation for "New Accessory" and "Select Existing" -->
@@ -1532,6 +1614,215 @@
                         </script>
                     </div>
                     
+                    {% endif %}
+
+                    <!-- Accessories Section for Asset Checkout Categories -->
+                    {% if ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_CLAW' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DHL' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_UPS' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_BLUEDART' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DTDC' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_AUTO') %}
+                    <!-- Accessories Card for Asset Checkout -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <h2 class="sf-card-title">Checkout Accessories</h2>
+                                <div class="flex gap-2">
+                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySectionCheckout').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add Accessory
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="overflow-x-auto">
+                                <table class="sf-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>NAME</th>
+                                            <th>CATEGORY</th>
+                                            <th>QUANTITY</th>
+                                            <th>CONDITION</th>
+                                            <th>ACTIONS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accessoryTableBody">
+                                        {% if ticket.accessories %}
+                                            {% for accessory in ticket.accessories %}
+                                            <tr>
+                                                <td>{{ accessory.name }}</td>
+                                                <td>{{ accessory.category }}</td>
+                                                <td>{{ accessory.quantity }}</td>
+                                                <td>
+                                                    <span class="sf-badge {% if accessory.condition == 'Good' %}sf-badge-success{% elif accessory.condition == 'Fair' %}sf-badge-warning{% else %}sf-badge-danger{% endif %}">
+                                                        {{ accessory.condition }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-2">
+                                                        <button onclick="editAccessory('{{ accessory.id }}')" class="text-blue-600 hover:text-blue-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button onclick="removeAccessory('{{ accessory.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="5" class="text-center text-gray-500 py-4">No accessories recorded for this checkout</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Method 3: Direct link to form action for Asset Checkout -->
+                    <div id="directAccessorySectionCheckout" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="margin-bottom: 15px;">Add Accessories directly</h3>
+                        
+                        <!-- Tab navigation for "New Accessory" and "Select Existing" -->
+                        <div style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                            <button id="newAccessoryTab" onclick="switchTab('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
+                                Add New
+                            </button>
+                            <button id="existingAccessoryTab" onclick="switchTab('existing')" style="flex: 1; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 0 4px 0 0; cursor: pointer;">
+                                Select Existing
+                            </button>
+                        </div>
+                        
+                        <!-- New Accessory Form -->
+                        <form id="simpleAccessoryForm" method="POST" action="{{ url_for('tickets.add_accessory', ticket_id=ticket.id) | replace('/add_accessory', '/add-accessory') }}" style="display: none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Accessory Name</label>
+                                <input type="text" name="accessory_name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+                                <select name="accessory_category" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Select Category --</option>
+                                    <option value="Keyboard">Keyboard</option>
+                                    <option value="Mouse">Mouse</option>
+                                    <option value="Cable">Cable</option>
+                                    <option value="Adapter">Adapter</option>
+                                    <option value="Power Brick">Power Brick</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Manufacturer</label>
+                                <input type="text" name="manufacturer" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Model Number</label>
+                                <input type="text" name="model_no" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Total Quantity</label>
+                                <input type="number" name="total_quantity" min="1" value="1" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country</label>
+                                <select name="country" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select a country...</option>
+                                    <option value="USA">USA</option>
+                                    <option value="Japan">Japan</option>
+                                    <option value="Philippines">Philippines</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="Israel">Israel</option>
+                                    <option value="India">India</option>
+                                    <option value="Singapore">Singapore</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity for this Ticket</label>
+                                <input type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add New Accessory
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Existing Accessory Selection Form -->
+                        <form id="existingAccessoryForm" onsubmit="submitExistingAccessoryForm(event)" style="display: block;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Select Existing Accessory</label>
+                                <select id="existing_accessory_select" name="existing_accessory_id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Loading Accessories --</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity</label>
+                                <input id="accessory_quantity_input" type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add Selected Accessory
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                    </div>
                     {% endif %}
                 </div>
 
@@ -3313,7 +3604,20 @@ function fetchShippingTracking() {
     // First, determine the correct URL to use
     // Get the current location without any query parameters
     var baseUrl = window.location.protocol + '//' + window.location.host;
-    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw?force_refresh=true';
+    
+    // Determine the correct endpoint based on ticket category
+    var category = '{{ ticket.category.name if ticket.category else "" }}';
+    var apiUrl;
+    
+    if (category === 'ASSET_CHECKOUT_CLAW') {
+        apiUrl = baseUrl + '/tickets/category/checkout_claw/{{ ticket.id }}/track?force_refresh=true';
+    } else if (category === 'ASSET_RETURN_CLAW') {
+        apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw?force_refresh=true';
+    } else {
+        // Default for other asset checkout categories
+        apiUrl = baseUrl + '/tickets/category/checkout_main/{{ ticket.id }}/track?force_refresh=true';
+    }
+    
     console.log('Fetching tracking info with force refresh from:', apiUrl);
     
     // Call the tracking API
@@ -3960,7 +4264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (debugBtn) {
             debugBtn.addEventListener('click', function() {
                 console.log('Debug button clicked - scrolling to form');
-                const formSection = document.getElementById('directAccessorySection');
+                const formSection = document.getElementById('directAccessorySectionCheckout');
                 if (formSection) {
                     formSection.scrollIntoView({behavior: 'smooth'});
                     // Highlight the form section
@@ -3989,7 +4293,128 @@ function closeSimpleModal() {
 }
 </script>
 
-<!-- Simple tab system - Added at the end of the page -->
+<!-- Add missing tracking functions for Asset Checkout (Claw) -->
+<script>
+// Function to refresh outbound tracking for Asset Checkout categories
+function refreshOutboundTracking() {
+    const trackingInfo = document.getElementById('trackingInfo');
+    const trackingLoading = document.getElementById('trackingLoading');
+    const trackingError = document.getElementById('trackingError');
+    
+    if (!trackingInfo || !trackingLoading || !trackingError) {
+        console.error('Required outbound tracking elements not found');
+        return;
+    }
+    
+    // Show loading state for outbound tracking
+    trackingInfo.classList.add('hidden');
+    trackingError.classList.add('hidden');
+    trackingLoading.classList.remove('hidden');
+    
+    console.log('Refreshing outbound tracking for ticket {{ ticket.id }}');
+    
+    // Determine the correct tracking endpoint based on category
+    let trackingEndpoint;
+    const category = '{{ ticket.category.name if ticket.category else "" }}';
+    
+    if (category === 'ASSET_CHECKOUT_CLAW') {
+        trackingEndpoint = `/tickets/category/checkout_claw/{{ ticket.id }}/track`;
+    } else {
+        trackingEndpoint = `/tickets/category/checkout_main/{{ ticket.id }}/track`;
+    }
+    
+    // Fetch outbound tracking
+    fetch(trackingEndpoint)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+                const trackingHtml = data.tracking_info.map((entry, index) => `
+                    <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 rounded-full ${index === 0 ? 'bg-blue-100' : 'bg-gray-100'} flex items-center justify-center">
+                                    <svg class="w-5 h-5 ${index === 0 ? 'text-blue-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="${index === 0 ? 'text-blue-900 font-medium' : 'text-gray-900'} text-sm">
+                                            ${entry.status}
+                                        </p>
+                                        <p class="mt-1 text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'}">
+                                            ${entry.location || 'Singapore'}
+                                        </p>
+                                    </div>
+                                    <time class="text-sm ${index === 0 ? 'text-blue-700' : 'text-gray-500'} whitespace-nowrap ml-4">
+                                        ${entry.date}
+                                    </time>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                trackingInfo.innerHTML = `<h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>${trackingHtml}`;
+                trackingInfo.classList.remove('hidden');
+            } else {
+                trackingInfo.innerHTML = `
+                    <div class="p-4">
+                        <p class="text-sm text-gray-500">Pending - Tracking information will be available once the package starts moving.</p>
+                    </div>
+                `;
+                trackingInfo.classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching outbound tracking:', error);
+            
+            // Show a user-friendly error message
+            trackingInfo.innerHTML = `
+                <div class="p-4 bg-yellow-50 border border-yellow-200 rounded">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-7.938 4h15.876c1.398 0 2.69-.806 3.316-2.065a4.017 4.017 0 000-4.87C21.69 10.806 20.398 10 19 10H5c-1.398 0-2.69.806-3.316 2.065a4.017 4.017 0 000 4.87C2.31 17.194 3.602 18 5 18z" />
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-medium text-yellow-800">Tracking Temporarily Unavailable</h3>
+                            <p class="text-sm text-yellow-700 mt-1">
+                                Unable to fetch live tracking data. This can happen when the tracking service is updating or experiencing high traffic.
+                            </p>
+                            <p class="text-sm text-yellow-700 mt-1">
+                                <strong>Status:</strong> Pending - Your package is being processed
+                            </p>
+                            <button onclick="refreshOutboundTracking()" class="mt-2 text-sm text-yellow-800 underline hover:text-yellow-900">
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            trackingInfo.classList.remove('hidden');
+        })
+        .finally(() => {
+            trackingLoading.classList.add('hidden');
+        });
+}
+
+
+
+
+
+// Auto-load tracking on page load for Asset Checkout categories
+document.addEventListener('DOMContentLoaded', function() {
+    const category = '{{ ticket.category.name if ticket.category else "" }}';
+    const hasTracking = '{{ ticket.shipping_tracking or "" }}';
+    
+    if ((category === 'ASSET_CHECKOUT_CLAW' || category === 'ASSET_CHECKOUT_MAIN') && hasTracking) {
+        setTimeout(refreshOutboundTracking, 1000); // Delay to ensure elements are loaded
+    }
+    
+
+});
 </script>
 
 <script>
@@ -4057,3 +4482,4 @@ function updateAccessoryTable(accessory) {
         tableBody.appendChild(newRow);
     }
 }
+</script>

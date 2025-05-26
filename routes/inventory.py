@@ -1074,6 +1074,12 @@ def update_asset_status(asset_id):
         original_status = asset.status
         original_customer_id = asset.customer_id
         
+        # Store old values for change tracking
+        old_values = {
+            'status': original_status.value if original_status else None,
+            'customer_id': original_customer_id
+        }
+        
         # Define the mapping from string to enum
         status_map = {
             "IN_STOCK": AssetStatus.IN_STOCK,

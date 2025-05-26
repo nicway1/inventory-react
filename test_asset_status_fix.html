@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔧 Asset Status Update Fix</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 900px; 
+            margin: 40px auto; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .success { 
+            background-color: #d4edda; 
+            border: 1px solid #c3e6cb; 
+            color: #155724; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border: 1px solid #f5c6cb; 
+            color: #721c24; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+        }
+        .code { 
+            background-color: #f8f9fa; 
+            border: 1px solid #e9ecef; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        h1 { color: #dc3545; }
+        h2 { color: #495057; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Asset Status Update Error - FIXED!</h1>
+    
+    <div class="error">
+        <h2>❌ Original Error</h2>
+        <p><strong>Error Message:</strong> "Error updating asset status: name 'old_values' is not defined"</p>
+        <p><strong>When it occurred:</strong> When clicking "Return to Stock" or "Deployed to Customer" buttons in inventory</p>
+        <p><strong>Cause:</strong> The `old_values` variable was referenced in the change tracking code but never initialized</p>
+    </div>
+
+    <div class="success">
+        <h2>✅ Problem Identified</h2>
+        <p>The issue was in the <code>update_asset_status</code> function in <code>routes/inventory.py</code> around line 1125.</p>
+    </div>
+
+    <h2>🔍 Root Cause Analysis</h2>
+    
+    <div class="code">
+        <strong>Problem Code (Before Fix):</strong><br>
+        # Save original state to track changes<br>
+        original_status = asset.status<br>
+        original_customer_id = asset.customer_id<br>
+        <br>
+        # [... more code ...]<br>
+        <br>
+        # Track changes<br>
+        changes = {}<br>
+        for field in old_values:  # ❌ ERROR: old_values not defined!<br>
+            new_value = getattr(asset, field)<br>
+            # [... rest of change tracking code ...]
+    </div>
+
+    <h2>🛠️ Solution Applied</h2>
+    
+    <div class="code">
+        <strong>Fixed Code (After Fix):</strong><br>
+        # Save original state to track changes<br>
+        original_status = asset.status<br>
+        original_customer_id = asset.customer_id<br>
+        <br>
+        # Store old values for change tracking<br>
+        old_values = {<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;'status': original_status.value if original_status else None,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;'customer_id': original_customer_id<br>
+        }<br>
+        <br>
+        # [... more code ...]<br>
+        <br>
+        # Track changes<br>
+        changes = {}<br>
+        for field in old_values:  # ✅ FIXED: old_values now properly defined!<br>
+            new_value = getattr(asset, field)<br>
+            # [... rest of change tracking code ...]
+    </div>
+
+    <h2>🎯 What Was Fixed</h2>
+    
+    <div class="success">
+        <h3>✅ Added Missing Variable Initialization</h3>
+        <ul>
+            <li><strong>Created old_values dictionary</strong> to store original values before changes</li>
+            <li><strong>Included status and customer_id</strong> - the two fields that can be updated</li>
+            <li><strong>Handled enum conversion</strong> - converts AssetStatus enum to string value</li>
+            <li><strong>Null safety</strong> - handles cases where original_status might be None</li>
+        </ul>
+    </div>
+
+    <h2>📋 Status Update Functions Now Work</h2>
+    
+    <div class="success">
+        <h3>These Actions Should Now Work:</h3>
+        <ul>
+            <li><strong>Return to Stock</strong> - Changes asset status to IN_STOCK</li>
+            <li><strong>Deployed to Customer</strong> - Changes status to DEPLOYED and assigns customer</li>
+            <li><strong>Ready to Deploy</strong> - Changes status to READY_TO_DEPLOY</li>
+            <li><strong>Shipped</strong> - Changes status to SHIPPED</li>
+            <li><strong>Repair</strong> - Changes status to REPAIR</li>
+            <li><strong>Archived</strong> - Changes status to ARCHIVED</li>
+            <li><strong>Disposed</strong> - Changes status to DISPOSED</li>
+        </ul>
+    </div>
+
+    <h2>🔧 Additional Benefits</h2>
+    
+    <div class="code">
+        <strong>Improved Change Tracking:</strong><br>
+        ✅ Asset status changes are now properly tracked<br>
+        ✅ Customer assignment changes are recorded<br>
+        ✅ History entries are created for audit trail<br>
+        ✅ Change tracking works for both JSON API and form submissions<br>
+        ✅ No more undefined variable errors
+    </div>
+
+    <h2>🧪 Testing Steps</h2>
+    
+    <ol>
+        <li>Go to inventory section</li>
+        <li>Find any asset (preferably one currently deployed)</li>
+        <li>Click "Return to Stock" button</li>
+        <li>Should work without errors and update the status</li>
+        <li>Try "Deployed to Customer" with a different asset</li>
+        <li>Verify that asset history shows the changes</li>
+    </ol>
+
+    <div class="success">
+        <h3>✅ Error Fixed!</h3>
+        <p>The "name 'old_values' is not defined" error should now be resolved. Asset status updates will work properly and changes will be tracked in the asset history.</p>
+    </div>
+
+</body>
+</html> 
