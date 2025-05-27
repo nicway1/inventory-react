@@ -1424,11 +1424,14 @@ def upload_attachment(ticket_id):
                 # Get file size after saving
                 file_size = os.path.getsize(file_path) if os.path.exists(file_path) else None
                 
+                # Determine file type from extension for consistent checking
+                file_extension = filename.lower().split('.')[-1] if '.' in filename else ''
+                
                 attachment = Attachment(
                     ticket_id=ticket_id,
-                    filename=filename,
+                    filename=file.filename,  # Store original filename in filename field
                     file_path=file_path,
-                    file_type=file.content_type if hasattr(file, 'content_type') else None,
+                    file_type=file_extension,  # Use extension instead of content_type
                     file_size=file_size,  # Add file size
                     uploaded_by=session['user_id']
                 )
@@ -4371,15 +4374,30 @@ def get_attachment(ticket_id, attachment_id):
                     flash('You do not have permission to access this attachment', 'error')
                     return redirect(url_for('tickets.list_tickets'))
         
-        # Get file path
-        file_path = attachment.file_path
+        # Check if the file exists
+        if not os.path.exists(attachment.file_path):
+            flash('File not found on server', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         
-        # Send the file
-        return send_file(
-            file_path,
-            attachment_filename=attachment.original_filename,
-            as_attachment=False
-        )
+        # Determine if this is a PDF for inline viewing
+        is_pdf = attachment.filename.lower().endswith('.pdf')
+        download_requested = request.args.get('download') == 'true'
+        
+        if is_pdf and not download_requested:
+            # Serve PDF for inline viewing
+            return send_file(
+                attachment.file_path,
+                mimetype='application/pdf',
+                as_attachment=False,
+                download_name=attachment.filename
+            )
+        else:
+            # Serve as download
+            return send_file(
+                attachment.file_path,
+                as_attachment=True,
+                download_name=attachment.filename
+            )
         
     except Exception as e:
         print(f"Error getting attachment: {str(e)}")
