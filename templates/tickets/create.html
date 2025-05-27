@@ -35,16 +35,9 @@
                         <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
                         <option value="REPAIR_QUOTE" {% if form and form.category == 'REPAIR_QUOTE' %}selected{% endif %}>Repair Quote</option>
                         <option value="ITAD_QUOTE" {% if form and form.category == 'ITAD_QUOTE' %}selected{% endif %}>ITAD Quote</option>
-                        <option value="ASSET_CHECKOUT" {% if form and form.category == 'ASSET_CHECKOUT' %}selected{% endif %}>Asset Checkout (Standard)</option>
-                        <option value="ASSET_CHECKOUT_SINGPOST" {% if form and form.category == 'ASSET_CHECKOUT_SINGPOST' %}selected{% endif %}>Asset Checkout (SingPost)</option>
-                        <option value="ASSET_CHECKOUT_DHL" {% if form and form.category == 'ASSET_CHECKOUT_DHL' %}selected{% endif %}>Asset Checkout (DHL)</option>
-                        <option value="ASSET_CHECKOUT_UPS" {% if form and form.category == 'ASSET_CHECKOUT_UPS' %}selected{% endif %}>Asset Checkout (UPS)</option>
-                        <option value="ASSET_CHECKOUT_BLUEDART" {% if form and form.category == 'ASSET_CHECKOUT_BLUEDART' %}selected{% endif %}>Asset Checkout (BlueDart)</option>
-                        <option value="ASSET_CHECKOUT_DTDC" {% if form and form.category == 'ASSET_CHECKOUT_DTDC' %}selected{% endif %}>Asset Checkout (DTDC)</option>
-                        <option value="ASSET_CHECKOUT_AUTO" {% if form and form.category == 'ASSET_CHECKOUT_AUTO' %}selected{% endif %}>Asset Checkout (Auto)</option>
-                        <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout (claw)</option>
+                        <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout</option>
                         <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
-                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return (claw)</option>
+                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return</option>
                     </select>
                 </div>
 
@@ -868,9 +861,6 @@ function toggleFormFields() {
     const assetCheckoutFields = document.getElementById('assetCheckoutFields');
     const assetIntakeFields = document.getElementById('assetIntakeFields');
     const assetReturnFields = document.getElementById('assetReturnFields');
-    const trackingLabel = document.getElementById('trackingLabel');
-    const singpostNote = document.getElementById('singpostNote');
-    const trackingHint = document.getElementById('trackingHint');
     const trackingInput = document.getElementById('shipping_tracking');
     const intakeTitle = document.getElementById('intake_title');
     const intakeDescription = document.getElementById('intake_description');
@@ -939,7 +929,7 @@ function toggleFormFields() {
         repairFields.classList.remove('hidden');
         document.getElementById('repair_serial_number').required = true;
         document.getElementById('damage_description').required = true;
-    } else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
+    } else if (category === 'ASSET_CHECKOUT_CLAW') {
         assetCheckoutFields.classList.remove('hidden');
         document.getElementById('customer_id').required = true;
         document.getElementById('checkout_serial_number').required = true;
@@ -950,65 +940,14 @@ function toggleFormFields() {
             assetSelectionContainer.classList.remove('hidden');
         }
         
-        // For BlueDart, ensure the selected serial number is copied to the hidden field
-        if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
-            // Get the current value from checkout_serial_number
-            const serialValue = document.getElementById('checkout_serial_number').value;
-            if (serialValue) {
-                // Set the hidden field
-                document.getElementById('asset_checkout_serial').value = serialValue;
-                console.log('BlueDart/DTDC: Set asset_checkout_serial to:', serialValue);
-            }
-        }
+        // Remove any tracking pattern for Asset Checkout (claw)
+        $('#shipping_tracking').removeAttr('pattern');
         
-        // Update tracking field based on category
-        if (category === 'ASSET_CHECKOUT_SINGPOST') {
-            trackingLabel.textContent = 'SingPost Tracking Number';
-            singpostNote.classList.remove('hidden');
-            trackingHint.classList.remove('hidden');
-            trackingInput.pattern = '^(XZD|XZB)[0-9]+$';
-            trackingInput.required = true;
-        } else if (category === 'ASSET_CHECKOUT_DHL') {
-            trackingLabel.textContent = 'DHL Tracking Number';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = null;
-            trackingInput.removeAttribute('pattern');
-            trackingInput.required = true;
-        } else if (category === 'ASSET_CHECKOUT_UPS') {
-            trackingLabel.textContent = 'UPS Tracking Number';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = null;
-            trackingInput.removeAttribute('pattern');
-            trackingInput.required = true;
-        } else if (category === 'ASSET_CHECKOUT_BLUEDART') {
-            trackingLabel.textContent = 'BlueDart Tracking Number';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = null;
-            trackingInput.removeAttribute('pattern');
-            trackingInput.required = true;
-        } else if (category === 'ASSET_CHECKOUT_DTDC') {
-            trackingLabel.textContent = 'DTDC Tracking Number';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = null;
-            trackingInput.removeAttribute('pattern');
-            trackingInput.required = true;
-        } else if (category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
-            trackingLabel.textContent = 'Tracking Number (Any Carrier)';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = null;
-            trackingInput.removeAttribute('pattern');
-            trackingInput.required = false;
-        } else {
-            trackingLabel.textContent = 'Tracking Number';
-            singpostNote.classList.add('hidden');
-            trackingHint.classList.add('hidden');
-            trackingInput.pattern = '';
-            trackingInput.required = false;
+        // Make sure hidden field is populated
+        const serial = $('#checkout_serial_number').val();
+        if (serial) {
+            $('#asset_checkout_serial').val(serial);
+            console.log('Asset Checkout (claw) initialization: Set asset_checkout_serial to:', serial);
         }
     } else if (category === 'ASSET_INTAKE') {
         assetIntakeFields.classList.remove('hidden');
@@ -1111,16 +1050,6 @@ $(document).ready(function() {
         const category = $(this).val();
         console.log('Category changed to:', category);
         
-        // If BlueDart is selected, ensure we handle it correctly
-        if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
-            // If a serial number is already selected, make sure hidden field is populated
-            const serial = $('#checkout_serial_number').val();
-            if (serial) {
-                $('#asset_checkout_serial').val(serial);
-                console.log('Category change to BlueDart/DTDC: Set asset_checkout_serial to:', serial);
-            }
-        }
-        
         // Toggle fields based on category
         toggleFormFields();
     });
@@ -1132,28 +1061,17 @@ $(document).ready(function() {
             $('#serial_number').trigger('change');
         } else if (category === 'ASSET_REPAIR' && $('#repair_serial_number').val()) {
             $('#repair_serial_number').trigger('change');
-        } else if ((category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') && $('#checkout_serial_number').val()) {
+        } else if ((category === 'ASSET_CHECKOUT_CLAW') && $('#checkout_serial_number').val()) {
             $('#checkout_serial_number').trigger('change');
             
-            // Special handling for DHL tracking
-            if (category === 'ASSET_CHECKOUT_DHL') {
-                $('#shipping_tracking').removeAttr('pattern');
-            }
+            // Remove any tracking pattern for Asset Checkout (claw)
+            $('#shipping_tracking').removeAttr('pattern');
             
-            // Special handling for BlueDart tracking
-            if (category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC') {
-                $('#shipping_tracking').removeAttr('pattern');
-                // Make sure hidden field is populated
-                const serial = $('#checkout_serial_number').val();
-                if (serial) {
-                    $('#asset_checkout_serial').val(serial);
-                    console.log('BlueDart/DTDC initialization: Set asset_checkout_serial to:', serial);
-                }
-            }
-            
-            // Special handling for UPS tracking
-            if (category === 'ASSET_CHECKOUT_UPS') {
-                $('#shipping_tracking').removeAttr('pattern');
+            // Make sure hidden field is populated
+            const serial = $('#checkout_serial_number').val();
+            if (serial) {
+                $('#asset_checkout_serial').val(serial);
+                console.log('Asset Checkout (claw) initialization: Set asset_checkout_serial to:', serial);
             }
         }
     }
@@ -1279,8 +1197,8 @@ $(document).ready(function() {
         }
         
         // Only validate asset selection for specific checkout categories
-        else if (category === 'ASSET_CHECKOUT' || category === 'ASSET_CHECKOUT_SINGPOST' || category === 'ASSET_CHECKOUT_DHL' || category === 'ASSET_CHECKOUT_UPS' || category === 'ASSET_CHECKOUT_BLUEDART' || category === 'ASSET_CHECKOUT_DTDC' || category === 'ASSET_CHECKOUT_AUTO' || category === 'ASSET_CHECKOUT_CLAW') {
-            console.log('Validating ASSET_CHECKOUT_* category...');
+        else if (category === 'ASSET_CHECKOUT_CLAW') {
+            console.log('Validating ASSET_CHECKOUT_CLAW category...');
             // Use the hidden field which is reliably updated by the change handler
             const serialNumber = $('#asset_checkout_serial').val();
             console.log('Submit validation: Checking #asset_checkout_serial. Value:', serialNumber);
