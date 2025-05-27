@@ -244,6 +244,14 @@ def create_ticket():
                 shipping_address = request.form.get('shipping_address')
                 shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
                 notes = request.form.get('notes', '')
+                queue_id = request.form.get('queue_id')  # Get selected queue
+                
+                # Convert queue_id to int if provided
+                if queue_id:
+                    try:
+                        queue_id = int(queue_id)
+                    except ValueError:
+                        queue_id = None
                 
                 print(f"Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
                 
@@ -364,6 +372,7 @@ Additional Notes:
                         shipping_address=shipping_address,
                         shipping_tracking=shipping_tracking if shipping_tracking else None,
                         shipping_carrier=shipping_carrier,
+                        queue_id=queue_id,
                         notes=notes
                     )
 
