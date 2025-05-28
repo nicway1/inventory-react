@@ -24,7 +24,7 @@ class UserStore:
             test_user = User.create(
                 username="test",
                 password="test123",
-                user_type="USER",  # Pass as string
+                user_type="CLIENT",  # Changed from USER to CLIENT
                 company=None
             )
             self.users[test_user.id] = test_user
@@ -67,7 +67,7 @@ class UserStore:
     def get_all_users(self):
         return list(self.users.values())
 
-    def create_user(self, username, password, user_type='user', company=None, role=None):
+    def create_user(self, username, password, user_type='CLIENT', company=None, role=None):
         if self.get_user_by_username(username):
             return None
         

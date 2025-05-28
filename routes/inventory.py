@@ -651,6 +651,7 @@ def import_inventory():
             if 'file' in request.files:
                 file = request.files['file']
                 import_type = request.form.get('import_type', 'tech_assets')
+                ticket_id = request.form.get('ticket_id')  # Get ticket_id from form
                 
                 if file and allowed_file(file.filename):
                     # Create unique filename for both the uploaded file and preview data
@@ -783,6 +784,8 @@ def import_inventory():
                         session['filename'] = filename
                         session['import_type'] = import_type
                         session['total_rows'] = len(preview_data)
+                        if ticket_id:  # Store ticket_id if provided
+                            session['import_ticket_id'] = ticket_id
 
                         return render_template('inventory/import.html',
                                             preview_data=preview_data,
@@ -921,6 +924,26 @@ def confirm_import():
                     )
                     db_session.add(new_asset)
                     db_session.commit()
+                    
+                    # Link asset to ticket if ticket_id is provided
+                    ticket_id = session.get('import_ticket_id')
+                    if ticket_id:
+                        try:
+                            from routes.tickets import Ticket  # Import Ticket model
+                            ticket = db_session.query(Ticket).get(int(ticket_id))
+                            if ticket:
+                                new_asset.intake_ticket_id = ticket.id
+                                
+                                # Add asset to ticket's assets collection if it exists
+                                if hasattr(ticket, 'assets'):
+                                    ticket.assets.append(new_asset)
+                                
+                                db_session.commit()
+                                print(f"Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
+                        except Exception as e:
+                            print(f"Error linking asset to ticket: {str(e)}")
+                            # Don't fail the import if ticket linking fails
+                    
                     successful += 1
                 else:  # accessories
                     # Check for missing required fields in form data
@@ -1007,6 +1030,7 @@ def confirm_import():
         session.pop('import_type', None)
         session.pop('total_rows', None)
         session.pop('preview_data', None)
+        session.pop('import_ticket_id', None)  # Clear ticket ID
         
         flash('Data imported successfully!', 'success')
         return redirect(url_for('inventory.import_inventory'))
@@ -2259,19 +2283,24 @@ def view_asset_history(asset_id):
 @inventory_bp.route('/search')
 @login_required
 def search():
-    """Search for assets, accessories, and customers"""
+    """Search for assets, accessories, customers, and tickets"""
     search_term = request.args.get('q', '').strip()
     if not search_term:
         return redirect(url_for('inventory.view_inventory'))
 
     db_session = db_manager.get_session()
     try:
+        from models.ticket import Ticket, TicketCategory, TicketStatus, TicketPriority
+        from models.customer_user import CustomerUser
+        from models.company import Company
+        
         user = db_session.query(User).get(session['user_id'])
         
         # Base queries
         asset_query = db_session.query(Asset)
         accessory_query = db_session.query(Accessory)
         customer_query = db_session.query(CustomerUser)
+        ticket_query = db_session.query(Ticket)
 
         # Filter by company for CLIENT users - can only see their company's assets
         if user.user_type == UserType.CLIENT and user.company:
@@ -2287,6 +2316,7 @@ def search():
         if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
             asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
             accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
+            ticket_query = ticket_query.filter(Ticket.country == user.assigned_country.value)
             # Note: Customers don't have a country field, so no filtering needed
 
         # Search assets
@@ -2328,11 +2358,58 @@ def search():
                 )
             ).all()
 
+        # Search tickets
+        tickets = ticket_query.filter(
+            or_(
+                Ticket.subject.ilike(f'%{search_term}%'),
+                Ticket.description.ilike(f'%{search_term}%'),
+                Ticket.notes.ilike(f'%{search_term}%'),
+                Ticket.serial_number.ilike(f'%{search_term}%'),
+                Ticket.damage_description.ilike(f'%{search_term}%'),
+                Ticket.return_description.ilike(f'%{search_term}%'),
+                Ticket.shipping_tracking.ilike(f'%{search_term}%'),
+                Ticket.return_tracking.ilike(f'%{search_term}%'),
+                Ticket.shipping_tracking_2.ilike(f'%{search_term}%'),
+                # Search by ticket ID (e.g., "TICK-1001" or just "1001")
+                *([Ticket.id == int(search_term.replace('TICK-', '').replace('#', ''))] 
+                  if search_term.replace('TICK-', '').replace('#', '').isdigit() else [])
+            )
+        ).all()
+
+        # Find related tickets for found assets
+        related_tickets = []
+        if assets:
+            # Get asset serial numbers and asset tags
+            asset_serial_numbers = [asset.serial_num for asset in assets if asset.serial_num]
+            asset_tags = [asset.asset_tag for asset in assets if asset.asset_tag]
+            asset_ids = [asset.id for asset in assets]
+            
+            # Search for tickets related to these assets by serial number, asset tag, or asset ID
+            related_tickets_query = ticket_query.filter(
+                or_(
+                    Ticket.serial_number.in_(asset_serial_numbers) if asset_serial_numbers else False,
+                    Ticket.asset_id.in_(asset_ids) if asset_ids else False,
+                    # Also search for asset tags or serial numbers mentioned in ticket descriptions/notes
+                    *[Ticket.description.ilike(f'%{tag}%') for tag in asset_tags if tag],
+                    *[Ticket.notes.ilike(f'%{tag}%') for tag in asset_tags if tag],
+                    *[Ticket.description.ilike(f'%{serial}%') for serial in asset_serial_numbers if serial],
+                    *[Ticket.notes.ilike(f'%{serial}%') for serial in asset_serial_numbers if serial]
+                )
+            )
+            
+            related_tickets = related_tickets_query.all()
+            
+            # Remove duplicates if a ticket appears in both direct search and related search
+            ticket_ids = [t.id for t in tickets]
+            related_tickets = [t for t in related_tickets if t.id not in ticket_ids]
+
         return render_template('inventory/search_results.html',
                              query=search_term,
                              assets=assets,
                              accessories=accessories,
                              customers=customers,
+                             tickets=tickets,
+                             related_tickets=related_tickets,
                              user=user)
     finally:
         db_session.close()

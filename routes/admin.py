@@ -771,4 +771,25 @@ def delete_queue_permission(permission_id):
     finally:
         db_session.close()
     
-    return redirect(url_for('admin.manage_queue_permissions')) 
+    return redirect(url_for('admin.manage_queue_permissions'))
+
+@admin_bp.route('/system-config')
+@super_admin_required
+def system_config():
+    """System configuration page"""
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        return render_template('admin/system_config.html', 
+                             user=user)
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error loading system configuration: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+    finally:
+        db_session.close() 

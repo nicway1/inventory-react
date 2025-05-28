@@ -591,9 +591,10 @@ Additional Notes:
 Images Attached: {len(image_paths)} image(s)"""
 
             elif category == 'ASSET_INTAKE':
-                title = request.form.get('title')
-                description = request.form.get('description')
-                notes = request.form.get('notes', '')
+                title = request.form.get('intake_title') or request.form.get('title')  # Support both field names
+                description = request.form.get('intake_description') or request.form.get('description')  # Support both field names  
+                notes = request.form.get('intake_notes') or request.form.get('notes', '')  # Support both field names
+                priority = request.form.get('intake_priority') or request.form.get('priority')  # Support both field names
 
                 if not title or not description:
                     flash('Please provide both title and description', 'error')
@@ -1260,7 +1261,7 @@ def update_tracking_status(ticket_id, tracking_type):
             details = {
                 'message': latest_event.get('z', ''),
                 'location': latest_event.get('c', ''),
-                'time': latest_event.get('a', datetime.now().isoformat())
+                'time': latest_event.get('a', datetime.datetime.now().isoformat())
             }
             
             # Check if package is delivered
@@ -1275,7 +1276,7 @@ def update_tracking_status(ticket_id, tracking_type):
                 ticket.shipment.update_tracking(status, details)
                 if is_delivered:
                     ticket.status = 'Resolved'
-                    ticket.updated_at = datetime.now()
+                    ticket.updated_at = datetime.datetime.now()
             elif tracking_type == 'rma_return' and ticket.return_tracking:
                 ticket.return_tracking.update_tracking(status, details)
                 if is_delivered:
@@ -4480,10 +4481,14 @@ def add_accessory(ticket_id):
                 )
                 db_session.add(ticket_accessory)
 
-                # Don't modify available_quantity when adding to ticket
+                # Update inventory: increase available_quantity when adding to ticket
                 print(f"=== INVENTORY UPDATE START ===")
-                print(f"INVENTORY QUANTITY UNCHANGED FOR: {accessory.name}")
-                print(f"Available quantity remains: {accessory.available_quantity}")
+                print(f"INCREASING INVENTORY FOR: {accessory.name}")
+                print(f"Previous available quantity: {accessory.available_quantity}")
+                
+                # Increase the available quantity when adding to ticket
+                accessory.available_quantity += quantity
+                print(f"New available quantity: {accessory.available_quantity}")
                 print(f"=== INVENTORY UPDATE END ===")
 
                 # Create transaction record
@@ -4534,10 +4539,16 @@ def add_accessory(ticket_id):
             db_session.add(new_accessory)
             db_session.flush()  # Get the ID of the new accessory
             
-            # Don't modify available_quantity, it should stay exactly as total_quantity
+            # Increase available quantity when assigning to ticket
             print(f"=== INVENTORY UPDATE START ===")
-            print(f"INVENTORY QUANTITY REMAINS: {total_quantity} {name}")
-            print(f"Available quantity: {new_accessory.available_quantity}")
+            print(f"CREATING NEW ACCESSORY: {name}")
+            print(f"Total quantity: {total_quantity}")
+            print(f"Assigning quantity: {quantity}")
+            print(f"Initial available quantity: {new_accessory.available_quantity}")
+            
+            # Increase available quantity by the assigned amount
+            new_accessory.available_quantity += quantity
+            print(f"Available quantity after assignment: {new_accessory.available_quantity}")
             print(f"=== INVENTORY UPDATE END ===")
             
             # Create ticket accessory record
@@ -4722,12 +4733,14 @@ def remove_accessory(ticket_id, accessory_id):
             original_accessory = db_session.query(Accessory).filter(Accessory.id == original_id).with_for_update().first()
             
             if original_accessory:
-                # Don't modify inventory quantity when removing from ticket
+                # Decrease inventory quantity when removing from ticket
                 print(f"=== INVENTORY UPDATE START ===")
                 print(f"REMOVING ACCESSORY: {quantity} {accessory_name}")
-                print(f"Inventory quantity remains: {original_accessory.available_quantity}")
+                print(f"Previous inventory quantity: {original_accessory.available_quantity}")
                 
-                # No need to update the quantity - we want to keep it consistent with total_quantity
+                # Decrease the available quantity to reduce inventory
+                original_accessory.available_quantity -= quantity
+                print(f"New inventory quantity: {original_accessory.available_quantity}")
                 print(f"=== INVENTORY UPDATE END ===")
                 
                 # Create a transaction record
@@ -4736,9 +4749,9 @@ def remove_accessory(ticket_id, accessory_id):
                         accessory_id=original_id,
                         transaction_type="Ticket Removal",
                         quantity=quantity,
-                        transaction_number=f"OUT-{ticket_id}-{original_id}-{int(datetime.now().timestamp())}",
+                        transaction_number=f"OUT-{ticket_id}-{original_id}-{int(datetime.datetime.now().timestamp())}",
                         user_id=current_user.id,
-                        notes=f"Accessory removed from ticket #{ticket_id}"
+                        notes=f"Accessory removed from ticket #{ticket_id} - inventory decreased"
                     )
                     db_session.add(transaction)
                 except Exception as tx_error:

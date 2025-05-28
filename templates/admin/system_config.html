@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}System Configuration{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold">System Configuration</h1>
+            <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </a>
+        </div>
+
+        <!-- Email Configuration -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Email Configuration</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">SMTP Server</p>
+                        <p class="mt-1">{{ config.MAIL_SERVER }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">SMTP Port</p>
+                        <p class="mt-1">{{ config.MAIL_PORT }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Default Sender</p>
+                        <p class="mt-1">{{ config.MAIL_DEFAULT_SENDER }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">TLS Enabled</p>
+                        <p class="mt-1">{{ 'Yes' if config.MAIL_USE_TLS else 'No' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Configuration -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Database Configuration</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Database URL</p>
+                        <p class="mt-1">{{ config.SQLALCHEMY_DATABASE_URI|replace('://', '://*****:*****@') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Track Modifications</p>
+                        <p class="mt-1">{{ 'Yes' if config.SQLALCHEMY_TRACK_MODIFICATIONS else 'No' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Settings -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">System Settings</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Session Lifetime</p>
+                        <p class="mt-1">{{ (config.PERMANENT_SESSION_LIFETIME.total_seconds() / 60)|int }} minutes</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">CSRF Protection</p>
+                        <p class="mt-1">{{ 'Enabled' if config.WTF_CSRF_CHECK_DEFAULT else 'Disabled' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Debug Mode</p>
+                        <p class="mt-1">{{ 'Enabled' if config.DEBUG else 'Disabled' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- External Services -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">External Services</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">OAuth2 Enabled</p>
+                        <p class="mt-1">{{ 'Yes' if config.USE_OAUTH2_EMAIL else 'No' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Firecrawl API</p>
+                        <p class="mt-1">{{ 'Configured' if config.get('FIRECRAWL_API_KEY') else 'Not Configured' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

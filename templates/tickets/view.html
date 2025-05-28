@@ -887,7 +887,7 @@
                                         </svg>
                                         Add Tech Asset
                                     </button>
-                                    <button class="sf-button" onclick="window.location.href='/assets/add?ticket_id={{ ticket.id }}'">
+                                    <button class="sf-button" onclick="showImportTechAssetModal()">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                         </svg>
@@ -1192,14 +1192,6 @@
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
                                 <h2 class="sf-card-title">Received Accessories</h2>
-                                <div class="flex gap-2">
-                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySectionCheckout').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                        </svg>
-                                        Add Accessory
-                                    </button>
-                                </div>
                             </div>
                         </div>
                         <div class="sf-card-body">
@@ -1625,14 +1617,6 @@
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
                                 <h2 class="sf-card-title">Checkout Accessories</h2>
-                                <div class="flex gap-2">
-                                    <button class="sf-button primary-button" onclick="document.getElementById('directAccessorySectionCheckout').scrollIntoView({behavior: 'smooth'}); return false;" style="z-index: 100;" data-ticket-id="{{ ticket.id }}">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                        </svg>
-                                        Add Accessory
-                                    </button>
-                                </div>
                             </div>
                         </div>
                         <div class="sf-card-body">
@@ -4572,3 +4556,148 @@ function updateAccessoryTable(accessory) {
     }
 }
 </script>
+
+<!-- Import Tech Asset Modal -->
+<div id="importTechAssetModal" class="fixed inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Import Tech Assets from CSV
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Upload a CSV file to import multiple tech assets and link them to this ticket.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <form id="importForm" action="/inventory/import" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="import_type" value="tech_assets">
+                        <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="csvFile" class="block text-sm font-medium text-gray-700">CSV File</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="csvFile" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                                <span>Upload a file</span>
+                                                <input id="csvFile" name="file" type="file" accept=".csv" required class="sr-only">
+                                            </label>
+                                            <p class="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p class="text-xs text-gray-500">CSV files only</p>
+                                    </div>
+                                </div>
+                                <div id="fileName" class="mt-2 text-sm text-gray-600 hidden"></div>
+                            </div>
+                            
+                            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-yellow-700">
+                                            <strong>CSV Format Requirements:</strong><br>
+                                            Required columns: Asset Tag, Serial Number, Product, Model, Asset Type<br>
+                                            Optional columns: Hardware Type, CPU Type, Memory, Hard Drive, Status, Customer, Country, etc.
+                                        </p>
+                                        <div class="mt-2">
+                                            <a href="/inventory/download-template/tech_assets" class="text-sm text-blue-600 hover:text-blue-500">
+                                                Download CSV template →
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="submitImportForm()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Import Assets
+                </button>
+                <button type="button" onclick="closeImportTechAssetModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show Import Tech Asset Modal
+function showImportTechAssetModal() {
+    document.getElementById('importTechAssetModal').classList.remove('hidden');
+}
+
+// Close Import Tech Asset Modal
+function closeImportTechAssetModal() {
+    document.getElementById('importTechAssetModal').classList.add('hidden');
+    // Reset form
+    document.getElementById('importForm').reset();
+    document.getElementById('fileName').classList.add('hidden');
+}
+
+// Handle file selection
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('csvFile');
+    const fileNameDiv = document.getElementById('fileName');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameDiv.textContent = `Selected file: ${file.name}`;
+                fileNameDiv.classList.remove('hidden');
+            } else {
+                fileNameDiv.classList.add('hidden');
+            }
+        });
+    }
+});
+
+// Submit import form
+function submitImportForm() {
+    const form = document.getElementById('importForm');
+    const fileInput = document.getElementById('csvFile');
+    
+    if (!fileInput.files.length) {
+        alert('Please select a CSV file to import.');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = event.target;
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Importing...';
+    
+    // Submit the form
+    form.submit();
+}

@@ -21,6 +21,7 @@ from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
+from models.firecrawl_key import FirecrawlKey
 
 __all__ = [
     "Base",
@@ -51,5 +52,6 @@ __all__ = [
     "AssetHistory",
     "AccessoryHistory",
     "AssetTransaction",
-    "AccessoryTransaction"
+    "AccessoryTransaction",
+    "FirecrawlKey"
 ]
