@@ -27,6 +27,7 @@ from models.user import User, UserType, Country
 from models.permission import Permission
 from utils.db_manager import DatabaseManager
 from utils.email_sender import mail
+# from utils.oauth2_email_sender import oauth2_mail
 import os
 import logging
 from routes.main import main_bp
@@ -70,18 +71,25 @@ def create_app():
         WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
         WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
         WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
-        # Email configuration for Gmail SMTP
-        MAIL_SERVER='smtp.gmail.com',
+        # Email configuration for Outlook/Office 365 SMTP (Traditional method)
+        MAIL_SERVER='smtp.office365.com',
         MAIL_PORT=587,
         MAIL_USE_TLS=True,
         MAIL_USE_SSL=False,
-        MAIL_USERNAME='trueloginventory@gmail.com',
-        MAIL_PASSWORD='lfve nald ymnl vrzf',  # Gmail App Password
-        MAIL_DEFAULT_SENDER='trueloginventory@gmail.com',
+        MAIL_USERNAME='your-company-email@yourcompany.com',  # Replace with your actual company email
+        MAIL_PASSWORD='your-app-password-from-outlook',  # Use App Password (not regular password) for 2FA accounts
+        MAIL_DEFAULT_SENDER='your-company-email@yourcompany.com',  # Replace with your actual company email
         MAIL_MAX_EMAILS=1,  # Limit for testing
         MAIL_SUPPRESS_SEND=False,
         MAIL_ASCII_ATTACHMENTS=False,
-        MAIL_DEBUG=True  # Enable debug mode
+        MAIL_DEBUG=True,  # Enable debug mode
+        
+        # OAuth2 configuration for Microsoft Graph API (Recommended for corporate accounts)
+        OAUTH2_CLIENT_ID=os.environ.get('OAUTH2_CLIENT_ID', 'your-azure-client-id'),
+        OAUTH2_CLIENT_SECRET=os.environ.get('OAUTH2_CLIENT_SECRET', 'your-azure-client-secret'),
+        OAUTH2_TENANT_ID=os.environ.get('OAUTH2_TENANT_ID', 'your-azure-tenant-id'),
+        OAUTH2_DEFAULT_SENDER=os.environ.get('OAUTH2_DEFAULT_SENDER', 'your-company-email@yourcompany.com'),
+        USE_OAUTH2_EMAIL=os.environ.get('USE_OAUTH2_EMAIL', 'True').lower() == 'true'  # Set to False to use SMTP
     )
 
     # Initialize CORS
@@ -99,6 +107,9 @@ def create_app():
 
     # Initialize Flask-Mail
     mail.init_app(app)
+    
+    # Initialize OAuth2 Mail (for Microsoft Graph API)
+    # oauth2_mail.init_app(app)
 
     # Log mail configuration
     logging.info("Mail Configuration:")

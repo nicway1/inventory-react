@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Tracking Button Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .test-section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-test { background: #28a745; color: white; }
+        code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Add Tracking Button Fix Verification</h1>
+    
+    <div class="test-section">
+        <h2>✅ What Was Fixed:</h2>
+        <ul>
+            <li><strong>Removed onclick attribute</strong> - Button no longer uses <code>onclick="showAddShipmentModal()"</code></li>
+            <li><strong>Added ID-based event listener</strong> - Button now uses <code>id="addTrackingButton"</code></li>
+            <li><strong>Added event listener in DOMContentLoaded</strong> - Ensures function is available when button is clicked</li>
+            <li><strong>Made function globally accessible</strong> - <code>window.showAddShipmentModal</code></li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Testing Steps:</h2>
+        <ol>
+            <li><strong>Clear browser cache</strong> (Ctrl+Shift+R or Cmd+Shift+R)</li>
+            <li><strong>Go to Asset Checkout (Claw) ticket</strong></li>
+            <li><strong>Open browser console</strong> (F12 → Console tab)</li>
+            <li><strong>Look for these console messages:</strong>
+                <div class="status info">
+                    <code>✅ "Setting up Add Tracking button event listener"</code><br>
+                    <code>✅ "showAddShipmentModal called" (when button clicked)</code>
+                </div>
+            </li>
+            <li><strong>Click "Add Tracking" button</strong></li>
+            <li><strong>Should see prompts for tracking number and carrier</strong></li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Expected Behavior:</h2>
+        <div class="status success">
+            <strong>SUCCESS:</strong> No more "showAddShipmentModal is not defined" error
+        </div>
+        <div class="status success">
+            <strong>SUCCESS:</strong> Prompts appear for tracking number and carrier
+        </div>
+        <div class="status success">
+            <strong>SUCCESS:</strong> Console shows debug messages about function execution
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚨 If Still Not Working:</h2>
+        <div class="status warning">
+            <strong>Try these debug steps:</strong>
+            <ol>
+                <li>Open browser console (F12)</li>
+                <li>Type: <code>typeof window.showAddShipmentModal</code></li>
+                <li>Should return: <code>"function"</code></li>
+                <li>Type: <code>document.getElementById('addTrackingButton')</code></li>
+                <li>Should return: <code>&lt;button id="addTrackingButton"...&gt;</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎉 The Fix:</h2>
+        <p><strong>Instead of:</strong></p>
+        <div class="status error">
+            <code>&lt;button onclick="showAddShipmentModal()"&gt;</code> ❌
+        </div>
+        
+        <p><strong>Now using:</strong></p>
+        <div class="status success">
+            <code>&lt;button id="addTrackingButton"&gt;</code> ✅<br>
+            <code>document.getElementById('addTrackingButton').addEventListener('click', ...)</code> ✅
+        </div>
+        
+        <p>This approach is more reliable because:</p>
+        <ul>
+            <li>Event listener is set up after DOM loads</li>
+            <li>No dependency on global function scope</li>
+            <li>Better error handling</li>
+            <li>Console debugging available</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Next Steps:</h2>
+        <button class="btn-primary" onclick="location.reload()">Refresh & Test Again</button>
+        <button class="btn-test" onclick="testConnection()">Test Flask Connection</button>
+        <div id="connectionResult"></div>
+    </div>
+
+    <script>
+        async function testConnection() {
+            const result = document.getElementById('connectionResult');
+            result.innerHTML = '<div class="status info">Testing Flask connection...</div>';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5004/');
+                if (response.ok) {
+                    result.innerHTML = '<div class="status success">✅ Flask app is running and accessible!</div>';
+                } else {
+                    result.innerHTML = `<div class="status error">❌ Flask responded with status: ${response.status}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="status error">❌ Cannot connect: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-test connection
+        setTimeout(testConnection, 1000);
+    </script>
+</body>
+</html> 

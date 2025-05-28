@@ -28,20 +28,65 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset/Subject</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for ticket in tickets %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ ticket.id }}</td>
-                        <td class="px-6 py-4">{{ ticket.subject }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" data-ticket-url="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}">
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <!-- Priority indicator dot -->
+                                <div class="w-2 h-2 rounded-full mr-2
+                                    {% if ticket.priority.value == 'Critical' %}
+                                        bg-red-500
+                                    {% elif ticket.priority.value == 'High' %}
+                                        bg-orange-500
+                                    {% elif ticket.priority.value == 'Medium' %}
+                                        bg-blue-500
+                                    {% elif ticket.priority.value == 'Low' %}
+                                        bg-green-500
+                                    {% else %}
+                                        bg-gray-400
+                                    {% endif %}">
+                                </div>
+                                <span class="text-sm font-medium text-gray-900">{{ ticket.display_id if ticket.display_id else ticket.id }}</span>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2">
+                            <div class="text-sm text-gray-900">
+                                {% if ticket.assets %}
+                                    {% set asset = ticket.assets[0] %}
+                                    <span class="font-medium">{{ asset.model if asset.model else 'Unknown Device' }} - {{ asset.serial_num if asset.serial_num else 'No Serial' }}</span>
+                                    {% if ticket.assets|length > 1 %}
+                                        <span class="text-xs text-gray-500">(+{{ ticket.assets|length - 1 }} more)</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span>{{ ticket.subject if ticket.subject and ticket.subject.strip() and ticket.subject.strip() != '-' else 'No Subject' }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-3 py-2">
+                            {% if ticket.customer %}
+                                <div class="text-sm">
+                                    <div class="text-gray-900 font-medium">{{ ticket.customer.name }}</div>
+                                    <div class="text-gray-500 text-xs">{{ ticket.customer.email }}</div>
+                                </div>
+                            {% else %}
+                                <span class="text-sm text-gray-500">No Customer</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <span class="text-xs text-gray-600">{{ ticket.category.value if ticket.category else 'None' }}</span>
+                        </td>
+                        <td class="px-3 py-2 whitespace-nowrap">
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
                                 {% if ticket.status.value == 'New' %}
                                     bg-green-100 text-green-800
@@ -59,7 +104,7 @@
                                 {{ ticket.status.value if ticket.status else 'Unknown' }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-2 whitespace-nowrap">
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
                                 {% if ticket.priority.value == 'Critical' %}
                                     bg-red-100 text-red-800
@@ -75,12 +120,15 @@
                                 {{ ticket.priority.value if ticket.priority else 'Unknown' }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ ticket.created_at.strftime('%Y-%m-%d') }}</div>
+                            <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%H:%M') }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium">
                             <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                               class="text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-50 transition-colors duration-150">
+                                View
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -89,4 +137,21 @@
         </div>
     </div>
 </div>
+
+<script>
+// Handle clickable rows
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tr[data-ticket-url]');
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Don't navigate if clicking on a link or button
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+            window.location.href = this.dataset.ticketUrl;
+        });
+    });
+});
+</script>
+
 {% endblock %} 

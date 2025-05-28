@@ -902,8 +902,19 @@ def view_queue(queue_id):
         flash('Queue not found', 'error')
         return redirect(url_for('tickets.list_queues'))
     
-    tickets = ticket_store.get_tickets_by_queue(queue_id)
-    return render_template('tickets/queue_view.html', queue=queue, tickets=tickets, user=user)
+    # Use database session directly to load tickets with all relationships
+    db_session = db_manager.get_session()
+    try:
+        tickets = db_session.query(Ticket).options(
+            joinedload(Ticket.assets),
+            joinedload(Ticket.customer),
+            joinedload(Ticket.requester),
+            joinedload(Ticket.assigned_to)
+        ).filter(Ticket.queue_id == queue_id).order_by(Ticket.created_at.desc()).all()
+        
+        return render_template('tickets/queue_view.html', queue=queue, tickets=tickets, user=user)
+    finally:
+        db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
 @login_required

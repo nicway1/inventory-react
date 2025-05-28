@@ -2,6 +2,10 @@ from flask import Blueprint, jsonify, request
 from utils.auth_decorators import login_required
 from utils.db_manager import DatabaseManager
 from models.asset import Asset
+from models.customer_user import CustomerUser
+from models.company import Company
+from sqlalchemy import or_
+from flask import current_app
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 db_manager = DatabaseManager()
@@ -33,4 +37,44 @@ def get_asset_details():
             'asset_tag': asset.asset_tag
         })
     finally:
-        db_session.close() 
+        db_session.close()
+
+@api_bp.route('/customers/search', methods=['GET'])
+@login_required
+def search_customers():
+    """Search customers by name, company, email, or address"""
+    try:
+        query = request.args.get('q', '').strip()
+        
+        db_session = db_manager.get_session()
+        
+        if query and len(query) >= 2:
+            # Search customers by name, email, company name, or address
+            customers = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True).filter(
+                or_(
+                    CustomerUser.name.ilike(f'%{query}%'),
+                    CustomerUser.email.ilike(f'%{query}%'),
+                    CustomerUser.address.ilike(f'%{query}%'),
+                    Company.name.ilike(f'%{query}%')
+                )
+            ).limit(20).all()
+        else:
+            # No query or query too short - return all customers (limited)
+            customers = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True).limit(50).all()
+        
+        results = []
+        for customer in customers:
+            results.append({
+                'id': customer.id,
+                'name': customer.name,
+                'email': customer.email or '',
+                'company': customer.company.name if customer.company else '',
+                'address': customer.address or '',
+                'text': f"{customer.name} ({customer.company.name if customer.company else 'No Company'})"
+            })
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error searching customers: {str(e)}")
+        return jsonify({'error': 'Search failed'}), 500 

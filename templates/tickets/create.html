@@ -4,6 +4,71 @@
 <!-- Add Select2 CSS in the head -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
+<style>
+/* Custom styles for customer search results */
+.select2-result-customer {
+    padding: 6px 12px;
+}
+
+.select2-result-customer__title {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 2px;
+}
+
+.select2-result-customer__description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.25;
+}
+
+.select2-container--default .select2-results__option--highlighted .select2-result-customer__title {
+    color: white;
+}
+
+.select2-container--default .select2-results__option--highlighted .select2-result-customer__description {
+    color: #e5e7eb;
+}
+
+/* Improve Select2 dropdown appearance */
+.select2-container .select2-selection--single {
+    height: 38px;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+    color: #374151;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+    right: 10px;
+}
+
+.select2-dropdown {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 8px 12px;
+}
+
+.select2-container--default .select2-results__option {
+    padding: 0;
+}
+
+.select2-container--default .select2-results__option--highlighted {
+    background-color: #3b82f6;
+}
+</style>
+
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-2xl mx-auto">
         <div class="mb-6">
@@ -1035,6 +1100,71 @@ $(document).ready(function() {
         width: '100%'
     });
 
+    // Initialize Select2 for customer selection dropdowns with enhanced search
+    $('#customer_id, #return_customer_id').select2({
+        placeholder: 'Search by customer name, company, or email...',
+        allowClear: true,
+        width: '100%',
+        minimumInputLength: 0,  // Show all options immediately
+        ajax: {
+            url: '/api/customers/search',
+            dataType: 'json',
+            delay: 300,
+            data: function (params) {
+                return {
+                    q: params.term || '' // search term, empty for initial load
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.map(function(item) {
+                        return {
+                            id: item.id,
+                            text: item.text,
+                            name: item.name,
+                            email: item.email,
+                            company: item.company,
+                            address: item.address
+                        };
+                    })
+                };
+            },
+            cache: true
+        },
+        templateResult: function(customer) {
+            if (customer.loading) {
+                return customer.text;
+            }
+            
+            // Custom template to show customer info more clearly
+            var $container = $(
+                '<div class="select2-result-customer clearfix">' +
+                    '<div class="select2-result-customer__meta">' +
+                        '<div class="select2-result-customer__title"></div>' +
+                        '<div class="select2-result-customer__description"></div>' +
+                    '</div>' +
+                '</div>'
+            );
+            
+            $container.find('.select2-result-customer__title').text(customer.name || customer.text);
+            
+            var description = '';
+            if (customer.company) {
+                description += customer.company;
+            }
+            if (customer.email) {
+                description += (description ? ' • ' : '') + customer.email;
+            }
+            
+            $container.find('.select2-result-customer__description').text(description);
+            
+            return $container;
+        },
+        templateSelection: function(customer) {
+            return customer.name || customer.text;
+        }
+    });
+
     // Initialize form state and show the correct category fields
     toggleFormFields();
     
@@ -1123,9 +1253,16 @@ $(document).ready(function() {
     $('#customer_id').on('change', function() {
         const selectedOption = $(this).find(':selected');
         if (selectedOption.val()) {
-            const address = selectedOption.data('address');
-            if (address) {
-                $('#shipping_address').val(address);
+            // Check if it's a Select2 selection with custom data
+            const select2Data = $(this).select2('data')[0];
+            if (select2Data && select2Data.address) {
+                $('#shipping_address').val(select2Data.address);
+            } else {
+                // Fallback to data attributes for pre-loaded options
+                const address = selectedOption.data('address');
+                if (address) {
+                    $('#shipping_address').val(address);
+                }
             }
         }
     });
@@ -1134,13 +1271,25 @@ $(document).ready(function() {
     $('#return_customer_id').on('change', function() {
         const selectedOption = $(this).find(':selected');
         if (selectedOption.val()) {
-            const address = selectedOption.data('address');
+            // Check if it's a Select2 selection with custom data
+            const select2Data = $(this).select2('data')[0];
+            let customerName = '';
+            let address = '';
+            
+            if (select2Data) {
+                customerName = select2Data.name || select2Data.text;
+                address = select2Data.address;
+            } else {
+                // Fallback to data attributes for pre-loaded options
+                customerName = selectedOption.text();
+                address = selectedOption.data('address');
+            }
+            
             if (address) {
                 $('#return_shipping_address').val(address);
             }
             
             // Set the subject for asset return tickets
-            const customerName = selectedOption.text();
             $('#return_subject').val(`Asset Return (claw) - ${customerName}`);
         }
     });

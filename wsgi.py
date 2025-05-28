@@ -13,14 +13,14 @@ os.environ['PYTHONPATH'] = '/home/nicway2/inventory'
 os.environ['FLASK_DEBUG'] = '1'
 os.environ['MAIL_DEBUG'] = '1'
 
-# Email configuration - Gmail SMTP
-os.environ['MAIL_SERVER'] = 'smtp.gmail.com'
+# Email configuration - Outlook/Office 365 SMTP
+os.environ['MAIL_SERVER'] = 'smtp.office365.com'
 os.environ['MAIL_PORT'] = '587'
 os.environ['MAIL_USE_TLS'] = 'True'
 os.environ['MAIL_USE_SSL'] = 'False'
-os.environ['MAIL_USERNAME'] = 'trueloginventory@gmail.com'
-os.environ['MAIL_PASSWORD'] = 'lfve nald ymnl vrzf'  # Gmail App Password
-os.environ['MAIL_DEFAULT_SENDER'] = 'trueloginventory@gmail.com'
+os.environ['MAIL_USERNAME'] = 'your-company-email@yourcompany.com'  # Replace with your actual company email
+os.environ['MAIL_PASSWORD'] = 'your-app-password-from-outlook'  # Use App Password (not regular password) for 2FA accounts
+os.environ['MAIL_DEFAULT_SENDER'] = 'your-company-email@yourcompany.com'  # Replace with your actual company email
 os.environ['MAIL_MAX_EMAILS'] = '1'  # Limit for testing
 os.environ['MAIL_SUPPRESS_SEND'] = 'False'
 os.environ['MAIL_ASCII_ATTACHMENTS'] = 'False'

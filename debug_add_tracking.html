@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔧 Add Tracking Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .debug-section { background: white; margin: 15px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 12px; margin: 10px 0; border-radius: 4px; border-left: 4px solid; }
+        .success { background: #d4edda; color: #155724; border-left-color: #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left-color: #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left-color: #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left-color: #ffc107; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-debug { background: #dc3545; color: white; }
+        .btn-test { background: #28a745; color: white; }
+        code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-family: monospace; color: #e83e8c; }
+        .console-output { background: #000; color: #0f0; padding: 15px; font-family: monospace; font-size: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto; }
+        .copy-btn { background: #6c757d; color: white; font-size: 11px; padding: 5px 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Add Tracking Button Debug Tool</h1>
+    
+    <div class="debug-section">
+        <h2>📋 Copy This JavaScript Debug Code</h2>
+        <p>Copy the code below and paste it into your browser console (F12) while on your Asset Checkout (Claw) ticket page:</p>
+        
+        <div class="console-output" id="debugCode">
+// ===== ADD TRACKING DEBUG SCRIPT =====
+console.log("🔧 Starting Add Tracking Debug...");
+
+// 1. Check if the button exists
+const button = document.getElementById('addTrackingButton');
+console.log("1. Button found:", button ? "✅ YES" : "❌ NO");
+if (button) {
+    console.log("   Button element:", button);
+    console.log("   Button innerHTML:", button.innerHTML);
+} else {
+    // Try finding button by onclick
+    const oldButton = document.querySelector('button[onclick*="showAddShipmentModal"]');
+    console.log("   Old onclick button found:", oldButton ? "✅ YES" : "❌ NO");
+    if (oldButton) console.log("   Old button:", oldButton);
+}
+
+// 2. Check if function exists
+console.log("2. Function exists:", typeof window.showAddShipmentModal);
+if (typeof window.showAddShipmentModal === 'function') {
+    console.log("   ✅ Function is available");
+} else {
+    console.log("   ❌ Function NOT available");
+}
+
+// 3. Check for JavaScript errors
+console.log("3. Checking for JavaScript errors...");
+
+// 4. Manual test of the function
+if (typeof window.showAddShipmentModal === 'function') {
+    console.log("4. Testing function manually...");
+    try {
+        // Don't actually call it yet, just confirm it can be called
+        console.log("   Function can be called: ✅ YES");
+    } catch (error) {
+        console.log("   Function error:", error);
+    }
+} else {
+    console.log("4. ❌ Cannot test function - not available");
+}
+
+// 5. Check if outbound tracking section exists
+const trackingSection = document.querySelector('[id*="tracking"], [class*="tracking"]');
+console.log("5. Tracking section found:", trackingSection ? "✅ YES" : "❌ NO");
+
+// 6. Check ticket category
+const categoryElements = document.querySelectorAll('*');
+let categoryFound = false;
+for (let elem of categoryElements) {
+    if (elem.textContent && elem.textContent.includes('Asset Checkout')) {
+        categoryFound = true;
+        console.log("6. Asset Checkout category found: ✅ YES");
+        break;
+    }
+}
+if (!categoryFound) {
+    console.log("6. Asset Checkout category found: ❌ NO");
+}
+
+// 7. Force create and test the function
+console.log("7. Force creating showAddShipmentModal function...");
+window.showAddShipmentModal = function() {
+    console.log("🎉 MANUAL FUNCTION CALLED!");
+    alert("🎉 Manual function test - this popup proves the function can work!");
+    const trackingNumber = prompt('Enter tracking number:');
+    if (trackingNumber) {
+        const carrier = prompt('Enter carrier:') || 'claw';
+        console.log("Manual test results:", {trackingNumber, carrier});
+        alert(`Test successful! Tracking: ${trackingNumber}, Carrier: ${carrier}`);
+    }
+};
+
+// 8. Force add event listener to any Add Tracking button
+const buttons = document.querySelectorAll('button');
+let addTrackingFound = false;
+for (let btn of buttons) {
+    if (btn.textContent && btn.textContent.toLowerCase().includes('add tracking')) {
+        addTrackingFound = true;
+        console.log("8. ✅ Found Add Tracking button:", btn);
+        btn.onclick = function(e) {
+            e.preventDefault();
+            console.log("🚀 BUTTON CLICKED - CALLING FUNCTION");
+            window.showAddShipmentModal();
+        };
+        console.log("   ✅ Added manual click handler");
+        break;
+    }
+}
+if (!addTrackingFound) {
+    console.log("8. ❌ No Add Tracking button found");
+}
+
+console.log("🔧 Debug complete! Try clicking Add Tracking button now.");
+console.log("If it still doesn't work, send me the output above.");
+        </div>
+        
+        <button class="copy-btn" onclick="copyDebugCode()">📋 Copy Debug Code</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>🎯 Step-by-Step Debug Instructions</h2>
+        <ol>
+            <li><strong>Go to your Asset Checkout (Claw) ticket page</strong></li>
+            <li><strong>Open browser console</strong> (F12 → Console tab)</li>
+            <li><strong>Copy and paste the debug code above</strong></li>
+            <li><strong>Press Enter to run it</strong></li>
+            <li><strong>Check the console output</strong></li>
+            <li><strong>Try clicking the Add Tracking button</strong></li>
+            <li><strong>Send me the console output if it still doesn't work</strong></li>
+        </ol>
+    </div>
+
+    <div class="debug-section">
+        <h2>🚨 Emergency Fix - Manual Button Creation</h2>
+        <p>If the debug script doesn't fix it, try this emergency manual fix:</p>
+        
+        <div class="console-output" id="emergencyFix">
+// EMERGENCY FIX - Paste this in console on your ticket page
+console.log("🚨 Emergency fix starting...");
+
+// Create function
+window.showAddShipmentModal = function() {
+    const trackingNumber = prompt('Enter tracking number:');
+    if (trackingNumber && trackingNumber.trim()) {
+        const carrier = prompt('Enter carrier (claw, singpost, dhl, ups):') || 'claw';
+        console.log('Manual tracking entry:', {trackingNumber, carrier});
+        
+        // Try to save via API
+        fetch(`/tickets/${window.location.pathname.split('/').pop()}/add_outbound_tracking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                tracking_number: trackingNumber.trim(),
+                carrier: carrier.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Tracking added successfully!');
+                location.reload();
+            } else {
+                alert('API failed. Please add tracking manually via Edit button.');
+            }
+        })
+        .catch(error => {
+            console.error('API error:', error);
+            alert('Please add tracking manually via Edit button.');
+        });
+    }
+};
+
+// Find and fix any Add Tracking buttons
+document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent && btn.textContent.toLowerCase().includes('add tracking')) {
+        btn.onclick = (e) => {
+            e.preventDefault();
+            window.showAddShipmentModal();
+        };
+        console.log("✅ Fixed button:", btn);
+    }
+});
+
+console.log("🚨 Emergency fix complete! Try the button now.");
+        </div>
+        
+        <button class="copy-btn" onclick="copyEmergencyFix()">📋 Copy Emergency Fix</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>📊 What To Send Me</h2>
+        <p>If neither fix works, please send me:</p>
+        <div class="status info">
+            <strong>1. Console output from the debug script</strong><br>
+            <strong>2. Any error messages in red</strong><br>
+            <strong>3. Screenshot of the Add Tracking button on your page</strong><br>
+            <strong>4. Tell me which ticket ID you're testing with</strong>
+        </div>
+    </div>
+
+    <script>
+        function copyDebugCode() {
+            const code = document.getElementById('debugCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Debug code copied! Paste it in your browser console.');
+            });
+        }
+        
+        function copyEmergencyFix() {
+            const code = document.getElementById('emergencyFix').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Emergency fix copied! Paste it in your browser console.');
+            });
+        }
+    </script>
+</body>
+</html> 

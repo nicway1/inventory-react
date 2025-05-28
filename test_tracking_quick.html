@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Test - Add Tracking Button</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Asset Checkout (Claw) Tracking Test</h1>
+    
+    <div class="test-section">
+        <h2>✅ What Should Work Now:</h2>
+        <ul>
+            <li>Asset Checkout (Claw) tickets show <strong>Outbound Tracking</strong> section</li>
+            <li><strong>Add Tracking</strong> button works with proper error handling</li>
+            <li><strong>Refresh</strong> button loads tracking information</li>
+            <li>Auto-loading of tracking data on page load</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Testing Steps:</h2>
+        <ol>
+            <li><strong>Go to an Asset Checkout (Claw) ticket</strong></li>
+            <li><strong>Look for the "Outbound Tracking" section</strong> - it should be visible</li>
+            <li><strong>Click "Add Tracking" button</strong></li>
+            <li><strong>Enter a test tracking number</strong> (e.g., "TEST123456")</li>
+            <li><strong>Enter carrier</strong> (e.g., "claw" or "singpost")</li>
+            <li><strong>Check browser console (F12)</strong> for debug messages</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Debug Information:</h2>
+        <p>If the button still doesn't work:</p>
+        <ol>
+            <li><strong>Open Browser Developer Tools</strong> (Press F12)</li>
+            <li><strong>Go to Console tab</strong></li>
+            <li><strong>Click the Add Tracking button</strong></li>
+            <li><strong>Look for these messages:</strong></li>
+        </ol>
+        
+        <div style="background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace;">
+            <strong>Expected Console Messages:</strong><br>
+            ✅ "showAddShipmentModal called"<br>
+            ✅ "Adding tracking number: TEST123456 with carrier: claw"<br>
+            ✅ "API Response status: 200"<br>
+            ✅ "API Response data: {success: true, message: '...'}"<br>
+        </div>
+        
+        <div style="background: #ffe6e6; padding: 10px; margin: 10px 0; font-family: monospace;">
+            <strong>Common Error Messages:</strong><br>
+            ❌ "Failed to fetch" = Flask app not running<br>
+            ❌ "401 Unauthorized" = Not logged in<br>
+            ❌ "403 Forbidden" = CSRF token issue<br>
+            ❌ "404 Not Found" = Wrong URL/endpoint<br>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🆘 Fallback Option:</h2>
+        <p>If the Add Tracking button fails, the system now offers a fallback:</p>
+        <ol>
+            <li>Click "Add Tracking" button</li>
+            <li>If it fails, you'll see: <em>"Failed to add tracking automatically. Would you like to add it manually by editing the ticket?"</em></li>
+            <li>Click "OK" to open the Edit form</li>
+            <li>The tracking number will be pre-filled in the form</li>
+            <li>Save the ticket to add the tracking</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Quick App Status Check:</h2>
+        <button onclick="checkAppStatus()">Test Flask App Connection</button>
+        <div id="statusResult"></div>
+    </div>
+
+    <script>
+        async function checkAppStatus() {
+            const result = document.getElementById('statusResult');
+            result.innerHTML = '<div class="info">Testing connection...</div>';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5004/', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    result.innerHTML = '<div class="success">✅ Flask app is running and accessible!</div>';
+                } else {
+                    result.innerHTML = `<div class="error">❌ Flask app responded with status: ${response.status}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Cannot connect to Flask app: ${error.message}<br>Make sure the app is running with: python app.py</div>`;
+            }
+        }
+        
+        // Auto-check on page load
+        setTimeout(checkAppStatus, 1000);
+    </script>
+</body>
+</html> 

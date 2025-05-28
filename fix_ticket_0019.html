@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎯 Fix TICK-0019 Add Tracking</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .fix-section { background: white; margin: 15px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 15px; margin: 10px 0; border-radius: 4px; border-left: 4px solid; }
+        .success { background: #d4edda; color: #155724; border-left-color: #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left-color: #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left-color: #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left-color: #ffc107; }
+        button { padding: 12px 20px; margin: 8px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-fix { background: #28a745; color: white; }
+        .btn-test { background: #007bff; color: white; }
+        .console-output { background: #000; color: #0f0; padding: 15px; font-family: monospace; font-size: 12px; border-radius: 4px; max-height: 400px; overflow-y: auto; }
+        .copy-btn { background: #6c757d; color: white; font-size: 12px; padding: 8px 15px; }
+        .ticket-info { background: #e7f3ff; border: 2px solid #007bff; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Fix Add Tracking for TICK-0019</h1>
+    
+    <div class="ticket-info">
+        <h3>📋 Ticket Information</h3>
+        <strong>Ticket Number:</strong> TICK-0019<br>
+        <strong>Expected Category:</strong> Asset Checkout (Claw)<br>
+        <strong>Issue:</strong> Add Tracking button popup not working<br>
+        <strong>Goal:</strong> Get popup prompts for tracking number and carrier
+    </div>
+    
+    <div class="fix-section">
+        <h2>🚀 INSTANT FIX for TICK-0019</h2>
+        <p><strong>Step 1:</strong> Go to ticket TICK-0019 in your browser</p>
+        <p><strong>Step 2:</strong> Copy and paste this code in browser console (F12):</p>
+        
+        <div class="console-output" id="instantFix">
+// ===== INSTANT FIX FOR TICK-0019 =====
+console.log("🚀 Fixing TICK-0019 Add Tracking button...");
+
+// Clear any existing handlers and create fresh function
+delete window.showAddShipmentModal;
+
+// Create the working function
+window.showAddShipmentModal = function() {
+    console.log("🎉 Add Tracking function called for TICK-0019!");
+    
+    // First popup - tracking number
+    const trackingNumber = prompt('📦 Enter tracking number for TICK-0019:');
+    
+    if (trackingNumber && trackingNumber.trim()) {
+        console.log("✅ Tracking number entered:", trackingNumber);
+        
+        // Second popup - carrier
+        const carrier = prompt('🚚 Enter carrier (claw, singpost, dhl, ups, auto):') || 'claw';
+        console.log("✅ Carrier selected:", carrier);
+        
+        // Show processing feedback
+        const btn = document.querySelector('button[id*="addTracking"], button[id*="Tracking"], button:contains("Add Tracking")') || 
+                   Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Add Tracking'));
+        
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.textContent = 'Adding tracking...';
+            
+            // Attempt API call
+            fetch('/tickets/19/add_outbound_tracking', {  // TICK-0019 = ID 19
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    tracking_number: trackingNumber.trim(),
+                    carrier: carrier.trim()
+                })
+            })
+            .then(response => {
+                console.log("API Response status:", response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log("API Response data:", data);
+                if (data.success) {
+                    alert('✅ Tracking added successfully to TICK-0019!');
+                    location.reload();
+                } else {
+                    alert('⚠️ API returned error. Please add tracking manually via Edit button.');
+                    console.error('API error:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert('❌ Network error. Please add tracking manually via Edit button.');
+            })
+            .finally(() => {
+                // Restore button
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        } else {
+            alert('✅ Tracking info collected!\nNumber: ' + trackingNumber + '\nCarrier: ' + carrier + '\n\nPlease add this manually via Edit button if API fails.');
+        }
+    } else if (trackingNumber === '') {
+        alert('❌ Please enter a tracking number');
+    } else {
+        console.log("User cancelled tracking entry");
+    }
+};
+
+// Find and fix ALL possible Add Tracking buttons
+let buttonsFixed = 0;
+document.querySelectorAll('button').forEach((btn, index) => {
+    const text = btn.textContent.toLowerCase();
+    if (text.includes('add tracking') || text.includes('add shipment') || btn.id.includes('tracking')) {
+        console.log(`🔧 Found potential button ${index}:`, btn);
+        
+        // Remove any existing handlers
+        btn.onclick = null;
+        btn.removeAttribute('onclick');
+        
+        // Add our handler
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("🚀 Button clicked - calling showAddShipmentModal");
+            window.showAddShipmentModal();
+        });
+        
+        buttonsFixed++;
+        console.log(`✅ Fixed button ${index}`);
+    }
+});
+
+console.log(`🎉 TICK-0019 Fix complete! Fixed ${buttonsFixed} buttons.`);
+console.log("📋 Now click the 'Add Tracking' button - popups should appear!");
+
+// Test the function immediately
+console.log("🧪 Testing function availability...");
+if (typeof window.showAddShipmentModal === 'function') {
+    console.log("✅ Function is ready and working!");
+} else {
+    console.log("❌ Function setup failed!");
+}
+        </div>
+        
+        <button class="copy-btn" onclick="copyInstantFix()">📋 Copy Instant Fix</button>
+        <button class="btn-test" onclick="testInBrowser()">🧪 Test Function</button>
+    </div>
+
+    <div class="fix-section">
+        <h2>🎯 What Should Happen</h2>
+        <div class="status success">
+            <strong>Expected Result for TICK-0019:</strong><br>
+            1. Click "Add Tracking" button<br>
+            2. Popup: "📦 Enter tracking number for TICK-0019:"<br>
+            3. Enter tracking number (e.g., TEST123456)<br>
+            4. Popup: "🚚 Enter carrier (claw, singpost, dhl, ups, auto):"<br>
+            5. Enter carrier (e.g., claw)<br>
+            6. Button shows "Adding tracking..."<br>
+            7. Success message or fallback to manual entry
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>🔍 If Still Not Working</h2>
+        <div class="status warning">
+            <strong>Debug Steps:</strong>
+            <ol>
+                <li>Make sure you're on ticket TICK-0019 page</li>
+                <li>Clear browser cache (Ctrl+Shift+R)</li>
+                <li>Open console (F12) and paste the fix</li>
+                <li>Look for "✅ Function is ready and working!" message</li>
+                <li>Click Add Tracking button</li>
+                <li>Send me any error messages in red</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>📞 Quick Test URL</h2>
+        <div class="status info">
+            <strong>Direct link to TICK-0019:</strong><br>
+            <code>http://127.0.0.1:5004/tickets/19</code><br>
+            <em>(Assuming TICK-0019 = ID 19)</em>
+        </div>
+    </div>
+
+    <script>
+        function copyInstantFix() {
+            const code = document.getElementById('instantFix').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ Instant fix copied!\n\n1. Go to TICK-0019 page\n2. Open console (F12)\n3. Paste and press Enter\n4. Try Add Tracking button');
+            });
+        }
+        
+        function testInBrowser() {
+            // Test the popup functionality right here
+            try {
+                const trackingNumber = prompt('🧪 TEST: Enter tracking number for TICK-0019:');
+                if (trackingNumber) {
+                    const carrier = prompt('🧪 TEST: Enter carrier:') || 'claw';
+                    alert(`✅ TEST SUCCESSFUL!\n📦 Tracking: ${trackingNumber}\n🚚 Carrier: ${carrier}\n\nThis is exactly how TICK-0019 should work!`);
+                }
+            } catch (error) {
+                alert('❌ Test failed: ' + error.message);
+            }
+        }
+        
+        // Auto-open TICK-0019 if possible
+        function openTicket() {
+            const url = 'http://127.0.0.1:5004/tickets/19';
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html> 

@@ -179,26 +179,79 @@
         
         {% if singpost_tickets %}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking Number</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset/Subject</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="shipmentsTableBody">
                     {% for ticket in singpost_tickets %}
-                    <tr class="shipment-row {% if loop.index > 10 %}hidden{% endif %}">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ ticket.display_id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ticket.subject }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <tr class="shipment-row hover:bg-gray-50 cursor-pointer transition-colors {% if loop.index > 10 %}hidden{% endif %}" 
+                        onclick="window.location.href='{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}'"
+                        title="Click to view ticket details">
+                        
+                        <!-- Ticket ID with Priority Indicator -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="flex items-center space-x-2">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold text-gray-900">{{ ticket.display_id }}</span>
+                                    {% if ticket.priority %}
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
+                                        {% if ticket.priority.value == 'High' %}
+                                            bg-red-100 text-red-800
+                                        {% elif ticket.priority.value == 'Medium' %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% else %}
+                                            bg-green-100 text-green-800
+                                        {% endif %}">
+                                        {{ ticket.priority.value }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Asset/Subject -->
+                        <td class="px-3 py-2 max-w-xs">
+                            <div class="flex flex-col">
+                                {% if ticket.assets %}
+                                    {% for asset in ticket.assets[:1] %}
+                                    {% set device_model = asset.model if asset.model else 'Unknown Device' %}
+                                    {% set serial_number = asset.serial_num if asset.serial_num else 'No Serial' %}
+                                    <span class="text-sm font-medium text-gray-900 truncate">{{ device_model }} - {{ serial_number }}</span>
+                                    {% endfor %}
+                                    {% if ticket.assets|length > 1 %}
+                                    <span class="text-xs text-gray-500">+{{ ticket.assets|length - 1 }} more</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% set subject_text = ticket.subject if ticket.subject and ticket.subject.strip() and ticket.subject.strip() != '-' else 'No Subject' %}
+                                    <span class="text-sm text-gray-700 truncate">{{ subject_text }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        <!-- Customer -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            {% if ticket.customer %}
+                            <div class="text-sm text-gray-900">{{ ticket.customer.name }}</div>
+                            <div class="text-xs text-gray-500">{{ ticket.customer.email }}</div>
+                            {% else %}
+                            <span class="text-gray-400 text-sm">No Customer</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Category -->
+                        <td class="px-3 py-2 whitespace-nowrap">
                             {% if ticket.category %}
-                            <span class="px-2 py-1 text-xs font-medium rounded-full
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full
                                 {% if 'SINGPOST' in ticket.category.name %}
                                     bg-green-100 text-green-800
                                 {% elif 'DHL' in ticket.category.name %}
@@ -218,80 +271,73 @@
                                 {% else %}
                                     bg-gray-100 text-gray-800
                                 {% endif %}">
+                                {% if 'ASSET_CHECKOUT_CLAW' in ticket.category.name %}
+                                    Asset Checkout
+                                {% elif 'ASSET_RETURN_CLAW' in ticket.category.name %}
+                                    Asset Return
+                                {% else %}
                                     {{ ticket.category.value }}
-                                </span>
-                            {% else %}
-                            <span class="text-gray-400">Not Available</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if ticket.shipping_tracking %}
-                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                                {{ ticket.shipping_tracking }}
+                                {% endif %}
                             </span>
                             {% else %}
-                            <span class="text-gray-400">Not Available</span>
+                            <span class="text-gray-400 text-sm">Not Available</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if ticket.shipping_status %}
-                            <div class="flex items-center space-x-2">
-                                <span class="px-2 py-1 text-xs font-medium rounded-full 
-                                    {% if 'delivered' in ticket.shipping_status.lower() %}
-                                        bg-green-100 text-green-800
-                                    {% elif 'out for delivery' in ticket.shipping_status.lower() %}
-                                        bg-yellow-100 text-yellow-800
-                                    {% else %}
-                                        bg-gray-100 text-gray-800
-                                    {% endif %}">
-                                    {{ ticket.shipping_status }}
-                                </span>
+                        
+                        <!-- Tracking -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            {% if ticket.shipping_tracking %}
+                            <div class="flex flex-col">
+                                <span class="text-sm font-mono text-blue-600">{{ ticket.shipping_tracking }}</span>
+                                <span class="text-xs text-gray-500 capitalize">{{ ticket.shipping_carrier | default('singpost') }}</span>
                             </div>
                             {% else %}
-                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Pending</span>
+                            <span class="text-gray-400 text-sm">Not Available</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d') }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">View</a>
-                            {% if ticket.shipping_tracking %}
-                            <button 
-                                data-ticket-id="{{ ticket.id }}"
-                                data-carrier="{{ ticket.shipping_carrier | default('singpost') }}"
-                                class="refresh-tracking text-blue-600 hover:text-blue-900 mr-3">
-                                Refresh Tracking
-                            </button>
-                            {% set carrier = ticket.shipping_carrier | lower | default('singpost') %}
-                            {% if carrier == 'dhl' %}
-                                <a href="https://www.dhl.com/en/express/tracking.html?AWB={{ ticket.shipping_tracking }}" target="_blank" class="text-yellow-600 hover:text-yellow-800">
-                                    Track on DHL
-                                </a>
-                            {% elif carrier == 'ups' %}
-                                <a href="https://www.ups.com/track?loc=en_US&tracknum={{ ticket.shipping_tracking }}" target="_blank" class="text-purple-600 hover:text-purple-800">
-                                    Track on UPS
-                                </a>
-                            {% elif carrier == 'bluedart' %}
-                                <a href="https://www.bluedart.com/tracking/{{ ticket.shipping_tracking }}" target="_blank" class="text-blue-600 hover:text-blue-800">
-                                    Track on BlueDart
-                                </a>
-                            {% elif carrier == 'dtdc' %}
-                                <a href="https://tracking.dtdc.com/tracking/trackshipment?number={{ ticket.shipping_tracking }}" target="_blank" class="text-orange-600 hover:text-orange-800">
-                                    Track on DTDC
-                                </a>
-                            {% elif carrier == 'auto' %}
-                                <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}#tracking" class="text-teal-600 hover:text-teal-800">
-                                    View Auto Tracking
-                                </a>
-                            {% elif carrier == 'claw' %}
-                                <a href="https://www.ship24.com/tracking?p={{ ticket.shipping_tracking }}" target="_blank" class="text-indigo-600 hover:text-indigo-800">
-                                    Track on Ship24
-                                </a>
+                        
+                        <!-- Status -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            {% if ticket.shipping_status %}
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
+                                {% if 'delivered' in ticket.shipping_status.lower() %}
+                                    bg-green-100 text-green-800
+                                {% elif 'out for delivery' in ticket.shipping_status.lower() %}
+                                    bg-yellow-100 text-yellow-800
+                                {% elif 'in transit' in ticket.shipping_status.lower() %}
+                                    bg-blue-100 text-blue-800
+                                {% else %}
+                                    bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {{ ticket.shipping_status }}
+                            </span>
                             {% else %}
-                                <a href="https://www.singpost.com/track-items?trackingNumber={{ ticket.shipping_tracking }}" target="_blank" class="text-green-600 hover:text-green-800">
-                                    Track on SingPost
-                                </a>
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Pending</span>
                             {% endif %}
-                            {% endif %}
+                        </td>
+                        
+                        <!-- Created Date -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ ticket.created_at.strftime('%m/%d/%y') }}</div>
+                            <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%H:%M') }}</div>
+                        </td>
+                        
+                        <!-- Actions -->
+                        <td class="px-3 py-2 whitespace-nowrap">
+                            <div class="flex flex-col space-y-1">
+                                <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" 
+                                   class="text-indigo-600 hover:text-indigo-900 text-xs font-medium"
+                                   onclick="event.stopPropagation()">View</a>
+                                {% if ticket.shipping_tracking %}
+                                <button 
+                                    data-ticket-id="{{ ticket.id }}"
+                                    data-carrier="{{ ticket.shipping_carrier | default('singpost') }}"
+                                    class="refresh-tracking text-blue-600 hover:text-blue-900 text-xs"
+                                    onclick="event.stopPropagation()">
+                                    Refresh
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

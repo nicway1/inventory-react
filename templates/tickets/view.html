@@ -48,11 +48,6 @@
     }
 </style>
 
-<!-- Debug Info -->
-<div style="background-color: #f0f0f0; padding: 10px; margin: 10px;">
-    <p>Current user type: {{ session.get('user_type') }}</p>
-</div>
-
 <!-- Load 17TRACK script only for SingPost tickets -->
 {% if ticket.shipping_tracking and (ticket.shipping_tracking.startswith('XZD') or ticket.shipping_tracking.startswith('XZB')) %}
 <!-- SingPost Tracking Widget Script -->
