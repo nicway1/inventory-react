@@ -20,6 +20,7 @@ from models.activity import Activity
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 import traceback
+from models.firecrawl_key import FirecrawlKey
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -785,11 +786,180 @@ def system_config():
             session.clear()
             return redirect(url_for('auth.login'))
 
+        # Try to get Firecrawl API keys, but handle the case when the table doesn't exist
+        firecrawl_keys = []
+        active_key = None
+        try:
+            firecrawl_keys = db_session.query(FirecrawlKey).order_by(FirecrawlKey.created_at.desc()).all()
+            active_key = db_session.query(FirecrawlKey).filter_by(is_active=True).first()
+            if not active_key:
+                active_key = db_session.query(FirecrawlKey).filter_by(is_primary=True).first()
+        except Exception as e:
+            # If there's an error (like table doesn't exist), just ignore it
+            # and use the API key from config
+            print(f"Error fetching Firecrawl keys: {str(e)}")
+        
+        # Get the current API key from the environment or config
+        current_api_key = os.environ.get('FIRECRAWL_API_KEY') or current_app.config.get('FIRECRAWL_API_KEY', 'Not set')
+
         return render_template('admin/system_config.html', 
-                             user=user)
+                             user=user,
+                             firecrawl_keys=firecrawl_keys,
+                             active_key=active_key,
+                             current_api_key=current_api_key)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
         return redirect(url_for('main.index'))
     finally:
-        db_session.close() 
+        db_session.close()
+
+@admin_bp.route('/firecrawl-keys/add', methods=['POST'])
+@super_admin_required
+def add_firecrawl_key():
+    """Add a new Firecrawl API key"""
+    db_session = db_manager.get_session()
+    try:
+        key = request.form.get('key')
+        description = request.form.get('description')
+
+        if not key or not description:
+            flash('Both API key and description are required', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Check if key already exists
+        existing_key = db_session.query(FirecrawlKey).filter_by(api_key=key).first()
+        if existing_key:
+            flash('This API key already exists', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Create new key
+        new_key = FirecrawlKey(
+            api_key=key,
+            name=description,
+            is_active=False,
+            is_primary=False
+        )
+        db_session.add(new_key)
+        db_session.commit()
+
+        flash('API key added successfully', 'success')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error adding API key: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/firecrawl-keys/<int:key_id>/activate', methods=['POST'])
+@super_admin_required
+def activate_firecrawl_key(key_id):
+    """Activate a Firecrawl API key and deactivate others"""
+    db_session = db_manager.get_session()
+    try:
+        # Deactivate all keys
+        db_session.query(FirecrawlKey).update({
+            FirecrawlKey.is_active: False,
+            FirecrawlKey.is_primary: False
+        })
+        
+        # Activate the selected key
+        key = db_session.query(FirecrawlKey).get(key_id)
+        if key:
+            key.is_active = True
+            key.is_primary = True
+            key.updated_at = datetime.utcnow()
+            
+            # Update the environment variable and application config
+            os.environ['FIRECRAWL_API_KEY'] = key.api_key
+            current_app.config['FIRECRAWL_API_KEY'] = key.api_key
+            
+            db_session.commit()
+            flash(f'API key "{key.name}" activated successfully', 'success')
+        else:
+            flash('API key not found', 'error')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error activating API key: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/firecrawl-keys/<int:key_id>/delete', methods=['POST'])
+@super_admin_required
+def delete_firecrawl_key(key_id):
+    """Delete a Firecrawl API key"""
+    db_session = db_manager.get_session()
+    try:
+        key = db_session.query(FirecrawlKey).get(key_id)
+        if key:
+            if key.is_active or key.is_primary:
+                flash('Cannot delete the active API key. Please activate another key first.', 'error')
+            else:
+                key_description = key.name
+                db_session.delete(key)
+                db_session.commit()
+                flash(f'API key "{key_description}" deleted successfully', 'success')
+        else:
+            flash('API key not found', 'error')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting API key: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/update-firecrawl-key', methods=['POST'])
+@super_admin_required
+def update_firecrawl_key():
+    """Update Firecrawl API key"""
+    try:
+        new_key = request.form.get('firecrawl_api_key')
+        if not new_key:
+            flash('API key cannot be empty', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Update the environment variable
+        os.environ['FIRECRAWL_API_KEY'] = new_key
+        
+        # Update the config
+        current_app.config['FIRECRAWL_API_KEY'] = new_key
+        
+        # Try to update the database if the table exists
+        try:
+            db_session = db_manager.get_session()
+            # Check if we have any keys in the database
+            existing_keys = db_session.query(FirecrawlKey).all()
+            
+            if existing_keys:
+                # If we have keys, update the active one or create a new one
+                # First deactivate all keys
+                db_session.query(FirecrawlKey).update({FirecrawlKey.is_active: False})
+                
+                # Then either update existing key with same value or create new one
+                existing_key = db_session.query(FirecrawlKey).filter_by(api_key=new_key).first()
+                if existing_key:
+                    existing_key.is_active = True
+                    existing_key.is_primary = True
+                else:
+                    new_key_obj = FirecrawlKey(
+                        api_key=new_key,
+                        name="Updated via system config",
+                        is_active=True,
+                        is_primary=True
+                    )
+                    db_session.add(new_key_obj)
+                
+                db_session.commit()
+        except Exception as e:
+            print(f"Error updating key in database (continuing anyway): {str(e)}")
+            # Don't stop execution - we've already updated the config
+        
+        flash('Firecrawl API key updated successfully', 'success')
+    except Exception as e:
+        flash(f'Error updating Firecrawl API key: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.system_config')) 

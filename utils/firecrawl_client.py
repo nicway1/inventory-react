@@ -9,8 +9,8 @@ class FirecrawlClient:
         # Force reload environment variables
         load_dotenv(override=True)
         
-        # Use provided API key or get from environment
-        self.api_key = api_key or os.environ.get('FIRECRAWL_API_KEY') or 'fc-9e1ffc308a01434582ece2625a2a0da7'
+        # Try to get the active key from database first, then environment
+        self.api_key = api_key or self._get_active_api_key() or os.environ.get('FIRECRAWL_API_KEY') or 'fc-9e1ffc308a01434582ece2625a2a0da7'
         
         if not self.api_key:
             raise ValueError("Firecrawl API key not configured")
@@ -18,6 +18,42 @@ class FirecrawlClient:
         print(f"FirecrawlClient initialized with API key: {self.api_key[:5]}...")
         self.base_url = "https://api.firecrawl.dev/v1"
         
+    def _get_active_api_key(self):
+        """Get the active API key from the database"""
+        try:
+            from database import SessionLocal
+            from models.firecrawl_key import FirecrawlKey
+            
+            session = SessionLocal()
+            try:
+                # Get the primary active key
+                active_key = session.query(FirecrawlKey).filter_by(is_primary=True, is_active=True).first()
+                if active_key:
+                    print(f"Using active database API key: {active_key.name}")
+                    return active_key.api_key
+                
+                # If no primary, get any active key
+                active_key = session.query(FirecrawlKey).filter_by(is_active=True).first()
+                if active_key:
+                    print(f"Using fallback database API key: {active_key.name}")
+                    return active_key.api_key
+                    
+            finally:
+                session.close()
+        except Exception as e:
+            print(f"Error getting active API key from database: {str(e)}")
+        
+        return None
+    
+    def get_current_api_key(self):
+        """Get the current API key (may refresh from database)"""
+        # Refresh key from database if needed
+        db_key = self._get_active_api_key()
+        if db_key and db_key != self.api_key:
+            print(f"API key updated from database: {db_key[:5]}...")
+            self.api_key = db_key
+        return self.api_key
+    
     def scrape_url(self, url, options=None):
         """
         Scrape a URL using the Firecrawl API
@@ -29,8 +65,11 @@ class FirecrawlClient:
         Returns:
             dict: The scraped data
         """
+        # Refresh API key from database before making request
+        current_key = self.get_current_api_key()
+        
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {current_key}",
             "Content-Type": "application/json"
         }
         
@@ -46,6 +85,7 @@ class FirecrawlClient:
         try:
             print(f"Making Firecrawl API request to: {endpoint}")
             print(f"Payload: {payload}")
+            print(f"Using API key: {current_key[:10]}...")
             
             response = requests.post(endpoint, headers=headers, json=payload)
             response.raise_for_status()

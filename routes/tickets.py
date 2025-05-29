@@ -3176,27 +3176,12 @@ def track_claw(ticket_id):
         # If we get here, need to fetch fresh data
         print(f"Scraping ship24 for: {tracking_number}")
         
-        # Ensure we have the latest environment variables
-        load_dotenv(override=True)
+        # Use the centralized FirecrawlClient that automatically gets the active key from database
+        from utils.store_instances import firecrawl_client
         
-        # Initialize FirecrawlApp locally to avoid dependency on global variable
-        FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY')
-        firecrawl_client = None
-        
-        # Try to initialize Firecrawl client
-        try:
-            from firecrawl import FirecrawlApp
-            if FIRECRAWL_API_KEY:
-                firecrawl_client = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
-                print(f"Firecrawl API client initialized successfully with key: {FIRECRAWL_API_KEY[:5]}...")
-            else:
-                print("Error: No Firecrawl API key found in environment variables")
-        except Exception as e:
-            print(f"Error initializing Firecrawl client: {str(e)}")
-    
         # Check if Firecrawl is available
         if not firecrawl_client:
-            print("Error: Firecrawl API client not initialized. Returning simulated data.")
+            print("Error: Firecrawl API client not available. Returning simulated data.")
             # Return simulated data as fallback
             return generate_mock_tracking_data(tracking_number, ticket_id, db_session)
     

@@ -1,24 +1,26 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+from sqlalchemy.sql import func
 from models.base import Base
 
 class FirecrawlKey(Base):
     __tablename__ = 'firecrawl_keys'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)  # User-friendly name for the key
-    api_key = Column(String(255), nullable=False, unique=True)
+    api_key = Column(String(255), unique=True, nullable=False)
+    name = Column(String(255))
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, nullable=True)
     usage_count = Column(Integer, default=0)
     limit_count = Column(Integer, default=500)  # Token limit per key
-    is_active = Column(Boolean, default=True)
     is_primary = Column(Boolean, default=False)  # Mark the current active key
-    created_at = Column(DateTime, default=datetime.utcnow)
     last_used = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
     
     def __repr__(self):
-        return f"<FirecrawlKey(name='{self.name}', usage={self.usage_count}/{self.limit_count}, active={self.is_active})>"
+        return f"<FirecrawlKey {self.name}>"
     
     @property
     def is_exhausted(self):
@@ -41,6 +43,7 @@ class FirecrawlKey(Base):
         """Increment usage count and update last_used timestamp"""
         self.usage_count += 1
         self.last_used = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
         
         # Deactivate if exhausted
         if self.is_exhausted:

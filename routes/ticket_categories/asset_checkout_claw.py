@@ -5,7 +5,7 @@ import traceback
 from flask import Blueprint, jsonify, request, render_template, session, current_app as app, send_file
 from dotenv import load_dotenv
 from utils.auth_decorators import login_required
-from utils.store_instances import ticket_store
+from utils.store_instances import ticket_store, firecrawl_client
 from models.ticket import Ticket, TicketCategory, TicketStatus
 from utils.tracking_cache import TrackingCache
 
@@ -18,17 +18,14 @@ asset_checkout_claw_bp = Blueprint(
 
 # --- Helper: Initialize Firecrawl Client --- 
 def _initialize_firecrawl():
-    load_dotenv(override=True)
-    FIRECRAWL_API_KEY = os.environ.get('FIRECRAWL_API_KEY')
-    firecrawl_client = None
-    try:
-        from firecrawl import FirecrawlApp
-        # Force use of the new API key
-        firecrawl_client = FirecrawlApp(api_key='fc-9e1ffc308a01434582ece2625a2a0da7')
-        print(f"Firecrawl API client initialized successfully with key: fc-eaa...")
-    except Exception as e:
-        print(f"Error initializing Firecrawl client: {str(e)}")
-    return firecrawl_client
+    # Use the centralized FirecrawlClient that automatically gets the active key from database
+    
+    if firecrawl_client:
+        print(f"Using centralized Firecrawl client with active database key")
+        return firecrawl_client
+    else:
+        print("Error: Centralized Firecrawl client not available")
+        return None
 
 # --- Route: Outbound Tracking --- 
 @asset_checkout_claw_bp.route('/<int:ticket_id>/track', methods=['GET'])

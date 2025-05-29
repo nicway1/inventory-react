@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Load environment variables from .env file
 load_dotenv()
@@ -7,6 +8,7 @@ load_dotenv()
 # Flask configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_for_development_only')
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 't')
+PERMANENT_SESSION_LIFETIME = 24 * 3600  # 24 hours in seconds
 
 # Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///inventory.db')

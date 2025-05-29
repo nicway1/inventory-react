@@ -80,6 +80,7 @@ class Ticket(Base):
     image_path = Column(String(500))
     return_description = Column(String(1000))  # Dedicated field for Asset Return descriptions
     return_tracking = Column(String(100))
+    return_carrier = Column(String(50), default='singpost')  # Carrier for return shipment
     replacement_tracking = Column(String(100))
     warranty_number = Column(String(100))
     serial_number = Column(String(100))

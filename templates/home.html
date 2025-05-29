@@ -183,17 +183,15 @@
         
         {% if singpost_tickets %}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset/Subject</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset/Subject</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outbound Tracking</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inbound Tracking</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="shipmentsTableBody">
@@ -224,20 +222,14 @@
                         </td>
                         
                         <!-- Asset/Subject -->
-                        <td class="px-3 py-2 max-w-xs">
+                        <td class="px-3 py-2 whitespace-nowrap">
                             <div class="flex flex-col">
-                                {% if ticket.assets %}
-                                    {% for asset in ticket.assets[:1] %}
-                                    {% set device_model = asset.model if asset.model else 'Unknown Device' %}
-                                    {% set serial_number = asset.serial_num if asset.serial_num else 'No Serial' %}
-                                    <span class="text-sm font-medium text-gray-900 truncate">{{ device_model }} - {{ serial_number }}</span>
-                                    {% endfor %}
-                                    {% if ticket.assets|length > 1 %}
-                                    <span class="text-xs text-gray-500">+{{ ticket.assets|length - 1 }} more</span>
-                                    {% endif %}
+                                {% if ticket.asset %}
+                                <span class="text-sm font-medium text-gray-900">{{ ticket.asset.name }}</span>
+                                <span class="text-xs text-gray-500">Asset Tag: {{ ticket.asset.asset_tag }}</span>
                                 {% else %}
-                                    {% set subject_text = ticket.subject if ticket.subject and ticket.subject.strip() and ticket.subject.strip() != '-' else 'No Subject' %}
-                                    <span class="text-sm text-gray-700 truncate">{{ subject_text }}</span>
+                                <span class="text-sm font-medium text-gray-900">{{ ticket.subject[:30] }}{% if ticket.subject|length > 30 %}...{% endif %}</span>
+                                <span class="text-xs text-gray-500">{{ ticket.category.value if ticket.category else 'General' }}</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -245,85 +237,66 @@
                         <!-- Customer -->
                         <td class="px-3 py-2 whitespace-nowrap">
                             {% if ticket.customer %}
-                            <div class="text-sm text-gray-900">{{ ticket.customer.name }}</div>
-                            <div class="text-xs text-gray-500">{{ ticket.customer.email }}</div>
-                            {% else %}
-                            <span class="text-gray-400 text-sm">No Customer</span>
-                            {% endif %}
-                        </td>
-                        
-                        <!-- Category -->
-                        <td class="px-3 py-2 whitespace-nowrap">
-                            {% if ticket.category %}
-                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full
-                                {% if 'SINGPOST' in ticket.category.name %}
-                                    bg-green-100 text-green-800
-                                {% elif 'DHL' in ticket.category.name %}
-                                    bg-yellow-100 text-yellow-800
-                                {% elif 'UPS' in ticket.category.name %}
-                                    bg-purple-100 text-purple-800
-                                {% elif 'BLUEDART' in ticket.category.name %}
-                                    bg-blue-100 text-blue-800
-                                {% elif 'DTDC' in ticket.category.name %}
-                                    bg-orange-100 text-orange-800
-                                {% elif 'AUTO' in ticket.category.name %}
-                                    bg-teal-100 text-teal-800
-                                {% elif 'CLAW' in ticket.category.name and 'RETURN' in ticket.category.name %}
-                                    bg-red-100 text-red-800
-                                {% elif 'CLAW' in ticket.category.name %}
-                                    bg-indigo-100 text-indigo-800
-                                {% else %}
-                                    bg-gray-100 text-gray-800
-                                {% endif %}">
-                                {% if 'ASSET_CHECKOUT_CLAW' in ticket.category.name %}
-                                    Asset Checkout
-                                {% elif 'ASSET_RETURN_CLAW' in ticket.category.name %}
-                                    Asset Return
-                                {% else %}
-                                    {{ ticket.category.value }}
-                                {% endif %}
-                            </span>
-                            {% else %}
-                            <span class="text-gray-400 text-sm">Not Available</span>
-                            {% endif %}
-                        </td>
-                        
-                        <!-- Tracking -->
-                        <td class="px-3 py-2 whitespace-nowrap">
-                            {% if ticket.shipping_tracking %}
                             <div class="flex flex-col">
-                                <span class="text-sm font-mono text-blue-600">{{ ticket.shipping_tracking }}</span>
-                                <span class="text-xs text-gray-500 capitalize">{{ ticket.shipping_carrier | default('singpost') }}</span>
+                                <span class="text-sm font-medium text-gray-900">{{ ticket.customer.name }}</span>
+                                <span class="text-xs text-gray-500">{{ ticket.customer.email }}</span>
+                            </div>
+                            {% elif ticket.requester %}
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-gray-900">{{ ticket.requester.first_name }} {{ ticket.requester.last_name }}</span>
+                                <span class="text-xs text-gray-500">{{ ticket.requester.email }}</span>
                             </div>
                             {% else %}
                             <span class="text-gray-400 text-sm">Not Available</span>
                             {% endif %}
                         </td>
                         
-                        <!-- Status -->
+                        <!-- Outbound Tracking -->
                         <td class="px-3 py-2 whitespace-nowrap">
-                            {% if ticket.shipping_status %}
-                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
-                                {% if 'delivered' in ticket.shipping_status.lower() %}
-                                    bg-green-100 text-green-800
-                                {% elif 'out for delivery' in ticket.shipping_status.lower() %}
-                                    bg-yellow-100 text-yellow-800
-                                {% elif 'in transit' in ticket.shipping_status.lower() %}
-                                    bg-blue-100 text-blue-800
-                                {% else %}
-                                    bg-gray-100 text-gray-800
-                                {% endif %}">
-                                {{ ticket.shipping_status }}
-                            </span>
+                            {% if ticket.shipping_tracking %}
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-sm font-mono text-blue-600">{{ ticket.shipping_tracking }}</span>
+                                <span class="text-xs text-gray-500 capitalize">{{ ticket.shipping_carrier | default('singpost') }}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                    {% if ticket.shipping_status and 'delivered' in ticket.shipping_status.lower() %}
+                                        bg-green-100 text-green-800
+                                    {% elif ticket.shipping_status and ('transit' in ticket.shipping_status.lower() or 'progress' in ticket.shipping_status.lower()) %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif ticket.shipping_status and 'pending' in ticket.shipping_status.lower() %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ ticket.shipping_status | default('Pending') }}
+                                </span>
+                            </div>
                             {% else %}
-                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Pending</span>
+                            <span class="text-gray-400 text-sm">Not Available</span>
                             {% endif %}
                         </td>
                         
-                        <!-- Created Date -->
+                        <!-- Inbound Tracking -->
                         <td class="px-3 py-2 whitespace-nowrap">
-                            <div class="text-sm text-gray-900">{{ ticket.created_at.strftime('%m/%d/%y') }}</div>
-                            <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%H:%M') }}</div>
+                            {% if ticket.return_tracking %}
+                            <div class="flex flex-col space-y-1">
+                                <span class="text-sm font-mono text-green-600">{{ ticket.return_tracking }}</span>
+                                <span class="text-xs text-gray-500 capitalize">{{ ticket.return_carrier | default(ticket.shipping_carrier) | default('singpost') }}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                    {% if ticket.return_status and 'delivered' in ticket.return_status.lower() %}
+                                        bg-green-100 text-green-800
+                                    {% elif ticket.return_status and ('transit' in ticket.return_status.lower() or 'progress' in ticket.return_status.lower()) %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif ticket.return_status and 'pending' in ticket.return_status.lower() %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ ticket.return_status | default('Pending') }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <span class="text-gray-400 text-sm">Not Available</span>
+                            {% endif %}
                         </td>
                         
                         <!-- Actions -->
@@ -336,9 +309,20 @@
                                 <button 
                                     data-ticket-id="{{ ticket.id }}"
                                     data-carrier="{{ ticket.shipping_carrier | default('singpost') }}"
+                                    data-tracking-type="outbound"
                                     class="refresh-tracking text-blue-600 hover:text-blue-900 text-xs"
                                     onclick="event.stopPropagation()">
-                                    Refresh
+                                    Refresh Out
+                                </button>
+                                {% endif %}
+                                {% if ticket.return_tracking %}
+                                <button 
+                                    data-ticket-id="{{ ticket.id }}"
+                                    data-carrier="{{ ticket.return_carrier | default(ticket.shipping_carrier) | default('singpost') }}"
+                                    data-tracking-type="inbound"
+                                    class="refresh-return-tracking text-green-600 hover:text-green-900 text-xs"
+                                    onclick="event.stopPropagation()">
+                                    Refresh In
                                 </button>
                                 {% endif %}
                             </div>
@@ -477,6 +461,8 @@
         document.addEventListener('click', function(event) {
             if (event.target.classList.contains('refresh-tracking')) {
                 refreshTracking(event.target);
+            } else if (event.target.classList.contains('refresh-return-tracking')) {
+                refreshReturnTracking(event.target);
             }
         });
         
@@ -502,66 +488,73 @@
         button.disabled = true;
         
         // Get all tracking buttons to extract ticket IDs and carriers
-        const refreshButtons = document.querySelectorAll('.refresh-tracking');
-        const trackingRequests = Array.from(refreshButtons).map(btn => ({
+        const outboundButtons = document.querySelectorAll('.refresh-tracking');
+        const inboundButtons = document.querySelectorAll('.refresh-return-tracking');
+        
+        const outboundRequests = Array.from(outboundButtons).map(btn => ({
             ticketId: btn.getAttribute('data-ticket-id'),
-            carrier: btn.getAttribute('data-carrier') || 'singpost' // Default to singpost
+            carrier: btn.getAttribute('data-carrier') || 'singpost',
+            type: 'outbound'
         }));
         
+        const inboundRequests = Array.from(inboundButtons).map(btn => ({
+            ticketId: btn.getAttribute('data-ticket-id'),
+            carrier: btn.getAttribute('data-carrier') || 'singpost',
+            type: 'inbound'
+        }));
+        
+        const allRequests = [...outboundRequests, ...inboundRequests];
         let completed = 0;
         
-        if (trackingRequests.length === 0) {
+        if (allRequests.length === 0) {
             // Restore button state if no requests
             button.textContent = originalText;
             button.disabled = false;
-            // Optionally reload page
-            // const separator = window.location.href.includes('?') ? '&' : '?';
-            // window.location.href = window.location.href + separator + 'refreshed=true';
             return;
         }
         
-        // Process each ticket based on its carrier
-        trackingRequests.forEach(req => {
+        // Process each tracking request
+        allRequests.forEach(req => {
             let endpoint = '';
-            if (req.carrier === 'dhl') {
-                endpoint = `/tickets/${req.ticketId}/track_dhl`;
-            } else if (req.carrier === 'ups') {
-                endpoint = `/tickets/${req.ticketId}/track_ups`;
-            } else if (req.carrier === 'bluedart') {
-                endpoint = `/tickets/${req.ticketId}/track_bluedart`;
-            } else if (req.carrier === 'dtdc') {
-                endpoint = `/tickets/${req.ticketId}/track_dtdc`;
-            } else { // Default to singpost
-                endpoint = `/tickets/${req.ticketId}/track_singpost`;
+            
+            if (req.type === 'inbound') {
+                endpoint = `/tickets/${req.ticketId}/track_return`;
+            } else {
+                // Outbound tracking endpoints based on carrier
+                if (req.carrier === 'dhl') {
+                    endpoint = `/tickets/${req.ticketId}/track_dhl`;
+                } else if (req.carrier === 'ups') {
+                    endpoint = `/tickets/${req.ticketId}/track_ups`;
+                } else if (req.carrier === 'bluedart') {
+                    endpoint = `/tickets/${req.ticketId}/track_bluedart`;
+                } else if (req.carrier === 'dtdc') {
+                    endpoint = `/tickets/${req.ticketId}/track_dtdc`;
+                } else { // Default to singpost
+                    endpoint = `/tickets/${req.ticketId}/track_singpost`;
+                }
             }
             
             fetch(endpoint)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed for ticket ${req.ticketId} (${req.carrier})`);
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    console.log(`Updated ticket ${req.ticketId} (${req.carrier}):`, data);
+                    console.log(`${req.type} tracking for ticket ${req.ticketId}:`, data);
                 })
                 .catch(error => {
-                    console.error(`Error updating ticket ${req.ticketId} (${req.carrier}):`, error);
+                    console.error(`Error refreshing ${req.type} tracking for ticket ${req.ticketId}:`, error);
                 })
                 .finally(() => {
                     completed++;
-                    if (completed === trackingRequests.length) {
-                        // Reload the page after all requests are completed
-                        const separator = window.location.href.includes('?') ? '&' : '?';
-                        window.location.href = window.location.href + separator + 'refreshed=true';
+                    if (completed === allRequests.length) {
+                        // All requests completed, reload page
+                        window.location.reload();
                     }
                 });
         });
     }
-    
+
     function refreshTracking(button) {
         const ticketId = button.getAttribute('data-ticket-id');
-        const carrier = button.getAttribute('data-carrier') || 'singpost'; // Get carrier, default to singpost
+        const carrier = button.getAttribute('data-carrier') || 'singpost';
         const originalText = button.textContent.trim();
         
         // Determine the correct endpoint based on carrier
@@ -584,32 +577,41 @@
         
         // Make API request to the correct backend endpoint
         fetch(endpoint)
-            .then(response => {
-                if (!response.ok) {
-                    // Try to get error message from response body
-                    return response.json().then(errData => {
-                        throw new Error(errData.error || 'Failed to fetch tracking information');
-                    }).catch(() => {
-                         throw new Error('Failed to fetch tracking information and could not parse error response.');
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    // Reload the page to show updated status but prevent refresh loop
-                    const separator = window.location.href.includes('?') ? '&' : '?';
-                    window.location.href = window.location.href + separator + 'refreshed=true';
-                } else {
-                    throw new Error(data.error || 'Tracking update failed.');
-                }
+                console.log('Outbound tracking response:', data);
+                // Reload the page to show updated data
+                window.location.reload();
             })
             .catch(error => {
-                console.error('Error:', error);
-                // Restore button state
+                console.error('Error refreshing outbound tracking:', error);
                 button.textContent = originalText;
                 button.disabled = false;
-                alert('Error refreshing tracking: ' + error.message);
+                alert('Error refreshing outbound tracking. Please try again.');
+            });
+    }
+
+    function refreshReturnTracking(button) {
+        const ticketId = button.getAttribute('data-ticket-id');
+        const originalText = button.textContent.trim();
+        
+        // Show loading state
+        button.textContent = 'Refreshing...';
+        button.disabled = true;
+        
+        // Make API request to return tracking endpoint
+        fetch(`/tickets/${ticketId}/track_return`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Inbound tracking response:', data);
+                // Reload the page to show updated data
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error refreshing inbound tracking:', error);
+                button.textContent = originalText;
+                button.disabled = false;
+                alert('Error refreshing inbound tracking. Please try again.');
             });
     }
 </script>
