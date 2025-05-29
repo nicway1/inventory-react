@@ -19,16 +19,11 @@ def get_database_url():
     """Get database URL from environment or use default SQLite"""
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
-        # Create instance directory if it doesn't exist
-        instance_dir = os.path.join(os.getcwd(), 'instance')
-        if not os.path.exists(instance_dir):
-            os.makedirs(instance_dir)
-            logger.info(f"📁 Created instance directory: {instance_dir}")
-        
-        # Use absolute path for SQLite database
-        db_path = os.path.join(instance_dir, 'inventory.db')
-        database_url = f'sqlite:///{db_path}'
-        logger.info(f"📍 Using database path: {db_path}")
+        # Use PythonAnywhere production path
+        database_url = 'sqlite:////home/nicway2/inventory/inventory.db'
+        logger.info(f"📍 Using production database path: {database_url}")
+    else:
+        logger.info(f"📍 Using environment database URL: {database_url}")
     return database_url
 
 def check_column_exists(engine, table_name, column_name):
