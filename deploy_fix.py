@@ -135,7 +135,7 @@ def main():
             -- Tickets table
             CREATE TABLE IF NOT EXISTS tickets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title VARCHAR(200) NOT NULL,
+                subject VARCHAR(200) NOT NULL,
                 description TEXT,
                 status VARCHAR(50) DEFAULT 'Open',
                 priority VARCHAR(20) DEFAULT 'Medium',
@@ -283,7 +283,7 @@ def main():
     
     # Check if tickets table has essential columns
     if check_table_exists(engine, 'tickets'):
-        essential_columns = ['id', 'title', 'status', 'created_at']
+        essential_columns = ['id', 'subject', 'status', 'created_at']
         missing_columns = []
         for column in essential_columns:
             if not check_column_exists(engine, 'tickets', column):
