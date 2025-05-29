@@ -106,12 +106,21 @@ class TicketStore:
         try:
             # Convert priority to enum if it's not already
             if isinstance(priority, str):
-                try:
-                    # First try to get enum by name (e.g., 'LOW')
-                    priority = TicketPriority[priority]
-                except KeyError:
-                    # If that fails, try to get enum by value (e.g., 'Low')
-                    priority = TicketPriority(priority)
+                # Handle empty string or None priority by setting default
+                if not priority or priority.strip() == "":
+                    priority = TicketPriority.MEDIUM  # Default to MEDIUM
+                else:
+                    try:
+                        # First try to get enum by name (e.g., 'LOW')
+                        priority = TicketPriority[priority]
+                    except KeyError:
+                        try:
+                            # If that fails, try to get enum by value (e.g., 'Low')
+                            priority = TicketPriority(priority)
+                        except ValueError:
+                            # If both fail, use default
+                            print(f"Warning: Invalid priority '{priority}', using default MEDIUM")
+                            priority = TicketPriority.MEDIUM
                 
             ticket = Ticket(
                 subject=subject,

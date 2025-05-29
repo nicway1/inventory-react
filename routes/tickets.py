@@ -1002,13 +1002,23 @@ def update_ticket(ticket_id):
         print(f"DEBUG - Form priority value: {priority_value}")
         
         if priority_value:
-            try:
-                # Try to get enum by name
-                new_priority = TicketPriority[priority_value]
-                print(f"DEBUG - Setting priority to {new_priority}")
-                ticket.priority = new_priority
-            except KeyError:
-                print(f"DEBUG - KeyError: {priority_value} is not a valid TicketPriority name")
+            # Handle empty string priority by skipping the update
+            if priority_value.strip() == "":
+                print("DEBUG - Empty priority value, skipping priority update")
+            else:
+                try:
+                    # Try to get enum by name
+                    new_priority = TicketPriority[priority_value]
+                    print(f"DEBUG - Setting priority to {new_priority}")
+                    ticket.priority = new_priority
+                except KeyError:
+                    try:
+                        # Try to get enum by value
+                        new_priority = TicketPriority(priority_value)
+                        print(f"DEBUG - Setting priority to {new_priority}")
+                        ticket.priority = new_priority
+                    except ValueError:
+                        print(f"DEBUG - ValueError: {priority_value} is not a valid TicketPriority, skipping update")
         
         # Update assigned_to_id if admin
         if session['user_type'] == 'admin' or session['user_type'] == 'SUPER_ADMIN':
@@ -3235,7 +3245,37 @@ def track_claw(ticket_id):
             latest_status = "Unknown"
             
             try:
-                if 'json' in scrape_result and scrape_result['json']:
+                # Check for the correct Firecrawl response structure
+                if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
+                    data = scrape_result['data']['json']
+                    
+                    # Extract the latest status
+                    latest_status = data.get('current_status', 'Unknown')
+                    
+                    # Extract tracking events
+                    events = data.get('events', [])
+                    if events:
+                        print(f"[DEBUG] Found {len(events)} tracking events")
+                        for event in events:
+                            tracking_info.append({
+                                'date': event.get('date', ''),
+                                'status': event.get('status', ''),
+                                'location': event.get('location', '')
+                            })
+                    
+                    # If no events were extracted but we have a current status,
+                    # create at least one event with the current status
+                    if not tracking_info and latest_status != "Unknown":
+                        tracking_info.append({
+                            'date': datetime.datetime.now().isoformat(),
+                            'status': latest_status,
+                            'location': 'Ship24 System'
+                        })
+                        
+                    print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+                
+                # Fallback: try old structure for backwards compatibility
+                elif 'json' in scrape_result and scrape_result['json']:
                     data = scrape_result['json']
                     
                     # Extract the latest status

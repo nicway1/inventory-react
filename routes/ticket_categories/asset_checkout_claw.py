@@ -115,7 +115,27 @@ def track_outbound(ticket_id):
             # --- Process Result --- 
             tracking_info = []
             latest_status = "Unknown"
-            if 'json' in scrape_result and scrape_result['json']:
+            
+            # Check for the correct Firecrawl response structure
+            if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
+                data = scrape_result['data']['json']
+                latest_status = data.get('current_status', 'Unknown')
+                events = data.get('events', [])
+                print(f"[DEBUG] Found {len(events)} tracking events")
+                if events:
+                    for event in events:
+                        tracking_info.append({
+                            'date': event.get('date', ''),
+                            'status': event.get('status', ''),
+                            'location': event.get('location', '')
+                        })
+                if not tracking_info and latest_status != "Unknown":
+                    tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
+                    
+                print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+            
+            # Fallback: try old structure for backwards compatibility
+            elif 'json' in scrape_result and scrape_result['json']:
                 data = scrape_result['json']
                 latest_status = data.get('current_status', 'Unknown')
                 events = data.get('events', [])
@@ -278,7 +298,27 @@ def track_secondary_shipment(ticket_id):
             # --- Process Result --- 
             tracking_info = []
             latest_status = "Unknown"
-            if 'json' in scrape_result and scrape_result['json']:
+            
+            # Check for the correct Firecrawl response structure
+            if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
+                data = scrape_result['data']['json']
+                latest_status = data.get('current_status', 'Unknown')
+                events = data.get('events', [])
+                print(f"[DEBUG] Found {len(events)} tracking events")
+                if events:
+                    for event in events:
+                        tracking_info.append({
+                            'date': event.get('date', ''),
+                            'status': event.get('status', ''),
+                            'location': event.get('location', '')
+                        })
+                if not tracking_info and latest_status != "Unknown":
+                    tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
+                    
+                print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+            
+            # Fallback: try old structure for backwards compatibility
+            elif 'json' in scrape_result and scrape_result['json']:
                 data = scrape_result['json']
                 latest_status = data.get('current_status', 'Unknown')
                 events = data.get('events', [])
@@ -293,7 +333,7 @@ def track_secondary_shipment(ticket_id):
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
             
             if not tracking_info:
-                print("Warning: No secondary tracking events extracted. Using fallback data.")
+                print("Warning: No tracking events extracted. Using fallback data.")
                 current_date = datetime.datetime.now()
                 tracking_info = [{"status": "Information Received", "location": "Ship24 System", "date": current_date.isoformat()}]
                 latest_status = "Information Received"
