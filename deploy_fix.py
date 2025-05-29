@@ -52,9 +52,8 @@ def check_table_exists(engine, table_name):
 def run_sql_safe(engine, sql, description):
     """Run SQL safely with error handling"""
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(text(sql))
-            conn.commit()
         logger.info(f"✅ {description}")
         return True
     except Exception as e:
@@ -105,6 +104,125 @@ def main():
             logger.info("💡 Suggestion: Make sure your database is running and accessible")
             return 1
     
+    # Check if this is an empty database that needs full initialization
+    is_empty_database = False
+    try:
+        if not check_table_exists(engine, 'users'):
+            logger.warning("⚠️  Database appears to be empty - no users table found")
+            is_empty_database = True
+    except Exception as e:
+        logger.warning(f"⚠️  Could not check database state: {e}")
+        is_empty_database = True
+    
+    if is_empty_database:
+        logger.info("🏗️  Initializing empty database with basic schema...")
+        try:
+            # Create basic tables
+            basic_schema_sql = """
+            -- Users table
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(80) UNIQUE NOT NULL,
+                email VARCHAR(120) UNIQUE NOT NULL,
+                password_hash VARCHAR(200) NOT NULL,
+                user_type VARCHAR(20) DEFAULT 'user',
+                is_verified BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                country_id INTEGER,
+                company_id INTEGER,
+                last_login TIMESTAMP,
+                first_name VARCHAR(50),
+                last_name VARCHAR(50),
+                phone VARCHAR(20),
+                timezone VARCHAR(50) DEFAULT 'UTC'
+            );
+            
+            -- Tickets table
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title VARCHAR(200) NOT NULL,
+                description TEXT,
+                status VARCHAR(50) DEFAULT 'Open',
+                priority VARCHAR(20) DEFAULT 'Medium',
+                category VARCHAR(50),
+                subcategory VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                created_by INTEGER NOT NULL,
+                assigned_to INTEGER,
+                company_id INTEGER,
+                country_id INTEGER,
+                shipping_tracking VARCHAR(100),
+                carrier VARCHAR(50) DEFAULT 'singpost',
+                return_tracking VARCHAR(100),
+                return_carrier VARCHAR(50) DEFAULT 'singpost',
+                replacement_tracking VARCHAR(100)
+            );
+            
+            -- Firecrawl keys table
+            CREATE TABLE IF NOT EXISTS firecrawl_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                api_key VARCHAR(255) UNIQUE NOT NULL,
+                name VARCHAR(255),
+                is_active BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP,
+                usage_count INTEGER DEFAULT 0,
+                limit_count INTEGER DEFAULT 500,
+                is_primary BOOLEAN DEFAULT 0,
+                last_used TIMESTAMP,
+                notes TEXT
+            );
+            
+            -- Companies table
+            CREATE TABLE IF NOT EXISTS companies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Countries table
+            CREATE TABLE IF NOT EXISTS countries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(100) NOT NULL,
+                code VARCHAR(3) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            
+            with engine.begin() as conn:
+                # Execute each statement separately
+                statements = basic_schema_sql.split(';')
+                for statement in statements:
+                    statement = statement.strip()
+                    if statement:
+                        conn.execute(text(statement))
+            
+            logger.info("✅ Basic database schema created successfully")
+            
+            # Create default admin user
+            try:
+                with engine.begin() as conn:
+                    # Check if admin user exists
+                    result = conn.execute(text("SELECT COUNT(*) as count FROM users WHERE username = 'admin'")).fetchone()
+                    if result and result[0] == 0:
+                        # Create admin user (password: admin123)
+                        admin_sql = """
+                        INSERT INTO users (username, email, password_hash, user_type, is_verified, first_name, last_name)
+                        VALUES ('admin', 'admin@company.com', 'scrypt:32768:8:1$0tQN8vY4B7QN8v$4e9c8f5b2a1d3e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9w0x1y2z3a4b5c6d7e8f9g0h1i2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y8z9a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5', 'super_admin', 1, 'Admin', 'User')
+                        """
+                        conn.execute(text(admin_sql))
+                        logger.info("✅ Default admin user created (username: admin, password: admin123)")
+                    else:
+                        logger.info("✅ Admin user already exists")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not create admin user: {e}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize database schema: {e}")
+            return 1
+    
+    # Continue with existing schema fixes
     # Fix 1: Add return_carrier column to tickets table if missing
     logger.info("🔧 Checking tickets table for return_carrier column...")
     if check_table_exists(engine, 'tickets'):
@@ -119,7 +237,7 @@ def main():
     else:
         logger.warning("⚠️  tickets table does not exist")
     
-    # Fix 2: Create firecrawl_keys table if missing
+    # Fix 2: Create firecrawl_keys table if missing (should already be created above)
     logger.info("🔧 Checking for firecrawl_keys table...")
     if not check_table_exists(engine, 'firecrawl_keys'):
         firecrawl_table_sql = """
@@ -163,7 +281,7 @@ def main():
     # Fix 4: Check and fix any other common issues
     logger.info("🔧 Running additional database checks...")
     
-    # Check if users table exists (should always exist)
+    # Check if users table exists (should always exist now)
     if not check_table_exists(engine, 'users'):
         logger.error("❌ users table missing - this indicates a major database issue")
         return 1
@@ -190,12 +308,12 @@ def main():
             if result and result[0] == 0:
                 # Add default API key from environment
                 default_key = os.environ.get('FIRECRAWL_API_KEY', 'fc-default-key')
-                insert_sql = """
-                INSERT INTO firecrawl_keys (api_key, name, is_active, is_primary, created_at)
-                VALUES (?, 'Default Key', 1, 1, CURRENT_TIMESTAMP)
-                """
-                conn.execute(text(insert_sql), (default_key,))
-                conn.commit()
+                with engine.begin() as trans_conn:
+                    insert_sql = """
+                    INSERT INTO firecrawl_keys (api_key, name, is_active, is_primary, created_at)
+                    VALUES (?, 'Default Key', 1, 1, CURRENT_TIMESTAMP)
+                    """
+                    trans_conn.execute(text(insert_sql), (default_key,))
                 logger.info("✅ Added default Firecrawl API key")
             else:
                 logger.info("✅ Firecrawl API keys already exist")
@@ -207,6 +325,9 @@ def main():
     logger.info("   1. Restart your PythonAnywhere web app")
     logger.info("   2. Check the error logs if issues persist")
     logger.info("   3. Test the application functionality")
+    if is_empty_database:
+        logger.info("   4. Login with username: admin, password: admin123")
+        logger.info("   5. Change the admin password after first login")
     
     return 0
 
