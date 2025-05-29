@@ -306,9 +306,9 @@ def main():
                 with engine.begin() as trans_conn:
                     insert_sql = """
                     INSERT INTO firecrawl_keys (api_key, name, is_active, is_primary, created_at)
-                    VALUES (?, 'Default Key', 1, 1, CURRENT_TIMESTAMP)
+                    VALUES (:api_key, 'Default Key', 1, 1, CURRENT_TIMESTAMP)
                     """
-                    trans_conn.execute(text(insert_sql), (default_key,))
+                    trans_conn.execute(text(insert_sql), {"api_key": default_key})
                 logger.info("✅ Added default Firecrawl API key")
             else:
                 logger.info("✅ Firecrawl API keys already exist")
