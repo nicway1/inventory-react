@@ -6,6 +6,7 @@ This script fixes database schema issues after deploying new changes.
 
 import os
 import sys
+import sqlite3
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import OperationalError
 import logging
@@ -18,8 +19,16 @@ def get_database_url():
     """Get database URL from environment or use default SQLite"""
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
-        # Default SQLite database path
-        database_url = 'sqlite:///instance/inventory.db'
+        # Create instance directory if it doesn't exist
+        instance_dir = os.path.join(os.getcwd(), 'instance')
+        if not os.path.exists(instance_dir):
+            os.makedirs(instance_dir)
+            logger.info(f"📁 Created instance directory: {instance_dir}")
+        
+        # Use absolute path for SQLite database
+        db_path = os.path.join(instance_dir, 'inventory.db')
+        database_url = f'sqlite:///{db_path}'
+        logger.info(f"📍 Using database path: {db_path}")
     return database_url
 
 def check_column_exists(engine, table_name, column_name):
@@ -69,7 +78,32 @@ def main():
         
     except Exception as e:
         logger.error(f"❌ Database connection failed: {e}")
-        return 1
+        
+        # If it's a SQLite database and file doesn't exist, try to create it
+        if 'sqlite' in database_url and ('unable to open database file' in str(e) or 'no such file' in str(e)):
+            logger.info("🔧 Database file doesn't exist, attempting to create...")
+            try:
+                # Extract the database path from the URL
+                db_path = database_url.replace('sqlite:///', '')
+                
+                # Create an empty database file
+                conn = sqlite3.connect(db_path)
+                conn.close()
+                
+                # Try to reconnect
+                engine = create_engine(database_url)
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                logger.info("✅ Database created and connection successful")
+                
+            except Exception as create_error:
+                logger.error(f"❌ Failed to create database: {create_error}")
+                logger.info("💡 Suggestion: Make sure you're running this script from your application directory")
+                logger.info("💡 Or run 'python app.py' first to initialize the database")
+                return 1
+        else:
+            logger.info("💡 Suggestion: Make sure your database is running and accessible")
+            return 1
     
     # Fix 1: Add return_carrier column to tickets table if missing
     logger.info("🔧 Checking tickets table for return_carrier column...")
