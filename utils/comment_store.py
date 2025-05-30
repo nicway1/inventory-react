@@ -115,6 +115,7 @@ class CommentStore:
             from utils.store_instances import db_manager
             from models.ticket import Ticket
             from models.user import User
+            from utils.email_sender import send_mention_notification_email
             
             db_session = db_manager.get_session()
             try:
@@ -139,12 +140,28 @@ class CommentStore:
                         clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment.content)
                         clean_content = re.sub(r'<[^>]+>', '', clean_content)  # Remove any other HTML tags
                         
+                        # Add activity notification
                         self.activity_store.add_activity(
                             user_id=mentioned_user.id,
                             type='mention',
                             content=f"{commenter.username} mentioned you in ticket {ticket.display_id}: {clean_content[:100]}...",
                             reference_id=comment.ticket_id
                         )
+                        
+                        # Send email notification
+                        print(f"[DEBUG] Sending mention email to {mentioned_user.email}")
+                        email_sent = send_mention_notification_email(
+                            mentioned_user=mentioned_user,
+                            commenter=commenter,
+                            ticket=ticket,
+                            comment_content=comment.content
+                        )
+                        
+                        if email_sent:
+                            print(f"[SUCCESS] Mention email sent successfully to {mentioned_user.username}")
+                        else:
+                            print(f"[WARNING] Failed to send mention email to {mentioned_user.username}")
+                            
                     else:
                         print(f"[WARNING] User {username} not found for mention notification")
             finally:

@@ -100,3 +100,174 @@ TrueLog Support Team"""
         logging.error(f"Error sending email to {user_email}: {str(e)}")
         print(f"Error sending email: {str(e)}")
         return False 
+
+
+def send_mention_notification_email(mentioned_user, commenter, ticket, comment_content):
+    """
+    Send a Salesforce-style mention notification email when a user is @mentioned
+    """
+    try:
+        logging.info(f"Attempting to send mention notification to {mentioned_user.email}")
+        
+        if not current_app:
+            logging.error("No Flask application context")
+            return False
+            
+        if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
+            logging.error("Mail configuration is incomplete")
+            return False
+            
+        if not mentioned_user.email:
+            logging.warning(f"User {mentioned_user.username} has no email address")
+            return False
+        
+        # Clean the comment content for display (remove HTML tags)
+        import re
+        clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment_content)
+        clean_content = re.sub(r'<[^>]+>', '', clean_content).strip()
+        
+        # Truncate content if too long for preview
+        content_preview = clean_content[:200] + "..." if len(clean_content) > 200 else clean_content
+        
+        # Create the ticket URL
+        ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
+        
+        msg = Message(
+            f'You were mentioned in Case {ticket.display_id}',
+            sender=('TrueLog Notifications', current_app.config['MAIL_DEFAULT_SENDER']),
+            recipients=[mentioned_user.email]
+        )
+        
+        # Salesforce-style HTML email template
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>You were mentioned</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Salesforce Sans', Arial, sans-serif; background-color: #f3f3f3;">
+            <div style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(90deg, #1589ee 0%, #0176d3 100%); padding: 20px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: bold;">TrueLog</h1>
+                    <p style="color: #e1f5fe; margin: 5px 0 0 0; font-size: 14px;">Inventory Management System</p>
+                </div>
+                
+                <!-- Main Content -->
+                <div style="padding: 30px;">
+                    <!-- Notification Icon & Title -->
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <div style="display: inline-block; background-color: #0176d3; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 15px;">
+                            <span style="color: white; font-size: 24px; font-weight: bold;">@</span>
+                        </div>
+                        <h2 style="color: #16325c; margin: 0; font-size: 22px; font-weight: 600;">You were mentioned</h2>
+                    </div>
+                    
+                    <!-- User Info -->
+                    <div style="background-color: #fafbfc; border-left: 4px solid #0176d3; padding: 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;">
+                        <p style="margin: 0 0 10px 0; color: #16325c; font-size: 16px;">
+                            <strong>{commenter.username}</strong> mentioned you in Case <strong>{ticket.display_id}</strong>
+                        </p>
+                        <p style="margin: 0; color: #706e6b; font-size: 14px;">
+                            <strong>Case Subject:</strong> {ticket.subject}
+                        </p>
+                    </div>
+                    
+                    <!-- Comment Preview -->
+                    <div style="background-color: #ffffff; border: 1px solid #dddbda; border-radius: 4px; padding: 20px; margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 15px 0; color: #16325c; font-size: 16px; font-weight: 600; border-bottom: 1px solid #dddbda; padding-bottom: 10px;">
+                            💬 Comment
+                        </h3>
+                        <div style="background-color: #f8f9fa; border-radius: 4px; padding: 15px; font-style: italic; color: #3e3e3c; line-height: 1.5;">
+                            "{content_preview}"
+                        </div>
+                    </div>
+                    
+                    <!-- Case Details -->
+                    <div style="background-color: #fafbfc; border-radius: 4px; padding: 20px; margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 15px 0; color: #16325c; font-size: 16px; font-weight: 600;">📋 Case Details</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #706e6b; font-size: 14px; font-weight: 600; width: 30%;">Case ID:</td>
+                                <td style="padding: 8px 0; color: #16325c; font-size: 14px;">{ticket.display_id}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #706e6b; font-size: 14px; font-weight: 600;">Status:</td>
+                                <td style="padding: 8px 0; color: #16325c; font-size: 14px;">
+                                    <span style="background-color: #0176d3; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                                        {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #706e6b; font-size: 14px; font-weight: 600;">Priority:</td>
+                                <td style="padding: 8px 0; color: #16325c; font-size: 14px;">
+                                    <span style="background-color: #ff6b6b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                                        {ticket.priority.value if hasattr(ticket.priority, 'value') else ticket.priority}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Call to Action -->
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <a href="{ticket_url}" 
+                           style="display: inline-block; background: linear-gradient(90deg, #1589ee 0%, #0176d3 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(1, 118, 211, 0.3);">
+                            View Case & Reply
+                        </a>
+                    </div>
+                    
+                    <!-- Help Text -->
+                    <div style="background-color: #fff9e6; border: 1px solid #ffeb3b; border-radius: 4px; padding: 15px; margin-bottom: 25px;">
+                        <p style="margin: 0; color: #856404; font-size: 14px; text-align: center;">
+                            💡 <strong>Tip:</strong> Click the button above to respond to this mention and keep the conversation going.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #16325c; padding: 20px; text-align: center;">
+                    <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">
+                        This notification was sent because you were mentioned in a case comment.
+                    </p>
+                    <p style="color: #a8b8c8; margin: 0; font-size: 12px;">
+                        TrueLog Inventory Management System<br>
+                        © 2025 TrueLog. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version as fallback
+        msg.body = f"""You were mentioned in Case {ticket.display_id}
+
+{commenter.username} mentioned you in a case comment:
+
+Case: {ticket.display_id} - {ticket.subject}
+Status: {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}
+Priority: {ticket.priority.value if hasattr(ticket.priority, 'value') else ticket.priority}
+
+Comment:
+"{content_preview}"
+
+View the case and reply: {ticket_url}
+
+---
+TrueLog Inventory Management System
+This notification was sent because you were mentioned in a case comment."""
+        
+        mail.send(msg)
+        logging.info(f"Mention notification email sent successfully to {mentioned_user.email}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error sending mention notification email to {mentioned_user.email if mentioned_user else 'unknown'}: {str(e)}")
+        print(f"Error sending mention notification email: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False 

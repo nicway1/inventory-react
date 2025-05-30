@@ -138,5 +138,26 @@
     "user_id": 1,
     "content": "hi <span class=\"mention\">@ronny</span>  please check if address is correct ",
     "created_at": "2025-05-23T07:53:08.131766"
+  },
+  {
+    "id": 5336,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "Hey <span class=\"mention\">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.",
+    "created_at": "2025-05-30T15:10:37.409298"
+  },
+  {
+    "id": 7014,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "Hey <span class=\"mention\">@testuser</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention.",
+    "created_at": "2025-05-30T15:12:54.987499"
+  },
+  {
+    "id": 2907,
+    "ticket_id": 1,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@nicway1</span>  please fix this",
+    "created_at": "2025-05-30T15:17:29.971920"
   }
 ]
