@@ -1412,6 +1412,7 @@
                                 const absoluteUrl = `${window.CURRENT_ORIGIN}/tickets/api/accessories`;
                                 
                                 console.log("Using URL:", absoluteUrl);
+                                console.log("CSRF Token:", csrfToken);
                                 
                                 // Show loading state in dropdown
                                 const select = document.getElementById('existing_accessory_select');
@@ -1432,8 +1433,14 @@
                                     })
                                     .then(response => {
                                         console.log("FETCH RESPONSE:", response.status, response.statusText);
+                                        console.log("Response headers:", response.headers);
+                                        
                                         if (!response.ok) {
-                                            throw new Error(`HTTP error! Status: ${response.status}`);
+                                            // Log the response text for debugging
+                                            return response.text().then(text => {
+                                                console.error("Response text:", text);
+                                                throw new Error(`HTTP error! Status: ${response.status}, Response: ${text.substring(0, 200)}`);
+                                            });
                                         }
                                         return response.json();
                                     })
@@ -1465,12 +1472,30 @@
                                             });
                                             console.log(`Loaded ${data.accessories.length} accessories successfully`);
                                         } else {
-                                            // No accessories found
+                                            // No accessories found - let's also try to call debug endpoint
                                             const option = document.createElement('option');
                                             option.value = "";
                                             option.text = "No accessories available";
                                             select.appendChild(option);
-                                            console.log('No accessories found');
+                                            console.log('No accessories found - calling debug endpoint for more info');
+                                            
+                                            // Call debug endpoint to get more information
+                                            fetch(`${window.CURRENT_ORIGIN}/tickets/api/accessories/debug`, {
+                                                method: 'GET',
+                                                credentials: 'include',
+                                                headers: {
+                                                    'X-Requested-With': 'XMLHttpRequest',
+                                                    'Accept': 'application/json',
+                                                    'X-CSRFToken': csrfToken
+                                                }
+                                            })
+                                            .then(debugResponse => debugResponse.json())
+                                            .then(debugData => {
+                                                console.log("DEBUG INFO:", debugData);
+                                            })
+                                            .catch(debugError => {
+                                                console.error("Debug endpoint error:", debugError);
+                                            });
                                         }
                                         
                                         window.accessoriesLoaded = true;
@@ -1674,6 +1699,20 @@
                     <div id="directAccessorySectionCheckout" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
                         <h3 style="margin-bottom: 15px;">Add Accessories directly</h3>
                         
+                        {% if ticket.category and ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO'] %}
+                        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; color: #92400e; font-weight: 500;">
+                                ⚠️ Asset Checkout: Adding accessories will <strong>deduct</strong> them from inventory.
+                            </p>
+                        </div>
+                        {% else %}
+                        <div style="background-color: #d1fae5; border: 1px solid #10b981; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; color: #047857; font-weight: 500;">
+                                ✅ Asset Return: Adding accessories will <strong>add</strong> them to inventory.
+                            </p>
+                        </div>
+                        {% endif %}
+                        
                         <!-- Tab navigation for "New Accessory" and "Select Existing" -->
                         <div style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
                             <button id="newAccessoryTab" onclick="switchTab('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
@@ -1797,6 +1836,638 @@
                                 </button>
                             </div>
                         </form>
+                        
+                        <!-- JavaScript for tab switching and loading accessories -->
+                        <script>
+                            // Store the CSRF token for JavaScript use
+                            const csrfToken = '{{ csrf_token() }}';
+                            console.log("CSRF token initialized:", csrfToken ? "OK" : "MISSING");
+                            
+                            // Function to switch between tabs
+                            function switchTab(tab) {
+                                console.log(`Switching to tab: ${tab}`);
+                                if (tab === 'new') {
+                                    document.getElementById('simpleAccessoryForm').style.display = 'block';
+                                    document.getElementById('existingAccessoryForm').style.display = 'none';
+                                    document.getElementById('newAccessoryTab').style.backgroundColor = '#3b82f6';
+                                    document.getElementById('newAccessoryTab').style.color = 'white';
+                                    document.getElementById('existingAccessoryTab').style.backgroundColor = '#e5e7eb';
+                                    document.getElementById('existingAccessoryTab').style.color = '#374151';
+                                } else {
+                                    document.getElementById('simpleAccessoryForm').style.display = 'none';
+                                    document.getElementById('existingAccessoryForm').style.display = 'block';
+                                    document.getElementById('newAccessoryTab').style.backgroundColor = '#e5e7eb';
+                                    document.getElementById('newAccessoryTab').style.color = '#374151';
+                                    document.getElementById('existingAccessoryTab').style.backgroundColor = '#3b82f6';
+                                    document.getElementById('existingAccessoryTab').style.color = 'white';
+                                    
+                                    // Load accessories regardless of whether they've been loaded before
+                                    // This ensures accessories are always loaded when this tab is selected
+                                    console.log('Loading accessories for existing tab');
+                                    loadAccessories();
+                                }
+                            }
+                            
+                            // Function to load available accessories
+                            function loadAccessories() {
+                                console.log("LOADING ACCESSORIES: Starting fetch request...");
+                                
+                                // Use the correct API endpoint
+                                const absoluteUrl = `${window.CURRENT_ORIGIN}/tickets/api/accessories`;
+                                
+                                console.log("Using URL:", absoluteUrl);
+                                console.log("CSRF Token:", csrfToken);
+                                
+                                // Show loading state in dropdown
+                                const select = document.getElementById('existing_accessory_select');
+                                if (select) {
+                                    select.innerHTML = '<option value="">-- Loading Accessories... --</option>';
+                                    select.disabled = true;
+                                }
+                                
+                                try {
+                                    fetch(absoluteUrl, {
+                                        method: 'GET',
+                                        credentials: 'include',  // Include cookies for authentication
+                                        headers: {
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                            'Accept': 'application/json',
+                                            'X-CSRFToken': csrfToken
+                                        }
+                                    })
+                                    .then(response => {
+                                        console.log("FETCH RESPONSE:", response.status, response.statusText);
+                                        console.log("Response headers:", response.headers);
+                                        
+                                        if (!response.ok) {
+                                            // Log the response text for debugging
+                                            return response.text().then(text => {
+                                                console.error("Response text:", text);
+                                                throw new Error(`HTTP error! Status: ${response.status}, Response: ${text.substring(0, 200)}`);
+                                            });
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(data => {
+                                        console.log("FETCH SUCCESS, data:", data);
+                                        const select = document.getElementById('existing_accessory_select');
+                                        if (!select) {
+                                            console.error("Select element not found!");
+                                            return;
+                                        }
+                                        
+                                        // Enable the select
+                                        select.disabled = false;
+                                        
+                                        // Clear existing options
+                                        select.innerHTML = '<option value="">-- Select an Accessory --</option>';
+                                        
+                                        // Add accessories to dropdown
+                                        if (data.success && data.accessories && data.accessories.length > 0) {
+                                            // Sort accessories by name for better usability
+                                            data.accessories.sort((a, b) => a.name.localeCompare(b.name));
+                                            
+                                            data.accessories.forEach(acc => {
+                                                const option = document.createElement('option');
+                                                option.value = acc.id;
+                                                const displayName = `${acc.name} (${acc.category}) - Qty: ${acc.available_quantity}`;
+                                                option.text = displayName;
+                                                select.appendChild(option);
+                                            });
+                                            console.log(`Loaded ${data.accessories.length} accessories successfully`);
+                                        } else {
+                                            // No accessories found - let's also try to call debug endpoint
+                                            const option = document.createElement('option');
+                                            option.value = "";
+                                            option.text = "No accessories available";
+                                            select.appendChild(option);
+                                            console.log('No accessories found - calling debug endpoint for more info');
+                                            
+                                            // Call debug endpoint to get more information
+                                            fetch(`${window.CURRENT_ORIGIN}/tickets/api/accessories/debug`, {
+                                                method: 'GET',
+                                                credentials: 'include',
+                                                headers: {
+                                                    'X-Requested-With': 'XMLHttpRequest',
+                                                    'Accept': 'application/json',
+                                                    'X-CSRFToken': csrfToken
+                                                }
+                                            })
+                                            .then(debugResponse => debugResponse.json())
+                                            .then(debugData => {
+                                                console.log("DEBUG INFO:", debugData);
+                                            })
+                                            .catch(debugError => {
+                                                console.error("Debug endpoint error:", debugError);
+                                            });
+                                        }
+                                        
+                                        window.accessoriesLoaded = true;
+                                    })
+                                    .catch(error => {
+                                        console.error('Error loading accessories:', error);
+                                        
+                                        // Update the dropdown to show the error
+                                        const select = document.getElementById('existing_accessory_select');
+                                        if (select) {
+                                            select.disabled = false;
+                                            select.innerHTML = '<option value="">-- Error Loading Accessories --</option>';
+                                        }
+                                    });
+                                } catch (error) {
+                                    console.error('Critical error in fetch:', error);
+                                    const select = document.getElementById('existing_accessory_select');
+                                    if (select) {
+                                        select.disabled = false;
+                                        select.innerHTML = '<option value="">-- Error Loading Accessories --</option>';
+                                    }
+                                }
+                            }
+                            
+                            // Function to handle existing accessory form submission
+                            window.submitExistingAccessoryForm = function(event) {
+                                event.preventDefault();
+                                console.log("Form submission detected for existing accessory");
+                                
+                                // Get form data
+                                const form = event.target;
+                                const accessoryId = document.getElementById('existing_accessory_select').value;
+                                // Get quantity from input
+                                const quantity = parseInt(document.getElementById('accessory_quantity_input').value);
+                                const condition = document.querySelector('#existingAccessoryForm select[name="accessory_condition"]').value;
+                                const notes = document.querySelector('#existingAccessoryForm textarea[name="accessory_notes"]').value;
+                                
+                                // Validation
+                                if (!accessoryId || accessoryId === "") {
+                                    alert("Please select an accessory");
+                                    return;
+                                }
+                                
+                                if (isNaN(quantity) || quantity < 1) {
+                                    alert("Quantity must be at least 1");
+                                    return;
+                                }
+                                
+                                console.log(`Submitting: Accessory ID=${accessoryId}, Quantity=${quantity}, Condition=${condition}`);
+                                
+                                // Create the data to send - matching what the server expects
+                                const formData = {
+                                    existing_accessory_id: accessoryId,
+                                    accessory_quantity: quantity,
+                                    accessory_condition: condition,
+                                    accessory_notes: notes
+                                };
+                                
+                                // Show loading indicator
+                                const submitButton = form.querySelector('button[type="submit"]');
+                                const originalText = submitButton.textContent;
+                                submitButton.disabled = true;
+                                submitButton.textContent = "Processing...";
+                                
+                                // Send the data via AJAX
+                                fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add-accessory`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfToken,
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: JSON.stringify(formData)
+                                })
+                                .then(response => {
+                                    console.log("Response status:", response.status);
+                                    // Check if response is ok before trying to parse JSON
+                                    if (response.ok) {
+                                        return response.json();
+                                    } else {
+                                        // For error responses, just get the text
+                                        return response.text().then(text => {
+                                            // Try to parse JSON error response if possible
+                                            try {
+                                                return JSON.parse(text);
+                                            } catch (e) {
+                                                // If not JSON, return simple error object
+                                                throw new Error(`HTTP error! Status: ${response.status}, Message: ${text || "Unknown error"}`);
+                                            }
+                                        });
+                                    }
+                                })
+                                .then(data => {
+                                    console.log("Form submission response:", data);
+                                    if (data.success) {
+                                        // Show success message
+                                        alert(`Successfully added ${quantity} ${data.accessory ? data.accessory.name : 'accessory'} to the ticket`);
+                                        
+                                        // Clear the form
+                                        form.reset();
+                                        
+                                        // Reload the page to show the updated accessories list
+                                        window.location.reload();
+                                    } else {
+                                        alert("Error: " + (data.message || "Unknown error occurred"));
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error("Error submitting form:", error);
+                                    alert(`Error: ${error.message || "Unknown error occurred"}`);
+                                })
+                                .finally(() => {
+                                    // Re-enable the button
+                                    submitButton.disabled = false;
+                                    submitButton.textContent = originalText;
+                                });
+                            };
+                            
+                            // Call loadAccessories right away on page load
+                            console.log("Calling loadAccessories() immediately");
+                            loadAccessories();
+                            
+                            // Also set up DOMContentLoaded event just in case
+                            document.addEventListener('DOMContentLoaded', function() {
+                                console.log("DOMContentLoaded: Calling loadAccessories() again");
+                                loadAccessories();
+                            });
+                        </script>
+                    </div>
+                    {% endif %}
+
+                    <!-- Accessories Section for Asset Intake -->
+                    {% if ticket.category and ticket.category.name == 'ASSET_INTAKE' %}
+                    <!-- Accessories Card for Asset Intake -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <h2 class="sf-card-title">Received Accessories</h2>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="overflow-x-auto">
+                                <table class="sf-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>NAME</th>
+                                            <th>CATEGORY</th>
+                                            <th>QUANTITY</th>
+                                            <th>CONDITION</th>
+                                            <th>ACTIONS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accessoryTableBody">
+                                        {% if ticket.accessories %}
+                                            {% for accessory in ticket.accessories %}
+                                            <tr>
+                                                <td>{{ accessory.name }}</td>
+                                                <td>{{ accessory.category }}</td>
+                                                <td>{{ accessory.quantity }}</td>
+                                                <td>
+                                                    <span class="sf-badge {% if accessory.condition == 'Good' %}sf-badge-success{% elif accessory.condition == 'Fair' %}sf-badge-warning{% else %}sf-badge-danger{% endif %}">
+                                                        {{ accessory.condition }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-2">
+                                                        <button onclick="editAccessory('{{ accessory.id }}')" class="text-blue-600 hover:text-blue-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button onclick="removeAccessory('{{ accessory.id }}', '{{ ticket.id }}')" class="text-red-600 hover:text-red-800">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="5" class="text-center text-gray-500 py-4">No accessories recorded for this intake</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Accessories directly for Asset Intake -->
+                    <div id="directAccessorySectionIntake" style="text-align: center; margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="margin-bottom: 15px;">Add Accessories directly</h3>
+                        
+                        <div style="background-color: #d1fae5; border: 1px solid #10b981; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; color: #047857; font-weight: 500;">
+                                📦 Asset Intake: Adding accessories will <strong>add</strong> them to inventory.
+                            </p>
+                        </div>
+                        
+                        <!-- Tab navigation for "New Accessory" and "Select Existing" -->
+                        <div style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                            <button id="newAccessoryTab" onclick="switchTab('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
+                                Add New
+                            </button>
+                            <button id="existingAccessoryTab" onclick="switchTab('existing')" style="flex: 1; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 0 4px 0 0; cursor: pointer;">
+                                Select Existing
+                            </button>
+                        </div>
+                        
+                        <!-- New Accessory Form -->
+                        <form id="simpleAccessoryForm" onsubmit="submitNewAccessoryForm(event)" style="display: none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Accessory Name</label>
+                                <input type="text" name="accessory_name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+                                <select name="accessory_category" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Select Category --</option>
+                                    <option value="Keyboard">Keyboard</option>
+                                    <option value="Mouse">Mouse</option>
+                                    <option value="Cable">Cable</option>
+                                    <option value="Adapter">Adapter</option>
+                                    <option value="Power Brick">Power Brick</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Manufacturer</label>
+                                <input type="text" name="manufacturer" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Model Number</label>
+                                <input type="text" name="model_no" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Total Quantity</label>
+                                <input type="number" name="total_quantity" min="1" value="1" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country</label>
+                                <select name="country" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select a country...</option>
+                                    <option value="USA">USA</option>
+                                    <option value="Japan">Japan</option>
+                                    <option value="Philippines">Philippines</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="India">India</option>
+                                    <option value="Singapore">Singapore</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity for this Ticket</label>
+                                <input type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add New Accessory
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Existing Accessory Selection Form -->
+                        <form id="existingAccessoryForm" onsubmit="submitExistingAccessoryForm(event)" style="display: block;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Select Existing Accessory</label>
+                                <select id="existing_accessory_select" name="existing_accessory_id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">-- Loading Accessories --</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity</label>
+                                <input id="accessory_quantity_input" type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
+                                <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="Good">Good</option>
+                                    <option value="Fair">Fair</option>
+                                    <option value="Poor">Poor</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Notes</label>
+                                <textarea name="accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 15px;">
+                                <button type="submit" style="padding: 8px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Add Selected Accessory
+                                </button>
+                            </div>
+                        </form>
+
+                        <script>
+                            // Get CSRF token from meta tag (for Asset Intake)
+                            const csrfTokenIntake = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                            console.log("CSRF token for Asset Intake initialized:", csrfTokenIntake ? "OK" : "MISSING");
+                            
+                            // Function to switch between tabs for Asset Intake
+                            function switchTab(tab) {
+                                const newAccessoryTab = document.getElementById('newAccessoryTab');
+                                const existingAccessoryTab = document.getElementById('existingAccessoryTab');
+                                const newAccessoryForm = document.getElementById('simpleAccessoryForm');
+                                const existingAccessoryForm = document.getElementById('existingAccessoryForm');
+
+                                if (tab === 'new') {
+                                    // Switch to "Add New" tab
+                                    newAccessoryTab.style.backgroundColor = '#3b82f6';
+                                    newAccessoryTab.style.color = 'white';
+                                    existingAccessoryTab.style.backgroundColor = '#e5e7eb';
+                                    existingAccessoryTab.style.color = '#374151';
+                                    
+                                    newAccessoryForm.style.display = 'block';
+                                    existingAccessoryForm.style.display = 'none';
+                                } else if (tab === 'existing') {
+                                    // Switch to "Select Existing" tab
+                                    existingAccessoryTab.style.backgroundColor = '#3b82f6';
+                                    existingAccessoryTab.style.color = 'white';
+                                    newAccessoryTab.style.backgroundColor = '#e5e7eb';
+                                    newAccessoryTab.style.color = '#374151';
+                                    
+                                    existingAccessoryForm.style.display = 'block';
+                                    newAccessoryForm.style.display = 'none';
+                                }
+                            }
+
+                            // Function to load accessories for Asset Intake
+                            function loadAccessories() {
+                                fetch('/tickets/api/accessories')
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        const select = document.getElementById('existing_accessory_select');
+                                        select.innerHTML = '<option value="">-- Select Accessory --</option>';
+                                        
+                                        if (data.success && data.accessories) {
+                                            data.accessories.forEach(accessory => {
+                                                const option = document.createElement('option');
+                                                option.value = accessory.id;
+                                                option.textContent = `${accessory.name} (${accessory.available_quantity} available)`;
+                                                option.dataset.availableQuantity = accessory.available_quantity;
+                                                select.appendChild(option);
+                                            });
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error loading accessories:', error);
+                                        document.getElementById('existing_accessory_select').innerHTML = '<option value="">Error loading accessories</option>';
+                                    });
+                            }
+
+                            // Function to submit existing accessory form for Asset Intake
+                            function submitExistingAccessoryForm(event) {
+                                event.preventDefault();
+                                
+                                const form = event.target;
+                                const accessoryId = document.getElementById('existing_accessory_select').value;
+                                const quantity = parseInt(document.getElementById('accessory_quantity_input').value);
+                                const condition = document.querySelector('#existingAccessoryForm select[name="accessory_condition"]').value;
+                                const notes = document.querySelector('#existingAccessoryForm textarea[name="accessory_notes"]').value;
+                                
+                                if (!accessoryId || accessoryId === "") {
+                                    alert("Please select an accessory");
+                                    return;
+                                }
+                                
+                                if (isNaN(quantity) || quantity < 1) {
+                                    alert("Quantity must be at least 1");
+                                    return;
+                                }
+                                
+                                const formData = {
+                                    existing_accessory_id: accessoryId,
+                                    accessory_quantity: quantity,
+                                    accessory_condition: condition,
+                                    accessory_notes: notes
+                                };
+                                
+                                                                 fetch(`/tickets/{{ ticket.id }}/add-accessory`, {
+                                     method: 'POST',
+                                     headers: {
+                                         'Content-Type': 'application/json',
+                                         'X-CSRFToken': csrfTokenIntake,
+                                         'X-Requested-With': 'XMLHttpRequest'
+                                     },
+                                     body: JSON.stringify(formData)
+                                 })
+                                                                 .then(response => {
+                                     console.log("Response status:", response.status);
+                                     if (response.ok) {
+                                         return response.json();
+                                     } else {
+                                         return response.text().then(text => {
+                                             try {
+                                                 return JSON.parse(text);
+                                             } catch (e) {
+                                                 throw new Error(`HTTP error! Status: ${response.status}, Message: ${text || "Unknown error"}`);
+                                             }
+                                         });
+                                     }
+                                 })
+                                 .then(data => {
+                                     console.log("Form submission response:", data);
+                                     if (data.success) {
+                                         alert(`Successfully added accessory to the ticket`);
+                                         window.location.reload();
+                                     } else {
+                                         alert('Error: ' + (data.message || 'Unknown error'));
+                                     }
+                                 })
+                                 .catch(error => {
+                                     console.error('Error:', error);
+                                     alert(`Error: ${error.message || "Unknown error occurred"}`);
+                                 });
+                            }
+
+                            // Function to submit new accessory form for Asset Intake
+                            function submitNewAccessoryForm(event) {
+                                event.preventDefault();
+                                
+                                const form = event.target;
+                                const formData = {
+                                    accessory_name: form.accessory_name.value,
+                                    accessory_category: form.accessory_category.value,
+                                    manufacturer: form.manufacturer.value,
+                                    model_no: form.model_no.value,
+                                    total_quantity: parseInt(form.total_quantity.value),
+                                    country: form.country.value,
+                                    accessory_quantity: parseInt(form.accessory_quantity.value),
+                                    accessory_condition: form.accessory_condition.value,
+                                    accessory_notes: form.accessory_notes.value
+                                };
+                                
+                                console.log("Submitting new accessory:", formData);
+                                
+                                fetch(`/tickets/{{ ticket.id }}/add-accessory`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfTokenIntake,
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: JSON.stringify(formData)
+                                })
+                                .then(response => {
+                                    console.log("Response status:", response.status);
+                                    if (response.ok) {
+                                        return response.json();
+                                    } else {
+                                        return response.text().then(text => {
+                                            try {
+                                                return JSON.parse(text);
+                                            } catch (e) {
+                                                throw new Error(`HTTP error! Status: ${response.status}, Message: ${text || "Unknown error"}`);
+                                            }
+                                        });
+                                    }
+                                })
+                                .then(data => {
+                                    console.log("New accessory response:", data);
+                                    if (data.success) {
+                                        alert(`Successfully created and added ${data.accessory.name} to the ticket`);
+                                        window.location.reload();
+                                    } else {
+                                        alert('Error: ' + (data.message || 'Unknown error'));
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    alert(`Error: ${error.message || "Unknown error occurred"}`);
+                                });
+                            }
+
+                            // Load accessories when page loads for Asset Intake
+                            document.addEventListener('DOMContentLoaded', function() {
+                                loadAccessories();
+                            });
+                        </script>
                     </div>
                     {% endif %}
 

@@ -4506,23 +4506,45 @@ def add_accessory(ticket_id):
                 )
                 db_session.add(ticket_accessory)
 
-                # Update inventory: increase available_quantity when adding to ticket
+                # Update inventory based on ticket category
                 print(f"=== INVENTORY UPDATE START ===")
-                print(f"INCREASING INVENTORY FOR: {accessory.name}")
+                print(f"TICKET CATEGORY: {ticket.category}")
+                print(f"PROCESSING ACCESSORY: {accessory.name}")
                 print(f"Previous available quantity: {accessory.available_quantity}")
                 
-                # Increase the available quantity when adding to ticket
-                accessory.available_quantity += quantity
+                # For Asset Checkout categories, deduct from inventory (checkout)
+                # For Asset Return and Asset Intake categories, add to inventory (return/intake)
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                    # Checkout: deduct from inventory
+                    if accessory.available_quantity < quantity:
+                        return jsonify({'success': False, 'message': f'Not enough quantity available. Only {accessory.available_quantity} units available.'}), 400
+                    accessory.available_quantity -= quantity
+                    print(f"CHECKOUT: Decreasing inventory by {quantity}")
+                else:
+                    # Return/Intake: add to inventory
+                    accessory.available_quantity += quantity
+                    print(f"RETURN/INTAKE: Increasing inventory by {quantity}")
+                
                 print(f"New available quantity: {accessory.available_quantity}")
                 print(f"=== INVENTORY UPDATE END ===")
 
                 # Create transaction record
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                    transaction_type = 'Checkout'
+                    transaction_notes = f'Accessory checked out via ticket #{ticket_id} - inventory decreased'
+                elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
+                    transaction_type = 'Intake'
+                    transaction_notes = f'Accessory received via asset intake ticket #{ticket_id} - inventory increased'
+                else:
+                    transaction_type = 'Return'
+                    transaction_notes = f'Accessory returned via ticket #{ticket_id} - inventory increased'
+                
                 transaction = AccessoryTransaction(
                     accessory_id=accessory.id,
-                    transaction_type='Ticket Assignment',
+                    transaction_type=transaction_type,
                     quantity=quantity,  # Use the quantity from the form
                     user_id=current_user.id,
-                    notes=f'Accessory assigned to ticket #{ticket_id}'
+                    notes=transaction_notes
                 )
                 db_session.add(transaction)
 
@@ -4532,6 +4554,90 @@ def add_accessory(ticket_id):
                     'success': True,
                     'message': 'Accessory added successfully',
                     'accessory': accessory.to_dict()
+                })
+            else:
+                # Handle JSON request for new accessory
+                name = data.get('accessory_name')
+                category = data.get('accessory_category')
+                manufacturer = data.get('manufacturer')
+                model_no = data.get('model_no')
+                total_quantity = int(data.get('total_quantity', 1))
+                country = data.get('country')
+                # quantity is already set above
+                
+                if not all([name, category, manufacturer, model_no, country]):
+                    return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+                # Create new accessory in inventory
+                new_accessory = Accessory(
+                    name=name,
+                    category=category,
+                    manufacturer=manufacturer,
+                    model_no=model_no,
+                    total_quantity=total_quantity,
+                    available_quantity=total_quantity,
+                    country=country,
+                    status='Available'
+                )
+                db_session.add(new_accessory)
+                db_session.flush()
+
+                # Update inventory based on ticket category
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                    if new_accessory.available_quantity < quantity:
+                        return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
+                    new_accessory.available_quantity -= quantity
+                else:
+                    new_accessory.available_quantity += quantity
+
+                # Create ticket accessory record
+                ticket_accessory = TicketAccessory(
+                    ticket_id=ticket_id,
+                    name=name,
+                    category=category,
+                    quantity=quantity,
+                    condition=condition,
+                    notes=notes,
+                    original_accessory_id=new_accessory.id
+                )
+                db_session.add(ticket_accessory)
+
+                # Create transaction records
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                    assignment_transaction_type = 'Checkout'
+                    assignment_transaction_notes = f'New accessory created and checked out via ticket #{ticket_id} - inventory decreased'
+                elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
+                    assignment_transaction_type = 'Intake'
+                    assignment_transaction_notes = f'New accessory created and received via asset intake ticket #{ticket_id} - inventory increased'
+                else:
+                    assignment_transaction_type = 'Return'
+                    assignment_transaction_notes = f'New accessory created and returned via ticket #{ticket_id} - inventory increased'
+
+                transaction = AccessoryTransaction(
+                    accessory_id=new_accessory.id,
+                    transaction_type=assignment_transaction_type,
+                    quantity=quantity,
+                    user_id=current_user.id,
+                    notes=assignment_transaction_notes
+                )
+                db_session.add(transaction)
+
+                # Create initial inventory transaction
+                inventory_transaction = AccessoryTransaction(
+                    accessory_id=new_accessory.id,
+                    transaction_type='Inventory Addition',
+                    quantity=total_quantity,
+                    user_id=current_user.id,
+                    notes=f'Initial inventory addition'
+                )
+                db_session.add(inventory_transaction)
+
+                db_session.commit()
+
+                return jsonify({
+                    'success': True,
+                    'message': 'New accessory created and added successfully',
+                    'accessory': new_accessory.to_dict()
                 })
 
         else:
@@ -4564,15 +4670,27 @@ def add_accessory(ticket_id):
             db_session.add(new_accessory)
             db_session.flush()  # Get the ID of the new accessory
             
-            # Increase available quantity when assigning to ticket
+            # Update inventory based on ticket category
             print(f"=== INVENTORY UPDATE START ===")
             print(f"CREATING NEW ACCESSORY: {name}")
+            print(f"TICKET CATEGORY: {ticket.category}")
             print(f"Total quantity: {total_quantity}")
             print(f"Assigning quantity: {quantity}")
             print(f"Initial available quantity: {new_accessory.available_quantity}")
             
-            # Increase available quantity by the assigned amount
-            new_accessory.available_quantity += quantity
+            # For Asset Checkout categories, deduct from inventory (checkout)
+            # For Asset Return and Asset Intake categories, add to inventory (return/intake)
+            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                # Checkout: deduct from inventory
+                if new_accessory.available_quantity < quantity:
+                    return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
+                new_accessory.available_quantity -= quantity
+                print(f"CHECKOUT: Decreasing inventory by {quantity}")
+            else:
+                # Return/Intake: add to inventory
+                new_accessory.available_quantity += quantity
+                print(f"RETURN/INTAKE: Increasing inventory by {quantity}")
+                
             print(f"Available quantity after assignment: {new_accessory.available_quantity}")
             print(f"=== INVENTORY UPDATE END ===")
             
@@ -4589,12 +4707,22 @@ def add_accessory(ticket_id):
             db_session.add(ticket_accessory)
 
             # Create transaction record for the assignment
+            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                assignment_transaction_type = 'Checkout'
+                assignment_transaction_notes = f'New accessory created and checked out via ticket #{ticket_id} - inventory decreased'
+            elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
+                assignment_transaction_type = 'Intake'
+                assignment_transaction_notes = f'New accessory created and received via asset intake ticket #{ticket_id} - inventory increased'
+            else:
+                assignment_transaction_type = 'Return'
+                assignment_transaction_notes = f'New accessory created and returned via ticket #{ticket_id} - inventory increased'
+                
             transaction = AccessoryTransaction(
                 accessory_id=new_accessory.id,
-                transaction_type='Ticket Assignment',
+                transaction_type=assignment_transaction_type,
                 quantity=quantity,  # Use the quantity from the form
                 user_id=current_user.id,
-                notes=f'Accessory assigned to ticket #{ticket_id}'
+                notes=assignment_transaction_notes
             )
             db_session.add(transaction)
             
@@ -4955,6 +5083,66 @@ def get_accessories():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error retrieving accessories: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@tickets_bp.route('/api/accessories/debug')
+@login_required
+def debug_accessories():
+    """Debug endpoint to check all accessories in database"""
+    print("API endpoint /api/accessories/debug called")
+    db_session = None
+    try:
+        db_session = db_manager.get_session()
+        
+        # Get ALL accessories regardless of quantity
+        all_accessories = db_session.query(Accessory).all()
+        print(f"Total accessories in database: {len(all_accessories)}")
+        
+        # Get accessories with available quantity > 0
+        available_accessories = db_session.query(Accessory).filter(
+            Accessory.available_quantity > 0
+        ).all()
+        print(f"Accessories with available_quantity > 0: {len(available_accessories)}")
+        
+        # Prepare detailed response
+        result = {
+            'total_accessories': len(all_accessories),
+            'available_accessories': len(available_accessories),
+            'all_accessories': [],
+            'available_accessories_details': []
+        }
+        
+        # Add details for all accessories
+        for acc in all_accessories:
+            result['all_accessories'].append({
+                'id': acc.id,
+                'name': acc.name,
+                'category': acc.category,
+                'total_quantity': acc.total_quantity,
+                'available_quantity': acc.available_quantity,
+                'status': acc.status
+            })
+        
+        # Add details for available accessories
+        for acc in available_accessories:
+            result['available_accessories_details'].append({
+                'id': acc.id,
+                'name': acc.name,
+                'category': acc.category,
+                'available_quantity': acc.available_quantity,
+                'manufacturer': acc.manufacturer,
+                'model_no': acc.model_no
+            })
+        
+        return jsonify({'success': True, 'debug_info': result})
+        
+    except Exception as e:
+        print(f"Error in debug_accessories: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error debugging accessories: {str(e)}'}), 500
     finally:
         if db_session:
             db_session.close()
