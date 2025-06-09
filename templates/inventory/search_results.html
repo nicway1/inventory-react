@@ -39,7 +39,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for ticket in tickets %}
-                    <tr>
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                        data-url="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ ticket.display_id }}
                         </td>
@@ -47,11 +48,7 @@
                             <div class="max-w-xs truncate">{{ ticket.subject }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if ticket.category %}
-                                {{ ticket.category.value }}
-                            {% else %}
-                                -
-                            {% endif %}
+                            {{ ticket.get_category_display_name() }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-medium rounded-full
@@ -77,8 +74,8 @@
                             {{ ticket.created_at.strftime('%m/%d/%Y') if ticket.created_at else '-' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('tickets.view_ticket', id=ticket.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" 
+                               class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">View</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -111,7 +108,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for asset in assets %}
-                    <tr>
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                        data-url="{{ url_for('inventory.view_asset', asset_id=asset.id) }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.asset_tag }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.serial_num }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name }}</td>
@@ -127,7 +125,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                               class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">View</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -163,7 +161,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for ticket in related_tickets %}
-                    <tr class="bg-purple-50">
+                    <tr class="bg-purple-50 hover:bg-purple-100 cursor-pointer transition-colors duration-150" 
+                        data-url="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ ticket.display_id }}
                         </td>
@@ -171,11 +170,7 @@
                             <div class="max-w-xs truncate">{{ ticket.subject }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if ticket.category %}
-                                {{ ticket.category.value }}
-                            {% else %}
-                                -
-                            {% endif %}
+                            {{ ticket.get_category_display_name() }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {% if ticket.asset %}
@@ -197,8 +192,8 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('tickets.view_ticket', id=ticket.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" 
+                               class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">View</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -230,7 +225,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for accessory in accessories %}
-                    <tr>
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                        data-url="{{ url_for('inventory.view_accessory', id=accessory.id) }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ accessory.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.category }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ accessory.total_quantity }}</td>
@@ -243,7 +239,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <a href="{{ url_for('inventory.view_accessory', id=accessory.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                               class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">View</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -278,14 +274,15 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for customer in customers %}
-                    <tr>
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
+                        data-url="{{ url_for('inventory.view_customer_user', id=customer.id) }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ customer.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ customer.email }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ customer.contact_number }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ customer.address }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <a href="{{ url_for('inventory.view_customer_user', id=customer.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">View</a>
+                               class="text-blue-600 hover:text-blue-900" onclick="event.stopPropagation();">View</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -316,4 +313,25 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers to all clickable rows
+    const clickableRows = document.querySelectorAll('tr[data-url]');
+    
+    clickableRows.forEach(row => {
+        row.addEventListener('click', function(event) {
+            // Don't navigate if clicking on a link or button
+            if (event.target.tagName === 'A' || event.target.tagName === 'BUTTON') {
+                return;
+            }
+            
+            const url = this.getAttribute('data-url');
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    });
+});
+</script>
 {% endblock %} 

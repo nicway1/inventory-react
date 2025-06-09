@@ -174,6 +174,66 @@ class Ticket(Base):
         self.assigned_to_id = user_id
         self.updated_at = datetime.utcnow()
 
+    def get_category_display_name(self):
+        """Get the display name for the ticket category"""
+        if self.category:
+            return self.category.value
+        else:
+            # For custom categories, extract from description
+            if self.description and self.description.startswith('[CUSTOM CATEGORY:'):
+                try:
+                    # Extract category name from [CUSTOM CATEGORY: category_name]
+                    start = self.description.find('[CUSTOM CATEGORY:') + len('[CUSTOM CATEGORY:')
+                    end = self.description.find(']', start)
+                    if end > start:
+                        category_name = self.description[start:end].strip()
+                        
+                        # Try to get display name from database
+                        from database import SessionLocal
+                        from models.ticket_category_config import TicketCategoryConfig
+                        db = SessionLocal()
+                        try:
+                            config = db.query(TicketCategoryConfig).filter_by(name=category_name).first()
+                            if config:
+                                return config.display_name
+                            else:
+                                return category_name.replace('_', ' ').title()
+                        finally:
+                            db.close()
+                except:
+                    pass
+            return 'Custom'
+
+    def has_custom_section(self, section_name):
+        """Check if this custom category ticket has a specific section enabled"""
+        if self.category:
+            # For standard enum categories, return False - they handle sections differently
+            return False
+        
+        # For custom categories, check the configuration
+        if self.description and self.description.startswith('[CUSTOM CATEGORY:'):
+            try:
+                # Extract category name from [CUSTOM CATEGORY: category_name]
+                start = self.description.find('[CUSTOM CATEGORY:') + len('[CUSTOM CATEGORY:')
+                end = self.description.find(']', start)
+                if end > start:
+                    category_name = self.description[start:end].strip()
+                    
+                    # Check if this section is enabled for this category
+                    from database import SessionLocal
+                    from models.ticket_category_config import TicketCategoryConfig
+                    db = SessionLocal()
+                    try:
+                        config = db.query(TicketCategoryConfig).filter_by(name=category_name).first()
+                        if config:
+                            return config.has_section(section_name)
+                        return False
+                    finally:
+                        db.close()
+            except:
+                pass
+        return False
+
 class TicketAccessory(Base):
     """Model for accessories received with Asset Return (Claw) tickets"""
     __tablename__ = 'ticket_accessories'

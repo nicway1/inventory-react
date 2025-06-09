@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center mb-2">
+            <a href="{{ url_for('admin.manage_ticket_categories') }}" 
+               class="text-blue-600 hover:text-blue-800 mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Preview: {{ category.display_name }}</h1>
+        </div>
+        <p class="text-gray-600">This shows what a ticket form would look like with the configured sections</p>
+    </div>
+
+    <!-- Preview Notice -->
+    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400 mt-0.5"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Preview Mode</h3>
+                <p class="text-sm text-blue-700 mt-1">
+                    This is a preview of how the ticket creation form would appear for the "{{ category.display_name }}" category. 
+                    Only the enabled sections are shown below.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Form -->
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6">Create New Ticket - {{ category.display_name }}</h2>
+            
+            <!-- Show enabled sections -->
+            {% for section_id in category.sections_list %}
+                {% set section = sections_dict.get(section_id) %}
+                {% if section %}
+                
+                <!-- Case Information Section -->
+                {% if section.id == 'case_information' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-blue-500"></i>
+                        {{ section.name }}
+                        <span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">Required</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Subject *</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Ticket subject...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Priority *</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Medium</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                        <textarea rows="3" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Detailed description of the issue..."></textarea>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Tech Assets Section -->
+                {% if section.id == 'tech_assets' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-laptop mr-2 text-green-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Asset/Serial Number</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Search for asset...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Asset Tag</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Asset tag...">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Received Accessories Section -->
+                {% if section.id == 'received_accessories' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-puzzle-piece mr-2 text-indigo-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-3">Track accessories received with the asset</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="text-center">
+                                <div class="w-16 h-16 bg-white rounded-lg border-2 border-dashed border-gray-300 mx-auto flex items-center justify-center">
+                                    <i class="fas fa-plus text-gray-400"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Add Accessory</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Shipping Tracking Section -->
+                {% if section.id == 'shipping_tracking' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-shipping-fast mr-2 text-orange-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Outbound Tracking Number</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="e.g., XZD0002556450">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Carrier</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Auto-Detect</option>
+                                <option>SingPost</option>
+                                <option>DHL</option>
+                                <option>UPS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-600">Tracking status and updates will appear here</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Return Tracking Section -->
+                {% if section.id == 'return_tracking' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-undo mr-2 text-purple-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Return Tracking Number</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="e.g., ABC1234567890">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Return Status</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>In Transit</option>
+                                <option>Delivered</option>
+                                <option>Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Customer Selection Section -->
+                {% if section.id == 'customer_selection' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-user mr-2 text-teal-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Select customer...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                            <input type="email" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="customer@example.com">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Queue Management Section -->
+                {% if section.id == 'queue_management' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-list mr-2 text-cyan-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Assign to Queue</label>
+                        <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                            <option>Select queue...</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- File Attachments Section -->
+                {% if section.id == 'attachments' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-paperclip mr-2 text-pink-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-lg border-2 border-dashed border-gray-300">
+                        <div class="text-center">
+                            <i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>
+                            <p class="text-sm text-gray-600">Upload files or drag and drop</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Apple Diagnostics Section -->
+                {% if section.id == 'diagnostics' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fab fa-apple mr-2 text-gray-700"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Apple diagnostic reports and analysis will be displayed here</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Repair Status Section -->
+                {% if section.id == 'repair_status' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-wrench mr-2 text-yellow-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Repair Progress</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Not Started</option>
+                                <option>In Progress</option>
+                                <option>Completed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Estimated Completion</label>
+                            <input type="date" class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Warranty Information Section -->
+                {% if section.id == 'warranty_info' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-shield-alt mr-2 text-emerald-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Warranty Number</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Warranty number...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Warranty Status</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Active</option>
+                                <option>Expired</option>
+                                <option>Unknown</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Damage Assessment Section -->
+                {% if section.id == 'damage_assessment' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2 text-red-500"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Damage Description</label>
+                        <textarea rows="4" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="Describe any damage or issues found..."></textarea>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- RMA Status Section -->
+                {% if section.id == 'rma_status' %}
+                <div class="mb-8 border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-exchange-alt mr-2 text-indigo-600"></i>
+                        {{ section.name }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">RMA Number</label>
+                            <input type="text" class="w-full rounded-md border-gray-300 bg-gray-50" disabled placeholder="RMA number...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">RMA Status</label>
+                            <select class="w-full rounded-md border-gray-300 bg-gray-50" disabled>
+                                <option>Pending</option>
+                                <option>Approved</option>
+                                <option>Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Comments Section -->
+                {% if section.id == 'comments' %}
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-comments mr-2 text-blue-500"></i>
+                        {{ section.name }}
+                        <span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">Required</span>
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Comments and updates will appear here after ticket creation</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% endif %}
+            {% endfor %}
+
+            <!-- Submit Button -->
+            <div class="flex justify-end pt-4 border-t">
+                <button type="button" disabled
+                        class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-400 cursor-not-allowed">
+                    <i class="fas fa-eye mr-2"></i>Preview Only
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mt-6 flex justify-center space-x-4">
+        <a href="{{ url_for('admin.edit_ticket_category', category_id=category.id) }}" 
+           class="px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100">
+            <i class="fas fa-edit mr-2"></i>Edit Category
+        </a>
+        <a href="{{ url_for('admin.manage_ticket_categories') }}" 
+           class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <i class="fas fa-list mr-2"></i>Back to Categories
+        </a>
+    </div>
+</div>
+{% endblock %} 

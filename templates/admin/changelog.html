@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Changelog - {{ version_info.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold">Changelog</h1>
+                <p class="text-gray-600 mt-2">{{ version_info.name }} - Version History & Updates</p>
+            </div>
+            <a href="{{ url_for('admin.system_config') }}" class="text-gray-600 hover:text-gray-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </a>
+        </div>
+
+        <!-- Current Version Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">Current Version</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p><strong>{{ version_info.version_full }}</strong> - {{ version_info.codename }}</p>
+                        <p>Built on {{ version_info.build_date }} at {{ version_info.build_time }}</p>
+                        {% if version_info.git_commit != 'unknown' %}
+                        <p>Git: {{ version_info.git_branch }}@{{ version_info.git_commit }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Changelog Entries -->
+        <div class="space-y-8">
+            
+            <!-- Version 0.5.1 -->
+            <div class="border-l-4 border-blue-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">v0.5.1</h2>
+                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Current</span>
+                    <span class="ml-2 text-sm text-gray-500">Released: {{ version_info.build_date }}</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-green-700">✨ New Features</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Added version management system with build tracking</li>
+                            <li>Implemented changelog page for release notes</li>
+                            <li>Enhanced System Configuration with version information</li>
+                            <li>Fixed custom ticket category shipping tracking visibility</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-blue-700">🔧 Improvements</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Improved ticket creation form logic for custom categories</li>
+                            <li>Enhanced section-based field visibility for custom categories</li>
+                            <li>Better error handling in ticket category selection</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-red-700">🐛 Bug Fixes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Fixed shipping tracking fields showing for all custom categories</li>
+                            <li>Resolved "Data Erased" field showing incorrect values</li>
+                            <li>Fixed BuildError with ticket URLs in search results</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Version 0.5.0 -->
+            <div class="border-l-4 border-gray-300 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">v0.5.0</h2>
+                    <span class="ml-2 text-sm text-gray-500">Released: 2024-12-01</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-green-700">🎉 Major Release</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Complete inventory management system implementation</li>
+                            <li>Custom ticket category creation and management</li>
+                            <li>Advanced asset tracking and management</li>
+                            <li>Multi-carrier shipping integration</li>
+                            <li>Customer management system</li>
+                            <li>Email notification system</li>
+                            <li>User roles and permissions</li>
+                            <li>Queue management for ticket assignment</li>
+                            <li>File attachments and document management</li>
+                            <li>Comprehensive search functionality</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-blue-700">🔧 Core Features</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Multi-tenant support with company management</li>
+                            <li>Asset lifecycle tracking (checkout, return, repair)</li>
+                            <li>Integrated shipping carriers (DHL, UPS, SingPost, etc.)</li>
+                            <li>Real-time tracking updates</li>
+                            <li>Advanced filtering and reporting</li>
+                            <li>Mobile-responsive design</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Versions -->
+            <div class="border-l-4 border-yellow-400 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">Roadmap</h2>
+                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Planned</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-purple-700">🚀 v0.6.0 - Enhanced Analytics</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Advanced reporting dashboard</li>
+                            <li>Asset utilization analytics</li>
+                            <li>Cost tracking and budgeting</li>
+                            <li>Performance metrics</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-purple-700">🚀 v0.7.0 - API & Integrations</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>REST API development</li>
+                            <li>Third-party system integrations</li>
+                            <li>Webhook support</li>
+                            <li>Export/import improvements</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-purple-700">🚀 v1.0.0 - Stable Release</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Production-ready deployment</li>
+                            <li>Performance optimizations</li>
+                            <li>Security enhancements</li>
+                            <li>Comprehensive documentation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Version Update Instructions -->
+        <div class="mt-12 bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+                <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Version Management
+            </h3>
+            <div class="text-sm text-gray-600 space-y-2">
+                <p><strong>For Developers:</strong> Update version numbers in <code>version.py</code></p>
+                <p><strong>Build Increment:</strong> Each deployment automatically increments the build number</p>
+                <p><strong>Release Process:</strong> Update changelog, increment version, commit, and deploy</p>
+                <p><strong>Git Integration:</strong> Version info includes git commit hash and branch information</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -564,7 +564,7 @@
                         </div>
                         <div class="sf-field-row">
                             <div class="sf-field-label">Category</div>
-                            <div class="sf-field-value">{{ ticket.category.value.replace('_', ' ').title() if ticket.category else 'None' }}</div>
+                            <div class="sf-field-value">{{ ticket.get_category_display_name() if ticket.get_category_display_name() != 'Custom' else 'Custom Category' }}</div>
                         </div>
                     </div>
                 </div>
@@ -947,15 +947,17 @@
                         </div>
                     </div>
 
-                    <!-- Outbound Tracking Section for Asset Checkout Categories -->
-                    {% if ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
+                    <!-- Outbound Tracking Section for Asset Checkout Categories and Custom Categories with Tracking -->
+                    {% if (ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
                           ticket.category.name == 'ASSET_CHECKOUT_CLAW' or 
                           ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 
                           ticket.category.name == 'ASSET_CHECKOUT_DHL' or 
                           ticket.category.name == 'ASSET_CHECKOUT_UPS' or 
                           ticket.category.name == 'ASSET_CHECKOUT_BLUEDART' or 
                           ticket.category.name == 'ASSET_CHECKOUT_DTDC' or 
-                          ticket.category.name == 'ASSET_CHECKOUT_AUTO') %}
+                          ticket.category.name == 'ASSET_CHECKOUT_AUTO')) or 
+                          (ticket.shipping_tracking and ticket.category and ticket.category.name not in ['ASSET_RETURN_CLAW']) or 
+                          (not ticket.category and ticket.has_custom_section('shipping_tracking')) %}
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
@@ -1186,6 +1188,75 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- General Tracking Section for Custom Categories -->
+                    {% if (ticket.category and ticket.category.name not in ['ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO', 'ASSET_RETURN_CLAW']) or (not ticket.category and ticket.has_custom_section('shipping_tracking')) %}
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="sf-card-title">Shipping Tracking</h2>
+                                    {% if ticket.shipping_status %}
+                                    <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.shipping_status }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                <button id="addGeneralTrackingBtn" class="sf-button primary-button" onclick="showAddOutboundTrackingModal()">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    {% if ticket.shipping_tracking %}
+                                    Edit Tracking
+                                    {% else %}
+                                    Add Tracking
+                                    {% endif %}
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="p-4">
+                                {% if ticket.shipping_tracking %}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <div class="text-sm text-gray-500">Tracking Number</div>
+                                        <div class="font-medium">{{ ticket.shipping_tracking }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Carrier</div>
+                                        <div class="font-medium">{{ ticket.shipping_carrier|title if ticket.shipping_carrier else 'Auto-Detect' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-500">Status</div>
+                                        <div class="font-medium">{{ ticket.shipping_status if ticket.shipping_status else 'Pending' }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 border-t pt-3">
+                                    <button id="refreshGeneralTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchShippingTracking()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Refresh Tracking Information
+                                    </button>
+                                    <div id="generalTrackingResults" class="mt-4">
+                                        <input type="hidden" id="generalTrackingNumber" value="{{ ticket.shipping_tracking }}">
+                                        <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
+                                        <div id="generalTrackingEvents" class="bg-gray-50 p-3 rounded text-sm">Loading tracking data...</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="text-center text-gray-500 py-4">
+                                    No shipping tracking information available.
+                                    <br>
+                                    <span class="text-sm">Click "Add Tracking" above to add shipping information for this ticket.</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Accessories Card -->
                     <div class="sf-card mb-6">

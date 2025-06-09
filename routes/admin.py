@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, session
 from flask_login import current_user
 from flask_wtf.csrf import CSRFProtect
-from utils.auth_decorators import admin_required, super_admin_required
+from utils.auth_decorators import admin_required, super_admin_required, login_required
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from models.user import User, UserType, Country
@@ -21,6 +21,7 @@ from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 import traceback
 from models.firecrawl_key import FirecrawlKey
+from models.ticket_category_config import TicketCategoryConfig
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -778,6 +779,8 @@ def delete_queue_permission(permission_id):
 @super_admin_required
 def system_config():
     """System configuration page"""
+    from version import get_full_version_info
+    
     db_session = db_manager.get_session()
     try:
         # Get current user
@@ -802,17 +805,31 @@ def system_config():
         # Get the current API key from the environment or config
         current_api_key = os.environ.get('FIRECRAWL_API_KEY') or current_app.config.get('FIRECRAWL_API_KEY', 'Not set')
 
+        # Get version information
+        version_info = get_full_version_info()
+
         return render_template('admin/system_config.html', 
                              user=user,
                              firecrawl_keys=firecrawl_keys,
                              active_key=active_key,
-                             current_api_key=current_api_key)
+                             current_api_key=current_api_key,
+                             version_info=version_info,
+                             config=current_app.config)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
         return redirect(url_for('main.index'))
     finally:
         db_session.close()
+
+@admin_bp.route('/changelog')
+@login_required
+def changelog():
+    """Application changelog page"""
+    from version import get_full_version_info
+    
+    version_info = get_full_version_info()
+    return render_template('admin/changelog.html', version_info=version_info)
 
 @admin_bp.route('/firecrawl-keys/add', methods=['POST'])
 @super_admin_required
@@ -963,3 +980,178 @@ def update_firecrawl_key():
         flash(f'Error updating Firecrawl API key: {str(e)}', 'error')
     
     return redirect(url_for('admin.system_config')) 
+
+
+@admin_bp.route('/ticket-categories')
+@super_admin_required
+def manage_ticket_categories():
+    """Manage custom ticket categories"""
+    db_session = SessionLocal()
+    try:
+        categories = db_session.query(TicketCategoryConfig).order_by(TicketCategoryConfig.created_at.desc()).all()
+        available_sections = TicketCategoryConfig.get_available_sections()
+        
+        return render_template('admin/ticket_categories/list.html', 
+                             categories=categories,
+                             available_sections=available_sections)
+    except Exception as e:
+        flash(f'Error loading ticket categories: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/ticket-categories/create', methods=['GET', 'POST'])
+@super_admin_required
+def create_ticket_category():
+    """Create a new custom ticket category"""
+    if request.method == 'POST':
+        db_session = SessionLocal()
+        try:
+            name = request.form.get('name', '').strip()
+            display_name = request.form.get('display_name', '').strip()
+            description = request.form.get('description', '').strip()
+            enabled_sections = request.form.getlist('enabled_sections')
+            
+            if not name or not display_name:
+                flash('Name and display name are required', 'error')
+                return redirect(url_for('admin.create_ticket_category'))
+            
+            # Always include required sections
+            required_sections = ['case_information', 'comments']
+            final_sections = list(set(enabled_sections + required_sections))
+            
+            # Check if category name already exists
+            existing = db_session.query(TicketCategoryConfig).filter_by(name=name).first()
+            if existing:
+                flash('A category with this name already exists', 'error')
+                return redirect(url_for('admin.create_ticket_category'))
+            
+            # Create new category
+            category = TicketCategoryConfig(
+                name=name,
+                display_name=display_name,
+                description=description,
+                created_by_id=current_user.id
+            )
+            category.sections_list = final_sections
+            
+            db_session.add(category)
+            db_session.commit()
+            
+            flash(f'Ticket category "{display_name}" created successfully', 'success')
+            return redirect(url_for('admin.manage_ticket_categories'))
+            
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error creating ticket category: {str(e)}', 'error')
+            return redirect(url_for('admin.create_ticket_category'))
+        finally:
+            db_session.close()
+    
+    # GET request - show form
+    available_sections = TicketCategoryConfig.get_available_sections()
+    return render_template('admin/ticket_categories/create.html',
+                         available_sections=available_sections)
+
+
+@admin_bp.route('/ticket-categories/<int:category_id>/edit', methods=['GET', 'POST'])
+@super_admin_required
+def edit_ticket_category(category_id):
+    """Edit an existing ticket category"""
+    db_session = SessionLocal()
+    try:
+        category = db_session.query(TicketCategoryConfig).get(category_id)
+        if not category:
+            flash('Ticket category not found', 'error')
+            return redirect(url_for('admin.manage_ticket_categories'))
+        
+        if request.method == 'POST':
+            display_name = request.form.get('display_name', '').strip()
+            description = request.form.get('description', '').strip()
+            enabled_sections = request.form.getlist('enabled_sections')
+            is_active = request.form.get('is_active') == 'on'
+            
+            if not display_name:
+                flash('Display name is required', 'error')
+                return redirect(url_for('admin.edit_ticket_category', category_id=category_id))
+            
+            # Always include required sections
+            required_sections = ['case_information', 'comments']
+            final_sections = list(set(enabled_sections + required_sections))
+            
+            # Update category
+            category.display_name = display_name
+            category.description = description
+            category.is_active = is_active
+            category.sections_list = final_sections
+            category.updated_at = datetime.utcnow()
+            
+            db_session.commit()
+            
+            flash(f'Ticket category "{display_name}" updated successfully', 'success')
+            return redirect(url_for('admin.manage_ticket_categories'))
+        
+        # GET request - show form
+        available_sections = TicketCategoryConfig.get_available_sections()
+        return render_template('admin/ticket_categories/edit.html',
+                             category=category,
+                             available_sections=available_sections)
+                             
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error editing ticket category: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_ticket_categories'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/ticket-categories/<int:category_id>/delete', methods=['POST'])
+@super_admin_required
+def delete_ticket_category(category_id):
+    """Delete a ticket category"""
+    db_session = SessionLocal()
+    try:
+        category = db_session.query(TicketCategoryConfig).get(category_id)
+        if not category:
+            flash('Ticket category not found', 'error')
+            return redirect(url_for('admin.manage_ticket_categories'))
+        
+        category_name = category.display_name
+        db_session.delete(category)
+        db_session.commit()
+        
+        flash(f'Ticket category "{category_name}" deleted successfully', 'success')
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting ticket category: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_ticket_categories'))
+
+
+@admin_bp.route('/ticket-categories/<int:category_id>/preview')
+@super_admin_required
+def preview_ticket_category(category_id):
+    """Preview what a ticket form would look like for this category"""
+    db_session = SessionLocal()
+    try:
+        category = db_session.query(TicketCategoryConfig).get(category_id)
+        if not category:
+            flash('Ticket category not found', 'error')
+            return redirect(url_for('admin.manage_ticket_categories'))
+        
+        available_sections = TicketCategoryConfig.get_available_sections()
+        sections_dict = {section['id']: section for section in available_sections}
+        
+        return render_template('admin/ticket_categories/preview.html',
+                             category=category,
+                             sections_dict=sections_dict)
+                             
+    except Exception as e:
+        flash(f'Error previewing ticket category: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_ticket_categories'))
+    finally:
+        db_session.close() 

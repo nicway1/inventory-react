@@ -95,14 +95,9 @@
                             onchange="onCategoryChange()"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select category...</option>
-                        <option value="PIN_REQUEST" {% if form and form.category == 'PIN_REQUEST' %}selected{% endif %}>PIN Request</option>
-                        <option value="ASSET_REPAIR" {% if form and form.category == 'ASSET_REPAIR' %}selected{% endif %}>Asset Repair</option>
-                        <option value="BULK_DELIVERY_QUOTATION" {% if form and form.category == 'BULK_DELIVERY_QUOTATION' %}selected{% endif %}>Bulk Delivery Quotation</option>
-                        <option value="REPAIR_QUOTE" {% if form and form.category == 'REPAIR_QUOTE' %}selected{% endif %}>Repair Quote</option>
-                        <option value="ITAD_QUOTE" {% if form and form.category == 'ITAD_QUOTE' %}selected{% endif %}>ITAD Quote</option>
-                        <option value="ASSET_CHECKOUT_CLAW" {% if form and form.category == 'ASSET_CHECKOUT_CLAW' %}selected{% endif %}>Asset Checkout</option>
-                        <option value="ASSET_INTAKE" {% if form and form.category == 'ASSET_INTAKE' %}selected{% endif %}>Asset Intake</option>
-                        <option value="ASSET_RETURN_CLAW" {% if form and form.category == 'ASSET_RETURN_CLAW' %}selected{% endif %}>Asset Return</option>
+                        {% for category in categories %}
+                        <option value="{{ category.value }}" {% if form and form.category == category.value %}selected{% endif %}>{{ category.display_name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -559,6 +554,39 @@
                     </div>
                 </div>
 
+                <!-- Subject Field (for custom categories) -->
+                <div id="generalSubjectField" class="hidden">
+                    <label for="general_subject" class="block text-sm font-medium text-gray-700">Subject/Title</label>
+                    <input type="text" 
+                           id="general_subject" 
+                           name="general_subject" 
+                           placeholder="Enter ticket subject..."
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <!-- Shipping Tracking Fields (for categories that support tracking) -->
+                <div id="shippingTrackingFields" class="hidden space-y-4">
+                    <div>
+                        <label for="visible_outbound_tracking" class="block text-sm font-medium text-gray-700">Outbound Tracking Number</label>
+                        <input type="text" 
+                               id="visible_outbound_tracking" 
+                               name="visible_outbound_tracking" 
+                               placeholder="e.g., XZD0002556450"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500">Enter the tracking number for outbound shipments</p>
+                    </div>
+                    
+                    <div>
+                        <label for="visible_inbound_tracking" class="block text-sm font-medium text-gray-700">Inbound Tracking Number</label>
+                        <input type="text" 
+                               id="visible_inbound_tracking" 
+                               name="visible_inbound_tracking" 
+                               placeholder="e.g., ABC1234567890"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500">Enter the tracking number for inbound shipments (optional)</p>
+                    </div>
+                </div>
+
                 <!-- Priority -->
                 <div id="generalPriorityField">
                     <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
@@ -685,6 +713,9 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
+// Categories data with sections information
+const categoriesData = {{ categories | tojson | safe }};
+
 // Customer creation modal functions
 function showCreateCustomerModal() {
     document.getElementById('createCustomerModal').classList.remove('hidden');
@@ -818,6 +849,10 @@ function onCategoryChange() {
     // Get references to general fields that might be duplicated
     const generalPriorityField = document.getElementById('generalPriorityField');
     const generalDescriptionField = document.getElementById('generalDescriptionField');
+    
+    // Check if this is a custom category (not one of the hardcoded enum values)
+    const knownCategories = ['PIN_REQUEST', 'ASSET_REPAIR', 'ASSET_CHECKOUT_CLAW', 'ASSET_INTAKE', 'ASSET_RETURN_CLAW'];
+    const isCustomCategory = category && !knownCategories.includes(category);
 
     // Hide all fields first
     pinFields.classList.add('hidden');
@@ -829,6 +864,14 @@ function onCategoryChange() {
     // Show general fields by default
     if (generalPriorityField) generalPriorityField.classList.remove('hidden');
     if (generalDescriptionField) generalDescriptionField.classList.remove('hidden');
+    
+    // Hide the general subject field by default (only show for custom categories)
+    const generalSubjectFieldDiv = document.getElementById('generalSubjectField');
+    if (generalSubjectFieldDiv) generalSubjectFieldDiv.classList.add('hidden');
+    
+    // Hide shipping tracking fields by default (only show for appropriate categories)
+    const shippingTrackingFieldsDiv = document.getElementById('shippingTrackingFields');
+    if (shippingTrackingFieldsDiv) shippingTrackingFieldsDiv.classList.add('hidden');
     
     // Disable all notes fields first to prevent conflicts
     document.getElementById('notes').disabled = true;           // PIN Request notes
@@ -956,6 +999,43 @@ function onCategoryChange() {
         console.log('Enabled Asset Intake notes field');
         console.log('Hidden general Priority and Description fields for Asset Intake');
         console.log('Set required attributes for Asset Intake fields');
+    } else if (isCustomCategory) {
+        // For custom categories, show general fields only (no asset requirement)
+        if (generalPriorityField) generalPriorityField.classList.remove('hidden');
+        if (generalDescriptionField) generalDescriptionField.classList.remove('hidden');
+        
+        // Show the visible subject field for custom categories
+        const generalSubjectField = document.getElementById('generalSubjectField');
+        if (generalSubjectField) generalSubjectField.classList.remove('hidden');
+        
+        // Check if this custom category has shipping tracking sections enabled
+        const categoryData = categoriesData.find(cat => cat.value === category);
+        const hasShippingTracking = categoryData && categoryData.sections && 
+                                   (categoryData.sections.includes('shipping_tracking') || 
+                                    categoryData.sections.includes('return_tracking'));
+        
+        // Only show shipping tracking fields if the category has those sections enabled
+        const shippingTrackingFields = document.getElementById('shippingTrackingFields');
+        if (shippingTrackingFields) {
+            if (hasShippingTracking) {
+                shippingTrackingFields.classList.remove('hidden');
+                console.log('Showing shipping tracking fields for custom category with shipping sections');
+            } else {
+                shippingTrackingFields.classList.add('hidden');
+                console.log('Hiding shipping tracking fields for custom category without shipping sections');
+            }
+        }
+        
+        // Custom categories don't require asset selection
+        const generalPrioritySelect = document.getElementById('priority');
+        const generalDescriptionTextarea = document.getElementById('description');
+        const generalSubjectInput = document.getElementById('general_subject');
+        
+        if (generalPrioritySelect) generalPrioritySelect.required = true;
+        if (generalDescriptionTextarea) generalDescriptionTextarea.required = true;
+        if (generalSubjectInput) generalSubjectInput.required = true;
+        
+        console.log('Custom category selected - general fields shown, shipping tracking conditionally shown');
     }
 }
 
@@ -1357,6 +1437,59 @@ $(document).ready(function() {
             return true;
         }
         
+        // Check if this is a custom category (not one of the hardcoded enum values)
+        const knownCategories = ['PIN_REQUEST', 'ASSET_REPAIR', 'ASSET_CHECKOUT_CLAW', 'ASSET_INTAKE', 'ASSET_RETURN_CLAW'];
+        const isCustomCategory = category && !knownCategories.includes(category);
+        
+        if (isCustomCategory) {
+            console.log('Validating custom category:', category);
+            
+            // Sync the visible subject field with the hidden subject field for custom categories
+            const generalSubjectValue = $('#general_subject').val();
+            if (generalSubjectValue) {
+                $('#subject').val(generalSubjectValue);
+            }
+            
+            // Sync the visible tracking fields with the hidden tracking fields
+            const visibleOutboundTracking = $('#visible_outbound_tracking').val();
+            const visibleInboundTracking = $('#visible_inbound_tracking').val();
+            if (visibleOutboundTracking) {
+                $('#outbound_tracking').val(visibleOutboundTracking);
+                $('#shipping_tracking').val(visibleOutboundTracking);
+            }
+            if (visibleInboundTracking) {
+                $('#inbound_tracking').val(visibleInboundTracking);
+            }
+            
+            // For custom categories, only validate general required fields
+            const subject = $('#subject').val();
+            if (!subject) {
+                console.log('Submit validation failed: Subject not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a subject');
+                return false;
+            }
+            
+            const description = $('#description').val();
+            if (!description) {
+                console.log('Submit validation failed: Description not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a description');
+                return false;
+            }
+            
+            const priority = $('#priority').val();
+            if (!priority) {
+                console.log('Submit validation failed: Priority not selected. Preventing submission.');
+                e.preventDefault();
+                alert('Please select a priority');
+                return false;
+            }
+            
+            console.log('Submit validation passed for custom category. Submitting form...');
+            return true;
+        }
+        
         console.log('Form validation completed. Allowing submission.');
         // ... rest of submit logic ...
         return true;
@@ -1370,6 +1503,42 @@ $(document).ready(function() {
                 const subjectField = document.getElementById('subject');
                 if (subjectField) {
                     subjectField.value = this.value;
+                }
+            });
+        }
+        
+        // Add event listener for general subject field changes (for custom categories)
+        const generalSubjectField = document.getElementById('general_subject');
+        if (generalSubjectField) {
+            generalSubjectField.addEventListener('input', function() {
+                const hiddenSubjectField = document.getElementById('subject');
+                if (hiddenSubjectField) {
+                    hiddenSubjectField.value = this.value;
+                }
+            });
+        }
+        
+        // Add event listeners for shipping tracking field changes
+        const visibleOutboundTrackingField = document.getElementById('visible_outbound_tracking');
+        if (visibleOutboundTrackingField) {
+            visibleOutboundTrackingField.addEventListener('input', function() {
+                const hiddenOutboundField = document.getElementById('outbound_tracking');
+                const hiddenShippingField = document.getElementById('shipping_tracking');
+                if (hiddenOutboundField) {
+                    hiddenOutboundField.value = this.value;
+                }
+                if (hiddenShippingField) {
+                    hiddenShippingField.value = this.value;
+                }
+            });
+        }
+        
+        const visibleInboundTrackingField = document.getElementById('visible_inbound_tracking');
+        if (visibleInboundTrackingField) {
+            visibleInboundTrackingField.addEventListener('input', function() {
+                const hiddenInboundField = document.getElementById('inbound_tracking');
+                if (hiddenInboundField) {
+                    hiddenInboundField.value = this.value;
                 }
             });
         }

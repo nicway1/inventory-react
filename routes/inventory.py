@@ -1544,7 +1544,7 @@ def add_asset():
                     serial_num=serial_num,
                     po=request.form.get('po', ''),
                     model=model,
-                    erased=request.form.get('erased') == 'true',
+                    erased='COMPLETED' if request.form.get('erased') == 'true' else None,
                     customer=request.form.get('customer', ''),
                     condition=request.form.get('condition', ''),
                     diag=request.form.get('diag', ''),

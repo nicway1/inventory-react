@@ -4,6 +4,7 @@ import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response, make_response
 from utils.auth_decorators import login_required, admin_required
 from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus, TicketAccessory
+from models.ticket_category_config import TicketCategoryConfig
 from utils.store_instances import (
     ticket_store,
     user_store,
@@ -144,18 +145,50 @@ def create_ticket():
         companies_list = sorted(companies_list)
         print(f"Found {len(companies_list)} tech asset companies for dropdown")
         
+        # Get all ticket categories (both enum and custom)
+        enum_categories = []
+        for category in TicketCategory:
+            enum_categories.append({
+                'value': category.name,
+                'display_name': category.value
+            })
+        
+        # Get custom categories from database
+        custom_categories = db_session.query(TicketCategoryConfig)\
+            .filter(TicketCategoryConfig.is_active == True)\
+            .order_by(TicketCategoryConfig.display_name)\
+            .all()
+        
+        custom_category_list = []
+        for category in custom_categories:
+            custom_category_list.append({
+                'value': category.name,
+                'display_name': category.display_name,
+                'sections': category.sections_list  # Include section information
+            })
+        
+        # Combine all categories
+        all_categories = enum_categories + custom_category_list
+        
+        # Helper function to generate template context
+        def get_template_context(form_data=None):
+            return {
+                'assets': assets_data,
+                'customers': customers,
+                'priorities': list(TicketPriority),
+                'categories': all_categories,
+                'queues': queues,
+                'Country': list(Country),
+                'is_client': is_client,
+                'user': user,
+                'companies': companies_list,
+                'form': form_data
+            }
+        
         if request.method == 'GET':
             print("Handling GET request")  # Debug log
             
-            return render_template('tickets/create.html', 
-                                assets=assets_data,
-                                customers=customers,
-                                priorities=list(TicketPriority),
-                                queues=queues,
-                                Country=list(Country),
-                                is_client=is_client,
-                                user=user,
-                                companies=companies_list)  # Add companies to template
+            return render_template('tickets/create.html', **get_template_context())
 
         if request.method == 'POST':
             print("Handling POST request")  # Debug log
@@ -175,16 +208,7 @@ def create_ticket():
             # Check if user has permission to create tickets in this queue
             if queue_id and not user.can_create_in_queue(queue_id):
                 flash('You do not have permission to create tickets in this queue', 'error')
-                return render_template('tickets/create.html',
-                                    assets=assets_data,
-                                    customers=customers,
-                                    priorities=list(TicketPriority),
-                                    queues=queues,
-                                    Country=list(Country),
-                                    is_client=is_client,
-                                    user=user,
-                                    form=request.form,
-                                    companies=companies_list)
+                return render_template('tickets/create.html', **get_template_context(request.form))
                                     
             # Get serial number based on category
             serial_number = None
@@ -202,34 +226,31 @@ def create_ticket():
                 serial_number = request.form.get('serial_number')
                 print(f"Standard Serial Number: {serial_number}")  # Debug log
 
-            # Validate asset selection (skip for Asset Intake and Asset Return Claw)
-            if category != 'ASSET_INTAKE' and category != 'ASSET_RETURN_CLAW' and (not serial_number or serial_number == ""):
+            # Check if this is a custom category
+            is_custom_category = False
+            if category:
+                custom_category = db_session.query(TicketCategoryConfig).filter_by(name=category).first()
+                if custom_category:
+                    is_custom_category = True
+            
+            # Validate asset selection (skip for Asset Intake, Asset Return Claw, and custom categories)
+            if (category != 'ASSET_INTAKE' and 
+                category != 'ASSET_RETURN_CLAW' and 
+                not is_custom_category and 
+                (not serial_number or serial_number == "")):
                 flash('Please select an asset', 'error')
-                return render_template('tickets/create.html',
-                                    assets=assets_data,
-                                    customers=customers,
-                                    priorities=list(TicketPriority),
-                                    queues=queues,
-                                    Country=list(Country),
-                                    is_client=is_client,
-                                    user=user,
-                                    form=request.form)
+                return render_template('tickets/create.html', **get_template_context(request.form))
 
-            # Find the asset (skip for Asset Intake and Asset Return Claw)
+            # Find the asset (skip for Asset Intake, Asset Return Claw, and custom categories)
             asset = None
-            if category != 'ASSET_INTAKE' and category != 'ASSET_RETURN_CLAW':
+            if (category != 'ASSET_INTAKE' and 
+                category != 'ASSET_RETURN_CLAW' and 
+                not is_custom_category and 
+                serial_number):
                 asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
                 if not asset:
                     flash(f'Asset not found with serial number: {serial_number}', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=list(Country),
-                                        is_client=is_client,
-                                        user=user,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
             # Include ASSET_CHECKOUT_AUTO and CLAW in the main checkout logic block
             if category == 'ASSET_CHECKOUT' or \
@@ -257,41 +278,17 @@ def create_ticket():
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        is_client=is_client,
-                                        user=user,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
                 if not shipping_address:
                     flash('Please provide a shipping address', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        is_client=is_client,
-                                        user=user,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                 
                 # Get customer details
                 customer = db_session.query(CustomerUser).get(customer_id)
                 if not customer:
                     flash('Customer not found', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        is_client=is_client,
-                                        user=user,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                 
                 # Determine shipping method based on category
                 shipping_method = "Standard"
@@ -388,13 +385,7 @@ Additional Notes:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
             # Handle category-specific logic
             if category == 'PIN_REQUEST':
@@ -420,13 +411,7 @@ Additional Notes:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html',
-                                       assets=assets_data,
-                                       customers=customers,
-                                       priorities=list(TicketPriority),
-                                       queues=queues,
-                                       Country=Country,
-                                       form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                                        
             elif category == 'ASSET_RETURN_CLAW':
                 # Asset Return (Claw) logic
@@ -454,23 +439,11 @@ Additional Notes:
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
                 if not shipping_address:
                     flash('Please provide a return address', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                 
                 # We no longer require outbound tracking
                 # Removed validation that previously required outbound_tracking
@@ -482,13 +455,7 @@ Additional Notes:
                 
                 if not customer:
                     flash('Customer not found', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                 
                 company_name = 'N/A'
                 if customer.company:
@@ -538,21 +505,13 @@ Shipping Method: Claw (Ship24)"""
                     print(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
                                        
             elif category == 'ASSET_REPAIR':
                 damage_description = request.form.get('damage_description')
                 if not damage_description:
                     flash('Please provide a damage description', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
                 apple_diagnostics = request.form.get('apple_diagnostics')
                 quote_type = request.form.get('quote_type', 'assessment')
@@ -598,13 +557,7 @@ Images Attached: {len(image_paths)} image(s)"""
 
                 if not title or not description:
                     flash('Please provide both title and description', 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
                 # Handle file uploads
                 packing_list_path = None
@@ -667,26 +620,59 @@ Additional Notes:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html',
-                                        assets=assets_data,
-                                        customers=customers,
-                                        priorities=list(TicketPriority),
-                                        queues=queues,
-                                        Country=Country,
-                                        form=request.form)
+                    return render_template('tickets/create.html', **get_template_context(request.form))
 
-            # Create the ticket for other categories
+            # Create the ticket for other categories (including custom categories)
             notes = request.form.get('notes', '')
-            ticket_id = ticket_store.create_ticket(
-                subject=subject,
-                description=description,
-                requester_id=user_id,
-                category=category,
-                priority=priority,
-                asset_id=asset.id,
-                country=request.form.get('country'),
-                notes=notes
-            )
+            
+            # Handle custom categories
+            if is_custom_category:
+                # For custom categories, we'll use a special handling since the DB expects enum values
+                # We'll create the ticket directly in the database with a workaround
+                from models.ticket import Ticket
+                
+                asset_id = None
+                if asset:
+                    asset_id = asset.id
+                
+                # Create ticket object directly (bypassing ticket_store for custom categories)
+                new_ticket = Ticket(
+                    subject=subject if subject else f"Custom ticket - {category}",
+                    description=description if description else "Custom ticket created",
+                    requester_id=user_id,
+                    assigned_to_id=user_id,  # Set requester as default assignee
+                    priority=priority if isinstance(priority, TicketPriority) else TicketPriority.MEDIUM,
+                    asset_id=asset_id,
+                    country=request.form.get('country'),
+                    notes=notes
+                )
+                
+                # For custom categories, we'll store the category name in the description field
+                # and use a special enum value to indicate it's a custom category
+                new_ticket.category = None  # Set category to None for custom categories
+                custom_description = f"[CUSTOM CATEGORY: {category}]\n\n{new_ticket.description}"
+                new_ticket.description = custom_description
+                
+                db_session.add(new_ticket)
+                db_session.flush()  # Get the ID
+                ticket_id = new_ticket.id
+                db_session.commit()
+            else:
+                # For enum categories, use existing logic
+                asset_id = None
+                if asset:
+                    asset_id = asset.id
+                    
+                ticket_id = ticket_store.create_ticket(
+                    subject=subject,
+                    description=description,
+                    requester_id=user_id,
+                    category=category,
+                    priority=priority,
+                    asset_id=asset_id,
+                    country=request.form.get('country'),
+                    notes=notes
+                )
 
             flash('Ticket created successfully')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -694,12 +680,7 @@ Additional Notes:
     finally:
         db_session.close()
 
-    return render_template('tickets/create.html',
-                        assets=assets_data,
-                        customers=customers,
-                        priorities=list(TicketPriority),
-                        queues=queues,
-                        Country=Country)
+    return render_template('tickets/create.html', **get_template_context())
 
 @tickets_bp.route('/<int:ticket_id>', methods=['GET'])
 @login_required
