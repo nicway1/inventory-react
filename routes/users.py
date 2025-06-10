@@ -6,6 +6,7 @@ from utils.snipeit_api import get_all_assets
 from forms.user_form import UserCreateForm
 from models.user import UserType, Country
 from werkzeug.security import generate_password_hash
+from utils.auth import safe_generate_password_hash
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 user_store = UserStore()
@@ -163,7 +164,7 @@ def create_user():
             user_data = {
                 'username': form.username.data,
                 'email': form.email.data,
-                'password_hash': generate_password_hash(form.password.data),
+                'password_hash': safe_generate_password_hash(form.password.data),
                 'user_type': UserType(form.user_type.data)
             }
             

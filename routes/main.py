@@ -13,7 +13,7 @@ from models.asset import Asset
 from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.user import UserType, User
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from models.activity import Activity
 from models.permission import Permission
 from database import SessionLocal
@@ -124,27 +124,101 @@ def index():
             flash('You do not have permission to import data')
             return redirect(url_for('main.index'))
 
-        # Get queues
-        queues = queue_store.get_all_queues()
+        # Get queues with filtering for COUNTRY_ADMIN and other user types
+        if user.user_type == UserType.SUPER_ADMIN:
+            # Super admins can see all queues
+            queues = queue_store.get_all_queues()
+        elif user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
+            # Country admins can only see queues their company has access to
+            queues = []
+            all_queues = queue_store.get_all_queues()
+            for queue in all_queues:
+                if user.can_access_queue(queue.id):
+                    queues.append(queue)
+        else:
+            # For other user types, use existing queue permissions logic
+            queues = queue_store.get_all_queues()
 
-        # Get counts from database
-        # Load ticket counts for each queue to avoid detached session issues
+        # Get counts from database with proper filtering
         queue_ticket_counts = {}
         for queue in queues:
-            # Count tickets for this queue to avoid lazy loading issues in template
-            queue_ticket_counts[queue.id] = db.session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+            # Count tickets for this queue with user-specific filtering
+            ticket_query = db.session.query(Ticket).filter(Ticket.queue_id == queue.id)
+            
+            # Apply COUNTRY_ADMIN filtering
+            if user.user_type == UserType.COUNTRY_ADMIN:
+                if user.assigned_country:
+                    # Filter by assigned country
+                    ticket_query = ticket_query.filter(Ticket.country == user.assigned_country.value)
+                if user.company_id:
+                    # Filter by company association - tickets assigned to their company's users or assets
+                    ticket_query = ticket_query.filter(
+                        or_(
+                            Ticket.requester_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.assigned_to_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            # Also include tickets related to assets from their company
+                            Ticket.subject.in_(
+                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            )
+                        )
+                    )
+            
+            queue_ticket_counts[queue.id] = ticket_query.count()
         
-        tech_assets_count = db.session.query(Asset).count()
+        # Apply filtering to asset counts for COUNTRY_ADMIN
+        if user.user_type == UserType.COUNTRY_ADMIN:
+            asset_query = db.session.query(Asset)
+            if user.assigned_country:
+                asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+            if user.company_id:
+                asset_query = asset_query.filter(Asset.company_id == user.company_id)
+            tech_assets_count = asset_query.count()
+        else:
+            tech_assets_count = db.session.query(Asset).count()
+        
         accessories_count = db.session.query(func.sum(Accessory.total_quantity)).scalar() or 0
         total_inventory = tech_assets_count + accessories_count
-        total_customers = db.session.query(CustomerUser).count()
-        total_tickets = db.session.query(Ticket).count()
         
-        # Get all shipment tickets (all carriers)
+        # Apply filtering to customer counts for COUNTRY_ADMIN
+        if user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
+            total_customers = db.session.query(CustomerUser).filter(
+                CustomerUser.company_id == user.company_id
+            ).count()
+        else:
+            total_customers = db.session.query(CustomerUser).count()
+        
+        # Apply filtering to total tickets for COUNTRY_ADMIN
+        if user.user_type == UserType.COUNTRY_ADMIN:
+            total_ticket_query = db.session.query(Ticket)
+            if user.assigned_country:
+                total_ticket_query = total_ticket_query.filter(Ticket.country == user.assigned_country.value)
+            if user.company_id:
+                total_ticket_query = total_ticket_query.filter(
+                    or_(
+                        Ticket.requester_id.in_(
+                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                        ),
+                        Ticket.assigned_to_id.in_(
+                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                        ),
+                        Ticket.subject.in_(
+                            db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                        )
+                    )
+                )
+            total_tickets = total_ticket_query.count()
+        else:
+            total_tickets = db.session.query(Ticket).count()
+        
+        # Get shipment tickets with filtering for COUNTRY_ADMIN
         shipment_tickets = []
         # Only load shipment tickets for non-CLIENT users
         if user.user_type != UserType.CLIENT:
-            shipment_tickets = db.session.query(Ticket).filter(
+            shipment_query = db.session.query(Ticket).filter(
                 Ticket.category.in_([
                     TicketCategory.ASSET_CHECKOUT,
                     TicketCategory.ASSET_CHECKOUT_SINGPOST,
@@ -156,7 +230,28 @@ def index():
                     TicketCategory.ASSET_CHECKOUT_CLAW,
                     TicketCategory.ASSET_RETURN_CLAW
                 ])
-            ).order_by(Ticket.created_at.desc()).all()
+            )
+            
+            # Apply COUNTRY_ADMIN filtering to shipment tickets
+            if user.user_type == UserType.COUNTRY_ADMIN:
+                if user.assigned_country:
+                    shipment_query = shipment_query.filter(Ticket.country == user.assigned_country.value)
+                if user.company_id:
+                    shipment_query = shipment_query.filter(
+                        or_(
+                            Ticket.requester_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.assigned_to_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.subject.in_(
+                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            )
+                        )
+                    )
+            
+            shipment_tickets = shipment_query.order_by(Ticket.created_at.desc()).all()
 
         # Calculate summary statistics
         stats = {
@@ -175,39 +270,78 @@ def index():
             user_id = session['user_id']
             user_activities = activity_store.get_user_activities(user_id)
         
-        # Get counts for dashboard
-        # Asset counts
-        total_assets = db.session.query(Asset).count()
-        deployed_assets = db.session.query(Asset).filter(Asset.status == 'DEPLOYED').count()
-        in_stock_assets = db.session.query(Asset).filter(Asset.status == 'IN_STOCK').count()
+        # Get counts for dashboard with filtering for COUNTRY_ADMIN
+        if user.user_type == UserType.COUNTRY_ADMIN:
+            asset_query = db.session.query(Asset)
+            if user.assigned_country:
+                asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+            if user.company_id:
+                asset_query = asset_query.filter(Asset.company_id == user.company_id)
+            
+            total_assets = asset_query.count()
+            deployed_assets = asset_query.filter(Asset.status == 'DEPLOYED').count()
+            in_stock_assets = asset_query.filter(Asset.status == 'IN_STOCK').count()
+        else:
+            total_assets = db.session.query(Asset).count()
+            deployed_assets = db.session.query(Asset).filter(Asset.status == 'DEPLOYED').count()
+            in_stock_assets = db.session.query(Asset).filter(Asset.status == 'IN_STOCK').count()
         
         # Accessory counts
         total_accessories = db.session.query(Accessory).count()
         
-        # Ticket counts
-        open_tickets = db.session.query(Ticket).filter(
-            Ticket.status != TicketStatus.RESOLVED,
-            Ticket.status != TicketStatus.RESOLVED_DELIVERED
-        ).count()
+        # Ticket counts with filtering for COUNTRY_ADMIN
+        if user.user_type == UserType.COUNTRY_ADMIN:
+            open_ticket_query = db.session.query(Ticket).filter(
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            )
+            resolved_ticket_query = db.session.query(Ticket).filter(
+                Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
+            )
+            
+            if user.assigned_country:
+                open_ticket_query = open_ticket_query.filter(Ticket.country == user.assigned_country.value)
+                resolved_ticket_query = resolved_ticket_query.filter(Ticket.country == user.assigned_country.value)
+                
+            if user.company_id:
+                company_filter = or_(
+                    Ticket.requester_id.in_(
+                        db.session.query(User.id).filter(User.company_id == user.company_id)
+                    ),
+                    Ticket.assigned_to_id.in_(
+                        db.session.query(User.id).filter(User.company_id == user.company_id)
+                    ),
+                    Ticket.subject.in_(
+                        db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                    )
+                )
+                open_ticket_query = open_ticket_query.filter(company_filter)
+                resolved_ticket_query = resolved_ticket_query.filter(company_filter)
+            
+            open_tickets = open_ticket_query.count()
+            resolved_tickets = resolved_ticket_query.count()
+        else:
+            open_tickets = db.session.query(Ticket).filter(
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            ).count()
+            resolved_tickets = db.session.query(Ticket).filter(
+                Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
+            ).count()
         
-        # Get the 5 most recent activities for all users
+        # Get the 5 most recent activities for all users (no filtering needed here)
         recent_activities = db.session.query(Activity).order_by(
             Activity.created_at.desc()
         ).limit(5).all()
         
-        # Get user count
+        # Get user count (no filtering needed)
         user_count = db.session.query(User).count()
         
         # Get ticket counts
         ticket_counts = {
-            'total': db.session.query(Ticket).count(),
-            'open': db.session.query(Ticket).filter(
-                Ticket.status != TicketStatus.RESOLVED,
-                Ticket.status != TicketStatus.RESOLVED_DELIVERED
-            ).count(),
-            'resolved': db.session.query(Ticket).filter(
-                Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
-            ).count()
+            'total': total_tickets,
+            'open': open_tickets,
+            'resolved': resolved_tickets
         }
 
         return render_template('home.html',

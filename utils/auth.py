@@ -1,7 +1,14 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from flask import session, redirect, url_for, flash
-from models.user import User
+
+def safe_generate_password_hash(password):
+    """Generate password hash using pbkdf2:sha256 method for compatibility"""
+    return generate_password_hash(password, method='pbkdf2:sha256')
+
+def safe_check_password_hash(password_hash, password):
+    """Check password hash - compatible with both pbkdf2 and other methods"""
+    return check_password_hash(password_hash, password)
 
 def login_required(f):
     @wraps(f)

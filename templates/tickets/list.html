@@ -454,7 +454,7 @@
                         </thead>
                         <tbody>
                             {% for ticket in tickets %}
-                            <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.category.value if ticket.category else '' }}">
+                            <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}">
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
                                     <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-blue-600 hover:text-blue-900 font-medium">
@@ -496,23 +496,25 @@
                                 </td>
                                 <td>
                                     <span class="sf-badge 
-                                        {% if ticket.category.value == 'PIN_REQUEST' %}
+                                        {% if ticket.category and ticket.category.value == 'PIN_REQUEST' %}
                                             bg-purple-100 text-purple-800
-                                        {% elif ticket.category.value == 'ASSET_REPAIR' %}
+                                        {% elif ticket.category and ticket.category.value == 'ASSET_REPAIR' %}
                                             bg-red-100 text-red-800
-                                        {% elif ticket.category.value == 'ASSET_CHECKOUT' or
+                                        {% elif ticket.category and (ticket.category.value == 'ASSET_CHECKOUT' or
                                                 ticket.category.value == 'ASSET_CHECKOUT_SINGPOST' or
                                                 ticket.category.value == 'ASSET_CHECKOUT_DHL' or
                                                 ticket.category.value == 'ASSET_CHECKOUT_UPS' or
                                                 ticket.category.value == 'ASSET_CHECKOUT_BLUEDART' or
-                                                ticket.category.value == 'ASSET_CHECKOUT_DTDC' %}
+                                                ticket.category.value == 'ASSET_CHECKOUT_DTDC') %}
                                             bg-blue-100 text-blue-800
-                                        {% elif ticket.category.value == 'ASSET_INTAKE' %}
+                                        {% elif ticket.category and ticket.category.value == 'ASSET_INTAKE' %}
                                             bg-green-100 text-green-800
+                                        {% elif not ticket.category %}
+                                            bg-indigo-100 text-indigo-800
                                         {% else %}
                                             bg-gray-100 text-gray-800
                                         {% endif %}">
-                                        {{ ticket.category.value if ticket.category else 'Other' }}
+                                        {{ ticket.get_category_display_name() }}
                                     </span>
                                 </td>
                                 <td>

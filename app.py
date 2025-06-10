@@ -34,6 +34,7 @@ from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
+from utils.auth import safe_generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
 from routes.intake import intake_bp
@@ -215,7 +216,7 @@ if __name__ == '__main__':
                 print("Creating admin user...")
                 admin_user = User(
                     username='admin',
-                    password_hash=generate_password_hash('admin123'),
+                    password_hash=safe_generate_password_hash('admin123'),
                     email='admin@lunacomputer.com',
                     user_type=UserType.SUPER_ADMIN,
                     company_id=default_company.id
