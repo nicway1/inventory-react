@@ -15,13 +15,14 @@ import os
 from werkzeug.utils import secure_filename
 import uuid
 from werkzeug.security import generate_password_hash
+from utils.auth import safe_generate_password_hash
 from database import SessionLocal
 from models.activity import Activity
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
 import traceback
 from models.firecrawl_key import FirecrawlKey
-from models.ticket_category_config import TicketCategoryConfig
+from models.ticket_category_config import TicketCategoryConfig, CategoryDisplayConfig
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -262,7 +263,7 @@ def create_user():
                 user_data = {
                     'username': username,
                     'email': email,
-                    'password_hash': generate_password_hash(password),
+                    'password_hash': safe_generate_password_hash(password),
                     'company_id': company_id if company_id else None,
                     'user_type': UserType[user_type]
                 }
@@ -346,7 +347,7 @@ def edit_user(user_id):
 
             # Update password if provided
             if password:
-                user.password_hash = generate_password_hash(password)
+                user.password_hash = safe_generate_password_hash(password)
 
             # Handle country assignment
             if user_type == 'COUNTRY_ADMIN':
@@ -518,7 +519,7 @@ def resend_welcome_email(user_id):
 
         # Generate a new password for the user
         new_password = str(uuid.uuid4())[:8]  # Use first 8 characters of a UUID as password
-        user.password_hash = generate_password_hash(new_password)
+        user.password_hash = safe_generate_password_hash(new_password)
         db_session.commit()
 
         # Send welcome email with new credentials
@@ -985,20 +986,132 @@ def update_firecrawl_key():
 @admin_bp.route('/ticket-categories')
 @super_admin_required
 def manage_ticket_categories():
-    """Manage custom ticket categories"""
+    """Manage all ticket categories (both predefined and custom)"""
     db_session = SessionLocal()
     try:
-        categories = db_session.query(TicketCategoryConfig).order_by(TicketCategoryConfig.created_at.desc()).all()
+        # Initialize predefined categories if they don't exist
+        CategoryDisplayConfig.initialize_predefined_categories()
+        
+        # Get all category display configs
+        display_configs = db_session.query(CategoryDisplayConfig).order_by(CategoryDisplayConfig.sort_order).all()
+        
+        # Get custom categories
+        custom_categories = db_session.query(TicketCategoryConfig).order_by(TicketCategoryConfig.created_at.desc()).all()
+        
         available_sections = TicketCategoryConfig.get_available_sections()
         
-        return render_template('admin/ticket_categories/list.html', 
-                             categories=categories,
+        return render_template('admin/ticket_categories/manage_all.html', 
+                             display_configs=display_configs,
+                             custom_categories=custom_categories,
                              available_sections=available_sections)
     except Exception as e:
         flash(f'Error loading ticket categories: {str(e)}', 'error')
         return redirect(url_for('admin.system_config'))
     finally:
         db_session.close()
+
+
+@admin_bp.route('/ticket-categories/predefined/<category_key>/edit', methods=['GET', 'POST'])
+@super_admin_required
+def edit_predefined_category(category_key):
+    """Edit display settings for a predefined category"""
+    db_session = SessionLocal()
+    try:
+        # Get or create the display config
+        config = db_session.query(CategoryDisplayConfig).filter_by(category_key=category_key).first()
+        if not config:
+            # Create config for predefined category
+            from models.ticket import TicketCategory
+            try:
+                category_enum = TicketCategory[category_key]
+                config = CategoryDisplayConfig(
+                    category_key=category_key,
+                    display_name=category_enum.value,
+                    is_enabled=True,
+                    is_predefined=True,
+                    sort_order=list(TicketCategory).index(category_enum)
+                )
+                db_session.add(config)
+                db_session.commit()
+            except KeyError:
+                flash('Invalid category key', 'error')
+                return redirect(url_for('admin.manage_ticket_categories'))
+        
+        if request.method == 'POST':
+            display_name = request.form.get('display_name', '').strip()
+            is_enabled = request.form.get('is_enabled') == 'on'
+            sort_order = request.form.get('sort_order', 0)
+            
+            if not display_name:
+                flash('Display name is required', 'error')
+                return redirect(url_for('admin.edit_predefined_category', category_key=category_key))
+            
+            try:
+                sort_order = int(sort_order)
+            except (ValueError, TypeError):
+                sort_order = 0
+            
+            # Update config
+            config.display_name = display_name
+            config.is_enabled = is_enabled
+            config.sort_order = sort_order
+            config.updated_at = datetime.utcnow()
+            
+            db_session.commit()
+            
+            flash(f'Category "{display_name}" updated successfully', 'success')
+            return redirect(url_for('admin.manage_ticket_categories'))
+        
+        # GET request - show form
+        return render_template('admin/ticket_categories/edit_predefined.html', config=config)
+                             
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error editing category: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_ticket_categories'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/ticket-categories/bulk-update', methods=['POST'])
+@super_admin_required
+def bulk_update_categories():
+    """Bulk update category enable/disable status and sort order"""
+    db_session = SessionLocal()
+    try:
+        # Get all predefined categories that have configs
+        predefined_configs = db_session.query(CategoryDisplayConfig).filter_by(is_predefined=True).all()
+        
+        # Process each predefined category
+        for config in predefined_configs:
+            category_key = config.category_key
+            
+            # Check if enabled checkbox was submitted (checked = True, not submitted = False)
+            enabled_field = f'enabled_{category_key}'
+            is_enabled = enabled_field in request.form and request.form[enabled_field] == 'on'
+            config.is_enabled = is_enabled
+            
+            # Update sort order if provided
+            sort_order_field = f'sort_order_{category_key}'
+            if sort_order_field in request.form:
+                try:
+                    sort_order = int(request.form[sort_order_field])
+                    config.sort_order = sort_order
+                except (ValueError, TypeError):
+                    pass  # Keep existing sort order if invalid
+            
+            config.updated_at = datetime.utcnow()
+        
+        db_session.commit()
+        flash('Category settings updated successfully', 'success')
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating categories: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_ticket_categories'))
 
 
 @admin_bp.route('/ticket-categories/create', methods=['GET', 'POST'])

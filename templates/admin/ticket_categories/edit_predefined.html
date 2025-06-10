@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Category: {{ config.display_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex items-center mb-6">
+            <a href="{{ url_for('admin.manage_ticket_categories') }}" 
+               class="text-blue-600 hover:text-blue-800 mr-4">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Categories
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Predefined Category</h1>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-4" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <!-- Category Key (read-only) -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Category Key (System Identifier)
+                        </label>
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                            <code class="text-sm font-mono text-gray-600">{{ config.category_key }}</code>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            This is the internal system identifier and cannot be changed.
+                        </p>
+                    </div>
+
+                    <!-- Display Name -->
+                    <div class="mb-6">
+                        <label for="display_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Display Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="display_name" 
+                               name="display_name" 
+                               value="{{ config.display_name }}"
+                               required
+                               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            This is the name that will be shown to users in ticket creation forms.
+                        </p>
+                    </div>
+
+                    <!-- Enabled Status -->
+                    <div class="mb-6">
+                        <div class="flex items-center">
+                            <input type="checkbox" 
+                                   id="is_enabled" 
+                                   name="is_enabled" 
+                                   {% if config.is_enabled %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="is_enabled" class="ml-2 block text-sm text-gray-900">
+                                Enable this category
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            When disabled, this category will not appear in ticket creation forms.
+                        </p>
+                    </div>
+
+                    <!-- Sort Order -->
+                    <div class="mb-6">
+                        <label for="sort_order" class="block text-sm font-medium text-gray-700 mb-2">
+                            Sort Order
+                        </label>
+                        <input type="number" 
+                               id="sort_order" 
+                               name="sort_order" 
+                               value="{{ config.sort_order }}"
+                               class="w-24 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Lower numbers appear first in dropdown lists. Use negative numbers to move items to the top.
+                        </p>
+                    </div>
+
+                    <!-- Category Type Info -->
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-blue-800">Predefined Category</h3>
+                                <div class="mt-2 text-sm text-blue-700">
+                                    <p>This is a system-defined category. You can customize its display name, enable/disable it, and change its sort order, but you cannot modify its internal functionality or sections.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end space-x-3">
+                        <a href="{{ url_for('admin.manage_ticket_categories') }}" 
+                           class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition duration-200">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Category Information</h4>
+            <dl class="text-sm">
+                <div class="mb-2">
+                    <dt class="inline font-medium text-gray-600">Type:</dt>
+                    <dd class="inline ml-1">Predefined System Category</dd>
+                </div>
+                <div class="mb-2">
+                    <dt class="inline font-medium text-gray-600">Created:</dt>
+                    <dd class="inline ml-1">{{ config.created_at.strftime('%Y-%m-%d %H:%M:%S') if config.created_at else 'System Default' }}</dd>
+                </div>
+                {% if config.updated_at %}
+                <div class="mb-2">
+                    <dt class="inline font-medium text-gray-600">Last Modified:</dt>
+                    <dd class="inline ml-1">{{ config.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %} 

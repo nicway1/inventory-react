@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Ticket Categories{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Manage Ticket Categories</h1>
+        <a href="{{ url_for('admin.create_ticket_category') }}" 
+           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
+            <i class="fas fa-plus mr-2"></i>Create Custom Category
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-4" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Tabs -->
+    <div class="mb-6">
+        <nav class="flex space-x-8" aria-label="Tabs">
+            <button onclick="showTab('predefined')" 
+                    class="tab-button active whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+                    id="predefined-tab">
+                Predefined Categories
+            </button>
+            <button onclick="showTab('custom')" 
+                    class="tab-button whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+                    id="custom-tab">
+                Custom Categories
+            </button>
+        </nav>
+    </div>
+
+    <!-- Predefined Categories Tab -->
+    <div id="predefined-content" class="tab-content">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Predefined Categories</h3>
+                <p class="text-sm text-gray-600 mb-6">
+                    Manage the display settings for system-defined ticket categories. You can rename them, enable/disable them, and reorder them.
+                </p>
+
+                <form action="{{ url_for('admin.bulk_update_categories') }}" method="POST" id="bulk-update-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-4">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Enabled
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Category Key
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Display Name
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Sort Order
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for config in display_configs %}
+                                    {% if config.is_predefined %}
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="checkbox" 
+                                                       name="enabled_{{ config.category_key }}" 
+                                                       value="on"
+                                                       {% if config.is_enabled %}checked{% endif %}
+                                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <code class="text-sm bg-gray-100 px-2 py-1 rounded">{{ config.category_key }}</code>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">{{ config.display_name }}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="number" 
+                                                       name="sort_order_{{ config.category_key }}" 
+                                                       value="{{ config.sort_order }}"
+                                                       class="w-20 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <a href="{{ url_for('admin.edit_predefined_category', category_key=config.category_key) }}" 
+                                                   class="text-blue-600 hover:text-blue-900 mr-3">
+                                                    <i class="fas fa-edit mr-1"></i>Edit
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Categories Tab -->
+    <div id="custom-content" class="tab-content hidden">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Custom Categories</h3>
+                <p class="text-sm text-gray-600 mb-6">
+                    Manage custom ticket categories that you've created. These categories have configurable sections and can be fully customized.
+                </p>
+
+                {% if custom_categories %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Name
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Display Name
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Sections
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Created
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for category in custom_categories %}
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <code class="text-sm bg-gray-100 px-2 py-1 rounded">{{ category.name }}</code>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">{{ category.display_name }}</div>
+                                            {% if category.description %}
+                                                <div class="text-sm text-gray-500">{{ category.description[:100] }}{% if category.description|length > 100 %}...{% endif %}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            {% if category.is_active %}
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                                    Active
+                                                </span>
+                                            {% else %}
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                    Inactive
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm text-gray-900">
+                                                {% for section in category.sections_list %}
+                                                    <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                                        {% for available_section in available_sections %}
+                                                            {% if available_section.id == section %}
+                                                                {{ available_section.name }}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </span>
+                                                {% endfor %}
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ category.created_at.strftime('%Y-%m-%d') if category.created_at else 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="{{ url_for('admin.edit_ticket_category', category_id=category.id) }}" 
+                                               class="text-blue-600 hover:text-blue-900 mr-3">
+                                                <i class="fas fa-edit mr-1"></i>Edit
+                                            </a>
+                                            <a href="{{ url_for('admin.preview_ticket_category', category_id=category.id) }}" 
+                                               class="text-green-600 hover:text-green-900 mr-3">
+                                                <i class="fas fa-eye mr-1"></i>Preview
+                                            </a>
+                                            <form class="inline" method="POST" action="{{ url_for('admin.delete_ticket_category', category_id=category.id) }}"
+                                                  onsubmit="return confirm('Are you sure you want to delete this category?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="text-red-600 hover:text-red-900">
+                                                    <i class="fas fa-trash mr-1"></i>Delete
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-12">
+                        <i class="fas fa-folder-open text-gray-400 text-6xl mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Custom Categories</h3>
+                        <p class="text-gray-600 mb-4">You haven't created any custom ticket categories yet.</p>
+                        <a href="{{ url_for('admin.create_ticket_category') }}" 
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                            Create Your First Custom Category
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to System Config -->
+    <div class="mt-8">
+        <a href="{{ url_for('admin.system_config') }}" 
+           class="text-blue-600 hover:text-blue-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to System Configuration
+        </a>
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tab contents
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => content.classList.add('hidden'));
+    
+    // Remove active class from all tabs
+    const tabs = document.querySelectorAll('.tab-button');
+    tabs.forEach(tab => {
+        tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + '-content').classList.remove('hidden');
+    
+    // Add active class to selected tab
+    const activeTab = document.getElementById(tabName + '-tab');
+    activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+    activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+}
+
+// Initialize tabs
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('predefined');
+});
+</script>
+
+<style>
+.tab-button {
+    transition: all 0.2s ease;
+}
+
+.tab-button.active {
+    border-color: #3B82F6;
+    color: #3B82F6;
+}
+
+.tab-button:not(.active) {
+    border-color: transparent;
+    color: #6B7280;
+}
+
+.tab-button:not(.active):hover {
+    color: #374151;
+    border-color: #D1D5DB;
+}
+</style>
+{% endblock %} 

@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup
 import sys
 from config import TRACKINGMORE_API_KEY
 import traceback
-from werkzeug.security import generate_password_hash
+
 from dotenv import load_dotenv
 from models.comment import Comment
 from flask_login import current_user
@@ -145,30 +145,37 @@ def create_ticket():
         companies_list = sorted(companies_list)
         print(f"Found {len(companies_list)} tech asset companies for dropdown")
         
-        # Get all ticket categories (both enum and custom)
-        enum_categories = []
-        for category in TicketCategory:
-            enum_categories.append({
-                'value': category.name,
-                'display_name': category.value
-            })
+        # Get all enabled categories (both predefined and custom)
+        from models.ticket_category_config import CategoryDisplayConfig
         
-        # Get custom categories from database
-        custom_categories = db_session.query(TicketCategoryConfig)\
-            .filter(TicketCategoryConfig.is_active == True)\
-            .order_by(TicketCategoryConfig.display_name)\
-            .all()
+        enabled_display_configs = CategoryDisplayConfig.get_enabled_categories()
         
-        custom_category_list = []
-        for category in custom_categories:
-            custom_category_list.append({
-                'value': category.name,
-                'display_name': category.display_name,
-                'sections': category.sections_list  # Include section information
-            })
+        # Build categories list with proper display names
+        all_categories = []
         
-        # Combine all categories
-        all_categories = enum_categories + custom_category_list
+        # Add enabled predefined categories
+        for config in enabled_display_configs:
+            if config['is_predefined']:
+                all_categories.append({
+                    'value': config['key'],
+                    'display_name': config['display_name']
+                })
+        
+        # Add enabled custom categories with their sections
+        for config in enabled_display_configs:
+            if not config['is_predefined']:
+                # Get the full custom category from database to include sections
+                custom_category = db_session.query(TicketCategoryConfig)\
+                    .filter(TicketCategoryConfig.name == config['key'])\
+                    .filter(TicketCategoryConfig.is_active == True)\
+                    .first()
+                
+                if custom_category:
+                    all_categories.append({
+                        'value': custom_category.name,
+                        'display_name': config['display_name'],
+                        'sections': custom_category.sections_list  # Include section information
+                    })
         
         # Helper function to generate template context
         def get_template_context(form_data=None):
@@ -1197,9 +1204,14 @@ def ticket_composer():
     # Get existing templates
     templates = ticket_store.get_templates()
     
+    # Get enabled categories
+    from models.ticket_category_config import CategoryDisplayConfig
+    enabled_display_configs = CategoryDisplayConfig.get_enabled_categories()
+    enabled_categories = [config['display_name'] for config in enabled_display_configs]
+    
     return render_template(
         'tickets/composer.html',
-        categories=[category.value for category in TicketCategory],
+        categories=enabled_categories,
         priorities=[priority.value for priority in TicketPriority],
         templates=templates,
         field_options=[
