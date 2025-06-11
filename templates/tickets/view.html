@@ -3250,10 +3250,13 @@
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category</label>
                         <select id="edit_accessory_category" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="Charger">Charger</option>
-                            <option value="Cable">Cable</option>
-                            <option value="Case">Case</option>
+                            <option value="Keyboard">Keyboard</option>
                             <option value="Mouse">Mouse</option>
+                            <option value="Monitor">Monitor</option>
+                            <option value="Docking Station">Docking Station</option>
+                            <option value="Cable">Cable</option>
+                            <option value="Power Adapter">Power Adapter</option>
+                            <option value="Headset">Headset</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>
@@ -4368,10 +4371,13 @@ function editAccessory(accessoryId) {
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category</label>
                             <select id="dynamic_edit_accessory_category" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="Charger" ${accessory.category === 'Charger' ? 'selected' : ''}>Charger</option>
-                                <option value="Cable" ${accessory.category === 'Cable' ? 'selected' : ''}>Cable</option>
-                                <option value="Case" ${accessory.category === 'Case' ? 'selected' : ''}>Case</option>
+                                <option value="Keyboard" ${accessory.category === 'Keyboard' ? 'selected' : ''}>Keyboard</option>
                                 <option value="Mouse" ${accessory.category === 'Mouse' ? 'selected' : ''}>Mouse</option>
+                                <option value="Monitor" ${accessory.category === 'Monitor' ? 'selected' : ''}>Monitor</option>
+                                <option value="Docking Station" ${accessory.category === 'Docking Station' ? 'selected' : ''}>Docking Station</option>
+                                <option value="Cable" ${accessory.category === 'Cable' ? 'selected' : ''}>Cable</option>
+                                <option value="Power Adapter" ${accessory.category === 'Power Adapter' ? 'selected' : ''}>Power Adapter</option>
+                                <option value="Headset" ${accessory.category === 'Headset' ? 'selected' : ''}>Headset</option>
                                 <option value="Other" ${accessory.category === 'Other' ? 'selected' : ''}>Other</option>
                             </select>
                         </div>
