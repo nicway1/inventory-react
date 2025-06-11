@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Labels Preview{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Bulk Labels Preview</h1>
+                <p class="text-gray-600 mt-1">{{ labels|length }} label{{ 's' if labels|length != 1 else '' }} generated</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="printAllLabels()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-print mr-2"></i>
+                    Print All Labels
+                </button>
+                <a href="{{ url_for('assets.bulk_labels') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Selection
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Instructions -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Bulk Printing Instructions</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>Use 4" x 2" label sheets for optimal results</li>
+                        <li>Ensure your printer is set to the correct label size</li>
+                        <li>Print a test page first to verify alignment</li>
+                        <li>Labels are optimized for standard label printers</li>
+                        <li>You can also download individual labels by right-clicking and saving</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labels Grid -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-6">Generated Labels</h2>
+        
+        {% if labels %}
+        <div class="labels-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="labelsContainer">
+            {% for label_data in labels %}
+            <div class="label-item bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <!-- Asset Info -->
+                <div class="mb-3">
+                    <h4 class="text-sm font-medium text-gray-900">{{ label_data.asset.serial_num }}</h4>
+                    <p class="text-xs text-gray-600">
+                        {% if label_data.asset.company %}
+                            {{ label_data.asset.company.name }}
+                        {% elif label_data.asset.customer %}
+                            {{ label_data.asset.customer }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- Label Image -->
+                <div class="label-preview flex justify-center mb-3">
+                    <img src="{{ label_data.label }}" 
+                         alt="Asset Label for {{ label_data.asset.serial_num }}"
+                         class="max-w-full h-auto border border-gray-300 rounded shadow-sm label-image"
+                         style="max-height: 100px;">
+                </div>
+                
+                <!-- Individual Actions -->
+                <div class="flex justify-center space-x-2">
+                    <button onclick="printSingleLabel('{{ label_data.asset.serial_num }}', '{{ label_data.label }}')" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">
+                        Print
+                    </button>
+                    <a href="{{ url_for('assets.download_label', asset_id=label_data.asset.id) }}" 
+                       class="bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded text-xs">
+                        Download
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <div class="bg-red-50 border border-red-200 rounded-md p-4 max-w-md mx-auto">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">No Labels Generated</h3>
+                        <p class="mt-2 text-sm text-red-700">
+                            Failed to generate labels for the selected assets.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Print-specific styles -->
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    .print-labels, .print-labels * {
+        visibility: visible;
+    }
+    
+    .print-labels {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .print-labels .label-page {
+        width: 4in;
+        height: 2in;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        page-break-after: always;
+        margin-bottom: 10px;
+    }
+    
+    .print-labels .label-page:last-child {
+        page-break-after: auto;
+    }
+    
+    .print-labels img {
+        max-width: 4in;
+        max-height: 2in;
+        width: auto;
+        height: auto;
+    }
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 768px) {
+    .labels-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .labels-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script>
+function printAllLabels() {
+    const labels = document.querySelectorAll('.label-image');
+    
+    if (labels.length === 0) {
+        alert('No labels available to print');
+        return;
+    }
+    
+    // Create print window
+    const printWindow = window.open('', '_blank');
+    
+    // Build print content
+    let printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Bulk Asset Labels</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 10px;
+                    background: white;
+                    font-family: Arial, sans-serif;
+                }
+                .label-page {
+                    width: 4in;
+                    height: 2in;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    page-break-after: always;
+                    margin: 0 auto 10px auto;
+                    border: 1px solid #ccc;
+                }
+                .label-page:last-child {
+                    page-break-after: auto;
+                }
+                img {
+                    max-width: 4in;
+                    max-height: 2in;
+                    width: auto;
+                    height: auto;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .label-page {
+                        border: none;
+                        margin: 0;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+    `;
+    
+    // Add each label as a separate page
+    labels.forEach((img, index) => {
+        printContent += `
+            <div class="label-page">
+                <img src="${img.src}" alt="Asset Label ${index + 1}">
+            </div>
+        `;
+    });
+    
+    printContent += `
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for images to load, then print
+    printWindow.onload = function() {
+        setTimeout(function() {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    };
+}
+
+function printSingleLabel(serialNumber, labelImageSrc) {
+    const printWindow = window.open('', '_blank');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Asset Label - ${serialNumber}</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 20px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    background: white;
+                }
+                img {
+                    max-width: 4in;
+                    max-height: 2in;
+                    width: auto;
+                    height: auto;
+                    border: 1px solid #ccc;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    img {
+                        max-width: 4in;
+                        max-height: 2in;
+                        border: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <img src="${labelImageSrc}" alt="Asset Label">
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    
+    printWindow.onload = function() {
+        setTimeout(function() {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printAllLabels();
+    }
+});
+</script>
+{% endblock %} 

@@ -4581,7 +4581,9 @@ def add_accessory(ticket_id):
                         return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
                     new_accessory.available_quantity -= quantity
                 else:
-                    new_accessory.available_quantity += quantity
+                    # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
+                    # No need to add to inventory since we're creating new inventory
+                    pass
 
                 # Create ticket accessory record
                 ticket_accessory = TicketAccessory(
@@ -4680,9 +4682,9 @@ def add_accessory(ticket_id):
                 new_accessory.available_quantity -= quantity
                 print(f"CHECKOUT: Decreasing inventory by {quantity}")
             else:
-                # Return/Intake: add to inventory
-                new_accessory.available_quantity += quantity
-                print(f"RETURN/INTAKE: Increasing inventory by {quantity}")
+                # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
+                # No need to add to inventory since we're creating new inventory
+                print(f"RETURN/INTAKE: New accessory created with available quantity: {new_accessory.available_quantity}")
                 
             print(f"Available quantity after assignment: {new_accessory.available_quantity}")
             print(f"=== INVENTORY UPDATE END ===")
@@ -4802,26 +4804,93 @@ def update_accessory(ticket_id, accessory_id):
         data = request.json
         name = data.get('name')
         category = data.get('category')
-        quantity = data.get('quantity')
+        new_quantity = int(data.get('quantity'))
         condition = data.get('condition')
         notes = data.get('notes')
         
         # Validate required fields
         if not name or not category:
             return jsonify({'success': False, 'message': 'Name and category are required'}), 400
-            
+        
+        # Store old quantity for inventory adjustment
+        old_quantity = accessory.quantity
+        quantity_difference = new_quantity - old_quantity
+        
         # Update accessory record
         accessory.name = name
         accessory.category = category
-        accessory.quantity = int(quantity)
+        accessory.quantity = new_quantity
         accessory.condition = condition
         accessory.notes = notes
         
+        # Update inventory if this accessory has an original_accessory_id (was taken from inventory)
+        if accessory.original_accessory_id and quantity_difference != 0:
+            # Get the original accessory from inventory
+            original_accessory = db_session.query(Accessory).filter(
+                Accessory.id == accessory.original_accessory_id
+            ).with_for_update().first()
+            
+            if original_accessory:
+                print(f"=== INVENTORY UPDATE START ===")
+                print(f"UPDATING ACCESSORY: {name}")
+                print(f"Ticket category: {ticket.category.name if ticket.category else 'None'}")
+                print(f"Old ticket quantity: {old_quantity}, New ticket quantity: {new_quantity}")
+                print(f"Quantity difference: {quantity_difference}")
+                print(f"Previous inventory available_quantity: {original_accessory.available_quantity}")
+                
+                # For Asset Intake tickets, when quantity increases, we add to inventory
+                # When quantity decreases, we subtract from inventory
+                is_asset_intake = ticket.category and ticket.category.name in ['ASSET_INTAKE_CLAW', 'ASSET_INTAKE_MAIN', 'ASSET_INTAKE_SINGPOST', 'ASSET_INTAKE_DHL', 'ASSET_INTAKE_UPS', 'ASSET_INTAKE_BLUEDART', 'ASSET_INTAKE_DTDC', 'ASSET_INTAKE_AUTO']
+                print(f"Is Asset Intake ticket: {is_asset_intake}")
+                
+                # Check if this is a return/received accessories ticket
+                is_return_ticket = ticket.category and (
+                    'RETURN' in ticket.category.name.upper() or 
+                    'RECEIVED' in ticket.category.name.upper() or
+                    ticket.category.name.upper() == 'ASSET_RETURN' or
+                    'INTAKE' in ticket.category.name.upper()
+                )
+                
+                if is_asset_intake or is_return_ticket:
+                    # Asset Intake/Return: more quantity in ticket = more inventory available
+                    original_accessory.available_quantity += quantity_difference
+                    operation = "increased" if quantity_difference > 0 else "decreased"
+                    print(f"ASSET INTAKE/RETURN: Adding {quantity_difference} to inventory")
+                else:
+                    # Asset Checkout: more quantity in ticket = less inventory available
+                    original_accessory.available_quantity -= quantity_difference
+                    operation = "decreased" if quantity_difference > 0 else "increased"
+                    print(f"ASSET CHECKOUT: Subtracting {quantity_difference} from inventory")
+                
+                print(f"New inventory available_quantity: {original_accessory.available_quantity}")
+                print(f"Inventory {operation} by {abs(quantity_difference)}")
+                print(f"=== INVENTORY UPDATE END ===")
+                
+                # Create a transaction record
+                try:
+                    transaction = AccessoryTransaction(
+                        accessory_id=original_accessory.id,
+                        transaction_type="Ticket Update",
+                        quantity=abs(quantity_difference),
+                        transaction_number=f"UPD-{ticket_id}-{original_accessory.id}-{int(datetime.datetime.now().timestamp())}",
+                        user_id=current_user.id,
+                        notes=f"Quantity updated from {old_quantity} to {new_quantity} in ticket #{ticket_id} - inventory {operation}"
+                    )
+                    db_session.add(transaction)
+                except Exception as tx_error:
+                    print(f"Error creating transaction: {str(tx_error)}")
+                    # Don't fail the whole operation for transaction error
+        
         # Add a comment to the ticket
+        if quantity_difference != 0:
+            comment_content = f"Updated accessory: {name} (Category: {category}, Quantity: {old_quantity} → {new_quantity}, Condition: {condition})"
+        else:
+            comment_content = f"Updated accessory: {name} (Category: {category}, Quantity: {new_quantity}, Condition: {condition})"
+        
         comment = Comment.create(
             ticket_id=ticket_id,
             user_id=current_user.id,
-            content=f"Updated accessory: {name} (Category: {category}, Quantity: {quantity}, Condition: {condition})"
+            content=comment_content
         )
         db_session.add(comment)
         

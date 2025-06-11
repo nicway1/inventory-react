@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Create Commercial Invoice{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Create Commercial Invoice</h1>
+                    <p class="mt-2 text-gray-600">Fill in the details to generate a professional commercial invoice</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('documents.dashboard') }}" 
+                       class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Documents
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('documents.generate_commercial_invoice') }}" class="space-y-8" id="invoiceForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <!-- Invoice Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Invoice Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="invoice_number" class="block text-sm font-medium text-gray-700 mb-2">Invoice Number*</label>
+                        <input type="text" id="invoice_number" name="invoice_number" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="TLSIN-2025-000009">
+                    </div>
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date*</label>
+                        <input type="date" id="date" name="date" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                        <select id="currency" name="currency"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="USD">USD</option>
+                            <option value="SGD">SGD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="THB">THB</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="shipper_reference" class="block text-sm font-medium text-gray-700 mb-2">Shipper Reference</label>
+                        <input type="text" id="shipper_reference" name="shipper_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Q2403341">
+                    </div>
+                    <div>
+                        <label for="consignee_reference" class="block text-sm font-medium text-gray-700 mb-2">Consignee Reference</label>
+                        <input type="text" id="consignee_reference" name="consignee_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="end_user_reference" class="block text-sm font-medium text-gray-700 mb-2">End User Reference</label>
+                        <input type="text" id="end_user_reference" name="end_user_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="payment_terms" class="block text-sm font-medium text-gray-700 mb-2">Payment Terms</label>
+                        <input type="text" id="payment_terms" name="payment_terms"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="-">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="incoterms" class="block text-sm font-medium text-gray-700 mb-2">Incoterms</label>
+                        <select id="incoterms" name="incoterms"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="DDP">DDP - Delivery Duty Paid</option>
+                            <option value="EXW">EXW - Ex Works</option>
+                            <option value="FOB">FOB - Free on Board</option>
+                            <option value="CIF">CIF - Cost, Insurance & Freight</option>
+                            <option value="DAP">DAP - Delivered at Place</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="incoterms_named_place" class="block text-sm font-medium text-gray-700 mb-2">Incoterms Named Place</label>
+                        <input type="text" id="incoterms_named_place" name="incoterms_named_place"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="DDP - Thailand">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Delivery & End User Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="delivery_location" class="block text-sm font-medium text-gray-700 mb-2">Delivery Location*</label>
+                        <input type="text" id="delivery_location" name="delivery_location" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Bangkok, Thailand">
+                    </div>
+                    <div>
+                        <label for="end_user" class="block text-sm font-medium text-gray-700 mb-2">End User*</label>
+                        <input type="text" id="end_user" name="end_user" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Bangkok, Thailand">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="country_destination" class="block text-sm font-medium text-gray-700 mb-2">Country of Destination*</label>
+                        <input type="text" id="country_destination" name="country_destination" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Thailand">
+                    </div>
+                    <div>
+                        <label for="country_end_use" class="block text-sm font-medium text-gray-700 mb-2">Country of End Use*</label>
+                        <input type="text" id="country_end_use" name="country_end_use" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Thailand">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Importer Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Importer of Record</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="importer_name" class="block text-sm font-medium text-gray-700 mb-2">Company Name*</label>
+                        <input type="text" id="importer_name" name="importer_name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="KERRY LOGISTICS CO., LTD.">
+                    </div>
+                    <div>
+                        <label for="importer_address" class="block text-sm font-medium text-gray-700 mb-2">Address*</label>
+                        <textarea id="importer_address" name="importer_address" rows="3" required
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="444 PORT AUTHORITY OF THAILAND,&#10;B-5/4, THAPRA ROAD, KLONG TOEY,&#10;BANGKOK 10110, THAILAND"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="importer_phone" class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                            <input type="text" id="importer_phone" name="importer_phone"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="+66 2249-6388">
+                        </div>
+                        <div>
+                            <label for="importer_mobile" class="block text-sm font-medium text-gray-700 mb-2">Mobile</label>
+                            <input type="text" id="importer_mobile" name="importer_mobile"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="+66 86-395-1198">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="importer_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="importer_email" name="importer_email"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="jiradej@eight.co.th">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Items</h2>
+                <div id="items-container">
+                    <!-- Initial item row -->
+                    <div class="item-row border border-gray-200 rounded-lg p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Product Code*</label>
+                                <input type="text" name="item_product_code_0" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="210-BLPR-SG0001">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Description of Goods*</label>
+                                <input type="text" name="item_description_0" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="DELL LATITUDE 7450 XCTO ULTRAS, 16GB, 256GB SSD">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Country of Manufacture*</label>
+                                <input type="text" name="item_country_manufacture_0" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="China">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Commodity Code</label>
+                                <input type="text" name="item_commodity_code_0"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="8471.30">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Qty*</label>
+                                <input type="number" name="item_qty_0" required min="1"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="1" oninput="calculateTotal(0)" onchange="calculateTotal(0)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Unit Value*</label>
+                                <input type="number" name="item_unit_value_0" required step="0.01" min="0"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="1400.00" oninput="calculateTotal(0)" onchange="calculateTotal(0)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Total Value*</label>
+                                <input type="number" name="item_total_value_0" required step="0.01" min="0"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="1400.00" onchange="updateSubtotal()">
+                            </div>
+                        </div>
+                        <div class="mt-4 text-right">
+                            <button type="button" onclick="removeItem(this)" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash mr-1"></i>Remove Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <button type="button" onclick="addItem()" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-plus mr-2"></i>Add Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totals Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Totals</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Subtotal</label>
+                        <input type="text" id="subtotal_display" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                               value="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Total</label>
+                        <input type="text" id="total_display" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-semibold"
+                               value="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="text-center space-x-4">
+                <button type="submit" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-md text-lg font-semibold">
+                    <i class="fas fa-file-invoice mr-2"></i>Generate Invoice Preview
+                </button>
+                <button type="submit" 
+                        formaction="{{ url_for('documents.save_invoice') }}"
+                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-md text-lg font-semibold">
+                    <i class="fas fa-save mr-2"></i>Save Invoice
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let itemCounter = 1;
+
+function addItem() {
+    const container = document.getElementById('items-container');
+    const newItem = document.createElement('div');
+    newItem.className = 'item-row border border-gray-200 rounded-lg p-4 mb-4';
+    newItem.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Product Code*</label>
+                <input type="text" name="item_product_code_${itemCounter}" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description of Goods*</label>
+                <input type="text" name="item_description_${itemCounter}" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Country of Manufacture*</label>
+                <input type="text" name="item_country_manufacture_${itemCounter}" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Commodity Code</label>
+                <input type="text" name="item_commodity_code_${itemCounter}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Qty*</label>
+                <input type="number" name="item_qty_${itemCounter}" required min="1"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       oninput="calculateTotal(${itemCounter})" onchange="calculateTotal(${itemCounter})">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Unit Value*</label>
+                <input type="number" name="item_unit_value_${itemCounter}" required step="0.01" min="0"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       oninput="calculateTotal(${itemCounter})" onchange="calculateTotal(${itemCounter})">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Total Value*</label>
+                <input type="number" name="item_total_value_${itemCounter}" required step="0.01" min="0"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       onchange="updateSubtotal()">
+            </div>
+        </div>
+        <div class="mt-4 text-right">
+            <button type="button" onclick="removeItem(this)" class="text-red-600 hover:text-red-800">
+                <i class="fas fa-trash mr-1"></i>Remove Item
+            </button>
+        </div>
+    `;
+    container.appendChild(newItem);
+    itemCounter++;
+}
+
+function removeItem(button) {
+    const itemRow = button.closest('.item-row');
+    itemRow.remove();
+    updateSubtotal();
+}
+
+function calculateTotal(index) {
+    const qty = parseFloat(document.querySelector(`input[name="item_qty_${index}"]`).value) || 0;
+    const unitValue = parseFloat(document.querySelector(`input[name="item_unit_value_${index}"]`).value) || 0;
+    const total = qty * unitValue;
+    document.querySelector(`input[name="item_total_value_${index}"]`).value = total.toFixed(2);
+    updateSubtotal();
+}
+
+function updateSubtotal() {
+    const totalInputs = document.querySelectorAll('input[name^="item_total_value_"]');
+    let subtotal = 0;
+    totalInputs.forEach(input => {
+        subtotal += parseFloat(input.value) || 0;
+    });
+    document.getElementById('subtotal_display').value = subtotal.toFixed(2);
+    updateGrandTotal();
+}
+
+function updateGrandTotal() {
+    const subtotal = parseFloat(document.getElementById('subtotal_display').value) || 0;
+    const total = subtotal; // Total equals subtotal since freight is removed
+    document.getElementById('total_display').value = total.toFixed(2);
+}
+
+// Set today's date
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+});
+</script>
+{% endblock %} 

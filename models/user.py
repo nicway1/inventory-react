@@ -36,6 +36,8 @@ class User(Base, UserMixin):
     asset_changes = relationship("AssetHistory", back_populates="user")
     accessory_changes = relationship("AccessoryHistory", back_populates="user")
     company_permissions = relationship("UserCompanyPermission", back_populates="user")
+    # Temporarily commenting out SavedInvoice relationship to fix import order
+    # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 
     def set_password(self, password):
         """Set password hash"""

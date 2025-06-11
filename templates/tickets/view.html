@@ -2293,11 +2293,6 @@
                             </div>
                             
                             <div style="margin-bottom: 15px;">
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity for this Ticket</label>
-                                <input type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            
-                            <div style="margin-bottom: 15px;">
                                 <label style="display: block; margin-bottom: 5px; font-weight: 500;">Condition</label>
                                 <select name="accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="Good">Good</option>
@@ -2482,14 +2477,15 @@
                                 event.preventDefault();
                                 
                                 const form = event.target;
+                                const totalQuantity = parseInt(form.total_quantity.value);
                                 const formData = {
                                     accessory_name: form.accessory_name.value,
                                     accessory_category: form.accessory_category.value,
                                     manufacturer: form.manufacturer.value,
                                     model_no: form.model_no.value,
-                                    total_quantity: parseInt(form.total_quantity.value),
+                                    total_quantity: totalQuantity,
                                     country: form.country.value,
-                                    accessory_quantity: parseInt(form.accessory_quantity.value),
+                                    accessory_quantity: totalQuantity, // Use total_quantity as accessory_quantity
                                     accessory_condition: form.accessory_condition.value,
                                     accessory_notes: form.accessory_notes.value
                                 };
@@ -3241,64 +3237,53 @@
             </div>
 
             <!-- Edit Accessory Modal -->
-            <div id="editAccessoryModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
-                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    <!-- Background overlay -->
-                    <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            <div id="editAccessoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: bold;">Edit Accessory</h3>
+                    <input type="hidden" id="edit_accessory_id">
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Accessory Name</label>
+                        <input type="text" id="edit_accessory_name" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                     </div>
                     
-                    <!-- Modal panel -->
-                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <div class="sm:flex sm:items-start">
-                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                        Edit Accessory
-                                    </h3>
-                                    <div class="mt-2">
-                                        <input type="hidden" id="edit_accessory_id">
-                                        <div class="mb-4">
-                                            <label for="edit_accessory_name" class="block text-sm font-medium text-gray-700">Accessory Name</label>
-                                            <input type="text" id="edit_accessory_name" name="edit_accessory_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        </div>
-                                        <div class="mb-4">
-                                            <label for="edit_accessory_category" class="block text-sm font-medium text-gray-700">Category</label>
-                                            <select id="edit_accessory_category" name="edit_accessory_category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                                <option value="Charger">Charger</option>
-                                                <option value="Cable">Cable</option>
-                                                <option value="Case">Case</option>
-                                                <option value="Other">Other</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-4">
-                                            <label for="edit_accessory_quantity" class="block text-sm font-medium text-gray-700">Quantity</label>
-                                            <input type="number" id="edit_accessory_quantity" name="edit_accessory_quantity" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        </div>
-                                        <div class="mb-4">
-                                            <label for="edit_accessory_condition" class="block text-sm font-medium text-gray-700">Condition</label>
-                                            <select id="edit_accessory_condition" name="edit_accessory_condition" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                                <option value="Good">Good</option>
-                                                <option value="Fair">Fair</option>
-                                                <option value="Poor">Poor</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-4">
-                                            <label for="edit_accessory_notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                                            <textarea id="edit_accessory_notes" name="edit_accessory_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button type="button" id="updateAccessoryBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                                Update Accessory
-                            </button>
-                            <button type="button" onclick="hideEditAccessoryModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                                Cancel
-                            </button>
-                        </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category</label>
+                        <select id="edit_accessory_category" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="Charger">Charger</option>
+                            <option value="Cable">Cable</option>
+                            <option value="Case">Case</option>
+                            <option value="Mouse">Mouse</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Quantity</label>
+                        <input type="number" id="edit_accessory_quantity" min="1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition</label>
+                        <select id="edit_accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Poor">Poor</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Notes</label>
+                        <textarea id="edit_accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+                    </div>
+                    
+                    <div style="text-align: right;">
+                        <button type="button" onclick="hideEditAccessoryModal()" style="margin-right: 10px; padding: 8px 16px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                            Cancel
+                        </button>
+                        <button type="button" id="updateAccessoryBtn" style="padding: 8px 16px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Update Accessory
+                        </button>
                     </div>
                 </div>
             </div>
@@ -4226,26 +4211,98 @@ function showEditAccessoryModal() {
 }
 
 function hideEditAccessoryModal() {
+    console.log('Hiding edit accessory modal...');
     const modal = document.getElementById('editAccessoryModal');
     if (modal) {
-        modal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        console.log('Modal hidden successfully');
+    } else {
+        console.error('Modal not found when trying to hide');
     }
+}
+
+// New function for dynamic modal update
+function updateAccessoryDynamic(accessoryId) {
+    console.log('Updating accessory via dynamic modal:', accessoryId);
+    
+    // Get values from dynamic modal
+    const name = document.getElementById('dynamic_edit_accessory_name').value;
+    const category = document.getElementById('dynamic_edit_accessory_category').value;
+    const quantity = parseInt(document.getElementById('dynamic_edit_accessory_quantity').value);
+    const condition = document.getElementById('dynamic_edit_accessory_condition').value;
+    const notes = document.getElementById('dynamic_edit_accessory_notes').value;
+    
+    // Get CSRF token
+    const updateCsrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Submit update request
+    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': updateCsrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            name: name,
+            category: category,
+            quantity: quantity,
+            condition: condition,
+            notes: notes,
+            csrf_token: updateCsrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            document.getElementById('dynamicEditModal').remove();
+            document.body.style.overflow = '';
+            
+            // Show success and reload
+            alert('Accessory updated successfully!');
+            window.location.reload();
+        } else {
+            alert('Error updating accessory: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error updating accessory:', error);
+        alert('Error updating accessory. Please try again.');
+    });
 }
 
 let isEditingAccessory = false;
 
 function editAccessory(accessoryId) {
+    console.log('=== EDIT ACCESSORY DEBUG START ===');
+    console.log('Accessory ID:', accessoryId);
+    console.log('isEditingAccessory:', isEditingAccessory);
+    
     if (isEditingAccessory) {
         console.log('Already editing an accessory, ignoring request');
         return;
     }
     
-    console.log('Editing accessory:', accessoryId);
+    console.log('Setting isEditingAccessory to true');
     isEditingAccessory = true;
     
+    // First, let's check if the modal exists
+    const modal = document.getElementById('editAccessoryModal');
+    console.log('Modal element found:', modal !== null);
+    if (!modal) {
+        console.error('CRITICAL: editAccessoryModal element not found in DOM!');
+        alert('Error: Edit modal not found. Please refresh the page.');
+        isEditingAccessory = false;
+        return;
+    }
+    
     // Get accessory data with dynamic base URL
-    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}`, {
+    const fetchUrl = `${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}`;
+    console.log('Fetching from URL:', fetchUrl);
+    
+    fetch(fetchUrl, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -4253,60 +4310,140 @@ function editAccessory(accessoryId) {
         }
     })
     .then(response => {
-        console.log('Response status:', response.status);
+        console.log('Fetch response status:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        console.log('Accessory data:', data);
+        console.log('Accessory data received:', data);
         if (data.success) {
             const accessory = data.accessory;
+            console.log('Accessory details:', accessory);
             
-            // Populate form with accessory data
-            document.getElementById('edit_accessory_id').value = accessory.id;
-            document.getElementById('edit_accessory_name').value = accessory.name;
-            document.getElementById('edit_accessory_category').value = accessory.category;
-            document.getElementById('edit_accessory_quantity').value = accessory.quantity;
-            document.getElementById('edit_accessory_condition').value = accessory.condition;
-            document.getElementById('edit_accessory_notes').value = accessory.notes || '';
+            // Check if form fields exist before populating
+            const fields = {
+                'edit_accessory_id': accessory.id,
+                'edit_accessory_name': accessory.name,
+                'edit_accessory_category': accessory.category,
+                'edit_accessory_quantity': accessory.quantity,
+                'edit_accessory_condition': accessory.condition,
+                'edit_accessory_notes': accessory.notes || ''
+            };
             
-            // Show modal
-            const modal = document.getElementById('editAccessoryModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.body.classList.add('overflow-hidden');
-            } else {
-                console.error('Edit accessory modal not found');
-                showNotification('Error: Modal not found', 'error');
+            console.log('Populating form fields...');
+            for (const [fieldId, value] of Object.entries(fields)) {
+                const field = document.getElementById(fieldId);
+                console.log(`Field ${fieldId}:`, field !== null, 'Value:', value);
+                if (field) {
+                    field.value = value;
+                } else {
+                    console.error(`Field ${fieldId} not found!`);
+                }
             }
+            
+            // Show modal - Use dynamic creation to bypass CSS conflicts
+            console.log('Attempting to show modal...');
+            
+            // Remove existing modal if it exists
+            const existingModal = document.getElementById('dynamicEditModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create modal dynamically
+            const dynamicModal = document.createElement('div');
+            dynamicModal.id = 'dynamicEditModal';
+            dynamicModal.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 999999; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto;">
+                        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: bold;">Edit Accessory</h3>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Accessory Name</label>
+                            <input type="text" id="dynamic_edit_accessory_name" value="${accessory.name}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category</label>
+                            <select id="dynamic_edit_accessory_category" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="Charger" ${accessory.category === 'Charger' ? 'selected' : ''}>Charger</option>
+                                <option value="Cable" ${accessory.category === 'Cable' ? 'selected' : ''}>Cable</option>
+                                <option value="Case" ${accessory.category === 'Case' ? 'selected' : ''}>Case</option>
+                                <option value="Mouse" ${accessory.category === 'Mouse' ? 'selected' : ''}>Mouse</option>
+                                <option value="Other" ${accessory.category === 'Other' ? 'selected' : ''}>Other</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Quantity</label>
+                            <input type="number" id="dynamic_edit_accessory_quantity" value="${accessory.quantity}" min="1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition</label>
+                            <select id="dynamic_edit_accessory_condition" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="Good" ${accessory.condition === 'Good' ? 'selected' : ''}>Good</option>
+                                <option value="Fair" ${accessory.condition === 'Fair' ? 'selected' : ''}>Fair</option>
+                                <option value="Poor" ${accessory.condition === 'Poor' ? 'selected' : ''}>Poor</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Notes</label>
+                            <textarea id="dynamic_edit_accessory_notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;">${accessory.notes || ''}</textarea>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <button onclick="document.getElementById('dynamicEditModal').remove(); document.body.style.overflow = '';" style="margin-right: 10px; padding: 8px 16px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                                Cancel
+                            </button>
+                            <button onclick="updateAccessoryDynamic(${accessoryId})" style="padding: 8px 16px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Update Accessory
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to body
+            document.body.appendChild(dynamicModal);
+            document.body.style.overflow = 'hidden';
+            
+            console.log('Dynamic modal created and should be visible');
         } else {
+            console.error('API returned error:', data.message);
             showNotification(data.message || 'Failed to get accessory data', 'error');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showNotification('An unexpected error occurred', 'error');
+        console.error('Fetch error:', error);
+        showNotification('An unexpected error occurred: ' + error.message, 'error');
     })
     .finally(() => {
+        console.log('Setting isEditingAccessory back to false');
         isEditingAccessory = false;
+        console.log('=== EDIT ACCESSORY DEBUG END ===');
     });
 }
 
 function removeAccessory(accessoryId, ticketId) {
     if (confirm('Are you sure you want to remove this accessory?')) {
         // Get CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const removeCsrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
         // Submit remove request with dynamic base URL
         fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}/remove`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
+                'X-CSRFToken': removeCsrfToken,
                 'X-Requested-With': 'XMLHttpRequest'
-            }
+            },
+            body: JSON.stringify({
+                csrf_token: removeCsrfToken
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -4324,6 +4461,63 @@ function removeAccessory(accessoryId, ticketId) {
         });
     }
 }
+
+// Add event listener for update accessory button
+document.addEventListener('DOMContentLoaded', function() {
+    const updateBtn = document.getElementById('updateAccessoryBtn');
+    if (updateBtn) {
+        updateBtn.addEventListener('click', function() {
+            const accessoryId = document.getElementById('edit_accessory_id').value;
+            const name = document.getElementById('edit_accessory_name').value;
+            const category = document.getElementById('edit_accessory_category').value;
+            const quantity = document.getElementById('edit_accessory_quantity').value;
+            const condition = document.getElementById('edit_accessory_condition').value;
+            const notes = document.getElementById('edit_accessory_notes').value;
+            
+            // Validate required fields
+            if (!name || !category || !quantity) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            // Get CSRF token
+            const updateCsrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Submit update request
+            fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/accessory/${accessoryId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': updateCsrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    category: category,
+                    quantity: parseInt(quantity),
+                    condition: condition,
+                    notes: notes,
+                    csrf_token: updateCsrfToken
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Accessory updated successfully', 'success');
+                    hideEditAccessoryModal();
+                    // Reload page to update UI
+                    window.location.reload();
+                } else {
+                    showNotification(data.message || 'Failed to update accessory', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred', 'error');
+            });
+        });
+    }
+});
 </script>
 
 <script>

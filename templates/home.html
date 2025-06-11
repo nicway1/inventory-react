@@ -58,6 +58,29 @@
             <a href="{{ url_for('tickets.list_queues') }}" class="mt-4 inline-block text-amber-600 hover:text-amber-800">Manage Queues →</a>
         </div>
 
+        <!-- Documents Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h2 class="text-xl font-semibold">Documents</h2>
+            </div>
+            <div class="mb-4">
+                <p class="text-lg font-semibold text-orange-600">Commercial & Packing</p>
+                <p class="text-gray-600">Generate documents</p>
+            </div>
+            <div class="space-y-2">
+                <div class="text-sm text-gray-500">
+                    • Commercial Invoices
+                </div>
+                <div class="text-sm text-gray-500">
+                    • Packing Lists
+                </div>
+            </div>
+            <a href="{{ url_for('documents.dashboard') }}" class="mt-4 inline-block text-orange-600 hover:text-orange-800">Generate Documents →</a>
+        </div>
+
         <!-- Manage Customers Card -->
         {% if user.user_type.value != 'CLIENT' %}
         <div class="bg-white rounded-lg shadow p-6">

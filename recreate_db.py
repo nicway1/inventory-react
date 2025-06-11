@@ -14,6 +14,7 @@ from models.queue import Queue
 from models.asset_history import AssetHistory
 from models.permission import Permission
 from werkzeug.security import generate_password_hash
+from utils.auth import safe_generate_password_hash
 from datetime import datetime
 
 def recreate_database():
@@ -46,7 +47,7 @@ def recreate_database():
         admin_user = {
             "username": "admin",
             "email": "admin@lunacomputer.com",
-            "password_hash": generate_password_hash("admin123"),
+            "password_hash": safe_generate_password_hash("admin123"),
             "user_type": UserType.SUPER_ADMIN.value,
             "company_id": company_id,
             "created_at": datetime.utcnow()

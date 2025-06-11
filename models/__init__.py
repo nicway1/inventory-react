@@ -22,7 +22,7 @@ from models.accessory_history import AccessoryHistory
 from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
 from models.firecrawl_key import FirecrawlKey
-from models.ticket_category_config import TicketCategoryConfig, CategoryDisplayConfig
+from models.ticket_category_config import TicketCategoryConfig
 
 __all__ = [
     "Base",
@@ -55,6 +55,5 @@ __all__ = [
     "AssetTransaction",
     "AccessoryTransaction",
     "FirecrawlKey",
-    "TicketCategoryConfig",
-    "CategoryDisplayConfig"
+    "TicketCategoryConfig"
 ]

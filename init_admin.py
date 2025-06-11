@@ -3,6 +3,7 @@ from database import init_db, engine, SessionLocal
 from models.user import User, UserType
 from models.company import Company
 from werkzeug.security import generate_password_hash
+from utils.auth import safe_generate_password_hash
 
 def init_admin():
     print("Starting initialization...")
@@ -31,7 +32,7 @@ def init_admin():
                 admin_user = User(
                     username="admin",
                     email="admin@lunacomputer.com",
-                    password_hash=generate_password_hash("admin123"),
+                    password_hash=safe_generate_password_hash("admin123"),
                     user_type=UserType.SUPER_ADMIN,
                     company_id=default_company.id
                 )

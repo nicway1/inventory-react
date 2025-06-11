@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+
+{% block title %}Commercial Invoice Preview{% endblock %}
+
+{% block head %}
+<style>
+@media print {
+    /* Hide ALL non-invoice elements */
+    .no-print,
+    nav,
+    header,
+    footer,
+    .navbar,
+    .sidebar,
+    .btn,
+    button,
+    .header-actions,
+    .mb-8.flex.justify-between.items-center,
+    .mt-8.bg-blue-50 {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Reset everything for print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-sizing: border-box !important;
+    }
+    
+    body, html {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Container resets */
+    .min-h-screen, .max-w-7xl, .mx-auto, .px-4, .sm\\:px-6, .lg\\:px-8, .py-8 {
+        all: unset !important;
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Make sure content flows directly */
+    .min-h-screen > div:first-child > .mb-8:first-child {
+        display: none !important;
+    }
+    
+    /* Invoice document - simplified structure */
+    #invoice-document {
+        display: block !important;
+        width: 100% !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+    
+    /* Header section - force table layout for proper alignment */
+    #invoice-document > .p-6:first-child {
+        display: table !important;
+        width: 100% !important;
+        padding: 10px !important;
+        border-bottom: 2px solid #000 !important;
+    }
+    
+    #invoice-document > .p-6:first-child > .flex {
+        display: table-row !important;
+    }
+    
+    #invoice-document > .p-6:first-child > .flex > div:first-child {
+        display: table-cell !important;
+        width: 60% !important;
+        vertical-align: top !important;
+        padding-right: 20px !important;
+    }
+    
+    #invoice-document > .p-6:first-child > .flex > div:last-child {
+        display: table-cell !important;
+        width: 40% !important;
+        vertical-align: top !important;
+        text-align: right !important;
+    }
+    
+    /* Typography */
+    h1 {
+        font-size: 16px !important;
+        font-weight: bold !important;
+        margin: 0 0 2px 0 !important;
+        color: #1e40af !important;
+    }
+    
+    h2 {
+        font-size: 14px !important;
+        font-weight: bold !important;
+        margin: 0 !important;
+        color: #000 !important;
+    }
+    
+    h3 {
+        font-size: 12px !important;
+        font-weight: bold !important;
+        margin: 0 0 3px 0 !important;
+        color: #000 !important;
+        border-bottom: 1px solid #ccc !important;
+        padding-bottom: 2px !important;
+    }
+    
+    p {
+        margin: 1px 0 !important;
+        font-size: 10px !important;
+        color: #333 !important;
+    }
+    
+    /* Company info section */
+    .flex.items-center {
+        display: block !important;
+    }
+    
+    /* Logo styling for print */
+    .w-16.h-16 {
+        width: 40px !important;
+        height: 40px !important;
+        display: inline-block !important;
+        margin-right: 10px !important;
+    }
+    
+    img {
+        max-width: 40px !important;
+        max-height: 40px !important;
+        object-fit: contain !important;
+    }
+    
+    /* Invoice details grid */
+    .grid.grid-cols-2.gap-2 {
+        display: table !important;
+        width: 100% !important;
+        margin-top: 5px !important;
+    }
+    
+    .grid.grid-cols-2.gap-2 > div:nth-child(odd) {
+        display: table-cell !important;
+        width: 60% !important;
+        font-weight: bold !important;
+        padding: 1px 5px 1px 0 !important;
+        font-size: 9px !important;
+    }
+    
+    .grid.grid-cols-2.gap-2 > div:nth-child(even) {
+        display: table-cell !important;
+        width: 40% !important;
+        text-align: right !important;
+        padding: 1px 0 !important;
+        font-size: 9px !important;
+    }
+    
+    /* Middle section with delivery and importer info */
+    #invoice-document > .p-6:nth-child(2) {
+        padding: 10px !important;
+        border-bottom: 1px solid #ccc !important;
+    }
+    
+    #invoice-document > .p-6:nth-child(2) > .grid {
+        display: table !important;
+        width: 100% !important;
+    }
+    
+    #invoice-document > .p-6:nth-child(2) > .grid > div {
+        display: table-cell !important;
+        width: 50% !important;
+        vertical-align: top !important;
+        padding-right: 15px !important;
+    }
+    
+    #invoice-document > .p-6:nth-child(2) > .mt-6 {
+        margin-top: 10px !important;
+        text-align: right !important;
+    }
+    
+    /* Table styling */
+    .overflow-x-auto {
+        overflow: visible !important;
+    }
+    
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 0 !important;
+        page-break-inside: avoid !important;
+        font-size: 9px !important;
+    }
+    
+    th {
+        background-color: #f0f0f0 !important;
+        border: 1px solid #000 !important;
+        padding: 4px 2px !important;
+        font-weight: bold !important;
+        font-size: 8px !important;
+        text-align: center !important;
+    }
+    
+    td {
+        border: 1px solid #000 !important;
+        padding: 3px 2px !important;
+        font-size: 8px !important;
+        vertical-align: top !important;
+    }
+    
+    /* Table column widths */
+    th:nth-child(1), td:nth-child(1) { width: 5% !important; } /* Item */
+    th:nth-child(2), td:nth-child(2) { width: 12% !important; } /* Product Code */
+    th:nth-child(3), td:nth-child(3) { width: 25% !important; } /* Description */
+    th:nth-child(4), td:nth-child(4) { width: 15% !important; } /* Country */
+    th:nth-child(5), td:nth-child(5) { width: 12% !important; } /* Commodity */
+    th:nth-child(6), td:nth-child(6) { width: 8% !important; } /* Qty */
+    th:nth-child(7), td:nth-child(7) { width: 11% !important; } /* Unit Value */
+    th:nth-child(8), td:nth-child(8) { width: 12% !important; } /* Total Value */
+    
+    /* Footer section */
+    #invoice-document > .p-6:last-child {
+        padding: 10px !important;
+    }
+    
+    #invoice-document > .p-6:last-child > .grid {
+        display: table !important;
+        width: 100% !important;
+    }
+    
+    #invoice-document > .p-6:last-child > .grid > div {
+        display: table-cell !important;
+        width: 50% !important;
+        vertical-align: top !important;
+        padding-right: 15px !important;
+    }
+    
+    /* Force text alignment */
+    .text-right {
+        text-align: right !important;
+    }
+    
+    .text-left {
+        text-align: left !important;
+    }
+    
+    .text-center {
+        text-align: center !important;
+    }
+    
+    /* Remove all unnecessary spacing */
+    .space-y-1 > *, .space-y-2 > * {
+        margin: 0 !important;
+    }
+    
+    /* Page settings */
+    @page {
+        margin: 0.5in;
+        size: A4 portrait;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header Actions -->
+        <div class="mb-8 flex justify-between items-center no-print">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Commercial Invoice Preview</h1>
+                <p class="mt-1 text-gray-600">Review your commercial invoice before printing</p>
+            </div>
+            <div class="flex space-x-4">
+                <button onclick="saveInvoice()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Invoice
+                </button>
+                <button onclick="window.print()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-print mr-2"></i>
+                    Print Invoice
+                </button>
+                <a href="{{ url_for('documents.commercial_invoice_form') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-edit mr-2"></i>
+                    Edit
+                </a>
+                <a href="{{ url_for('documents.dashboard') }}" 
+                   class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Documents
+                </a>
+            </div>
+        </div>
+
+        <!-- Invoice Document -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden" id="invoice-document">
+            <!-- Header Section -->
+            <div class="p-6 border-b border-gray-300">
+                <div class="flex justify-between items-start">
+                    <!-- Company Logo and Info -->
+                    <div class="flex items-center">
+                        <div class="mr-4">
+                            <img src="{{ url_for('static', filename='images/truelglogo.png') }}" 
+                                 alt="TRUELOG Logo" 
+                                 class="w-16 h-16 object-contain">
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-blue-600">TRUELOG PTE LTD</h1>
+                            <p class="text-sm text-gray-600">(Reg no.: 201543185N)</p>
+                            <p class="text-sm text-gray-600">101 Cecil St, #11-05 Tong Eng Building, Singapore 069533</p>
+                            <p class="text-sm text-gray-600">Tel: +65 6909 3756 Fax: +65 6909 3757</p>
+                            <p class="text-sm font-medium text-blue-600">Your Logistics Provider</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Invoice Details -->
+                    <div class="text-right">
+                        <h2 class="text-xl font-bold text-gray-900">Invoice Number: {{ data.invoice_number }}</h2>
+                        <p class="text-sm text-gray-600 mt-2">Date: {{ data.date }}</p>
+                        <div class="mt-4 text-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="text-left font-medium text-gray-700">Shipper Reference:</div>
+                                <div class="text-right">{{ data.shipper_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Consignee Reference:</div>
+                                <div class="text-right">{{ data.consignee_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">End User Reference:</div>
+                                <div class="text-right">{{ data.end_user_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Payment Terms:</div>
+                                <div class="text-right">{{ data.payment_terms or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Incoterms:</div>
+                                <div class="text-right">{{ data.incoterms or 'DDP' }}</div>
+                                <div class="text-left font-medium text-gray-700">Incoterms Named Place:</div>
+                                <div class="text-right">{{ data.incoterms_named_place or 'DDP - Thailand' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery and Importer Information -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Delivery Location -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">Delivery Location</h3>
+                        <p class="text-sm">{{ data.delivery_location }}</p>
+                    </div>
+                    
+                    <!-- Importer of Record -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">Importer of Record</h3>
+                        <div class="text-sm space-y-1">
+                            <p class="font-semibold">{{ data.importer_name }}</p>
+                            <p class="whitespace-pre-line">{{ data.importer_address }}</p>
+                            {% if data.importer_phone %}
+                            <p>TEL: {{ data.importer_phone }}</p>
+                            {% endif %}
+                            {% if data.importer_mobile %}
+                            <p>MOB: {{ data.importer_mobile }}</p>
+                            {% endif %}
+                            {% if data.importer_email %}
+                            <p>EMAIL: {{ data.importer_email }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- End User Info -->
+                <div class="mt-6 flex justify-end">
+                    <div class="text-right">
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">End User</h3>
+                        <p class="text-sm">{{ data.end_user }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr class="border-b border-gray-300">
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Item</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Product Code</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Description Of Goods</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Country of Manufacture</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Commodity Code</th>
+                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-900 border-r border-gray-300">Qty</th>
+                            <th class="px-4 py-3 text-right text-sm font-bold text-gray-900 border-r border-gray-300">Unit Value</th>
+                            <th class="px-4 py-3 text-right text-sm font-bold text-gray-900">Total Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data.get('items', []) %}
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ loop.index }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.product_code }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.description }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.country_manufacture }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.commodity_code or '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">{{ item.qty }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right border-r border-gray-200">{{ "%.2f"|format((item.unit_value or 0)|float) }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ "%.2f"|format((item.total_value or 0)|float) }}</td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <!-- Totals Row -->
+                        <tr class="bg-gray-50">
+                            <td colspan="7" class="px-4 py-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">Total</td>
+                            <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">{{ data.currency or 'USD' }} {{ "%.2f"|format(data.total or 0) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Information -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2">Country Of Destination</h3>
+                        <p class="text-sm">{{ data.country_destination }}</p>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2">Country of End Use</h3>
+                        <p class="text-sm">{{ data.country_end_use }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Print Instructions -->
+        <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 no-print">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-600"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">Printing Instructions</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Use A4 paper size for best results</li>
+                            <li>Set printer to "Actual Size" or 100% scale</li>
+                            <li>Ensure margins are set to minimum for full page usage</li>
+                            <li>This document is optimized for professional commercial use</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data for JavaScript -->
+<script type="application/json" id="invoice-data">{
+    "invoice_number": "{{ data.invoice_number }}",
+    "date": "{{ data.date }}",
+    "delivery_location": "{{ data.delivery_location }}",
+    "importer_name": "{{ data.importer_name }}",
+    "importer_address": "{{ data.importer_address }}",
+    "importer_phone": "{{ data.importer_phone or '' }}",
+    "importer_mobile": "{{ data.importer_mobile or '' }}",
+    "importer_email": "{{ data.importer_email or '' }}",
+    "end_user": "{{ data.end_user }}",
+    "shipper_reference": "{{ data.shipper_reference or '' }}",
+    "consignee_reference": "{{ data.consignee_reference or '' }}",
+    "end_user_reference": "{{ data.end_user_reference or '' }}",
+    "payment_terms": "{{ data.payment_terms or '' }}",
+    "incoterms": "{{ data.incoterms or '' }}",
+    "incoterms_named_place": "{{ data.incoterms_named_place or '' }}",
+    "country_destination": "{{ data.country_destination }}",
+    "country_end_use": "{{ data.country_end_use }}",
+    "currency": "{{ data.currency or 'USD' }}",
+    "subtotal": {{ data.subtotal or 0 }},
+    "freight": 0.0,
+    "total": {{ data.total or 0 }},
+    "items": [
+        {% for item in data.get('items', []) %}
+        {
+            "product_code": "{{ item.product_code or '' }}",
+            "description": "{{ item.description or '' }}",
+            "country_manufacture": "{{ item.country_manufacture or '' }}",
+            "commodity_code": "{{ item.commodity_code or '' }}",
+            "qty": "{{ item.qty or '' }}",
+            "unit_value": "{{ item.unit_value or '' }}",
+            "total_value": "{{ item.total_value or '' }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+}</script>
+
+<script>
+function saveInvoice() {
+    // Get invoice data from hidden JSON
+    const invoiceData = JSON.parse(document.getElementById('invoice-data').textContent);
+
+    // Send to save endpoint
+    fetch('/documents/save-invoice', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(invoiceData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Invoice saved successfully!');
+            window.location.href = '/documents/saved-invoices';
+        } else {
+            alert('Error saving invoice: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving invoice. Please try again.');
+    });
+}
+</script>
+{% endblock %} 

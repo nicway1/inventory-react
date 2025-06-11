@@ -1,13 +1,19 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, flash, session
+from flask import Blueprint, request, jsonify, redirect, url_for, flash, session, render_template, make_response
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import inventory_store, db_manager, ticket_store
 from models.asset import Asset, AssetStatus
 from models.activity import Activity
 from models.ticket import Ticket
 from flask_login import current_user
+from utils.db_manager import DatabaseManager
+from models.company import Company
+from utils.barcode_generator import barcode_generator
+from database import SessionLocal
+import io
 
 # Create Blueprint
 assets_bp = Blueprint('assets', __name__, url_prefix='/assets')
+db_manager = DatabaseManager()
 
 @assets_bp.route('/add', methods=['POST'])
 @login_required
@@ -163,5 +169,153 @@ def unlink_asset(asset_id, ticket_id):
         db_session.rollback()
         print(f"Error unlinking asset: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@assets_bp.route('/generate-label/<int:asset_id>')
+@login_required
+def generate_asset_label(asset_id):
+    """Generate and display asset label for a specific asset"""
+    db_session = SessionLocal()
+    try:
+        asset = db_session.query(Asset).filter_by(id=asset_id).first()
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view'))
+        
+        # Load company relationship if not already loaded
+        if not asset.company and asset.company_id:
+            asset.company = db_session.query(Company).filter_by(id=asset.company_id).first()
+        
+        # Generate label as base64
+        label_base64 = barcode_generator.generate_label_base64(asset)
+        
+        if not label_base64:
+            flash('Failed to generate label', 'error')
+            return redirect(url_for('inventory.view'))
+        
+        return render_template('assets/label_preview.html', 
+                             asset=asset, 
+                             label_image=label_base64)
+    
+    finally:
+        db_session.close()
+
+@assets_bp.route('/generate-barcode/<int:asset_id>')
+@login_required
+def generate_asset_barcode(asset_id):
+    """Generate and display just the barcode for a specific asset"""
+    db_session = SessionLocal()
+    try:
+        asset = db_session.query(Asset).filter_by(id=asset_id).first()
+        if not asset:
+            return jsonify({'error': 'Asset not found'}), 404
+        
+        # Generate barcode as base64
+        barcode_base64 = barcode_generator.generate_barcode_base64(asset.serial_num)
+        
+        if not barcode_base64:
+            return jsonify({'error': 'Failed to generate barcode'}), 500
+        
+        return jsonify({
+            'success': True,
+            'barcode': barcode_base64,
+            'serial_number': asset.serial_num
+        })
+    
+    finally:
+        db_session.close()
+
+@assets_bp.route('/bulk-labels', methods=['GET', 'POST'])
+@login_required
+def bulk_labels():
+    """Generate bulk labels for multiple assets"""
+    db_session = SessionLocal()
+    try:
+        if request.method == 'GET':
+            # Show the bulk label selection page
+            assets = db_session.query(Asset).filter(Asset.serial_num.isnot(None)).all()
+            return render_template('assets/bulk_labels.html', assets=assets)
+        
+        elif request.method == 'POST':
+            # Generate labels for selected assets
+            asset_ids = request.form.getlist('asset_ids')
+            if not asset_ids:
+                flash('Please select at least one asset', 'error')
+                return redirect(url_for('assets.bulk_labels'))
+            
+            # Get selected assets
+            assets = db_session.query(Asset).filter(Asset.id.in_(asset_ids)).all()
+            labels = []
+            
+            for asset in assets:
+                # Load company relationship if not already loaded
+                if not asset.company and asset.company_id:
+                    asset.company = db_session.query(Company).filter_by(id=asset.company_id).first()
+                
+                label_base64 = barcode_generator.generate_label_base64(asset)
+                if label_base64:
+                    labels.append({
+                        'asset': asset,
+                        'label': label_base64
+                    })
+            
+            if not labels:
+                flash('Failed to generate any labels', 'error')
+                return redirect(url_for('assets.bulk_labels'))
+            
+            return render_template('assets/bulk_labels_preview.html', labels=labels)
+    
+    finally:
+        db_session.close()
+
+@assets_bp.route('/download-label/<int:asset_id>')
+@login_required
+def download_label(asset_id):
+    """Download asset label as PNG file"""
+    db_session = SessionLocal()
+    try:
+        asset = db_session.query(Asset).filter_by(id=asset_id).first()
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view'))
+        
+        # Load company relationship if not already loaded
+        if not asset.company and asset.company_id:
+            asset.company = db_session.query(Company).filter_by(id=asset.company_id).first()
+        
+        # Generate label image
+        label_image = barcode_generator.generate_asset_label(asset)
+        
+        if not label_image:
+            flash('Failed to generate label', 'error')
+            return redirect(url_for('inventory.view'))
+        
+        # Convert to bytes
+        img_buffer = io.BytesIO()
+        label_image.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        
+        # Create response
+        response = make_response(img_buffer.getvalue())
+        response.headers['Content-Type'] = 'image/png'
+        response.headers['Content-Disposition'] = f'attachment; filename=asset_label_{asset.serial_num}.png'
+        
+        return response
+    
+    finally:
+        db_session.close()
+
+@assets_bp.route('/labels')
+@login_required
+def labels_dashboard():
+    """Asset labels dashboard"""
+    db_session = SessionLocal()
+    try:
+        # Get assets with serial numbers for labeling
+        assets = db_session.query(Asset).filter(Asset.serial_num.isnot(None)).limit(50).all()
+        
+        return render_template('assets/labels_dashboard.html', assets=assets)
+    
     finally:
         db_session.close() 

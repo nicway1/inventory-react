@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Asset Labels Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Asset Labels Dashboard</h1>
+                <p class="text-gray-600 mt-1">Generate barcode labels for your assets</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('inventory.view_inventory') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Inventory
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-barcode text-gray-400 text-2xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Assets with Serial Numbers</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ assets|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-print text-gray-400 text-2xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Ready for Labeling</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ assets|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-tags text-gray-400 text-2xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Label Types</dt>
+                            <dd class="text-lg font-medium text-gray-900">1</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Bulk Labels -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-print text-blue-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-medium text-gray-900">Bulk Label Generation</h3>
+                    <p class="text-sm text-gray-600">Generate multiple asset labels at once</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• Select multiple assets for labeling</li>
+                    <li>• Print all labels in one batch</li>
+                    <li>• Optimized for label printers</li>
+                    <li>• Download individual or bulk files</li>
+                </ul>
+            </div>
+            <a href="{{ url_for('assets.bulk_labels') }}" 
+               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md inline-flex items-center w-full justify-center">
+                <i class="fas fa-print mr-2"></i>
+                Start Bulk Labeling
+            </a>
+        </div>
+
+        <!-- Individual Labels -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-qrcode text-green-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-medium text-gray-900">Individual Labels</h3>
+                    <p class="text-sm text-gray-600">Generate labels for specific assets</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• Quick single asset labeling</li>
+                    <li>• Preview before printing</li>
+                    <li>• Download PNG format</li>
+                    <li>• Includes asset details</li>
+                </ul>
+            </div>
+            <div class="space-y-2">
+                <input type="text" 
+                       id="serialSearch" 
+                       placeholder="Enter serial number..."
+                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <button onclick="searchAndLabel()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md inline-flex items-center w-full justify-center">
+                    <i class="fas fa-search mr-2"></i>
+                    Find & Label Asset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Assets -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Recent Assets</h3>
+            <p class="mt-1 text-sm text-gray-600">
+                Assets available for labeling (showing first 50)
+            </p>
+        </div>
+
+        {% if assets %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Serial Number
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Asset Tag
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Model
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Company
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for asset in assets %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ asset.serial_num }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ asset.asset_tag or 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ asset.model or 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {% if asset.company %}
+                                {{ asset.company.name }}
+                            {% elif asset.customer %}
+                                {{ asset.customer }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                {% if asset.status.name == 'IN_STOCK' %}bg-green-100 text-green-800
+                                {% elif asset.status.name == 'DEPLOYED' %}bg-blue-100 text-blue-800
+                                {% elif asset.status.name == 'REPAIR' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ asset.status.value if asset.status else 'Unknown' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <a href="{{ url_for('assets.generate_asset_label', asset_id=asset.id) }}" 
+                               class="text-blue-600 hover:text-blue-900">
+                                Generate Label
+                            </a>
+                            <span class="text-gray-300">|</span>
+                            <button onclick="generateBarcode({{ asset.id }}, '{{ asset.serial_num }}')" 
+                                    class="text-green-600 hover:text-green-900">
+                                View Barcode
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-6 text-center">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">
+                            No Assets Available
+                        </h3>
+                        <p class="mt-2 text-sm text-yellow-700">
+                            No assets with serial numbers found. Make sure your assets have serial numbers before generating labels.
+                        </p>
+                        <div class="mt-4">
+                            <a href="{{ url_for('inventory.view_inventory') }}" 
+                               class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm">
+                                Go to Inventory
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Barcode Modal -->
+<div id="barcodeModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900" id="barcodeModalTitle">Asset Barcode</h3>
+                    <button onclick="closeBarcodeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="px-6 py-4">
+                <div class="text-center">
+                    <div id="barcodeContainer" class="mb-4">
+                        <!-- Barcode will be inserted here -->
+                    </div>
+                    <p class="text-sm text-gray-600" id="barcodeSerialNumber"></p>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button onclick="closeBarcodeModal()" 
+                        class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded">
+                    Close
+                </button>
+                <button onclick="printBarcodeFromModal()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentBarcodeData = null;
+
+function searchAndLabel() {
+    const serialNumber = document.getElementById('serialSearch').value.trim();
+    if (!serialNumber) {
+        alert('Please enter a serial number');
+        return;
+    }
+    
+    // Find asset in the table
+    const rows = document.querySelectorAll('tbody tr');
+    let found = false;
+    
+    for (const row of rows) {
+        const serialCell = row.querySelector('td:first-child');
+        if (serialCell && serialCell.textContent.trim().toLowerCase() === serialNumber.toLowerCase()) {
+            const labelLink = row.querySelector('a[href*="generate_asset_label"]');
+            if (labelLink) {
+                window.location.href = labelLink.href;
+                found = true;
+                break;
+            }
+        }
+    }
+    
+    if (!found) {
+        alert('Asset not found with that serial number');
+    }
+}
+
+function generateBarcode(assetId, serialNumber) {
+    // Show loading in modal
+    document.getElementById('barcodeModalTitle').textContent = 'Loading Barcode...';
+    document.getElementById('barcodeContainer').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
+    document.getElementById('barcodeSerialNumber').textContent = serialNumber;
+    document.getElementById('barcodeModal').classList.remove('hidden');
+    
+    // Fetch barcode
+    fetch(`/assets/generate-barcode/${assetId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('barcodeModalTitle').textContent = `Barcode - ${serialNumber}`;
+                document.getElementById('barcodeContainer').innerHTML = 
+                    `<img src="${data.barcode}" alt="Barcode for ${serialNumber}" class="max-w-full h-auto border border-gray-300 rounded">`;
+                currentBarcodeData = {
+                    image: data.barcode,
+                    serialNumber: serialNumber
+                };
+            } else {
+                document.getElementById('barcodeModalTitle').textContent = 'Error';
+                document.getElementById('barcodeContainer').innerHTML = 
+                    '<div class="text-red-600"><i class="fas fa-exclamation-triangle"></i> Failed to generate barcode</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('barcodeModalTitle').textContent = 'Error';
+            document.getElementById('barcodeContainer').innerHTML = 
+                '<div class="text-red-600"><i class="fas fa-exclamation-triangle"></i> Network error</div>';
+        });
+}
+
+function closeBarcodeModal() {
+    document.getElementById('barcodeModal').classList.add('hidden');
+    currentBarcodeData = null;
+}
+
+function printBarcodeFromModal() {
+    if (!currentBarcodeData) {
+        alert('No barcode data available');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Barcode - ${currentBarcodeData.serialNumber}</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 20px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    background: white;
+                }
+                img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                @media print {
+                    body { margin: 0; padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <img src="${currentBarcodeData.image}" alt="Barcode">
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = function() {
+        setTimeout(function() {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+}
+
+// Enter key support for search
+document.getElementById('serialSearch').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchAndLabel();
+    }
+});
+
+// ESC key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeBarcodeModal();
+    }
+});
+
+// Click outside modal to close
+document.getElementById('barcodeModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeBarcodeModal();
+    }
+});
+</script>
+{% endblock %} 

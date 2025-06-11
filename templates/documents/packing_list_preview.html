@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Packing List Preview{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header Actions -->
+        <div class="mb-8 flex justify-between items-center no-print">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Packing List Preview</h1>
+                <p class="mt-1 text-gray-600">Review your packing list before printing</p>
+            </div>
+            <div class="flex space-x-4">
+                <button onclick="window.print()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-print mr-2"></i>
+                    Print List
+                </button>
+                <a href="{{ url_for('documents.packing_list_form') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-edit mr-2"></i>
+                    Edit
+                </a>
+                <a href="{{ url_for('documents.dashboard') }}" 
+                   class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Documents
+                </a>
+            </div>
+        </div>
+
+        <!-- Packing List Document -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden" id="packing-document">
+            <!-- Header Section -->
+            <div class="p-6 border-b border-gray-300">
+                <div class="flex justify-between items-start">
+                    <!-- Company Logo and Info -->
+                    <div class="flex items-center">
+                        <div class="text-blue-600 mr-4">
+                            <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-shipping-fast text-2xl"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-blue-600">TRUELOG PTE LTD</h1>
+                            <p class="text-sm text-gray-600">(Reg no.: 201543185N)</p>
+                            <p class="text-sm text-gray-600">101 Cecil St, #11-05 Tong Eng Building, Singapore 069533</p>
+                            <p class="text-sm text-gray-600">Tel: +65 6909 3756 Fax: +65 6909 3757</p>
+                            <p class="text-sm font-medium text-blue-600">Your Logistics Provider</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Document Details -->
+                    <div class="text-right">
+                        <h2 class="text-xl font-bold text-gray-900">Invoice Number: {{ data.invoice_number }}</h2>
+                        <p class="text-sm text-gray-600 mt-2">Date: {{ data.date }}</p>
+                        <div class="mt-4 text-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="text-left font-medium text-gray-700">Shipper Reference:</div>
+                                <div class="text-right">{{ data.shipper_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Consignee Reference:</div>
+                                <div class="text-right">{{ data.consignee_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">End User Reference:</div>
+                                <div class="text-right">{{ data.end_user_reference or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Payment Terms:</div>
+                                <div class="text-right">{{ data.payment_terms or '-' }}</div>
+                                <div class="text-left font-medium text-gray-700">Incoterms:</div>
+                                <div class="text-right">{{ data.incoterms or 'DDP' }}</div>
+                                <div class="text-left font-medium text-gray-700">Incoterms Named Place:</div>
+                                <div class="text-right">{{ data.incoterms_named_place or 'DDP - Thailand' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery and Package Information -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- End User/Delivery Location -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">End User / Delivery Location</h3>
+                        <p class="text-sm">{{ data.end_user_delivery_location }}</p>
+                    </div>
+                    
+                    <!-- Package Info -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">Package Number</h3>
+                        {% for package in data.packages %}
+                        <p class="text-sm">{{ package.number }}</p>
+                        {% endfor %}
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">Weight (kg)</h3>
+                        {% for package in data.packages %}
+                        <p class="text-sm">{{ package.weight }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <div class="text-right">
+                        <h3 class="font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">Dims (L x W x H) cm</h3>
+                        {% for package in data.packages %}
+                        <p class="text-sm">{{ package.dimensions }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr class="border-b border-gray-300">
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Package Number</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Product Code</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Description Of Goods</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">Manufacturer</th>
+                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-900 border-r border-gray-300">Qty</th>
+                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-900">Lithium Battery</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data.items %}
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.package_number }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.product_code }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.description }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">{{ item.manufacturer }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">{{ item.qty }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-center">{{ 'Yes' if item.lithium_battery else 'No' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Information -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2">Country Of Destination</h3>
+                        <p class="text-sm">{{ data.country_destination }}</p>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2">Country of End Use</h3>
+                        <p class="text-sm">{{ data.country_end_use }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Print Instructions -->
+        <div class="mt-8 bg-green-50 border border-green-200 rounded-lg p-4 no-print">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-green-600"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-green-800">Printing Instructions</h3>
+                    <div class="mt-2 text-sm text-green-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Use A4 paper size for best results</li>
+                            <li>Set printer to "Actual Size" or 100% scale</li>
+                            <li>Ensure margins are set to minimum for full page usage</li>
+                            <li>This document is optimized for shipping compliance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    #packing-document {
+        box-shadow: none;
+        border-radius: 0;
+        margin: 0;
+        padding: 0;
+    }
+    
+    table {
+        page-break-inside: avoid;
+    }
+    
+    .page-break {
+        page-break-before: always;
+    }
+}
+</style>
+{% endblock %} 

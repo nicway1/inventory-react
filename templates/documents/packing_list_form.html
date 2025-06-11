@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Create Packing List{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Create Packing List</h1>
+                    <p class="mt-2 text-gray-600">Fill in the details to generate a professional packing list</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('documents.dashboard') }}" 
+                       class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Documents
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('documents.generate_packing_list') }}" class="space-y-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <!-- Document Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Document Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="invoice_number" class="block text-sm font-medium text-gray-700 mb-2">Invoice Number*</label>
+                        <input type="text" id="invoice_number" name="invoice_number" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                               placeholder="TLSIN-2025-000009">
+                    </div>
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date*</label>
+                        <input type="date" id="date" name="date" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="shipper_reference" class="block text-sm font-medium text-gray-700 mb-2">Shipper Reference</label>
+                        <input type="text" id="shipper_reference" name="shipper_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                               placeholder="Q2403341">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <div>
+                        <label for="consignee_reference" class="block text-sm font-medium text-gray-700 mb-2">Consignee Reference</label>
+                        <input type="text" id="consignee_reference" name="consignee_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="end_user_reference" class="block text-sm font-medium text-gray-700 mb-2">End User Reference</label>
+                        <input type="text" id="end_user_reference" name="end_user_reference"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="payment_terms" class="block text-sm font-medium text-gray-700 mb-2">Payment Terms</label>
+                        <input type="text" id="payment_terms" name="payment_terms"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="incoterms" class="block text-sm font-medium text-gray-700 mb-2">Incoterms</label>
+                        <select id="incoterms" name="incoterms"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <option value="DDP">DDP - Delivery Duty Paid</option>
+                            <option value="EXW">EXW - Ex Works</option>
+                            <option value="FOB">FOB - Free on Board</option>
+                            <option value="CIF">CIF - Cost, Insurance & Freight</option>
+                            <option value="DAP">DAP - Delivered at Place</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="incoterms_named_place" class="block text-sm font-medium text-gray-700 mb-2">Incoterms Named Place</label>
+                        <input type="text" id="incoterms_named_place" name="incoterms_named_place"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                               placeholder="DDP - Thailand">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">End User / Delivery Location</h2>
+                <div>
+                    <label for="end_user_delivery_location" class="block text-sm font-medium text-gray-700 mb-2">End User / Delivery Location*</label>
+                    <input type="text" id="end_user_delivery_location" name="end_user_delivery_location" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                           placeholder="Bangkok, Thailand">
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center">
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-md text-lg font-semibold">
+                    <i class="fas fa-list-alt mr-2"></i>Generate Packing List
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Set today's date
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+});
+</script>
+{% endblock %} 

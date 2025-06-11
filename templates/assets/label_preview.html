@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Asset Label - {{ asset.serial_num }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Asset Label Preview</h1>
+                <p class="text-gray-600 mt-1">Serial Number: {{ asset.serial_num }}</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('assets.download_label', asset_id=asset.id) }}" 
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-download mr-2"></i>
+                    Download PNG
+                </a>
+                <button onclick="printLabel()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-print mr-2"></i>
+                    Print Label
+                </button>
+                <a href="{{ url_for('inventory.view_inventory') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Inventory
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Info -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Asset Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Serial Number</dt>
+                <dd class="text-sm text-gray-900">{{ asset.serial_num }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Asset Tag</dt>
+                <dd class="text-sm text-gray-900">{{ asset.asset_tag or 'N/A' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Model</dt>
+                <dd class="text-sm text-gray-900">{{ asset.model or 'N/A' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Company</dt>
+                <dd class="text-sm text-gray-900">
+                    {% if asset.company %}
+                        {{ asset.company.name }}
+                    {% elif asset.customer %}
+                        {{ asset.customer }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Status</dt>
+                <dd class="text-sm text-gray-900">{{ asset.status.value if asset.status else 'N/A' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Location</dt>
+                <dd class="text-sm text-gray-900">{{ asset.location.name if asset.location else 'N/A' }}</dd>
+            </div>
+        </div>
+    </div>
+
+    <!-- Label Preview -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Label Preview</h2>
+        <div class="flex justify-center">
+            <div class="label-container bg-gray-50 p-8 rounded-lg border-2 border-dashed border-gray-300">
+                {% if label_image %}
+                    <img src="{{ label_image }}" 
+                         alt="Asset Label for {{ asset.serial_num }}"
+                         class="max-w-full h-auto border border-gray-300 rounded shadow-sm"
+                         id="labelImage">
+                {% else %}
+                    <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-red-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">
+                                    Label Generation Failed
+                                </h3>
+                                <p class="mt-2 text-sm text-red-700">
+                                    Unable to generate barcode label for this asset.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Print instructions -->
+        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">
+                        Printing Instructions
+                    </h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Use label paper sized 4" x 2" (400x200 pixels) for best results</li>
+                            <li>Set printer to highest quality settings</li>
+                            <li>Ensure proper alignment in your label printer</li>
+                            <li>Test print on regular paper first if needed</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print-specific styles -->
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    .print-content, .print-content * {
+        visibility: visible;
+    }
+    
+    .print-content {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: white;
+    }
+    
+    .print-content img {
+        max-width: 4in;
+        max-height: 2in;
+        width: auto;
+        height: auto;
+    }
+}
+</style>
+
+<script>
+function printLabel() {
+    // Create a print-friendly version
+    const printWindow = window.open('', '_blank');
+    const labelImage = document.getElementById('labelImage');
+    
+    if (labelImage) {
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Asset Label - {{ asset.serial_num }}</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 20px;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                        background: white;
+                    }
+                    img {
+                        max-width: 4in;
+                        max-height: 2in;
+                        width: auto;
+                        height: auto;
+                        border: 1px solid #ccc;
+                    }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0;
+                        }
+                        img {
+                            max-width: 4in;
+                            max-height: 2in;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="${labelImage.src}" alt="Asset Label">
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        
+        // Wait for image to load, then print
+        printWindow.onload = function() {
+            setTimeout(function() {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        };
+    } else {
+        alert('No label image available to print');
+    }
+}
+
+// Add regenerate functionality
+function regenerateLabel() {
+    location.reload();
+}
+</script>
+{% endblock %} 
