@@ -808,19 +808,29 @@ def system_config():
             # and use the API key from config
             print(f"Error fetching Firecrawl keys: {str(e)}")
         
+        # Add Microsoft 365 OAuth2 configuration to config for template
+        import os
+        
         # Get the current API key from the environment or config
         current_api_key = os.environ.get('FIRECRAWL_API_KEY') or current_app.config.get('FIRECRAWL_API_KEY', 'Not set')
 
         # Get version information
         version_info = get_full_version_info()
-
+        config_with_ms = dict(current_app.config)
+        config_with_ms.update({
+            'MS_CLIENT_ID': os.getenv('MS_CLIENT_ID'),
+            'MS_CLIENT_SECRET': os.getenv('MS_CLIENT_SECRET'),
+            'MS_TENANT_ID': os.getenv('MS_TENANT_ID'),
+            'MS_FROM_EMAIL': os.getenv('MS_FROM_EMAIL'),
+        })
+        
         return render_template('admin/system_config.html', 
                              user=user,
                              firecrawl_keys=firecrawl_keys,
                              active_key=active_key,
                              current_api_key=current_api_key,
                              version_info=version_info,
-                             config=current_app.config)
+                             config=config_with_ms)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
@@ -1431,4 +1441,361 @@ def delete_backup(filename):
         
     except Exception as e:
         flash(f'Error deleting backup: {str(e)}', 'error')
-        return redirect(url_for('admin.system_config')) 
+        return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/billing-generator')
+@admin_required
+def billing_generator():
+    """Main billing generator page"""
+    try:
+        from models.ticket import Ticket
+        from models.company import Company
+        from models.user import Country
+        from sqlalchemy import extract, func
+        
+        db_session = db_manager.get_session()
+        
+        # Get available months and years from tickets
+        date_ranges = db_session.query(
+            extract('year', Ticket.created_at).label('year'),
+            extract('month', Ticket.created_at).label('month')
+        ).distinct().order_by(
+            extract('year', Ticket.created_at).desc(),
+            extract('month', Ticket.created_at).desc()
+        ).all()
+        
+        # Get all companies
+        companies = db_session.query(Company).all()
+        
+        # Get all countries
+        countries = [country.value for country in Country]
+        
+        return render_template('admin/billing_generator.html',
+                             date_ranges=date_ranges,
+                             companies=companies,
+                             countries=countries)
+        
+    except Exception as e:
+        flash(f'Error loading billing generator: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/billing-generator/tickets', methods=['POST'])
+@admin_required
+def get_billing_tickets():
+    """Get tickets for billing based on filters"""
+    try:
+        from models.ticket import Ticket
+        from models.user import User
+        from models.company import Company
+        from sqlalchemy import extract, and_, or_
+        
+        db_session = db_manager.get_session()
+        
+        # Get filter parameters
+        year = request.json.get('year')
+        month = request.json.get('month')
+        country = request.json.get('country')
+        company_id = request.json.get('company_id')
+        category = request.json.get('category')
+        
+        # Build query
+        query = db_session.query(Ticket).join(User, Ticket.requester_id == User.id)
+        
+        # Date filters
+        if year and month:
+            query = query.filter(
+                and_(
+                    extract('year', Ticket.created_at) == year,
+                    extract('month', Ticket.created_at) == month
+                )
+            )
+        elif year:
+            query = query.filter(extract('year', Ticket.created_at) == year)
+        
+        # Country filter
+        if country:
+            query = query.filter(User.assigned_country == country)
+        
+        # Company filter
+        if company_id:
+            query = query.filter(User.company_id == company_id)
+        
+        # Category filter
+        if category:
+            query = query.filter(Ticket.category_id == category)
+        
+        # Get tickets
+        tickets = query.all()
+        
+        # Convert to JSON-serializable format
+        tickets_data = []
+        for ticket in tickets:
+            tickets_data.append({
+                'id': ticket.id,
+                'subject': ticket.subject,
+                'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                'created_at': ticket.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'requester': ticket.requester.username if ticket.requester else 'Unknown',
+                'country': ticket.requester.assigned_country.value if ticket.requester and ticket.requester.assigned_country else 'Unknown',
+                'company': ticket.requester.company.name if ticket.requester and ticket.requester.company else 'Unknown',
+                'category': ticket.category.name if ticket.category else 'Unknown',
+                'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else 'Normal'
+            })
+        
+        return jsonify({
+            'success': True,
+            'tickets': tickets_data,
+            'count': len(tickets_data)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+    finally:
+        db_session.close()
+
+@admin_bp.route('/billing-generator/generate', methods=['POST'])
+@admin_required
+def generate_billing_report():
+    """Generate billing report for selected tickets"""
+    try:
+        from models.ticket import Ticket
+        from models.user import User
+        from models.company import Company
+        import json
+        
+        db_session = db_manager.get_session()
+        
+        # Get parameters
+        ticket_ids = request.json.get('ticket_ids', [])
+        year = request.json.get('year')
+        month = request.json.get('month')
+        
+        if not ticket_ids:
+            return jsonify({
+                'success': False,
+                'error': 'No tickets selected'
+            })
+        
+        # Get tickets
+        tickets = db_session.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
+        
+        # Group tickets by country
+        billing_data = {}
+        
+        for ticket in tickets:
+            country = ticket.requester.assigned_country.value if ticket.requester and ticket.requester.assigned_country else 'Unknown'
+            
+            if country not in billing_data:
+                billing_data[country] = {
+                    'tickets': [],
+                    'fees': {
+                        'receiving_fee': 0,
+                        'warehouse_storage_fee': 0,
+                        'order_fee': 0,
+                        'return_fee': 0,
+                        'intake_fee': 0,
+                        'management_fee': 0,
+                        'cancelled_returns': 0,
+                        'signature_fee': 0
+                    },
+                    'total_amount': 0,
+                    'quantity': 0
+                }
+            
+            billing_data[country]['tickets'].append({
+                'id': ticket.id,
+                'subject': ticket.subject,
+                'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                'category': ticket.category.name if ticket.category else 'Unknown',
+                'created_at': ticket.created_at.strftime('%Y-%m-%d')
+            })
+            
+            billing_data[country]['quantity'] += 1
+            
+            # Calculate fees based on ticket category and type
+            category_name = ticket.category.name if ticket.category else 'Unknown'
+            
+            if 'CHECKOUT' in category_name.upper():
+                billing_data[country]['fees']['order_fee'] += 500  # Example fee
+            elif 'RETURN' in category_name.upper():
+                billing_data[country]['fees']['return_fee'] += 240
+            elif 'INTAKE' in category_name.upper():
+                billing_data[country]['fees']['intake_fee'] += 1100
+            
+            # Add receiving fee for all tickets
+            billing_data[country]['fees']['receiving_fee'] += 80
+            
+            # Calculate warehouse storage fee (monthly)
+            billing_data[country]['fees']['warehouse_storage_fee'] += 10
+        
+        # Calculate totals
+        for country_data in billing_data.values():
+            country_data['total_amount'] = sum(country_data['fees'].values())
+        
+        return jsonify({
+            'success': True,
+            'billing_data': billing_data,
+            'year': year,
+            'month': month,
+            'month_name': datetime(int(year), int(month), 1).strftime('%B') if year and month else None
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+    finally:
+        db_session.close()
+
+@admin_bp.route('/billing-generator/export', methods=['POST'])
+@admin_required
+def export_billing_report():
+    """Export billing report to Excel"""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        
+        # Get the billing data from the request
+        billing_data = request.json.get('billing_data', {})
+        year = request.json.get('year')
+        month = request.json.get('month')
+        
+        # Create Excel file in memory
+        output = BytesIO()
+        
+        # Create a workbook and add worksheets
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            
+            # Summary sheet
+            summary_data = []
+            for country, data in billing_data.items():
+                row = {
+                    'Country': country,
+                    'Total Tickets': data['quantity'],
+                    'Receiving Fee': data['fees']['receiving_fee'],
+                    'Warehouse/Storage Fee': data['fees']['warehouse_storage_fee'],
+                    'Order Fee': data['fees']['order_fee'],
+                    'Return Fee': data['fees']['return_fee'],
+                    'Intake Fee': data['fees']['intake_fee'],
+                    'Management Fee': data['fees']['management_fee'],
+                    'Total Amount': data['total_amount']
+                }
+                summary_data.append(row)
+            
+            summary_df = pd.DataFrame(summary_data)
+            summary_df.to_excel(writer, sheet_name='Billing Summary', index=False)
+            
+            # Detailed sheets for each country
+            for country, data in billing_data.items():
+                if data['tickets']:
+                    tickets_df = pd.DataFrame(data['tickets'])
+                    sheet_name = f"{country} Details"[:31]  # Excel sheet name limit
+                    tickets_df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+        output.seek(0)
+        
+        # Create filename
+        filename = f"billing_report_{year}_{month:02d}.xlsx" if year and month else "billing_report.xlsx"
+        
+        return send_file(
+            BytesIO(output.read()),
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting billing report: {str(e)}', 'error')
+        return redirect(url_for('admin.billing_generator'))
+
+@admin_bp.route('/test-email', methods=['GET', 'POST'])
+@super_admin_required
+def test_email():
+    """Test email configuration (Microsoft OAuth2 or SMTP)"""
+    if request.method == 'POST':
+        try:
+            from utils.microsoft_email import get_microsoft_email_client
+            from utils.email_sender import _send_email_via_method
+            
+            test_email = request.form.get('test_email')
+            if not test_email:
+                flash('Please provide a test email address', 'error')
+                return redirect(url_for('admin.test_email'))
+            
+            # Test Microsoft Graph connection
+            microsoft_client = get_microsoft_email_client()
+            if microsoft_client:
+                success, message = microsoft_client.test_connection()
+                if success:
+                    flash(f'Microsoft Graph connection successful: {message}', 'success')
+                    
+                    # Send test email
+                    test_subject = 'TrueLog Email Test - Microsoft OAuth2'
+                    test_html = f"""
+                    <h2>Email Test Successful!</h2>
+                    <p>This email was sent using Microsoft Graph API with OAuth2 authentication.</p>
+                    <p><strong>Sent to:</strong> {test_email}</p>
+                    <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                    <p>Your Microsoft 365 email integration is working correctly!</p>
+                    """
+                    
+                    result = _send_email_via_method(
+                        to_emails=test_email,
+                        subject=test_subject,
+                        html_body=test_html,
+                        text_body="Email test successful! Microsoft OAuth2 is working."
+                    )
+                    
+                    if result:
+                        flash(f'Test email sent successfully to {test_email}', 'success')
+                    else:
+                        flash('Failed to send test email', 'error')
+                        
+                else:
+                    flash(f'Microsoft Graph connection failed: {message}', 'error')
+            else:
+                flash('Microsoft email client not configured. Using SMTP fallback.', 'warning')
+                
+                # Test SMTP fallback
+                try:
+                    result = _send_email_via_method(
+                        to_emails=test_email,
+                        subject='TrueLog Email Test - SMTP Fallback',
+                        html_body=f"""
+                        <h2>SMTP Email Test</h2>
+                        <p>This email was sent using SMTP fallback.</p>
+                        <p><strong>Sent to:</strong> {test_email}</p>
+                        <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                        """,
+                        text_body="SMTP email test successful!"
+                    )
+                    
+                    if result:
+                        flash(f'Test email sent successfully via SMTP to {test_email}', 'success')
+                    else:
+                        flash('Failed to send test email via SMTP', 'error')
+                        
+                except Exception as smtp_error:
+                    flash(f'SMTP test failed: {str(smtp_error)}', 'error')
+            
+        except Exception as e:
+            flash(f'Error testing email: {str(e)}', 'error')
+        
+        return redirect(url_for('admin.test_email'))
+    
+    # GET request - show test form
+    import os
+    config_with_ms = dict(current_app.config)
+    config_with_ms.update({
+        'MS_CLIENT_ID': os.getenv('MS_CLIENT_ID'),
+        'MS_CLIENT_SECRET': os.getenv('MS_CLIENT_SECRET'),
+        'MS_TENANT_ID': os.getenv('MS_TENANT_ID'),
+        'MS_FROM_EMAIL': os.getenv('MS_FROM_EMAIL'),
+    })
+    return render_template('admin/test_email.html', config=config_with_ms) 

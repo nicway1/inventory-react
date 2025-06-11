@@ -8,8 +8,8 @@ from datetime import datetime
 
 # Version Information
 VERSION_MAJOR = 0
-VERSION_MINOR = 5
-VERSION_PATCH = 1
+VERSION_MINOR = 6
+VERSION_PATCH = 0
 VERSION_BUILD = 1
 
 # Build the version string
@@ -17,8 +17,8 @@ VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
 VERSION_FULL = f"{VERSION}.{VERSION_BUILD}"
 
 # Build information
-BUILD_DATE = "2025-06-09"
-BUILD_TIME = "11:02:30"
+BUILD_DATE = "2025-06-11"
+BUILD_TIME = "17:55:00"
 
 # Git information (if available)
 def get_git_info():

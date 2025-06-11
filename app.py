@@ -1,6 +1,10 @@
 from flask import Flask, redirect, url_for, render_template, session, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager, current_user
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from routes.inventory import inventory_bp
 from routes.auth import auth_bp
 from routes.tickets import tickets_bp
@@ -73,7 +77,14 @@ def create_app():
         WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration
         WTF_CSRF_CHECK_DEFAULT=True,  # Enable CSRF check by default
         WTF_CSRF_SSL_STRICT=False,  # Allow CSRF tokens over HTTP
-        # Email configuration for Gmail SMTP (Recommended alternative)
+        # Microsoft 365 OAuth2 configuration (Primary)
+        MS_CLIENT_ID=os.environ.get('MS_CLIENT_ID'),
+        MS_CLIENT_SECRET=os.environ.get('MS_CLIENT_SECRET'),
+        MS_TENANT_ID=os.environ.get('MS_TENANT_ID'),
+        MS_FROM_EMAIL=os.environ.get('MS_FROM_EMAIL'),
+        USE_OAUTH2_EMAIL=os.environ.get('USE_OAUTH2_EMAIL', 'false').lower() == 'true',
+        
+        # Gmail SMTP configuration (Fallback)
         MAIL_SERVER='smtp.gmail.com',
         MAIL_PORT=587,
         MAIL_USE_TLS=True,
@@ -87,13 +98,6 @@ def create_app():
         MAIL_DEBUG=True,  # Enable debug mode
         # Additional SMTP configuration for better compatibility
         MAIL_TIMEOUT=30,  # Increase timeout
-        
-        # OAuth2 configuration for Microsoft Graph API (Recommended for corporate accounts)
-        OAUTH2_CLIENT_ID=os.environ.get('OAUTH2_CLIENT_ID', 'your-azure-client-id'),
-        OAUTH2_CLIENT_SECRET=os.environ.get('OAUTH2_CLIENT_SECRET', 'your-azure-client-secret'),
-        OAUTH2_TENANT_ID=os.environ.get('OAUTH2_TENANT_ID', 'your-azure-tenant-id'),
-        OAUTH2_DEFAULT_SENDER=os.environ.get('OAUTH2_DEFAULT_SENDER', 'support@truelog.com.sg'),
-        USE_OAUTH2_EMAIL=os.environ.get('USE_OAUTH2_EMAIL', 'False').lower() == 'true'  # Set to False to use SMTP
     )
 
     # Initialize CORS
@@ -116,12 +120,19 @@ def create_app():
     # oauth2_mail.init_app(app)
 
     # Log mail configuration
-    logging.info("Mail Configuration:")
-    logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
-    logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
-    logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
-    logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
-    logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
+    if app.config.get('USE_OAUTH2_EMAIL'):
+        logging.info("Mail Configuration: Microsoft 365 OAuth2")
+        logging.info(f"MS_CLIENT_ID: {app.config.get('MS_CLIENT_ID', 'Not set')}")
+        logging.info(f"MS_TENANT_ID: {app.config.get('MS_TENANT_ID', 'Not set')}")
+        logging.info(f"MS_FROM_EMAIL: {app.config.get('MS_FROM_EMAIL', 'Not set')}")
+        logging.info(f"USE_OAUTH2_EMAIL: {app.config.get('USE_OAUTH2_EMAIL')}")
+    else:
+        logging.info("Mail Configuration: Gmail SMTP (Fallback)")
+        logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
+        logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
+        logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
+        logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+        logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
 
     # Initialize database
     db = SQLAlchemy(app)

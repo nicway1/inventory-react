@@ -180,5 +180,40 @@
     "user_id": 1,
     "content": "<span class=\"mention\">@nicway1</span> hiiii",
     "created_at": "2025-06-10T19:55:22.093981"
+  },
+  {
+    "id": 7210,
+    "ticket_id": 10,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@nicway1</span> hiiii",
+    "created_at": "2025-06-11T16:54:43.476170"
+  },
+  {
+    "id": 9877,
+    "ticket_id": 10,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@nicway1</span> hii can u see",
+    "created_at": "2025-06-11T17:03:46.880875"
+  },
+  {
+    "id": 8336,
+    "ticket_id": 14,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@nicway1</span> hiiii",
+    "created_at": "2025-06-11T17:48:16.873179"
+  },
+  {
+    "id": 4793,
+    "ticket_id": 2,
+    "user_id": 1,
+    "content": "Hey <span class=\"mention\">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.",
+    "created_at": "2025-06-11T17:49:43.664456"
+  },
+  {
+    "id": 3467,
+    "ticket_id": 14,
+    "user_id": 1,
+    "content": "<span class=\"mention\">@nicway1</span> hiiii",
+    "created_at": "2025-06-11T17:50:25.374226"
   }
 ]

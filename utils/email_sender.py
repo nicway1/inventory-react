@@ -1,8 +1,66 @@
 from flask_mail import Mail, Message
 from flask import current_app
 import logging
+import os
+from .microsoft_email import get_microsoft_email_client
 
 mail = Mail()
+
+def _send_email_via_method(to_emails, subject, html_body, text_body=None, attachments=None):
+    """
+    Send email using the best available method (Microsoft OAuth2 or SMTP)
+    """
+    # Try Microsoft Graph first if configured
+    microsoft_client = get_microsoft_email_client()
+    if microsoft_client:
+        try:
+            return microsoft_client.send_email(
+                to_emails=to_emails,
+                subject=subject,
+                body=text_body or "Please view this email in an HTML-capable client.",
+                html_body=html_body,
+                attachments=attachments
+            )
+        except Exception as e:
+            logging.warning(f"Microsoft email failed, falling back to SMTP: {e}")
+    
+    # Fallback to regular SMTP
+    if not current_app:
+        logging.error("No Flask application context")
+        return False
+        
+    if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
+        logging.error("Mail configuration is incomplete")
+        return False
+    
+    # Convert single email to list
+    if isinstance(to_emails, str):
+        to_emails = [to_emails]
+    
+    msg = Message(
+        subject,
+        sender=('TrueLog Inventory', current_app.config['MAIL_DEFAULT_SENDER']),
+        recipients=to_emails
+    )
+    
+    if html_body:
+        msg.html = html_body
+    if text_body:
+        msg.body = text_body
+        
+    # Add attachments if provided
+    if attachments:
+        for attachment in attachments:
+            if isinstance(attachment, str):
+                with open(attachment, 'rb') as f:
+                    msg.attach(
+                        os.path.basename(attachment),
+                        'application/octet-stream',
+                        f.read()
+                    )
+    
+    mail.send(msg)
+    return True
 
 def send_welcome_email(user_email, username, password):
     """
@@ -93,9 +151,16 @@ If you need any assistance, please contact our support team.
 Best regards,
 TrueLog Support Team"""
         
-        mail.send(msg)
-        logging.info(f"Welcome email sent successfully to {user_email}")
-        return True
+        result = _send_email_via_method(
+            to_emails=user_email,
+            subject='Welcome to TrueLog - Your Account Information',
+            html_body=msg.html,
+            text_body=msg.body
+        )
+        
+        if result:
+            logging.info(f"Welcome email sent successfully to {user_email}")
+        return result
     except Exception as e:
         logging.error(f"Error sending email to {user_email}: {str(e)}")
         print(f"Error sending email: {str(e)}")
@@ -113,10 +178,6 @@ def send_mention_notification_email(mentioned_user, commenter, ticket, comment_c
             logging.error("No Flask application context")
             return False
             
-        if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
-            logging.error("Mail configuration is incomplete")
-            return False
-            
         if not mentioned_user.email:
             logging.warning(f"User {mentioned_user.username} has no email address")
             return False
@@ -132,14 +193,8 @@ def send_mention_notification_email(mentioned_user, commenter, ticket, comment_c
         # Create the ticket URL
         ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
         
-        msg = Message(
-            f'You were mentioned in Case {ticket.display_id}',
-            sender=('TrueLog Notifications', current_app.config['MAIL_DEFAULT_SENDER']),
-            recipients=[mentioned_user.email]
-        )
-        
         # Salesforce-style HTML email template
-        msg.html = f"""
+        html_body = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -244,7 +299,7 @@ def send_mention_notification_email(mentioned_user, commenter, ticket, comment_c
         """
         
         # Plain text version as fallback
-        msg.body = f"""You were mentioned in Case {ticket.display_id}
+        text_body = f"""You were mentioned in Case {ticket.display_id}
 
 {commenter.username} mentioned you in a case comment:
 
@@ -261,9 +316,16 @@ View the case and reply: {ticket_url}
 TrueLog Inventory Management System
 This notification was sent because you were mentioned in a case comment."""
         
-        mail.send(msg)
-        logging.info(f"Mention notification email sent successfully to {mentioned_user.email}")
-        return True
+        result = _send_email_via_method(
+            to_emails=mentioned_user.email,
+            subject=f'You were mentioned in Case {ticket.display_id}',
+            html_body=html_body,
+            text_body=text_body
+        )
+        
+        if result:
+            logging.info(f"Mention notification email sent successfully to {mentioned_user.email}")
+        return result
         
     except Exception as e:
         logging.error(f"Error sending mention notification email to {mentioned_user.email if mentioned_user else 'unknown'}: {str(e)}")

@@ -1911,7 +1911,7 @@
                         <!-- JavaScript for tab switching and loading accessories -->
                         <script>
                             // Store the CSRF token for JavaScript use
-                            const csrfToken = '{{ csrf_token() }}';
+                            // Using csrfToken = '{{ csrf_token() }}';
                             console.log("CSRF token initialized:", csrfToken ? "OK" : "MISSING");
                             
                             // Function to switch between tabs
