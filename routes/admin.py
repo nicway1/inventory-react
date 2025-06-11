@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, session
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app, session, send_file
 from flask_login import current_user
 from flask_wtf.csrf import CSRFProtect
 from utils.auth_decorators import admin_required, super_admin_required, login_required
@@ -12,6 +12,8 @@ from models.queue import Queue
 from models.company_queue_permission import CompanyQueuePermission
 from utils.email_sender import send_welcome_email
 import os
+import shutil
+import glob
 from werkzeug.utils import secure_filename
 import uuid
 from werkzeug.security import generate_password_hash
@@ -23,6 +25,9 @@ from models.accessory_history import AccessoryHistory
 import traceback
 from models.firecrawl_key import FirecrawlKey
 from models.ticket_category_config import TicketCategoryConfig, CategoryDisplayConfig
+import tempfile
+import sqlite3
+import subprocess
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -1267,4 +1272,163 @@ def preview_ticket_category(category_id):
         flash(f'Error previewing ticket category: {str(e)}', 'error')
         return redirect(url_for('admin.manage_ticket_categories'))
     finally:
-        db_session.close() 
+        db_session.close()
+
+@admin_bp.route('/database/backup')
+@super_admin_required
+def create_database_backup():
+    """Create a backup of the SQLite database"""
+    try:
+        # Create backups directory if it doesn't exist
+        backup_dir = os.path.join(os.getcwd(), 'backups')
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Get current database path
+        db_path = 'inventory.db'  # Default SQLite database path
+        if not os.path.exists(db_path):
+            flash('Database file not found', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        # Create backup filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f'inventory_backup_{timestamp}.db'
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        # Copy the database file
+        shutil.copy2(db_path, backup_path)
+        
+        flash(f'Database backup created successfully: {backup_filename}', 'success')
+        return send_file(backup_path, as_attachment=True, download_name=backup_filename)
+        
+    except Exception as e:
+        flash(f'Error creating database backup: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/database/backups')
+@super_admin_required
+def list_database_backups():
+    """List all available database backups"""
+    try:
+        backup_dir = os.path.join(os.getcwd(), 'backups')
+        if not os.path.exists(backup_dir):
+            backups = []
+        else:
+            # Find all backup files
+            backup_files = glob.glob(os.path.join(backup_dir, 'inventory_backup_*.db'))
+            
+            backups = []
+            for file_path in backup_files:
+                filename = os.path.basename(file_path)
+                file_stat = os.stat(file_path)
+                file_size = round(file_stat.st_size / (1024 * 1024), 2)  # Size in MB
+                created_time = datetime.fromtimestamp(file_stat.st_ctime)
+                
+                backups.append({
+                    'filename': filename,
+                    'full_path': file_path,
+                    'size_mb': file_size,
+                    'created_at': created_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'created_timestamp': created_time
+                })
+            
+            # Sort by creation time (newest first)
+            backups.sort(key=lambda x: x['created_timestamp'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'backups': backups
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@admin_bp.route('/database/restore', methods=['POST'])
+@super_admin_required
+def restore_database():
+    """Restore the database from a backup file"""
+    try:
+        backup_filename = request.form.get('backup_filename')
+        if not backup_filename:
+            flash('No backup file specified', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        backup_dir = os.path.join(os.getcwd(), 'backups')
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        # Verify it's a valid SQLite database
+        try:
+            conn = sqlite3.connect(backup_path)
+            conn.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            conn.close()
+        except sqlite3.Error:
+            flash('Invalid database backup file', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        # Create a backup of current database before restore
+        current_db_path = 'inventory.db'
+        if os.path.exists(current_db_path):
+            pre_restore_backup = f'inventory_pre_restore_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+            pre_restore_path = os.path.join(backup_dir, pre_restore_backup)
+            shutil.copy2(current_db_path, pre_restore_path)
+        
+        # Restore the database
+        shutil.copy2(backup_path, current_db_path)
+        
+        flash(f'Database restored successfully from {backup_filename}', 'success')
+        return redirect(url_for('admin.system_config'))
+        
+    except Exception as e:
+        flash(f'Error restoring database: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/database/backup/download/<filename>')
+@super_admin_required
+def download_backup(filename):
+    """Download a specific backup file"""
+    try:
+        # Sanitize filename
+        safe_filename = secure_filename(filename)
+        backup_dir = os.path.join(os.getcwd(), 'backups')
+        backup_path = os.path.join(backup_dir, safe_filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        return send_file(backup_path, as_attachment=True, download_name=safe_filename)
+        
+    except Exception as e:
+        flash(f'Error downloading backup: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+
+@admin_bp.route('/database/backup/delete/<filename>', methods=['POST'])
+@super_admin_required
+def delete_backup(filename):
+    """Delete a specific backup file"""
+    try:
+        # Sanitize filename
+        safe_filename = secure_filename(filename)
+        backup_dir = os.path.join(os.getcwd(), 'backups')
+        backup_path = os.path.join(backup_dir, safe_filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('admin.system_config'))
+        
+        # Remove the file
+        os.remove(backup_path)
+        
+        flash(f'Backup {safe_filename} deleted successfully', 'success')
+        return redirect(url_for('admin.system_config'))
+        
+    except Exception as e:
+        flash(f'Error deleting backup: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config')) 

@@ -178,6 +178,71 @@
             </div>
         </div>
 
+        <!-- Database Backup & Restore -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Database Backup & Restore</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                
+                <!-- Create Backup Section -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Create New Backup</h3>
+                    <div class="bg-white p-4 rounded-md border border-gray-200">
+                        <p class="text-sm text-gray-600 mb-4">Create a backup of your current database. This will download a copy of your database file.</p>
+                        <a href="{{ url_for('admin.create_database_backup') }}" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                           onclick="return confirm('This will create a backup of your current database. Continue?')">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                            </svg>
+                            Create & Download Backup
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Manage Backups Section -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Manage Existing Backups</h3>
+                    <div class="bg-white rounded-md border border-gray-200">
+                        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                            <p class="text-sm text-gray-600">View and manage your database backups</p>
+                            <button id="refreshBackups" 
+                                    class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div id="backupsList" class="p-4">
+                            <div class="text-center py-4">
+                                <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7l16 0M4 7l1-3h14l1 3"></path>
+                                </svg>
+                                <p class="mt-2 text-sm text-gray-500">Loading backups...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore Section -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Restore Database</h3>
+                    <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <h4 class="text-sm font-medium text-yellow-800">Important Warning</h4>
+                                <p class="text-sm text-yellow-700 mt-1">Restoring a backup will replace your current database. A backup of your current database will be created before restoration. This action cannot be undone easily.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Application Version -->
         <div class="mb-8">
             <h2 class="text-xl font-semibold mb-4">Application Version</h2>
@@ -280,4 +345,181 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load backups on page load
+    loadBackups();
+    
+    // Refresh button handler
+    document.getElementById('refreshBackups').addEventListener('click', function() {
+        loadBackups();
+    });
+});
+
+function loadBackups() {
+    const backupsList = document.getElementById('backupsList');
+    
+    // Show loading state
+    backupsList.innerHTML = `
+        <div class="text-center py-4">
+            <svg class="w-12 h-12 mx-auto text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <p class="mt-2 text-sm text-gray-500">Loading backups...</p>
+        </div>
+    `;
+    
+    // Fetch backups from server
+    fetch('{{ url_for("admin.list_database_backups") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayBackups(data.backups);
+            } else {
+                showError('Error loading backups: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showError('Error loading backups: ' + error.message);
+        });
+}
+
+function displayBackups(backups) {
+    const backupsList = document.getElementById('backupsList');
+    
+    if (backups.length === 0) {
+        backupsList.innerHTML = `
+            <div class="text-center py-8">
+                <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">No backups found</p>
+                <p class="text-xs text-gray-400">Create your first backup using the button above</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="space-y-2">';
+    
+    backups.forEach(backup => {
+        html += `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                <div class="flex-1">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7l16 0M4 7l1-3h14l1 3"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">${backup.filename}</p>
+                            <p class="text-xs text-gray-500">${backup.created_at} • ${backup.size_mb} MB</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('admin.download_backup', filename='') }}${backup.filename}" 
+                       class="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Download
+                    </a>
+                    <button onclick="restoreBackup('${backup.filename}')" 
+                            class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Restore
+                    </button>
+                    <button onclick="deleteBackup('${backup.filename}')" 
+                            class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    backupsList.innerHTML = html;
+}
+
+function restoreBackup(filename) {
+    const confirmMessage = `Are you sure you want to restore from backup "${filename}"?\n\n` +
+                          `⚠️ WARNING: This will:\n` +
+                          `• Replace your current database\n` +
+                          `• Create a backup of your current data first\n` +
+                          `• Log you out (you'll need to log back in)\n\n` +
+                          `This action cannot be easily undone!`;
+    
+    if (confirm(confirmMessage)) {
+        // Show loading state
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `
+            <svg class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Restoring...
+        `;
+        
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("admin.restore_database") }}';
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        
+        const backupFilename = document.createElement('input');
+        backupFilename.type = 'hidden';
+        backupFilename.name = 'backup_filename';
+        backupFilename.value = filename;
+        
+        form.appendChild(csrfToken);
+        form.appendChild(backupFilename);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteBackup(filename) {
+    if (confirm(`Are you sure you want to delete backup "${filename}"?\n\nThis action cannot be undone!`)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("admin.delete_backup", filename="") }}' + filename;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        
+        form.appendChild(csrfToken);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function showError(message) {
+    const backupsList = document.getElementById('backupsList');
+    backupsList.innerHTML = `
+        <div class="text-center py-8">
+            <svg class="w-12 h-12 mx-auto text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="mt-2 text-sm text-red-600">${message}</p>
+            <button onclick="loadBackups()" class="mt-2 text-sm text-blue-600 hover:text-blue-500">Try Again</button>
+        </div>
+    `;
+}
+</script>
+
 {% endblock %} 
