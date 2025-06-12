@@ -414,13 +414,22 @@ function displayCSVData(data) {
                        data-index="${index}">
             </td>
             <td class="px-3 py-4">
-                <div class="text-sm font-medium text-gray-900 max-w-xs" title="${row.is_grouped ? row.all_items.map(item => item.product_title).join(', ') : row.product_title}">
-                    ${row.is_grouped ? '📦 ' : '📱 '}
-                    ${row.is_grouped ? 
-                        row.all_items.map(item => item.product_title).join(', ') : 
-                        (row.product_title || 'N/A')
-                    }
-                </div>
+                ${row.is_grouped ? 
+                    `<div class="text-sm font-medium text-gray-900 max-w-xs">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span>📦</span>
+                            <span class="font-semibold">Multi-Item Order</span>
+                        </div>
+                        <div class="text-xs space-y-1">
+                            ${row.all_items.map((item, idx) => 
+                                `<div class="truncate"><span class="font-medium text-blue-600">${idx + 1}.</span> ${item.product_title}</div>`
+                            ).join('')}
+                        </div>
+                    </div>` :
+                    `<div class="text-sm font-medium text-gray-900 max-w-xs" title="${row.product_title}">
+                        📱 ${row.product_title || 'N/A'}
+                    </div>`
+                }
                 <div class="text-xs text-gray-500">
                     ${row.is_grouped ? 
                         `${row.item_count} items - Order #${row.order_id}` : 
@@ -443,7 +452,11 @@ function displayCSVData(data) {
             </td>
             <td class="px-3 py-4 text-sm text-gray-900 font-mono">
                 ${row.is_grouped ? 
-                    (row.all_items.map(item => item.serial_number).filter(s => s).join(', ') || 'N/A') :
+                    `<div class="space-y-1">
+                        ${row.all_items.map((item, idx) => 
+                            `<div class="text-xs"><span class="font-medium text-blue-600">${idx + 1}.</span> ${item.serial_number || 'N/A'}</div>`
+                        ).join('')}
+                    </div>` :
                     (row.serial_number || 'N/A')
                 }
             </td>
