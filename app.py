@@ -128,11 +128,11 @@ def create_app():
         logging.info(f"USE_OAUTH2_EMAIL: {app.config.get('USE_OAUTH2_EMAIL')}")
     else:
         logging.info("Mail Configuration: Gmail SMTP (Fallback)")
-        logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
-        logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
-        logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
-        logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
-        logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
+    logging.info(f"MAIL_SERVER: {app.config['MAIL_SERVER']}")
+    logging.info(f"MAIL_PORT: {app.config['MAIL_PORT']}")
+    logging.info(f"MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}")
+    logging.info(f"MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+    logging.info(f"MAIL_DEFAULT_SENDER: {app.config['MAIL_DEFAULT_SENDER']}")
 
     # Initialize database
     db = SQLAlchemy(app)

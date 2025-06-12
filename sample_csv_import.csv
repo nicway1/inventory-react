@@ -1,0 +1,4 @@
+order_item_id,order_id,status,product_title,person_name,office_name,serial_number,brand,address_line1,address_line2,city,state,postal_code,country_code,org_name,category_code,priority,primary_email,phone_number
+123456,ORD001,pending,MacBook Pro 16-inch,John Smith,Singapore Office,ABC123DEF456,Apple,123 Tech Street,Unit 45,Singapore,Singapore,12345,SG,TrueLog Pte Ltd,COMPUTER,2,john.smith@truelog.com.sg,+65 9123 4567
+123457,ORD002,processing,Dell Monitor 27-inch,Jane Doe,KL Office,DEF789GHI012,Dell,456 Business Ave,Floor 8,Kuala Lumpur,KL,54321,MY,TrueLog Malaysia,MONITOR,2,jane.doe@truelog.my,+60 12 345 6789
+123458,ORD003,ready,iPhone 15 Pro,Bob Wilson,Bangkok Office,GHI345JKL678,Apple,789 Office Plaza,Room 301,Bangkok,Bangkok,67890,TH,TrueLog Thailand,COMPUTER,1,bob.wilson@truelog.th,+66 81 234 5678 

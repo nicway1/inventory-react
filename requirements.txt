@@ -11,7 +11,7 @@ beautifulsoup4==4.12.2
 Werkzeug==2.3.7
 Jinja2==3.1.2
 cryptography==41.0.7
-# Microsoft Graph OAuth2 packages  
+# Microsoft Graph OAuth2 packages
 msal==1.24.0
 msgraph-core>=1.0.0
 msgraph-sdk==1.0.0
@@ -28,7 +28,7 @@ trackingmore-sdk-python==0.1.4
 firecrawl-py
 # Barcode generation packages
 python-barcode==0.15.1
-Pillow==10.0.1
+Pillow==10.0.1 
 # Database dependencies
 SQLAlchemy==2.0.21
 alembic==1.12.0

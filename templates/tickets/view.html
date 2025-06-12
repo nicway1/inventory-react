@@ -909,8 +909,8 @@
                                             </tr>
                                         </thead>
                                     <tbody id="assetTableBody">
-                                        {% if ticket.assets %}
-                                            {% for asset in ticket.assets %}
+                                        {% if ticket.assets or ticket.asset %}
+                                            {% for asset in (ticket.assets or [ticket.asset] if ticket.asset else []) %}
                                             <tr>
                                                 <td>{{ asset.asset_tag }}</td>
                                                 <td>{{ asset.serial_num }}</td>

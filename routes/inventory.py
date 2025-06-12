@@ -35,6 +35,45 @@ import traceback
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
 
+def _safely_assign_asset_to_ticket(ticket, asset, db_session):
+    """
+    Safely assign an asset to a ticket, checking for existing relationships first
+    
+    Args:
+        ticket: Ticket object
+        asset: Asset object
+        db_session: Database session
+        
+    Returns:
+        bool: True if assignment was successful or already exists, False otherwise
+    """
+    try:
+        # Check if asset is already assigned to this ticket
+        if asset in ticket.assets:
+            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+            return True
+        
+        # Check if the relationship already exists in the database
+        stmt = text("""
+            SELECT COUNT(*) FROM ticket_assets 
+            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+        """)
+        result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+        count = result.scalar()
+        
+        if count > 0:
+            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            return True
+        
+        # Safe to assign - add the asset to the ticket
+        ticket.assets.append(asset)
+        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        return True
+        
+    except Exception as e:
+        print(f"Error assigning asset to ticket: {str(e)}")
+        return False
+
 # Configure upload settings
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads'))
 ALLOWED_EXTENSIONS = {'csv'}
@@ -934,9 +973,9 @@ def confirm_import():
                             if ticket:
                                 new_asset.intake_ticket_id = ticket.id
                                 
-                                # Add asset to ticket's assets collection if it exists
+                                # Safely add asset to ticket's assets collection if it exists
                                 if hasattr(ticket, 'assets'):
-                                    ticket.assets.append(new_asset)
+                                    _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
                                 
                                 db_session.commit()
                                 print(f"Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
@@ -1577,19 +1616,8 @@ def add_asset():
                             db_session.add(new_asset)
                             db_session.flush()  # Get the new asset ID
                             
-                            # Then check if this asset is already linked to the ticket
-                            existing_link = False
-                            if hasattr(ticket, 'assets'):
-                                for asset in ticket.assets:
-                                    if asset.id == new_asset.id:
-                                        existing_link = True
-                                        current_app.logger.info(f"Asset {new_asset.id} already linked to ticket {ticket.id}")
-                                        break
-                            
-                            # Only add to ticket assets if not already linked
-                            if not existing_link:
-                                ticket.assets.append(new_asset)  # Add to the many-to-many relationship
-                                current_app.logger.info(f"Added asset {new_asset.id} to ticket {ticket.id} assets")
+                            # Safely link asset to ticket
+                            _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
                             
                             # Log activity
                             activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created and linked to ticket {ticket.display_id}."

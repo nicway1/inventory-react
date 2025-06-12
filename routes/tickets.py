@@ -364,14 +364,14 @@ Additional Notes:
                     else:
                         ticket_category = TicketCategory.ASSET_CHECKOUT
                     
-                    # Create the ticket
+                    # Create the ticket without asset_id to avoid duplicate assignment
                     ticket_id = ticket_store.create_ticket(
                         subject=subject,
                         description=description,
                         requester_id=user_id,
                         category=ticket_category,
                         priority=priority,
-                        asset_id=asset.id,
+                        asset_id=asset.id,  # Use old asset_id approach
                         customer_id=customer_id,
                         shipping_address=shipping_address,
                         shipping_tracking=shipping_tracking if shipping_tracking else None,
@@ -408,7 +408,7 @@ Additional Notes:
                         requester_id=user_id,
                         category=TicketCategory.PIN_REQUEST,
                         priority=priority,
-                        asset_id=asset.id,
+                        asset_id=asset.id,  # Use old asset_id approach
                         queue_id=queue_id,  # Pass queue_id to create_ticket
                         notes=notes
                     )

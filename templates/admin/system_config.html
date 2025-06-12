@@ -8,15 +8,19 @@
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold">System Configuration</h1>
             <div class="flex space-x-3">
+                <a href="{{ url_for('admin.csv_import') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                    <i class="fas fa-file-csv mr-2"></i>CSV Import
+                </a>
                 <a href="{{ url_for('admin.test_email') }}" 
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                     <i class="fas fa-envelope-check mr-2"></i>Test Email
                 </a>
-                <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-800">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                </a>
+            <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </a>
             </div>
         </div>
 
@@ -209,15 +213,15 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                    </div>
                 
                 <!-- Email Test Button -->
                 <div class="border-t border-gray-200 pt-4">
                     <div class="flex items-center justify-between">
-                        <div>
+                    <div>
                             <h4 class="text-sm font-semibold text-gray-800">Email Testing</h4>
                             <p class="text-sm text-gray-600">Test your email configuration with both OAuth2 and SMTP fallback</p>
-                        </div>
+                    </div>
                         <a href="{{ url_for('admin.test_email') }}" 
                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                             <i class="fas fa-flask mr-2"></i>Test Email Configuration

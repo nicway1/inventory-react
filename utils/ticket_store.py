@@ -147,13 +147,10 @@ class TicketStore:
             db_session.add(ticket)
             db_session.flush()  # Flush to get the ticket ID
             
-            # If asset_id is provided, add the asset to the many-to-many relationship
+            # Temporarily disable automatic asset assignment to prevent duplicates
+            # Asset assignment will be handled manually in the route
             if asset_id:
-                from models.asset import Asset
-                asset = db_session.query(Asset).get(asset_id)
-                if asset:
-                    ticket.assets.append(asset)
-                    print(f"Added asset {asset_id} to ticket {ticket.id} assets relationship")
+                print(f"Skipping automatic asset assignment for asset {asset_id} - will be handled manually")
             
             db_session.commit()
             return ticket.id  # Return the ID instead of the ticket object
@@ -318,4 +315,44 @@ class TicketStore:
             # Ensure the directory exists and create an empty tickets file
             os.makedirs(os.path.dirname(self.TICKETS_FILE), exist_ok=True)
             with open(self.TICKETS_FILE, 'w') as f:
-                json.dump([], f) 
+                json.dump([], f)
+
+    def _safely_assign_asset_to_ticket(self, ticket, asset, db_session):
+        """
+        Safely assign an asset to a ticket, checking for existing relationships first
+        
+        Args:
+            ticket: Ticket object
+            asset: Asset object
+            db_session: Database session
+            
+        Returns:
+            bool: True if assignment was successful or already exists, False otherwise
+        """
+        try:
+            # Check if asset is already assigned to this ticket
+            if asset in ticket.assets:
+                print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+                return True
+            
+            # Check if the relationship already exists in the database
+            from sqlalchemy import text
+            stmt = text("""
+                SELECT COUNT(*) FROM ticket_assets 
+                WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+            """)
+            result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+            count = result.scalar()
+            
+            if count > 0:
+                print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+                return True
+            
+            # Safe to assign - add the asset to the ticket
+            ticket.assets.append(asset)
+            print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+            return True
+            
+        except Exception as e:
+            print(f"Error assigning asset to ticket: {str(e)}")
+            return False 

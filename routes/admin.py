@@ -11,6 +11,7 @@ from models.company import Company
 from models.queue import Queue
 from models.company_queue_permission import CompanyQueuePermission
 from utils.email_sender import send_welcome_email
+from sqlalchemy import or_, func
 import os
 import shutil
 import glob
@@ -28,11 +29,39 @@ from models.ticket_category_config import TicketCategoryConfig, CategoryDisplayC
 import tempfile
 import sqlite3
 import subprocess
+import pandas as pd
+import csv
+import io
+import json
+from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory
+from models.customer_user import CustomerUser
+from models.asset import Asset
+from sqlalchemy import text
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
 csrf = CSRFProtect()
+
+def cleanup_old_csv_files():
+    """Clean up old CSV temporary files (older than 1 hour)"""
+    try:
+        import glob
+        import time
+        temp_dir = tempfile.gettempdir()
+        pattern = os.path.join(temp_dir, 'csv_import_*.json')
+        current_time = time.time()
+        
+        for filepath in glob.glob(pattern):
+            file_age = current_time - os.path.getmtime(filepath)
+            if file_age > 3600:  # 1 hour
+                try:
+                    os.remove(filepath)
+                    print(f"DEBUG: Cleaned up old CSV file: {filepath}")
+                except Exception as e:
+                    print(f"DEBUG: Failed to cleanup {filepath}: {e}")
+    except Exception as e:
+        print(f"DEBUG: CSV cleanup error: {e}")
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -823,7 +852,7 @@ def system_config():
             'MS_TENANT_ID': os.getenv('MS_TENANT_ID'),
             'MS_FROM_EMAIL': os.getenv('MS_FROM_EMAIL'),
         })
-        
+
         return render_template('admin/system_config.html', 
                              user=user,
                              firecrawl_keys=firecrawl_keys,
@@ -1798,4 +1827,972 @@ def test_email():
         'MS_TENANT_ID': os.getenv('MS_TENANT_ID'),
         'MS_FROM_EMAIL': os.getenv('MS_FROM_EMAIL'),
     })
-    return render_template('admin/test_email.html', config=config_with_ms) 
+    return render_template('admin/test_email.html', config=config_with_ms)
+
+
+@admin_bp.route('/csv-import')
+@admin_required
+def csv_import():
+    """CSV Import for Asset Checkout Tickets"""
+    return render_template('admin/csv_import.html')
+
+
+@admin_bp.route('/csv-import/upload', methods=['POST'])
+@admin_required 
+def csv_import_upload():
+    """Upload and parse CSV file for ticket import"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'error': 'File must be a CSV'})
+        
+        # Generate unique file ID
+        import uuid
+        file_id = str(uuid.uuid4())
+        
+        # Read and parse CSV
+        csv_content = file.read().decode('utf-8')
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        
+        # Convert to list and validate
+        raw_data = []
+        for row in csv_reader:
+            # Clean and validate the row
+            cleaned_row = clean_csv_row(row)
+            if cleaned_row:  # Only add valid rows
+                raw_data.append(cleaned_row)
+        
+        if not raw_data:
+            return jsonify({'success': False, 'error': 'No valid data found in CSV'})
+        
+        # Group orders by order_id
+        grouped_data, individual_data = group_orders_by_id(raw_data)
+        
+        # Combine grouped and individual data for display
+        display_data = grouped_data + individual_data
+        
+        # Store in temporary file with file_id
+        temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+        with open(temp_file, 'w') as f:
+            json.dump(display_data, f)
+        
+        # Clean up old files (older than 1 hour)
+        cleanup_old_csv_files()
+        
+        return jsonify({
+            'success': True,
+            'file_id': file_id,
+            'total_rows': len(display_data),
+            'grouped_orders': len(grouped_data),
+            'individual_rows': len(individual_data),
+            'data': display_data,  # Include the actual data for display
+            'message': f'Successfully processed {len(raw_data)} rows into {len(display_data)} tickets ({len(grouped_data)} grouped orders, {len(individual_data)} individual items)'
+        })
+        
+    except Exception as e:
+        print(f"Error in CSV upload: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to process CSV: {str(e)}'})
+
+def cleanup_old_csv_files():
+    """Clean up CSV files older than 1 hour"""
+    try:
+        import time
+        temp_dir = tempfile.gettempdir()
+        current_time = time.time()
+        
+        for filename in os.listdir(temp_dir):
+            if filename.startswith('csv_import_') and filename.endswith('.json'):
+                file_path = os.path.join(temp_dir, filename)
+                file_time = os.path.getmtime(file_path)
+                # Remove files older than 1 hour (3600 seconds)
+                if current_time - file_time > 3600:
+                    try:
+                        os.remove(file_path)
+                        print(f"Cleaned up old CSV file: {filename}")
+                    except Exception as e:
+                        print(f"Failed to clean up file {filename}: {e}")
+    except Exception as e:
+        print(f"Error in cleanup: {e}")
+
+def clean_csv_row(row):
+    """Clean and validate a CSV row"""
+    try:
+        # Required fields for validation
+        required_fields = ['product_title', 'org_name']
+        
+        # Clean whitespace and handle quoted empty values
+        cleaned = {}
+        for key, value in row.items():
+            if value is None:
+                cleaned[key] = ''
+            else:
+                # Strip whitespace and handle quoted spaces like " "
+                cleaned_value = str(value).strip()
+                if cleaned_value in ['" "', "'  '", '""', "''"]:
+                    cleaned_value = ''
+                cleaned[key] = cleaned_value
+        
+        # Check if required fields are present and non-empty
+        for field in required_fields:
+            if not cleaned.get(field):
+                print(f"Skipping row due to missing {field}: {cleaned}")
+                return None
+        
+        # Set default values for missing fields
+        defaults = {
+            'person_name': cleaned.get('person_name') or 'Unknown Customer',
+            'primary_email': cleaned.get('primary_email') or '',
+            'phone_number': cleaned.get('phone_number') or '',
+            'category_code': cleaned.get('category_code') or 'GENERAL',
+            'brand': cleaned.get('brand') or '',
+            'serial_number': cleaned.get('serial_number') or '',
+            'preferred_condition': cleaned.get('preferred_condition') or 'Good',
+            'priority': cleaned.get('priority') or '1',
+            'order_id': cleaned.get('order_id') or '',
+            'order_item_id': cleaned.get('order_item_id') or '',
+            'organization_id': cleaned.get('organization_id') or '',
+            'status': cleaned.get('status') or 'Pending',
+            'start_date': cleaned.get('start_date') or '',
+            'shipped_date': cleaned.get('shipped_date') or '',
+            'delivery_date': cleaned.get('delivery_date') or '',
+            'office_name': cleaned.get('office_name') or '',
+            'address_line1': cleaned.get('address_line1') or '',
+            'address_line2': cleaned.get('address_line2') or '',
+            'city': cleaned.get('city') or '',
+            'state': cleaned.get('state') or '',
+            'postal_code': cleaned.get('postal_code') or '',
+            'country_code': cleaned.get('country_code') or '',
+            'carrier': cleaned.get('carrier') or '',
+            'tracking_link': cleaned.get('tracking_link') or ''
+        }
+        
+        # Update cleaned row with defaults
+        for key, default_value in defaults.items():
+            if not cleaned.get(key):
+                cleaned[key] = default_value
+        
+        return cleaned
+        
+    except Exception as e:
+        print(f"Error cleaning row: {e}")
+        return None
+
+def group_orders_by_id(data):
+    """Group CSV rows by order_id"""
+    try:
+        order_groups = {}
+        individual_items = []
+        
+        # Group by order_id
+        for row in data:
+            order_id = row.get('order_id', '').strip()
+            if order_id:
+                if order_id not in order_groups:
+                    order_groups[order_id] = []
+                order_groups[order_id].append(row)
+            else:
+                # No order_id, treat as individual
+                individual_items.append(row)
+        
+        grouped_orders = []
+        
+        # Process groups
+        for order_id, items in order_groups.items():
+            if len(items) > 1:
+                # Multiple items - create grouped order
+                primary_item = items[0]  # Use first item as primary
+                
+                # Create item summary
+                product_titles = [item['product_title'] for item in items]
+                if len(product_titles) <= 3:
+                    title_summary = ', '.join(product_titles)
+                else:
+                    title_summary = f"{', '.join(product_titles[:2])} and {len(product_titles) - 2} more..."
+                
+                grouped_order = {
+                    'is_grouped': True,
+                    'order_id': order_id,
+                    'item_count': len(items),
+                    'title_summary': title_summary,
+                    'all_items': items,
+                    # Include primary item data for compatibility
+                    **primary_item
+                }
+                grouped_orders.append(grouped_order)
+            else:
+                # Single item, add to individual
+                item = items[0]
+                item['is_grouped'] = False
+                individual_items.append(item)
+        
+        # Mark individual items
+        for item in individual_items:
+            if 'is_grouped' not in item:
+                item['is_grouped'] = False
+        
+        return grouped_orders, individual_items
+        
+    except Exception as e:
+        print(f"Error grouping orders: {e}")
+        return [], data
+
+@admin_bp.route('/csv-import/preview-ticket', methods=['POST'])
+@admin_required
+def csv_import_preview_ticket():
+    """Preview a single ticket from CSV data with enhanced features"""
+    try:
+        data = request.json
+        row_index = data.get('row_index')
+        is_grouped = data.get('is_grouped', False)
+        file_id = data.get('file_id')
+        
+        if file_id is None or row_index is None:
+            return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
+            
+        # Load data from file
+        temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. Please re-upload your file.'})
+            
+        with open(temp_file, 'r') as f:
+            csv_data = json.load(f)
+        
+        if row_index >= len(csv_data):
+            return jsonify({'success': False, 'error': 'Invalid row index'})
+            
+        row = csv_data[row_index]
+        
+        if is_grouped:
+            all_items = row.get('all_items', [row])
+            if not all_items or len(all_items) == 0:
+                return jsonify({'success': False, 'error': 'No items found in grouped order'})
+            primary_item = all_items[0]
+            if not primary_item:
+                return jsonify({'success': False, 'error': 'Primary item is null in grouped order'})
+        else:
+            all_items = [row]
+            primary_item = row
+            
+        # Validate that primary_item has required fields
+        if not primary_item or not primary_item.get('product_title'):
+            return jsonify({'success': False, 'error': f'Invalid item data: {primary_item}'})
+        
+        # Enhanced category mapping with queue routing
+        def determine_category_and_queue(product_title, category_code):
+            """Determine category and queue based on product type"""
+            product_lower = product_title.lower()
+            category_lower = category_code.lower() if category_code else ""
+            
+            # Accessory detection patterns
+            accessory_keywords = [
+                'adapter', 'cable', 'charger', 'mouse', 'keyboard', 'headset', 
+                'webcam', 'dock', 'hub', 'dongle', 'stand', 'pad', 'cover',
+                'case', 'sleeve', 'bag', 'power supply', 'cord', 'usb'
+            ]
+            
+            # Computer/laptop detection patterns  
+            computer_keywords = [
+                'macbook', 'laptop', 'computer', 'imac', 'pc', 'desktop', 
+                'workstation', 'tower', 'all-in-one', 'surface', 'thinkpad'
+            ]
+            
+            # Check if it's an accessory
+            is_accessory = (
+                any(keyword in product_lower for keyword in accessory_keywords) or
+                any(keyword in category_lower for keyword in ['accessory', 'peripheral', 'cable', 'adapter'])
+            )
+            
+            # Check if it's a computer/laptop
+            is_computer = (
+                any(keyword in product_lower for keyword in computer_keywords) or
+                any(keyword in category_lower for keyword in ['computer', 'laptop', 'desktop'])
+            )
+            
+            if is_accessory:
+                return 'ASSET_CHECKOUT_CLAW', 'Checkout Accessories'
+            elif is_computer:
+                return 'ASSET_CHECKOUT_CLAW', 'Tech Asset'
+            else:
+                return 'ASSET_CHECKOUT_CLAW', 'General'
+        
+        # Check inventory for each item
+        db_session = db_manager.get_session()
+        try:
+            inventory_info = []
+            for item in all_items:
+                product_title = item.get('product_title', '')
+                serial_number = item.get('serial_number', '')
+                brand = item.get('brand', '')
+                
+                # Search for matching assets in inventory
+                asset_query = db_session.query(Asset)
+                matches = []
+                
+                # Search by serial number (exact match)
+                if serial_number:
+                    serial_match = asset_query.filter(
+                        func.lower(Asset.serial_num) == func.lower(serial_number)
+                    ).first()
+                    if serial_match:
+                        matches.append({
+                            'match_type': 'Serial Number',
+                            'asset': serial_match,
+                            'confidence': 'High'
+                        })
+                
+                # Search by product name (fuzzy match)
+                if product_title and not matches:
+                    name_matches = asset_query.filter(
+                        or_(
+                            Asset.name.ilike(f'%{product_title}%'),
+                            Asset.model.ilike(f'%{product_title}%')
+                        )
+                    ).limit(3).all()
+                    
+                    for asset in name_matches:
+                        matches.append({
+                            'match_type': 'Product Name',
+                            'asset': asset,
+                            'confidence': 'Medium'
+                        })
+                
+                # Search by brand
+                if brand and len(matches) < 2:
+                    brand_matches = asset_query.filter(
+                        Asset.manufacturer.ilike(f'%{brand}%')
+                    ).limit(2).all()
+                    
+                    for asset in brand_matches:
+                        if not any(m['asset'].id == asset.id for m in matches):
+                            matches.append({
+                                'match_type': 'Brand',
+                                'asset': asset,
+                                'confidence': 'Low'
+                            })
+                
+                inventory_info.append({
+                    'product_title': product_title,
+                    'serial_number': serial_number,
+                    'matches': matches[:3],  # Limit to top 3 matches
+                    'stock_status': 'In Stock' if matches else 'Not Found'
+                })
+        finally:
+            db_session.close()
+        
+        # Determine category and suggested queue
+        primary_category, suggested_queue = determine_category_and_queue(
+            primary_item.get('product_title', ''),
+            primary_item.get('category_code', '')
+        )
+        
+        # Get available queues for selection
+        available_queues = []
+        queue_session = db_manager.get_session()
+        try:
+            queues = queue_session.query(Queue).all()
+            for queue in queues:
+                available_queues.append({
+                    'id': queue.id,
+                    'name': queue.name,
+                    'description': queue.description,
+                    'suggested': queue.name == suggested_queue
+                })
+        finally:
+            queue_session.close()
+        
+        # Create enhanced ticket preview
+        if is_grouped:
+            subject = f"Asset Checkout - Order {row['order_id']} ({row['item_count']} items)"
+            description = f"Multi-item asset checkout request for {primary_item['person_name']} from {primary_item['org_name']} - {row['item_count']} items total"
+            
+            # Create asset list for grouped items
+            asset_list = []
+            for item in all_items:
+                asset_list.append({
+                    'product_title': item['product_title'],
+                    'brand': item['brand'],
+                    'serial_number': item['serial_number'],
+                    'category': item['category_code'],
+                    'condition': item['preferred_condition'] or 'Good'
+                })
+        else:
+            subject = f"Asset Checkout - {row['product_title']}"
+            description = f"Asset checkout request for {row['person_name']} from {row['org_name']}"
+            asset_list = [{
+                'product_title': row['product_title'],
+                'brand': row['brand'],
+                'serial_number': row['serial_number'],
+                'category': row['category_code'],
+                'condition': row['preferred_condition'] or 'Good'
+            }]
+        
+        # Format shipping address
+        shipping_address = f"""{primary_item['office_name']}
+{primary_item['address_line1']}
+{primary_item['address_line2']}
+{primary_item['city']}, {primary_item['state']} {primary_item['postal_code']}
+{primary_item['country_code']}""".strip()
+        
+        # Format order details for notes
+        order_notes = f"""Order Details:
+- Order ID: {primary_item['order_id']}
+- Organization ID: {primary_item['organization_id']}
+- Status: {primary_item['status']}
+- Start Date: {primary_item['start_date'] or 'Not specified'}
+- Shipped Date: {primary_item['shipped_date'] or 'Not specified'}
+- Delivery Date: {primary_item['delivery_date'] or 'Not specified'}
+- Carrier: {primary_item['carrier'] or 'Not specified'}
+- Tracking: {primary_item['tracking_link'] or 'Not provided'}"""
+        
+        ticket_preview = {
+            'subject': subject,
+            'description': description,
+            'category': primary_category,
+            'priority': 'MEDIUM' if primary_item['priority'] == '2' else 'LOW',
+            'status': 'OPEN',
+            'is_grouped': is_grouped,
+            'item_count': len(all_items),
+            'customer_info': {
+                'name': primary_item['person_name'],
+                'email': primary_item['primary_email'],
+                'phone': primary_item['phone_number'],
+                'company': primary_item['org_name']
+            },
+            'asset_info': asset_list[0],  # Always provide first asset for compatibility
+            'all_assets': asset_list,  # All assets for grouped display
+            'shipping_address': shipping_address,
+            'notes': order_notes,
+            'available_queues': available_queues,
+            'suggested_queue_id': next((q['id'] for q in available_queues if q['suggested']), None),
+            'inventory_info': inventory_info,
+            'shipping_info': {
+                'office_name': primary_item['office_name'],
+                'address_line1': primary_item['address_line1'],
+                'address_line2': primary_item['address_line2'],
+                'city': primary_item['city'],
+                'state': primary_item['state'],
+                'postal_code': primary_item['postal_code'],
+                'country_code': primary_item['country_code'],
+                'carrier': primary_item['carrier'],
+                'tracking_link': primary_item['tracking_link'],
+                'shipped_date': primary_item['shipped_date'],
+                'delivery_date': primary_item['delivery_date']
+            },
+            'order_info': {
+                'order_id': primary_item['order_id'],
+                'order_item_id': primary_item.get('order_item_id'),
+                'organization_id': primary_item['organization_id'],
+                'status': primary_item['status'],
+                'start_date': primary_item['start_date'],
+                'shipped_date': primary_item['shipped_date'],
+                'delivery_date': primary_item['delivery_date']
+            }
+        }
+        
+        return jsonify({'success': True, 'preview': ticket_preview})
+        
+    except Exception as e:
+        print(f"Error in preview: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to generate preview: {str(e)}'})
+
+@admin_bp.route('/csv-import/import-ticket', methods=['POST'])
+@admin_required
+def csv_import_import_ticket():
+    """Import a ticket from CSV data with enhanced data flow"""
+    try:
+        data = request.json
+        row_index = data.get('row_index')
+        is_grouped = data.get('is_grouped', False)
+        file_id = data.get('file_id')
+        selected_queue_id = data.get('queue_id')  # Get selected queue
+        
+        if file_id is None or row_index is None:
+            return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
+        
+        # Load data from file
+        temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. Please re-upload your file.'})
+            
+        with open(temp_file, 'r') as f:
+            csv_data = json.load(f)
+        
+        if row_index >= len(csv_data):
+            return jsonify({'success': False, 'error': 'Invalid row index'})
+            
+        row = csv_data[row_index]
+        
+        if is_grouped:
+            all_items = row.get('all_items', [row])
+            if not all_items or len(all_items) == 0:
+                return jsonify({'success': False, 'error': 'No items found in grouped order'})
+        else:
+            all_items = [row]
+        
+        primary_item = all_items[0]
+        
+        db_session = db_manager.get_session()
+        try:
+            # 1. CREATE CUSTOMER FIRST (as requested)
+            from models.customer_user import CustomerUser
+            from models.company import Company
+            
+            # Check if customer already exists
+            customer = db_session.query(CustomerUser).filter(
+                CustomerUser.email == primary_item['primary_email']
+            ).first()
+            
+            customer_created = False
+            if not customer:
+                # Get or create company
+                company = db_session.query(Company).filter(
+                    Company.name == primary_item['org_name']
+                ).first()
+                
+                if not company:
+                    company = Company(
+                        name=primary_item['org_name'],
+                        description=f"Auto-created from CSV import",
+                        contact_email=primary_item['primary_email']
+                    )
+                    db_session.add(company)
+                    db_session.flush()
+                
+                # Create customer
+                customer = CustomerUser(
+                    name=primary_item['person_name'],
+                    email=primary_item['primary_email'],
+                    contact_number=primary_item.get('phone_number', ''),
+                    company_id=company.id
+                )
+                db_session.add(customer)
+                db_session.flush()
+                customer_created = True
+            
+            # 2. DETERMINE CATEGORY AND QUEUE
+            def determine_category_and_queue(product_title, category_code):
+                """Determine category based on product type"""
+                product_lower = product_title.lower()
+                category_lower = category_code.lower() if category_code else ""
+                
+                # Accessory detection patterns
+                accessory_keywords = [
+                    'adapter', 'cable', 'charger', 'mouse', 'keyboard', 'headset', 
+                    'webcam', 'dock', 'hub', 'dongle', 'stand', 'pad', 'cover',
+                    'case', 'sleeve', 'bag', 'power supply', 'cord', 'usb'
+                ]
+                
+                # Computer/laptop detection patterns  
+                computer_keywords = [
+                    'macbook', 'laptop', 'computer', 'imac', 'pc', 'desktop', 
+                    'workstation', 'tower', 'all-in-one', 'surface', 'thinkpad'
+                ]
+                
+                # Check if it's an accessory
+                is_accessory = (
+                    any(keyword in product_lower for keyword in accessory_keywords) or
+                    any(keyword in category_lower for keyword in ['accessory', 'peripheral', 'cable', 'adapter'])
+                )
+                
+                if is_accessory:
+                    return 'ASSET_CHECKOUT_CLAW'  # Route accessories to checkout queue
+                else:
+                    return 'ASSET_CHECKOUT_CLAW'  # Route computers to tech asset queue
+            
+            # Get or create ticket category
+            category_name = determine_category_and_queue(
+                primary_item.get('product_title', ''),
+                primary_item.get('category_code', '')
+            )
+            
+            category = db_session.query(TicketCategory).filter(TicketCategory.name == category_name).first()
+            
+            if not category:
+                # Create default category if it doesn't exist
+                category = TicketCategory(
+                    name=category_name,
+                    description=f"Asset Checkout - {primary_item.get('category_code', 'General')}"
+                )
+                db_session.add(category)
+                db_session.flush()
+            
+            # 3. MAP PRIORITY
+            priority_mapping = {
+                '1': TicketPriority.LOW,
+                '2': TicketPriority.MEDIUM,
+                '3': TicketPriority.HIGH
+            }
+            priority = priority_mapping.get(primary_item.get('priority', '1'), TicketPriority.LOW)
+            
+            # 4. CREATE ENHANCED DESCRIPTION
+            if is_grouped:
+                # Create description for multiple items
+                description = f"""Asset Checkout Request - CSV Import (Multi-Item Order)
+
+Customer Information:
+- Name: {primary_item['person_name']}
+- Company: {primary_item['org_name']}
+- Email: {primary_item['primary_email']}
+- Phone: {primary_item['phone_number']}
+
+Order Information:
+- Order ID: {primary_item['order_id']}
+- Total Items: {len(all_items)}
+- Organization ID: {primary_item['organization_id']}
+- Status: {primary_item['status']}
+- Start Date: {primary_item['start_date'] or 'Not specified'}
+
+Asset Information ({len(all_items)} items):
+"""
+                for i, item in enumerate(all_items, 1):
+                    description += f"""
+Item {i}:
+- Product: {item['product_title']}
+- Brand: {item['brand']}
+- Serial Number: {item['serial_number']}
+- Category: {item['category_code']}
+- Condition: {item['preferred_condition'] or 'Not specified'}
+- Item ID: {item['order_item_id']}
+"""
+                
+                description += f"""
+Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+                
+                subject = f"Asset Checkout - Order {primary_item['order_id']} ({len(all_items)} items)"
+                
+            else:
+                # Single item description
+                description = f"""Asset Checkout Request - CSV Import
+
+Customer Information:
+- Name: {primary_item['person_name']}
+- Company: {primary_item['org_name']}
+- Email: {primary_item['primary_email']}
+- Phone: {primary_item['phone_number']}
+
+Asset Information:
+- Product: {primary_item['product_title']}
+- Brand: {primary_item['brand']}
+- Serial Number: {primary_item['serial_number']}
+- Category: {primary_item['category_code']}
+- Condition: {primary_item['preferred_condition'] or 'Not specified'}
+
+Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+                
+                subject = f"Asset Checkout - {primary_item['product_title']}"
+            
+            # 5. FORMAT SHIPPING ADDRESS (as requested)
+            shipping_address = f"""{primary_item['office_name']}
+{primary_item['address_line1']}
+{primary_item['address_line2']}
+{primary_item['city']}, {primary_item['state']} {primary_item['postal_code']}
+{primary_item['country_code']}""".strip()
+            
+            # 6. FORMAT ORDER DETAILS FOR NOTES (as requested)
+            order_notes = f"""Order Details:
+- Order ID: {primary_item['order_id']}
+- Organization ID: {primary_item['organization_id']}
+- Status: {primary_item['status']}
+- Start Date: {primary_item['start_date'] or 'Not specified'}
+- Shipped Date: {primary_item['shipped_date'] or 'Not specified'}
+- Delivery Date: {primary_item['delivery_date'] or 'Not specified'}
+- Carrier: {primary_item['carrier'] or 'Not specified'}
+- Tracking: {primary_item['tracking_link'] or 'Not provided'}
+
+Additional Info:
+{description}"""
+            
+            # 7. CREATE THE TICKET WITH PROPER DATA FLOW
+            ticket = Ticket(
+                subject=subject,
+                description=description,
+                customer_id=customer.id,
+                category_id=category.id,
+                priority=priority,
+                status=TicketStatus.OPEN,
+                requester_id=current_user.id,
+                queue_id=int(selected_queue_id) if selected_queue_id else None,  # Assign to selected queue
+                shipping_address=shipping_address,  # Shipping info goes to shipping_address field
+                notes=order_notes  # Order details go to Notes field
+            )
+            
+            db_session.add(ticket)
+            db_session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'ticket_id': ticket.id,
+                'ticket_display_id': ticket.display_id,
+                'customer_created': customer_created,
+                'message': f'Ticket {ticket.display_id} created successfully. Customer {"created" if customer_created else "updated"}.'
+            })
+            
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        print(f"Error importing ticket: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
+
+
+@admin_bp.route('/csv-import/bulk-import', methods=['POST'])
+@admin_required
+def csv_import_bulk_import():
+    """Import multiple tickets from CSV data"""
+    try:
+        data = request.get_json()
+        row_indices = data.get('row_indices', [])
+        auto_create_customer = data.get('auto_create_customer', True)
+        
+        if 'csv_import_file' not in session:
+            return jsonify({'success': False, 'error': 'No CSV data found. Please upload a file first.'})
+        
+        # Load CSV data from temporary file
+        import json
+        import os
+        import tempfile
+        
+        csv_filename = session['csv_import_file']
+        csv_filepath = os.path.join(tempfile.gettempdir(), csv_filename)
+        
+        if not os.path.exists(csv_filepath):
+            return jsonify({'success': False, 'error': 'CSV data file not found. Please upload the file again.'})
+        
+        try:
+            with open(csv_filepath, 'r') as f:
+                file_data = json.load(f)
+                # Handle both old format (list) and new format (dict with grouped data)
+                if isinstance(file_data, list):
+                    csv_data = file_data  # Old format
+                else:
+                    csv_data = file_data.get('grouped_orders', file_data.get('individual_rows', []))
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Error reading CSV data: {str(e)}'})
+        results = []
+        
+        for row_index in row_indices:
+            if row_index >= len(csv_data):
+                results.append({'row_index': row_index, 'success': False, 'error': 'Invalid row index'})
+                continue
+            
+            # Import single ticket (reuse the logic)
+            try:
+                result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer)
+                results.append({'row_index': row_index, **result})
+            except Exception as e:
+                results.append({'row_index': row_index, 'success': False, 'error': str(e)})
+        
+        successful_imports = sum(1 for r in results if r.get('success'))
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_processed': len(row_indices),
+            'successful_imports': successful_imports,
+            'failed_imports': len(row_indices) - successful_imports
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Bulk import error: {str(e)}'})
+
+
+def csv_import_import_ticket_internal(row, auto_create_customer=True):
+    """Internal function to import a single ticket (used by bulk import)"""
+    db_session = db_manager.get_session()
+    
+    try:
+        # Check if customer exists or create new one
+        customer = None
+        customer_created = False
+        
+        if row['primary_email']:
+            customer = db_session.query(CustomerUser).filter(CustomerUser.email == row['primary_email']).first()
+        
+        if not customer and auto_create_customer:
+            # Create new customer
+            from models.user import Country
+            
+            # Map country code to Country enum
+            country_mapping = {
+                'SG': Country.SINGAPORE,
+                'TW': Country.TAIWAN,
+                'US': Country.USA,
+                'UK': Country.UK,
+                'DE': Country.GERMANY,
+                'FR': Country.FRANCE,
+                'JP': Country.JAPAN,
+                'IN': Country.INDIA,
+                'AU': Country.AUSTRALIA,
+                'CN': Country.CHINA
+            }
+            country = country_mapping.get(row['country_code'], Country.SINGAPORE)
+            
+            customer = CustomerUser(
+                name=row['person_name'],
+                email=row['primary_email'],
+                contact_number=row['phone_number'],
+                address=f"{row['address_line1']}, {row['address_line2']}, {row['city']}, {row['state']} {row['postal_code']}, {row['country_code']}",
+                country=country
+            )
+            db_session.add(customer)
+            db_session.flush()  # Get the customer ID
+            customer_created = True
+        
+        if not customer:
+            return {'success': False, 'error': 'Customer not found and auto-create is disabled'}
+        
+        # Get or create ticket category
+        category_mapping = {
+            'COMPUTER': 'ASSET_CHECKOUT_MAIN',
+            'LAPTOP': 'ASSET_CHECKOUT_MAIN', 
+            'MONITOR': 'ASSET_CHECKOUT_MAIN',
+            'KEYBOARD': 'ASSET_CHECKOUT_MAIN',
+            'MOUSE': 'ASSET_CHECKOUT_MAIN',
+            'HEADSET': 'ASSET_CHECKOUT_MAIN',
+            'AV_ADAPTER': 'ASSET_CHECKOUT_MAIN',
+            'COMPUTER_ACCESSORY': 'ASSET_CHECKOUT_MAIN'
+        }
+        
+        category_name = category_mapping.get(row['category_code'], 'ASSET_CHECKOUT_MAIN')
+        category = db_session.query(TicketCategory).filter(TicketCategory.name == category_name).first()
+        
+        if not category:
+            # Create default category if it doesn't exist
+            category = TicketCategory(
+                name=category_name,
+                description=f"Asset Checkout - {row['category_code']}"
+            )
+            db_session.add(category)
+            db_session.flush()
+        
+        # Map priority
+        priority_mapping = {
+            '1': TicketPriority.LOW,
+            '2': TicketPriority.MEDIUM,
+            '3': TicketPriority.HIGH
+        }
+        priority = priority_mapping.get(row['priority'], TicketPriority.LOW)
+        
+        # Create detailed description
+        description = f"""Asset Checkout Request - CSV Import
+
+Customer Information:
+- Name: {row['person_name']}
+- Company: {row['org_name']}
+- Email: {row['primary_email']}
+- Phone: {row['phone_number']}
+
+Asset Information:
+- Product: {row['product_title']}
+- Brand: {row['brand']}
+- Serial Number: {row['serial_number']}
+- Category: {row['category_code']}
+- Condition: {row['preferred_condition'] or 'Not specified'}
+
+Shipping Information:
+- Office: {row['office_name']}
+- Address: {row['address_line1']}, {row['address_line2']}
+- City: {row['city']}, {row['state']} {row['postal_code']}
+- Country: {row['country_code']}
+- Carrier: {row['carrier'] or 'Not specified'}
+- Tracking: {row['tracking_link'] or 'Not provided'}
+
+Order Information:
+- Order ID: {row['order_id']}
+- Order Item ID: {row['order_item_id']}
+- Organization ID: {row['organization_id']}
+- Status: {row['status']}
+- Start Date: {row['start_date'] or 'Not specified'}
+- Shipped Date: {row['shipped_date'] or 'Not specified'}
+- Delivery Date: {row['delivery_date'] or 'Not specified'}
+
+Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+        
+        # Create the ticket
+        ticket = Ticket(
+            subject=f"Asset Checkout - {row['product_title']}",
+            description=description,
+            customer_id=customer.id,
+            category_id=category.id,
+            priority=priority,
+            status=TicketStatus.OPEN,
+            requester_id=current_user.id
+        )
+        
+        db_session.add(ticket)
+        db_session.commit()
+        
+        return {
+            'success': True, 
+            'ticket_id': ticket.id,
+            'ticket_display_id': ticket.display_id,
+            'customer_created': customer_created
+        }
+        
+    except Exception as e:
+        db_session.rollback()
+        raise e
+    finally:
+        db_session.close() 
+
+def safely_assign_asset_to_ticket(ticket, asset, db_session):
+    """
+    Safely assign an asset to a ticket, checking for existing relationships first
+    
+    Args:
+        ticket: Ticket object
+        asset: Asset object or asset ID
+        db_session: Database session
+        
+    Returns:
+        bool: True if assignment was successful or already exists, False otherwise
+    """
+    try:
+        # If asset is an ID, get the asset object
+        if isinstance(asset, int):
+            asset = db_session.query(Asset).get(asset)
+            if not asset:
+                print(f"Asset with ID {asset} not found")
+                return False
+        
+        # Check if asset is already assigned to this ticket
+        if asset in ticket.assets:
+            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+            return True
+        
+        # Check if the relationship already exists in the database
+        from sqlalchemy import text
+        stmt = text("""
+            SELECT COUNT(*) FROM ticket_assets 
+            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+        """)
+        result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+        count = result.scalar()
+        
+        if count > 0:
+            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            return True
+        
+        # Safe to assign - add the asset to the ticket
+        ticket.assets.append(asset)
+        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        return True
+        
+    except Exception as e:
+        print(f"Error assigning asset to ticket: {str(e)}")
+        return False

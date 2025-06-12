@@ -10,10 +10,50 @@ from models.company import Company
 from utils.barcode_generator import barcode_generator
 from database import SessionLocal
 import io
+from sqlalchemy import text
 
 # Create Blueprint
 assets_bp = Blueprint('assets', __name__, url_prefix='/assets')
 db_manager = DatabaseManager()
+
+def _safely_assign_asset_to_ticket(ticket, asset, db_session):
+    """
+    Safely assign an asset to a ticket, checking for existing relationships first
+    
+    Args:
+        ticket: Ticket object
+        asset: Asset object
+        db_session: Database session
+        
+    Returns:
+        bool: True if assignment was successful or already exists, False otherwise
+    """
+    try:
+        # Check if asset is already assigned to this ticket
+        if asset in ticket.assets:
+            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+            return True
+        
+        # Check if the relationship already exists in the database
+        stmt = text("""
+            SELECT COUNT(*) FROM ticket_assets 
+            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+        """)
+        result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+        count = result.scalar()
+        
+        if count > 0:
+            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            return True
+        
+        # Safe to assign - add the asset to the ticket
+        ticket.assets.append(asset)
+        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        return True
+        
+    except Exception as e:
+        print(f"Error assigning asset to ticket: {str(e)}")
+        return False
 
 @assets_bp.route('/add', methods=['POST'])
 @login_required
@@ -86,18 +126,17 @@ def add_asset():
                 ticket = db_session.query(Ticket).get(ticket_id)
                 
                 if ticket:
-                    # Link asset to ticket
-                    ticket.assets.append(new_asset)
-                    
-                    # Add activity for linking
-                    activity = Activity(
-                        user_id=current_user.id,
-                        type='asset_linked',
-                        content=f'Linked asset {new_asset.asset_tag} to ticket #{ticket_id}',
-                        reference_id=new_asset.id
-                    )
-                    db_session.add(activity)
-                    db_session.commit()
+                    # Safely link asset to ticket
+                    if _safely_assign_asset_to_ticket(ticket, new_asset, db_session):
+                        # Add activity for linking
+                        activity = Activity(
+                            user_id=current_user.id,
+                            type='asset_linked',
+                            content=f'Linked asset {new_asset.asset_tag} to ticket #{ticket_id}',
+                            reference_id=new_asset.id
+                        )
+                        db_session.add(activity)
+                        db_session.commit()
             except (ValueError, AttributeError) as e:
                 # Log the error but don't fail - still return success for asset creation
                 print(f"Error linking asset to ticket: {str(e)}")

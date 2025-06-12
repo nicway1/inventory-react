@@ -1,0 +1,1046 @@
+{% extends "base.html" %}
+
+{% block title %}CSV Import - Asset Checkout Tickets{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">📁 CSV Import</h1>
+                    <p class="mt-2 text-gray-600">Import Asset Checkout tickets from CSV files</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('tickets.list_tickets') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Back to Tickets
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV Upload Section -->
+        <div class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">📂 Upload CSV File</h2>
+                <p class="mt-1 text-sm text-gray-500">Upload a CSV file containing Asset Checkout ticket data</p>
+            </div>
+            <div class="p-6">
+                <form id="csvUploadForm" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <input type="file" 
+                                   id="csvFile" 
+                                   name="csv_file" 
+                                   accept=".csv"
+                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                        <button type="submit" 
+                                id="uploadBtn"
+                                class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="upload-text">📤 Upload & Preview</span>
+                            <span class="upload-loading hidden">⏳ Uploading...</span>
+                        </button>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">
+                        Expected columns: order_item_id, product_title, person_name, primary_email, org_name, brand, serial_number, category_code, etc.
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- CSV Data Browser -->
+        <div id="csvDataSection" class="hidden">
+            <div class="bg-white shadow rounded-lg mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-medium text-gray-900">📊 CSV Data Browser</h2>
+                            <p class="mt-1 text-sm text-gray-500">Review and select rows to import as Asset Checkout tickets</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="autoCreateCustomer" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="autoCreateCustomer" class="ml-2 text-sm text-gray-700">Auto-create customers</label>
+                            </div>
+                            <button id="bulkImportBtn" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
+                                📦 Import Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="csvStats" class="mb-4 text-sm text-gray-600"></div>
+                    
+                    <!-- Data Table -->
+                    <div class="overflow-x-auto">
+                        <table id="csvDataTable" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    </th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="csvDataBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Progress -->
+        <div id="importProgress" class="hidden bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">⚡ Import Progress</h2>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <div id="progressBar" class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="progressFill" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText" class="mt-2 text-sm text-gray-600">Ready to import...</div>
+                </div>
+                <div id="importResults" class="space-y-2">
+                    <!-- Results will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Preview Modal -->
+<div id="previewModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-t-lg">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-2xl font-bold" id="previewTitle">Asset Checkout Ticket Preview</h3>
+                    <p class="text-blue-100 mt-1">Review ticket details before creation</p>
+                </div>
+                <button id="closePreview" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 max-h-[70vh] overflow-y-auto" id="previewContent">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Left Column - Ticket Information -->
+                <div class="space-y-6">
+                    <!-- Ticket Summary Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                🎫 <span class="ml-2">Ticket Information</span>
+                            </h4>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Subject:</label>
+                                <p class="text-gray-900 font-medium" id="ticketSubject">-</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Category:</label>
+                                <span class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full" id="ticketCategory">-</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Priority:</label>
+                                    <span class="inline-block px-2 py-1 text-xs font-medium rounded-full" id="ticketPriority">-</span>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Status:</label>
+                                    <span class="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full" id="ticketStatus">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Queue Selection Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                🚀 <span class="ml-2">Queue Assignment</span>
+                            </h4>
+                        </div>
+                        <div class="p-4">
+                            <label for="queueSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Queue:
+                            </label>
+                            <select id="queueSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Select Queue --</option>
+                            </select>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Choose the support queue for this ticket. Recommended queue is pre-selected based on item type.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Customer Information Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                👤 <span class="ml-2">Customer Information</span>
+                            </h4>
+                        </div>
+                        <div class="p-4 space-y-3" id="customerInfo">
+                            <!-- Customer details will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Asset & Shipping Information -->
+                <div class="space-y-6">
+                    <!-- Inventory Status Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                📦 <span class="ml-2">Inventory Status</span>
+                            </h4>
+                        </div>
+                        <div class="p-4" id="inventoryStatus">
+                            <!-- Inventory information will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Asset Information Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                💻 <span class="ml-2">Asset Information</span>
+                            </h4>
+                        </div>
+                        <div class="p-4" id="assetInfo">
+                            <!-- Asset details will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Shipping Address Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                🚚 <span class="ml-2">Shipping Address</span>
+                            </h4>
+                        </div>
+                        <div class="p-4">
+                            <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+                                <p class="text-sm text-blue-800 mb-2">
+                                    <strong>📍 This address will be mapped to the ticket's Shipping Address field</strong>
+                                </p>
+                                <div class="bg-white rounded border border-blue-200 p-3">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="shippingAddress">-</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Notes Card -->
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                📝 <span class="ml-2">Order Details (Notes)</span>
+                            </h4>
+                        </div>
+                        <div class="p-4">
+                            <div class="bg-green-50 border border-green-200 rounded-md p-3">
+                                <p class="text-sm text-green-800 mb-2">
+                                    <strong>📋 These details will be mapped to the ticket's Notes field</strong>
+                                </p>
+                                <div class="bg-white rounded border border-green-200 p-3 max-h-40 overflow-y-auto">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="orderNotes">-</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-lg flex justify-between items-center">
+            <div class="text-sm text-gray-600">
+                <span class="inline-flex items-center">
+                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Review all details before creating the ticket
+                </span>
+            </div>
+            <div class="space-x-3">
+                <button id="cancelPreview" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="confirmImport" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                    Create Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let csvData = [];
+let currentPreviewIndex = null;
+let currentIsGrouped = false;
+let currentFileId = null;
+
+// Upload form handler
+document.getElementById('csvUploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('csvFile');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadText = uploadBtn.querySelector('.upload-text');
+    const uploadLoading = uploadBtn.querySelector('.upload-loading');
+    
+    if (!fileInput.files[0]) {
+        alert('Please select a CSV file');
+        return;
+    }
+    
+    // Show loading state
+    uploadBtn.disabled = true;
+    uploadText.classList.add('hidden');
+    uploadLoading.classList.remove('hidden');
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+    
+    try {
+        const response = await fetch('/admin/csv-import/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Store file_id globally
+            currentFileId = result.file_id;
+            window.csvFileId = result.file_id;
+            
+            // Show the CSV data section
+            document.getElementById('csvDataSection').classList.remove('hidden');
+            
+            let statsText = `✅ Loaded ${result.total_rows} tickets from CSV file`;
+            if (result.grouped_orders > 0) {
+                statsText += ` (${result.grouped_orders} grouped orders, ${result.individual_rows} individual items)`;
+            }
+            document.getElementById('csvStats').textContent = statsText;
+            
+            // Display the actual CSV data instead of just preview options
+            if (result.data && result.data.length > 0) {
+                displayCSVData(result.data);
+            } else {
+                displayPreviewOptions(result);
+            }
+        } else {
+            alert('❌ Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('❌ Upload failed: ' + error.message);
+    } finally {
+        // Reset loading state
+        uploadBtn.disabled = false;
+        uploadText.classList.remove('hidden');
+        uploadLoading.classList.add('hidden');
+    }
+});
+
+function displayPreviewOptions(result) {
+    const tbody = document.getElementById('csvDataBody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="px-6 py-8">
+                <div class="text-center space-y-4">
+                    <div class="text-lg font-medium text-gray-900">🎯 CSV Import Ready</div>
+                    <p class="text-gray-600">Your CSV has been processed. Choose an option below:</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                        <button onclick="previewTicket(0, false)" 
+                                class="p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-left transition-colors">
+                            <div class="font-medium text-blue-900 mb-2">👁️ Preview Sample Ticket</div>
+                            <div class="text-sm text-blue-700">Review how tickets will be created from your data</div>
+                        </button>
+                        
+                        <button onclick="bulkImportAll()" 
+                                class="p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg text-left transition-colors">
+                            <div class="font-medium text-green-900 mb-2">🚀 Import All Tickets</div>
+                            <div class="text-sm text-green-700">Create tickets for all ${result.total_rows} entries</div>
+                        </button>
+                    </div>
+                    
+                    <div class="text-sm text-gray-500 mt-4">
+                        <strong>Summary:</strong> ${result.total_rows} total tickets 
+                        ${result.grouped_orders > 0 ? `(${result.grouped_orders} grouped orders, ${result.individual_rows} individual items)` : ''}
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+// Display CSV data in table
+function displayCSVData(data) {
+    const tbody = document.getElementById('csvDataBody');
+    tbody.innerHTML = '';
+    
+    data.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        
+        tr.innerHTML = `
+            <td class="px-3 py-4 whitespace-nowrap">
+                <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                       data-index="${index}">
+            </td>
+            <td class="px-3 py-4">
+                <div class="text-sm font-medium text-gray-900 truncate max-w-xs" title="${row.product_title}">
+                    ${row.product_title || 'N/A'}
+                </div>
+                <div class="text-xs text-gray-500">${row.brand || 'Unknown brand'}</div>
+            </td>
+            <td class="px-3 py-4">
+                <div class="text-sm text-gray-900">${row.person_name || 'N/A'}</div>
+                <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>
+            </td>
+            <td class="px-3 py-4">
+                <div class="text-sm text-gray-900">${row.org_name || 'N/A'}</div>
+                <div class="text-xs text-gray-500">${row.country_code || 'Unknown'}</div>
+            </td>
+            <td class="px-3 py-4">
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(row.category_code)}">
+                    ${row.category_code || 'Unknown'}
+                </span>
+            </td>
+            <td class="px-3 py-4 text-sm text-gray-900 font-mono">${row.serial_number || 'N/A'}</td>
+            <td class="px-3 py-4">
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(row.status)}">
+                    ${row.status || 'Unknown'}
+                </span>
+            </td>
+            <td class="px-3 py-4 text-sm font-medium space-x-2">
+                <button onclick="previewTicket(${index})" 
+                        class="text-blue-600 hover:text-blue-900">👁️ Preview</button>
+                <button onclick="importSingleTicket(${index})" 
+                        class="text-green-600 hover:text-green-900">📥 Import</button>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+}
+
+// Get category color
+function getCategoryColor(category) {
+    const colors = {
+        'COMPUTER': 'bg-blue-100 text-blue-800',
+        'LAPTOP': 'bg-purple-100 text-purple-800',
+        'MONITOR': 'bg-green-100 text-green-800',
+        'KEYBOARD': 'bg-yellow-100 text-yellow-800',
+        'MOUSE': 'bg-pink-100 text-pink-800',
+        'HEADSET': 'bg-indigo-100 text-indigo-800',
+        'AV_ADAPTER': 'bg-gray-100 text-gray-800'
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+}
+
+// Get status color
+function getStatusColor(status) {
+    const colors = {
+        'PROCESSING': 'bg-yellow-100 text-yellow-800',
+        'ORDERED': 'bg-blue-100 text-blue-800',
+        'APPROVED': 'bg-green-100 text-green-800',
+        'SHIPPED': 'bg-purple-100 text-purple-800',
+        'DELIVERED': 'bg-green-100 text-green-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+}
+
+// Select all functionality
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+// Preview ticket
+async function previewTicket(index, isGrouped = false) {
+    currentPreviewIndex = index;
+    currentIsGrouped = isGrouped;
+    
+    if (!currentFileId) {
+        alert('No file data available. Please upload a CSV file first.');
+        return;
+    }
+    
+    try {
+        // Show loading state
+        document.getElementById('previewModal').classList.remove('hidden');
+        document.getElementById('previewContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div><p class="mt-4 text-gray-600">Loading preview...</p></div>';
+
+        const response = await fetch('/admin/csv-import/preview-ticket', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                row_index: index,
+                is_grouped: isGrouped,
+                file_id: currentFileId
+            })
+        });
+        
+        // Check if response is HTML (login redirect) or JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // Get the actual response text to see what's happening
+            const responseText = await response.text();
+            console.error('Non-JSON response:', responseText);
+            throw new Error(`Authentication required or server error. Status: ${response.status}. Content-Type: ${contentType || 'unknown'}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            populatePreviewModal(result.preview);
+        } else {
+            document.getElementById('previewContent').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-500 text-4xl mb-4">⚠️</div>
+                    <p class="text-red-600 font-medium">${result.error}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Preview error:', error);
+        document.getElementById('previewContent').innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-red-500 text-4xl mb-4">❌</div>
+                <p class="text-red-600 font-medium">Failed to load preview: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Bulk import function
+function bulkImportAll() {
+    if (!currentFileId) {
+        alert('Please upload a CSV file first.');
+        return;
+    }
+    
+    if (!confirm('This will import ALL tickets from the CSV. Are you sure?')) {
+        return;
+    }
+    
+    // Implementation for bulk import would go here
+    alert('Bulk import functionality coming soon! For now, please use individual ticket import via preview.');
+}
+
+// Display preview
+function populatePreviewModal(preview) {
+    const content = document.getElementById('previewContent');
+    
+    // Format category display
+    const categoryDisplay = preview.category.replace('ASSET_CHECKOUT_CLAW', 'Asset Checkout');
+    
+    // Format priority with colors
+    const priorityColor = preview.priority === 'HIGH' ? 'text-red-600 bg-red-100' : 
+                         preview.priority === 'MEDIUM' ? 'text-yellow-600 bg-yellow-100' : 
+                         'text-green-600 bg-green-100';
+    
+    // Format status with colors                     
+    const statusColor = preview.status === 'OPEN' ? 'text-blue-600 bg-blue-100' : 
+                       preview.status === 'CLOSED' ? 'text-gray-600 bg-gray-100' : 
+                       'text-green-600 bg-green-100';
+    
+    content.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Left Column - Ticket Information -->
+            <div class="space-y-6">
+                <!-- Ticket Summary Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            🎫 <span class="ml-2">Ticket Information</span>
+                        </h4>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Subject:</label>
+                            <p class="text-gray-900 font-medium" id="ticketSubject">${preview.subject}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Category:</label>
+                            <span class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full" id="ticketCategory">${categoryDisplay}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Priority:</label>
+                                <span class="inline-block px-2 py-1 text-xs font-medium ${priorityColor}">
+                                    ${preview.priority} PRIORITY
+                                </span>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Status:</label>
+                                <span class="inline-block px-2 py-1 text-xs font-medium ${statusColor}">
+                                    ${preview.status}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue Selection Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            🚀 <span class="ml-2">Queue Assignment</span>
+                        </h4>
+                    </div>
+                    <div class="p-4">
+                        <label for="queueSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Queue:
+                        </label>
+                        <select id="queueSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Queue --</option>
+                        </select>
+                        <p class="mt-2 text-sm text-gray-500">
+                            Choose the support queue for this ticket. Recommended queue is pre-selected based on item type.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Customer Information Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            👤 <span class="ml-2">Customer Information</span>
+                        </h4>
+                    </div>
+                    <div class="p-4 space-y-3" id="customerInfo">
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Name:</label>
+                            <p class="text-gray-900">${preview.customer_info.name}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Email:</label>
+                            <p class="text-gray-900">${preview.customer_info.email}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Phone:</label>
+                            <p class="text-gray-900">${preview.customer_info.phone || 'Not provided'}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Company:</label>
+                            <p class="text-gray-900">${preview.customer_info.company}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Asset & Shipping Information -->
+            <div class="space-y-6">
+                <!-- Inventory Status Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            📦 <span class="ml-2">Inventory Status</span>
+                        </h4>
+                    </div>
+                    <div class="p-4" id="inventoryStatus">
+                        <!-- Will be populated by populateInventoryStatus -->
+                    </div>
+                </div>
+
+                <!-- Asset Information Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            💻 <span class="ml-2">Asset Information</span>
+                        </h4>
+                    </div>
+                    <div class="p-4" id="assetInfo">
+                        <!-- Will be populated by populateAssetInfo -->
+                    </div>
+                </div>
+
+                <!-- Shipping Address Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            🚚 <span class="ml-2">Shipping Address</span>
+                        </h4>
+                    </div>
+                    <div class="p-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <p class="text-sm text-blue-800 mb-2">
+                                <strong>📍 This address will be mapped to the ticket's Shipping Address field</strong>
+                            </p>
+                            <div class="bg-white rounded border border-blue-200 p-3">
+                                <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="shippingAddress">${preview.shipping_address}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Notes Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+                        <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                            📝 <span class="ml-2">Order Details (Notes)</span>
+                        </h4>
+                    </div>
+                    <div class="p-4">
+                        <div class="bg-green-50 border border-green-200 rounded-md p-3">
+                            <p class="text-sm text-green-800 mb-2">
+                                <strong>📋 These details will be mapped to the ticket's Notes field</strong>
+                            </p>
+                            <div class="bg-white rounded border border-green-200 p-3 max-h-40 overflow-y-auto">
+                                <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="orderNotes">${preview.notes}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Populate queue options
+    populateQueueOptions(preview.available_queues, preview.suggested_queue_id);
+    
+    // Populate inventory status
+    populateInventoryStatus(preview.inventory_info);
+    
+    // Populate asset information
+    populateAssetInfo(preview.all_assets || [preview.asset_info]);
+}
+
+function populateQueueOptions(queues, suggestedQueueId) {
+    const queueSelect = document.getElementById('queueSelect');
+    queueSelect.innerHTML = '<option value="">-- Select Queue --</option>';
+    
+    queues.forEach(queue => {
+        const option = document.createElement('option');
+        option.value = queue.id;
+        option.textContent = queue.name + (queue.suggested ? ' (Recommended)' : '');
+        option.title = queue.description || '';
+        
+        if (queue.suggested || queue.id === suggestedQueueId) {
+            option.selected = true;
+            option.style.fontWeight = 'bold';
+        }
+        
+        queueSelect.appendChild(option);
+    });
+}
+
+function populateInventoryStatus(inventoryInfo) {
+    const container = document.getElementById('inventoryStatus');
+    
+    if (!inventoryInfo || inventoryInfo.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 italic">No inventory information available</p>';
+        return;
+    }
+
+    let html = '';
+    inventoryInfo.forEach((item, index) => {
+        const statusColor = item.stock_status === 'In Stock' ? 'text-green-600' : 'text-red-600';
+        const statusIcon = item.stock_status === 'In Stock' ? '✅' : '❌';
+        
+        html += `
+            <div class="mb-4 ${index > 0 ? 'border-t border-gray-200 pt-4' : ''}">
+                <div class="flex items-start justify-between mb-2">
+                    <h5 class="font-medium text-gray-900">${item.product_title}</h5>
+                    <span class="${statusColor} font-medium text-sm">${statusIcon} ${item.stock_status}</span>
+                </div>
+                
+                ${item.serial_number ? `<p class="text-sm text-gray-600 mb-2">Serial: ${item.serial_number}</p>` : ''}
+                
+                ${item.matches && item.matches.length > 0 ? `
+                    <div class="bg-gray-50 rounded-md p-3">
+                        <p class="text-sm font-medium text-gray-700 mb-2">Inventory Matches:</p>
+                        ${item.matches.map(match => `
+                            <div class="text-sm border-l-2 border-blue-300 pl-3 mb-2">
+                                <div class="font-medium">${match.asset.name || match.asset.model}</div>
+                                <div class="text-gray-600">
+                                    Tag: ${match.asset.asset_tag || 'N/A'} | 
+                                    Serial: ${match.asset.serial_num || 'N/A'} | 
+                                    Status: ${match.asset.status?.value || 'Unknown'}
+                                </div>
+                                <div class="text-xs text-blue-600">Match: ${match.match_type} (${match.confidence} confidence)</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                        <p class="text-sm text-yellow-800">⚠️ No matching assets found in inventory</p>
+                    </div>
+                `}
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function populateAssetInfo(assets) {
+    const container = document.getElementById('assetInfo');
+    
+    if (!assets || assets.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 italic">No asset information available</p>';
+        return;
+    }
+
+    let html = '';
+    if (assets.length === 1) {
+        const asset = assets[0];
+        html = `
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Product:</label>
+                    <p class="text-gray-900">${asset.product_title}</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Brand:</label>
+                    <p class="text-gray-900">${asset.brand || 'Not specified'}</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Serial Number:</label>
+                    <p class="text-gray-900">${asset.serial_number || 'Not provided'}</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Category:</label>
+                    <p class="text-gray-900">${asset.category || 'Not specified'}</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Condition:</label>
+                    <p class="text-gray-900">${asset.condition || 'Not specified'}</p>
+                </div>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="space-y-4">
+                <p class="text-sm font-medium text-gray-700">Multiple Items (${assets.length} total):</p>
+                <div class="max-h-48 overflow-y-auto space-y-3">
+                    ${assets.map((asset, index) => `
+                        <div class="border border-gray-200 rounded-md p-3">
+                            <div class="font-medium text-gray-900 mb-2">Item ${index + 1}: ${asset.product_title}</div>
+                            <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                                <div>Brand: ${asset.brand || 'N/A'}</div>
+                                <div>Serial: ${asset.serial_number || 'N/A'}</div>
+                                <div>Category: ${asset.category || 'N/A'}</div>
+                                <div>Condition: ${asset.condition || 'N/A'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Import single ticket
+async function importSingleTicket(index) {
+    if (!confirm('Are you sure you want to import this ticket?')) {
+        return;
+    }
+    
+    const autoCreateCustomer = document.getElementById('autoCreateCustomer').checked;
+    
+    try {
+        const response = await fetch('/admin/csv-import/import-ticket', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                row_index: index,
+                auto_create_customer: autoCreateCustomer
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Ticket imported successfully! Ticket ID: ${result.ticket_display_id}`);
+            // Mark row as imported
+            const row = document.querySelector(`input[data-index="${index}"]`).closest('tr');
+            row.classList.add('bg-green-50');
+            row.querySelector('.row-checkbox').disabled = true;
+        } else {
+            alert('❌ Import error: ' + result.error);
+        }
+    } catch (error) {
+        alert('❌ Import failed: ' + error.message);
+    }
+}
+
+// Bulk import
+document.getElementById('bulkImportBtn').addEventListener('click', async function() {
+    const selectedRows = Array.from(document.querySelectorAll('.row-checkbox:checked:not(:disabled)'))
+        .map(checkbox => parseInt(checkbox.dataset.index));
+    
+    if (selectedRows.length === 0) {
+        alert('Please select at least one row to import');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to import ${selectedRows.length} tickets?`)) {
+        return;
+    }
+    
+    const autoCreateCustomer = document.getElementById('autoCreateCustomer').checked;
+    
+    // Show progress
+    document.getElementById('importProgress').classList.remove('hidden');
+    const progressBar = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const importResults = document.getElementById('importResults');
+    
+    progressText.textContent = 'Starting bulk import...';
+    importResults.innerHTML = '';
+    
+    try {
+        const response = await fetch('/admin/csv-import/bulk-import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                row_indices: selectedRows,
+                auto_create_customer: autoCreateCustomer
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const progress = 100;
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `✅ Completed: ${result.successful_imports}/${result.total_processed} tickets imported successfully`;
+            
+            // Display results
+            result.results.forEach(res => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `p-2 rounded text-sm ${res.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+                resultDiv.textContent = res.success 
+                    ? `✅ Row ${res.row_index + 1}: Success - Ticket ${res.ticket_display_id}` 
+                    : `❌ Row ${res.row_index + 1}: Error - ${res.error}`;
+                importResults.appendChild(resultDiv);
+                
+                // Mark successful rows
+                if (res.success) {
+                    const row = document.querySelector(`input[data-index="${res.row_index}"]`).closest('tr');
+                    row.classList.add('bg-green-50');
+                    row.querySelector('.row-checkbox').disabled = true;
+                }
+            });
+        } else {
+            progressText.textContent = '❌ Import failed: ' + result.error;
+        }
+    } catch (error) {
+        progressText.textContent = '❌ Import failed: ' + error.message;
+    }
+});
+
+// Modal handlers
+document.getElementById('closePreview').addEventListener('click', function() {
+    document.getElementById('previewModal').classList.add('hidden');
+});
+
+document.getElementById('cancelPreview').addEventListener('click', function() {
+    document.getElementById('previewModal').classList.add('hidden');
+});
+
+document.getElementById('confirmImport').addEventListener('click', function() {
+    const selectedQueueId = document.getElementById('queueSelect').value;
+    
+    const button = document.getElementById('confirmImport');
+    const originalText = button.textContent;
+    button.textContent = 'Creating...';
+    button.disabled = true;
+
+    fetch('/admin/csv-import/import-ticket', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({
+            row_index: currentPreviewIndex,
+            is_grouped: currentIsGrouped,
+            file_id: currentFileId,
+            queue_id: selectedQueueId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showSuccessMessage(data.message || 'Ticket created successfully!');
+            
+            // Close modal
+            document.getElementById('previewModal').classList.add('hidden');
+            
+            // Optionally reload the page or update the UI
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to create ticket. Please try again.');
+    })
+    .finally(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+});
+
+function showSuccessMessage(message) {
+    // Create a success toast or update the page with success message
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        document.body.removeChild(toast);
+    }, 5000);
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+}
+</script>
+{% endblock %} 
