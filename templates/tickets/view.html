@@ -1727,7 +1727,7 @@
                                             <th>ACTIONS</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="accessoryTableBody">
+                                    <tbody id="accessoryTableBodyCheckout">
                                         {% if ticket.accessories %}
                                             {% for accessory in ticket.accessories %}
                                             <tr>
@@ -1786,12 +1786,52 @@
                         
                         <!-- Tab navigation for "New Accessory" and "Select Existing" -->
                         <div style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
-                            <button id="newAccessoryTab" onclick="switchTab('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
+                            <button id="newAccessoryTabCheckout" onclick="switchTabCheckout('new')" style="flex: 1; padding: 10px; background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px 0 0 0; cursor: pointer;">
                                 Add New
                             </button>
-                            <button id="existingAccessoryTab" onclick="switchTab('existing')" style="flex: 1; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 0 4px 0 0; cursor: pointer;">
+                            <button id="existingAccessoryTabCheckout" onclick="switchTabCheckout('existing')" style="flex: 1; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 0 4px 0 0; cursor: pointer;">
                                 Select Existing
                             </button>
+                            
+                            <script>
+                            // Define the checkout tab switching function
+                            function switchTabCheckout(tab) {
+                                console.log(`Switching to checkout tab: ${tab}`);
+                                if (tab === 'new') {
+                                    const newForm = document.getElementById('simpleAccessoryFormCheckout') || document.getElementById('simpleAccessoryForm');
+                                    const existingForm = document.getElementById('existingAccessoryFormCheckout') || document.getElementById('existingAccessoryForm');
+                                    const newTab = document.getElementById('newAccessoryTabCheckout') || document.getElementById('newAccessoryTab');
+                                    const existingTab = document.getElementById('existingAccessoryTabCheckout') || document.getElementById('existingAccessoryTab');
+                                    
+                                    if (newForm) newForm.style.display = 'block';
+                                    if (existingForm) existingForm.style.display = 'none';
+                                    if (newTab) {
+                                        newTab.style.backgroundColor = '#3b82f6';
+                                        newTab.style.color = 'white';
+                                    }
+                                    if (existingTab) {
+                                        existingTab.style.backgroundColor = '#e5e7eb';
+                                        existingTab.style.color = '#374151';
+                                    }
+                                } else {
+                                    const newForm = document.getElementById('simpleAccessoryFormCheckout') || document.getElementById('simpleAccessoryForm');
+                                    const existingForm = document.getElementById('existingAccessoryFormCheckout') || document.getElementById('existingAccessoryForm');
+                                    const newTab = document.getElementById('newAccessoryTabCheckout') || document.getElementById('newAccessoryTab');
+                                    const existingTab = document.getElementById('existingAccessoryTabCheckout') || document.getElementById('existingAccessoryTab');
+                                    
+                                    if (newForm) newForm.style.display = 'none';
+                                    if (existingForm) existingForm.style.display = 'block';
+                                    if (newTab) {
+                                        newTab.style.backgroundColor = '#e5e7eb';
+                                        newTab.style.color = '#374151';
+                                    }
+                                    if (existingTab) {
+                                        existingTab.style.backgroundColor = '#3b82f6';
+                                        existingTab.style.color = 'white';
+                                    }
+                                }
+                            }
+                            </script>
                         </div>
                         
                         <!-- New Accessory Form -->
@@ -1843,11 +1883,6 @@
                                     <option value="India">India</option>
                                     <option value="Singapore">Singapore</option>
                                 </select>
-                            </div>
-                            
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Quantity for this Ticket</label>
-                                <input type="number" name="accessory_quantity" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
                             
                             <div style="margin-bottom: 15px;">
@@ -5263,6 +5298,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 </script>
+<!-- Simple script to fix accessories loading -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, fixing accessories dropdowns...");
+    
+    // Find all accessory select dropdowns
+    const selects = document.querySelectorAll('select[id*="existing_accessory_select"]');
+    console.log("Found", selects.length, "accessory dropdowns");
+    
+    selects.forEach((select, index) => {
+        console.log(`Loading accessories for dropdown ${index + 1}...`);
+        
+        // Load accessories for this dropdown
+        fetch('/tickets/api/accessories', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Accessories loaded for dropdown ${index + 1}:`, data);
+            select.innerHTML = '<option value="">-- Select an Accessory --</option>';
+            
+            if (data.success && data.accessories && data.accessories.length > 0) {
+                // Sort accessories by name
+                data.accessories.sort((a, b) => a.name.localeCompare(b.name));
+                
+                data.accessories.forEach(acc => {
+                    const option = document.createElement('option');
+                    option.value = acc.id;
+                    option.text = `${acc.name} (${acc.category}) - Qty: ${acc.available_quantity}`;
+                    select.appendChild(option);
+                });
+                console.log(`Successfully loaded ${data.accessories.length} accessories for dropdown ${index + 1}`);
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.text = "No accessories available";
+                select.appendChild(option);
+            }
+        })
+        .catch(error => {
+            console.error(`Error loading accessories for dropdown ${index + 1}:`, error);
+            select.innerHTML = '<option value="">-- Error Loading --</option>';
+        });
+    });
+});
+</script>
+
 {% endblock %}
 
 <!-- Debug button for accessory modal (will be removed after fixing) -->

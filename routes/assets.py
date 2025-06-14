@@ -58,73 +58,66 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
 @assets_bp.route('/add', methods=['POST'])
 @login_required
 def add_asset():
-    """Add a new asset and optionally associate it with a ticket"""
+    """Add a new asset to the system"""
     db_session = db_manager.get_session()
     try:
+        data = request.get_json()
+        
         # Get form data
-        asset_tag = request.form.get('asset_tag')
-        serial_number = request.form.get('serial_number')
-        name = request.form.get('name')
-        status = request.form.get('status')
-        asset_type = request.form.get('asset_type')
-        notes = request.form.get('notes', '')
-        ticket_id = request.form.get('ticket_id')  # Optional ticket to associate with
-
-        # Basic validation
-        if not asset_tag or not serial_number or not name:
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-
-        # Check if asset with same tag or serial already exists
+        asset_tag = data.get('asset_tag')
+        serial_number = data.get('serial_number')
+        name = data.get('name')
+        category = data.get('category')
+        location = data.get('location')
+        condition = data.get('condition')
+        status = data.get('status', 'In Stock')
+        notes = data.get('notes', '')
+        asset_type = data.get('type', 'MISC')
+        ticket_id = data.get('ticket_id')  # Optional ticket ID to link to
+        
+        # Input validation
+        if not all([asset_tag, serial_number, name]):
+            return jsonify({'success': False, 'error': 'Asset tag, serial number, and name are required'}), 400
+        
+        # Check if asset tag or serial number already exists
         existing_asset = db_session.query(Asset).filter(
             (Asset.asset_tag == asset_tag) | (Asset.serial_num == serial_number)
         ).first()
         
         if existing_asset:
-            return jsonify({
-                'success': False, 
-                'error': f'Asset with tag {asset_tag} or serial {serial_number} already exists'
-            }), 400
-
-        # Convert status to AssetStatus enum
-        asset_status = AssetStatus.IN_STOCK
-        if status == 'Active' or status == 'Deployed':
-            asset_status = AssetStatus.DEPLOYED
-        elif status == 'In Stock':
-            asset_status = AssetStatus.IN_STOCK
-        elif status == 'Repair':
-            asset_status = AssetStatus.REPAIR
-        elif status == 'Inactive':
-            asset_status = AssetStatus.ARCHIVED
-
+            if existing_asset.asset_tag == asset_tag:
+                return jsonify({'success': False, 'error': 'Asset tag already exists'}), 400
+            else:
+                return jsonify({'success': False, 'error': 'Serial number already exists'}), 400
+        
         # Create new asset
         new_asset = Asset(
             asset_tag=asset_tag,
             serial_num=serial_number,
             name=name,
-            status=asset_status,
+            location=location,
+            condition=condition,
+            notes=notes,
             asset_type=asset_type,
-            notes=notes
+            status=AssetStatus.IN_STOCK if status == 'In Stock' else AssetStatus.READY_TO_DEPLOY
         )
         
         db_session.add(new_asset)
         db_session.commit()
         
-        # Add activity tracking
+        # Create activity log for asset creation
         activity = Activity(
             user_id=current_user.id,
-            type='asset_created',
-            content=f'Created new asset: {new_asset.name} (Asset Tag: {new_asset.asset_tag})',
+            type='asset_added',
+            content=f'Added new asset: {asset_tag} - {name}',
             reference_id=new_asset.id
         )
         db_session.add(activity)
-        db_session.commit()
-
-        # If ticket_id is provided, link this asset to the ticket
+        
+        # If ticket_id is provided, try to link the asset to the ticket
         if ticket_id:
             try:
-                ticket_id = int(ticket_id)
-                ticket = db_session.query(Ticket).get(ticket_id)
-                
+                ticket = db_session.query(Ticket).get(int(ticket_id))
                 if ticket:
                     # Safely link asset to ticket
                     if _safely_assign_asset_to_ticket(ticket, new_asset, db_session):

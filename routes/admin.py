@@ -37,6 +37,7 @@ from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory
 from models.customer_user import CustomerUser
 from models.asset import Asset
 from sqlalchemy import text
+from models.accessory import Accessory
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -1311,7 +1312,7 @@ def preview_ticket_category(category_id):
         flash(f'Error previewing ticket category: {str(e)}', 'error')
         return redirect(url_for('admin.manage_ticket_categories'))
     finally:
-        db_session.close()
+        db_session.close() 
 
 @admin_bp.route('/database/backup')
 @super_admin_required
@@ -2131,58 +2132,188 @@ def csv_import_preview_ticket():
                 product_title = item.get('product_title', '')
                 serial_number = item.get('serial_number', '')
                 brand = item.get('brand', '')
+                category = item.get('category_code', '')
+                
+                # Initialize matches list
+                matches = []
                 
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
-                matches = []
                 
-                # Search by serial number (exact match)
+                # 1. Search by serial number (highest priority for assets)
                 if serial_number:
-                    serial_match = asset_query.filter(
-                        func.lower(Asset.serial_num) == func.lower(serial_number)
-                    ).first()
-                    if serial_match:
+                    serial_matches = asset_query.filter(
+                        Asset.serial_num.ilike(f'%{serial_number}%')
+                    ).all()
+                    
+                    for asset in serial_matches:
+                        # Check availability status
+                        is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                        availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                        
                         matches.append({
-                            'match_type': 'Serial Number',
-                            'asset': serial_match,
+                            'match_type': 'Serial Number (Asset)',
+                            'item_type': 'asset',
+                            'id': asset.id,
+                            'name': asset.name or asset.model,
+                            'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                            'availability': availability_text,
+                            'is_available': is_available,
                             'confidence': 'High'
                         })
                 
-                # Search by product name (fuzzy match)
-                if product_title and not matches:
-                    name_matches = asset_query.filter(
-                        or_(
-                            Asset.name.ilike(f'%{product_title}%'),
-                            Asset.model.ilike(f'%{product_title}%')
-                        )
-                    ).limit(3).all()
+                # 2. Search by product name in assets (medium priority)
+                if product_title and len(matches) < 3:
+                    # Create search terms by splitting product title
+                    search_terms = product_title.lower().split()
                     
-                    for asset in name_matches:
-                        matches.append({
-                            'match_type': 'Product Name',
-                            'asset': asset,
-                            'confidence': 'Medium'
-                        })
+                    for term in search_terms:
+                        if len(term) > 3:  # Only search terms longer than 3 characters
+                            name_matches = asset_query.filter(
+                                or_(
+                                    Asset.name.ilike(f'%{term}%'),
+                                    Asset.model.ilike(f'%{term}%'),
+                                    Asset.hardware_type.ilike(f'%{term}%'),
+                                    Asset.manufacturer.ilike(f'%{term}%')
+                                )
+                            ).limit(2).all()
+                            
+                            for asset in name_matches:
+                                # Avoid duplicates
+                                if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                                    is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                                    availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                                    
+                                    matches.append({
+                                        'match_type': 'Product Name (Asset)',
+                                        'item_type': 'asset',
+                                        'id': asset.id,
+                                        'name': asset.name or asset.model,
+                                        'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                        'availability': availability_text,
+                                        'is_available': is_available,
+                                        'confidence': 'Medium'
+                                    })
                 
-                # Search by brand
-                if brand and len(matches) < 2:
+                # 3. Search by brand in assets (lower priority)
+                if brand and len(matches) < 3:
                     brand_matches = asset_query.filter(
                         Asset.manufacturer.ilike(f'%{brand}%')
                     ).limit(2).all()
                     
                     for asset in brand_matches:
-                        if not any(m['asset'].id == asset.id for m in matches):
+                        if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                            is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                            availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                            
                             matches.append({
-                                'match_type': 'Brand',
-                                'asset': asset,
+                                'match_type': 'Brand (Asset)',
+                                'item_type': 'asset',
+                                'id': asset.id,
+                                'name': asset.name or asset.model,
+                                'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
                                 'confidence': 'Low'
                             })
+                
+                # 4. Search for accessories
+                accessory_query = db_session.query(Accessory)
+                
+                # Search by exact product name in accessories
+                if product_title:
+                    accessory_matches = accessory_query.filter(
+                        Accessory.name.ilike(f'%{product_title}%')
+                    ).limit(3).all()
+                    
+                    for accessory in accessory_matches:
+                        is_available = accessory.available_quantity > 0
+                        availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                        
+                        matches.append({
+                            'match_type': 'Product Name (Accessory)',
+                            'item_type': 'accessory',
+                            'id': accessory.id,
+                            'name': accessory.name,
+                            'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                            'availability': availability_text,
+                            'is_available': is_available,
+                            'confidence': 'High'
+                        })
+                
+                # 5. Search accessories by category or fuzzy name matching
+                if len(matches) < 5:
+                    # Create search terms for fuzzy matching
+                    search_terms = product_title.lower().split() if product_title else []
+                    
+                    for term in search_terms:
+                        if len(term) > 3:  # Only search terms longer than 3 characters
+                            fuzzy_matches = accessory_query.filter(
+                                or_(
+                                    Accessory.name.ilike(f'%{term}%'),
+                                    Accessory.category.ilike(f'%{term}%'),
+                                    Accessory.manufacturer.ilike(f'%{term}%'),
+                                    Accessory.model_no.ilike(f'%{term}%')
+                                )
+                            ).limit(2).all()
+                            
+                            for accessory in fuzzy_matches:
+                                # Avoid duplicates
+                                if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                                    is_available = accessory.available_quantity > 0
+                                    availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                                    
+                                    matches.append({
+                                        'match_type': 'Fuzzy Match (Accessory)',
+                                        'item_type': 'accessory',
+                                        'id': accessory.id,
+                                        'name': accessory.name,
+                                        'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                        'availability': availability_text,
+                                        'is_available': is_available,
+                                        'confidence': 'Medium'
+                                    })
+                
+                # 6. Search accessories by brand
+                if brand and len(matches) < 5:
+                    brand_accessory_matches = accessory_query.filter(
+                        Accessory.manufacturer.ilike(f'%{brand}%')
+                    ).limit(2).all()
+                    
+                    for accessory in brand_accessory_matches:
+                        if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                            is_available = accessory.available_quantity > 0
+                            availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                            
+                            matches.append({
+                                'match_type': 'Brand (Accessory)',
+                                'item_type': 'accessory',
+                                'id': accessory.id,
+                                'name': accessory.name,
+                                'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
+                                'confidence': 'Low'
+                            })
+                
+                # Determine overall stock status
+                if matches:
+                    # Check if any match is available
+                    available_matches = [m for m in matches if m.get('is_available', False)]
+                    if available_matches:
+                        stock_status = "In Stock"
+                    else:
+                        stock_status = "Found but Not Available"
+                else:
+                    stock_status = "Not Found"
                 
                 inventory_info.append({
                     'product_title': product_title,
                     'serial_number': serial_number,
-                    'matches': matches[:3],  # Limit to top 3 matches
-                    'stock_status': 'In Stock' if matches else 'Not Found'
+                    'brand': brand,
+                    'category': category,
+                    'matches': matches[:5],  # Limit to top 5 matches
+                    'stock_status': stock_status
                 })
         finally:
             db_session.close()
@@ -2315,6 +2446,8 @@ def csv_import_import_ticket():
         is_grouped = data.get('is_grouped', False)
         file_id = data.get('file_id')
         selected_queue_id = data.get('queue_id')  # Get selected queue
+        selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
+        selected_assets = data.get('selected_assets', [])  # Get selected assets
         
         if file_id is None or row_index is None:
             return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
@@ -2343,6 +2476,12 @@ def csv_import_import_ticket():
         
         db_session = db_manager.get_session()
         try:
+            # Configure SQLite for better concurrency
+            from sqlalchemy import text
+            db_session.execute(text("PRAGMA journal_mode=WAL;"))
+            db_session.execute(text("PRAGMA synchronous=NORMAL;"))
+            db_session.execute(text("PRAGMA busy_timeout=30000;"))  # 30 second timeout
+            
             # 1. CREATE CUSTOMER FIRST (as requested)
             from models.customer_user import CustomerUser
             from models.company import Company
@@ -2368,12 +2507,18 @@ def csv_import_import_ticket():
                     db_session.add(company)
                     db_session.flush()
                 
-                # Create customer
+                # Create customer with address from shipping information
+                customer_address = f"{primary_item.get('address_line1', '')}\n{primary_item.get('address_line2', '')}\n{primary_item.get('city', '')}, {primary_item.get('state', '')} {primary_item.get('postal_code', '')}\n{primary_item.get('country_code', '')}".strip()
+                if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                    customer_address = "Address not provided"
+                
                 customer = CustomerUser(
                     name=primary_item['person_name'],
                     email=primary_item['primary_email'],
                     contact_number=primary_item.get('phone_number', ''),
-                    company_id=company.id
+                    address=customer_address,
+                    company_id=company.id,
+                    country=primary_item.get('country_code', '')
                 )
                 db_session.add(customer)
                 db_session.flush()
@@ -2409,22 +2554,18 @@ def csv_import_import_ticket():
                 else:
                     return 'ASSET_CHECKOUT_CLAW'  # Route computers to tech asset queue
             
-            # Get or create ticket category
+            # Get ticket category enum value
             category_name = determine_category_and_queue(
                 primary_item.get('product_title', ''),
                 primary_item.get('category_code', '')
             )
             
-            category = db_session.query(TicketCategory).filter(TicketCategory.name == category_name).first()
-            
-            if not category:
-                # Create default category if it doesn't exist
-                category = TicketCategory(
-                    name=category_name,
-                    description=f"Asset Checkout - {primary_item.get('category_code', 'General')}"
-                )
-                db_session.add(category)
-                db_session.flush()
+            # Convert string to TicketCategory enum
+            try:
+                category = getattr(TicketCategory, category_name)
+            except AttributeError:
+                # If category name doesn't exist in enum, use default
+                category = TicketCategory.ASSET_CHECKOUT_CLAW
             
             # 3. MAP PRIORITY
             priority_mapping = {
@@ -2434,7 +2575,24 @@ def csv_import_import_ticket():
             }
             priority = priority_mapping.get(primary_item.get('priority', '1'), TicketPriority.LOW)
             
-            # 4. CREATE ENHANCED DESCRIPTION
+            # 4. CREATE ENHANCED DESCRIPTION WITH SELECTED ITEMS
+            selected_items_text = ""
+            if selected_assets:
+                selected_items_text += f"""
+
+Selected Assets from Inventory:
+"""
+                for asset in selected_assets:
+                    selected_items_text += f"- {asset.get('assetName', 'Unknown Asset')} (ID: {asset.get('assetId', 'N/A')})\n"
+            
+            if selected_accessories:
+                selected_items_text += f"""
+
+Selected Accessories from Inventory:
+"""
+                for acc in selected_accessories:
+                    selected_items_text += f"- {acc.get('accessoryName', 'Unknown Accessory')} (ID: {acc.get('accessoryId', 'N/A')})\n"
+            
             if is_grouped:
                 # Create description for multiple items
                 description = f"""Asset Checkout Request - CSV Import (Multi-Item Order)
@@ -2465,6 +2623,7 @@ Item {i}:
 - Item ID: {item['order_item_id']}
 """
                 
+                description += selected_items_text
                 description += f"""
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 
@@ -2486,7 +2645,7 @@ Asset Information:
 - Serial Number: {primary_item['serial_number']}
 - Category: {primary_item['category_code']}
 - Condition: {primary_item['preferred_condition'] or 'Not specified'}
-
+{selected_items_text}
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 
                 subject = f"Asset Checkout - {primary_item['product_title']}"
@@ -2517,9 +2676,9 @@ Additional Info:
                 subject=subject,
                 description=description,
                 customer_id=customer.id,
-                category_id=category.id,
+                category=category,
                 priority=priority,
-                status=TicketStatus.OPEN,
+                status=TicketStatus.NEW,
                 requester_id=current_user.id,
                 queue_id=int(selected_queue_id) if selected_queue_id else None,  # Assign to selected queue
                 shipping_address=shipping_address,  # Shipping info goes to shipping_address field
@@ -2529,12 +2688,88 @@ Additional Info:
             db_session.add(ticket)
             db_session.commit()
             
+            # 8. ASSIGN SELECTED ASSETS AND ACCESSORIES TO TICKET
+            assigned_accessories = []
+            assigned_assets = []
+            
+            # Assign selected assets
+            if selected_assets:
+                from models.asset import Asset
+                
+                for asset_data in selected_assets:
+                    asset_id = asset_data.get('assetId')
+                    if asset_id:
+                        # Get the asset from database
+                        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+                        if asset and asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
+                            # Use the existing function to safely assign asset
+                            try:
+                                safely_assign_asset_to_ticket(ticket, asset, db_session)
+                                assigned_assets.append(asset.name)
+                                
+                                # Create activity log for asset assignment
+                                from models.activity import Activity
+                                activity = Activity(
+                                    user_id=current_user.id,
+                                    type='asset_assigned',
+                                    content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_number}) to ticket #{ticket.display_id}',
+                                    reference_id=ticket.id
+                                )
+                                db_session.add(activity)
+                            except Exception as e:
+                                print(f"Error assigning asset {asset_id}: {str(e)}")
+            
+            # Assign selected accessories
+            if selected_accessories:
+                from models.ticket import TicketAccessory
+                from models.accessory import Accessory
+                
+                for acc_data in selected_accessories:
+                    accessory_id = acc_data.get('accessoryId')
+                    if accessory_id:
+                        # Get the accessory from database
+                        accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+                        if accessory and accessory.available_quantity > 0:
+                            # Create ticket-accessory assignment
+                            ticket_accessory = TicketAccessory(
+                                ticket_id=ticket.id,
+                                name=accessory.name,
+                                category=accessory.category,
+                                quantity=1,
+                                condition='Good',
+                                notes=f'Assigned from CSV import',
+                                original_accessory_id=accessory.id
+                            )
+                            db_session.add(ticket_accessory)
+                            
+                            # Update accessory quantity (decrease available)
+                            accessory.available_quantity -= 1
+                            if accessory.available_quantity == 0:
+                                accessory.status = 'Out of Stock'
+                            
+                            assigned_accessories.append(accessory.name)
+                            
+                            # Create activity log for accessory assignment
+                            from models.activity import Activity
+                            activity = Activity(
+                                user_id=current_user.id,
+                                type='accessory_assigned',
+                                content=f'Assigned accessory "{accessory.name}" to ticket #{ticket.display_id}',
+                                reference_id=ticket.id
+                            )
+                            db_session.add(activity)
+                
+                # Commit all assignments at once to avoid database locks
+                db_session.commit()
+            
             return jsonify({
                 'success': True, 
                 'ticket_id': ticket.id,
                 'ticket_display_id': ticket.display_id,
                 'customer_created': customer_created,
-                'message': f'Ticket {ticket.display_id} created successfully. Customer {"created" if customer_created else "updated"}.'
+                'assigned_accessories': assigned_accessories,
+                'assigned_assets': assigned_assets,
+                'message': f'Ticket {ticket.display_id} created successfully. Customer {"created" if customer_created else "updated"}. {len(assigned_assets)} assets and {len(assigned_accessories)} accessories assigned.'
             })
             
         except Exception as e:
@@ -2558,6 +2793,8 @@ def csv_import_bulk_import():
         data = request.get_json()
         row_indices = data.get('row_indices', [])
         auto_create_customer = data.get('auto_create_customer', True)
+        selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
+        selected_assets = data.get('selected_assets', [])  # Get selected assets
         
         if 'csv_import_file' not in session:
             return jsonify({'success': False, 'error': 'No CSV data found. Please upload a file first.'})
@@ -2592,7 +2829,7 @@ def csv_import_bulk_import():
             
             # Import single ticket (reuse the logic)
             try:
-                result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer)
+                result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer, selected_accessories, selected_assets)
                 results.append({'row_index': row_index, **result})
             except Exception as e:
                 results.append({'row_index': row_index, 'success': False, 'error': str(e)})
@@ -2611,11 +2848,20 @@ def csv_import_bulk_import():
         return jsonify({'success': False, 'error': f'Bulk import error: {str(e)}'})
 
 
-def csv_import_import_ticket_internal(row, auto_create_customer=True):
+def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_accessories=[], selected_assets=[]):
     """Internal function to import a single ticket (used by bulk import)"""
     db_session = db_manager.get_session()
     
     try:
+        # Configure SQLite for better concurrency
+        from sqlalchemy import text
+        db_session.execute(text("PRAGMA journal_mode=WAL;"))
+        db_session.execute(text("PRAGMA synchronous=NORMAL;"))
+        db_session.execute(text("PRAGMA busy_timeout=30000;"))  # 30 second timeout
+        
+        # Add a small delay to prevent database lock conflicts
+        import time
+        time.sleep(0.1)
         # Check if customer exists or create new one
         customer = None
         customer_created = False
@@ -2626,27 +2872,52 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True):
         if not customer and auto_create_customer:
             # Create new customer
             from models.user import Country
+            from models.company import Company
+            
+            # Get or create company
+            company = db_session.query(Company).filter(
+                Company.name == row['org_name']
+            ).first()
+            
+            if not company:
+                company = Company(
+                    name=row['org_name'],
+                    description=f"Auto-created from CSV import",
+                    contact_email=row['primary_email']
+                )
+                db_session.add(company)
+                db_session.flush()
             
             # Map country code to Country enum
             country_mapping = {
                 'SG': Country.SINGAPORE,
-                'TW': Country.TAIWAN,
                 'US': Country.USA,
-                'UK': Country.UK,
-                'DE': Country.GERMANY,
-                'FR': Country.FRANCE,
                 'JP': Country.JAPAN,
                 'IN': Country.INDIA,
                 'AU': Country.AUSTRALIA,
-                'CN': Country.CHINA
+                'PH': Country.PHILIPPINES,
+                'IL': Country.ISRAEL
             }
             country = country_mapping.get(row['country_code'], Country.SINGAPORE)
+            
+            # Create address from available fields
+            address_parts = [
+                row.get('address_line1', ''),
+                row.get('address_line2', ''),
+                row.get('city', ''),
+                f"{row.get('state', '')} {row.get('postal_code', '')}".strip(),
+                row.get('country_code', '')
+            ]
+            customer_address = ', '.join(filter(None, address_parts))
+            if not customer_address.strip():
+                customer_address = "Address not provided"
             
             customer = CustomerUser(
                 name=row['person_name'],
                 email=row['primary_email'],
-                contact_number=row['phone_number'],
-                address=f"{row['address_line1']}, {row['address_line2']}, {row['city']}, {row['state']} {row['postal_code']}, {row['country_code']}",
+                contact_number=row.get('phone_number', ''),
+                address=customer_address,
+                company_id=company.id,
                 country=country
             )
             db_session.add(customer)
@@ -2656,29 +2927,26 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True):
         if not customer:
             return {'success': False, 'error': 'Customer not found and auto-create is disabled'}
         
-        # Get or create ticket category
+        # Get ticket category enum value
         category_mapping = {
-            'COMPUTER': 'ASSET_CHECKOUT_MAIN',
-            'LAPTOP': 'ASSET_CHECKOUT_MAIN', 
-            'MONITOR': 'ASSET_CHECKOUT_MAIN',
-            'KEYBOARD': 'ASSET_CHECKOUT_MAIN',
-            'MOUSE': 'ASSET_CHECKOUT_MAIN',
-            'HEADSET': 'ASSET_CHECKOUT_MAIN',
-            'AV_ADAPTER': 'ASSET_CHECKOUT_MAIN',
-            'COMPUTER_ACCESSORY': 'ASSET_CHECKOUT_MAIN'
+            'COMPUTER': 'ASSET_CHECKOUT_CLAW',
+            'LAPTOP': 'ASSET_CHECKOUT_CLAW', 
+            'MONITOR': 'ASSET_CHECKOUT_CLAW',
+            'KEYBOARD': 'ASSET_CHECKOUT_CLAW',
+            'MOUSE': 'ASSET_CHECKOUT_CLAW',
+            'HEADSET': 'ASSET_CHECKOUT_CLAW',
+            'AV_ADAPTER': 'ASSET_CHECKOUT_CLAW',
+            'COMPUTER_ACCESSORY': 'ASSET_CHECKOUT_CLAW'
         }
         
-        category_name = category_mapping.get(row['category_code'], 'ASSET_CHECKOUT_MAIN')
-        category = db_session.query(TicketCategory).filter(TicketCategory.name == category_name).first()
+        category_name = category_mapping.get(row['category_code'], 'ASSET_CHECKOUT_CLAW')
         
-        if not category:
-            # Create default category if it doesn't exist
-            category = TicketCategory(
-                name=category_name,
-                description=f"Asset Checkout - {row['category_code']}"
-            )
-            db_session.add(category)
-            db_session.flush()
+        # Convert string to TicketCategory enum
+        try:
+            category = getattr(TicketCategory, category_name)
+        except AttributeError:
+            # If category name doesn't exist in enum, use default
+            category = TicketCategory.ASSET_CHECKOUT_CLAW
         
         # Map priority
         priority_mapping = {
@@ -2689,6 +2957,15 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True):
         priority = priority_mapping.get(row['priority'], TicketPriority.LOW)
         
         # Create detailed description
+        selected_accessories_text = ""
+        if selected_accessories:
+            selected_accessories_text = f"""
+
+Selected Accessories from Inventory:
+"""
+            for acc in selected_accessories:
+                selected_accessories_text += f"- {acc.get('accessoryName', 'Unknown Accessory')} (ID: {acc.get('accessoryId', 'N/A')})\n"
+        
         description = f"""Asset Checkout Request - CSV Import
 
 Customer Information:
@@ -2720,7 +2997,7 @@ Order Information:
 - Start Date: {row['start_date'] or 'Not specified'}
 - Shipped Date: {row['shipped_date'] or 'Not specified'}
 - Delivery Date: {row['delivery_date'] or 'Not specified'}
-
+{selected_accessories_text}
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
         
         # Create the ticket
@@ -2728,20 +3005,97 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             subject=f"Asset Checkout - {row['product_title']}",
             description=description,
             customer_id=customer.id,
-            category_id=category.id,
+            category=category,
             priority=priority,
-            status=TicketStatus.OPEN,
+            status=TicketStatus.NEW,
             requester_id=current_user.id
         )
         
         db_session.add(ticket)
         db_session.commit()
         
+        # Assign selected assets and accessories to ticket
+        assigned_accessories = []
+        assigned_assets = []
+        
+        # Assign selected assets
+        if selected_assets:
+            from models.asset import Asset
+            
+            for asset_data in selected_assets:
+                asset_id = asset_data.get('assetId')
+                if asset_id:
+                    # Get the asset from database
+                    asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+                    if asset and asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
+                        # Use the existing function to safely assign asset
+                        try:
+                            safely_assign_asset_to_ticket(ticket, asset, db_session)
+                            assigned_assets.append(asset.name)
+                            
+                            # Create activity log for asset assignment
+                            from models.activity import Activity
+                            activity = Activity(
+                                user_id=current_user.id,
+                                type='asset_assigned',
+                                content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_number}) to ticket #{ticket.display_id}',
+                                reference_id=ticket.id
+                            )
+                            db_session.add(activity)
+                        except Exception as e:
+                            print(f"Error assigning asset {asset_id}: {str(e)}")
+        
+        # Assign selected accessories
+        if selected_accessories:
+            from models.ticket import TicketAccessory
+            from models.accessory import Accessory
+            
+            for acc_data in selected_accessories:
+                accessory_id = acc_data.get('accessoryId')
+                if accessory_id:
+                    # Get the accessory from database
+                    accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+                    if accessory and accessory.available_quantity > 0:
+                        # Create ticket-accessory assignment
+                        ticket_accessory = TicketAccessory(
+                            ticket_id=ticket.id,
+                            name=accessory.name,
+                            category=accessory.category,
+                            quantity=1,
+                            condition='Good',
+                            notes=f'Assigned from CSV import',
+                            original_accessory_id=accessory.id
+                        )
+                        db_session.add(ticket_accessory)
+                        
+                        # Update accessory quantity (decrease available)
+                        accessory.available_quantity -= 1
+                        if accessory.available_quantity == 0:
+                            accessory.status = 'Out of Stock'
+                        
+                        assigned_accessories.append(accessory.name)
+                        
+                        # Create activity log for accessory assignment
+                        from models.activity import Activity
+                        activity = Activity(
+                            user_id=current_user.id,
+                            type='accessory_assigned',
+                            content=f'Assigned accessory "{accessory.name}" to ticket #{ticket.display_id}',
+                            reference_id=ticket.id
+                        )
+                        db_session.add(activity)
+        
+        # Commit all assignments at once to avoid database locks
+        if assigned_assets or assigned_accessories:
+            db_session.commit()
+        
         return {
             'success': True, 
             'ticket_id': ticket.id,
             'ticket_display_id': ticket.display_id,
-            'customer_created': customer_created
+            'customer_created': customer_created,
+            'assigned_accessories': assigned_accessories,
+            'assigned_assets': assigned_assets
         }
         
     except Exception as e:

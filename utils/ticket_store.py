@@ -315,7 +315,7 @@ class TicketStore:
             # Ensure the directory exists and create an empty tickets file
             os.makedirs(os.path.dirname(self.TICKETS_FILE), exist_ok=True)
             with open(self.TICKETS_FILE, 'w') as f:
-                json.dump([], f)
+                json.dump([], f) 
 
     def _safely_assign_asset_to_ticket(self, ticket, asset, db_session):
         """

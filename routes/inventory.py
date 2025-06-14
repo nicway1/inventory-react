@@ -3295,7 +3295,7 @@ def get_customer_transactions(id):
                     'transaction_type': t.transaction_type,
                     'notes': t.notes,
                     'asset_tag': t.asset.asset_tag if t.asset else None,
-                    'asset_name': t.asset.product if t.asset else None,
+                    'asset_name': t.asset.name if t.asset else None,
                     'type': 'asset'
                 }
                 asset_transaction_list.append(transaction_data)
@@ -3500,7 +3500,7 @@ def get_maintenance_assets():
                 or_(
                     Asset.serial_num.ilike(search_term),
                     Asset.asset_tag.ilike(search_term),
-                    Asset.product.ilike(search_term),
+                    Asset.name.ilike(search_term),
                     Asset.model.ilike(search_term),
                     Asset.cpu_type.ilike(search_term)
                 )

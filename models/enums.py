@@ -13,4 +13,6 @@ class Country(str, PyEnum):
     AUSTRALIA = "AUSTRALIA"
     ISRAEL = "ISRAEL"
     INDIA = "INDIA"
+    IN = "IN"  # Support for existing database records
+    SG = "SG"  # Support for existing database records
     SINGAPORE = "SINGAPORE" 

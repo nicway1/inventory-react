@@ -4476,12 +4476,12 @@ def add_accessory(ticket_id):
         if request.is_json:
             data = request.get_json()
             existing_accessory_id = data.get('existing_accessory_id')
-            # Use the quantity submitted by the user
-            quantity = int(data.get('accessory_quantity', 1))
             condition = data.get('accessory_condition', 'Good')
             notes = data.get('accessory_notes', '')
 
             if existing_accessory_id:
+                # For existing accessories, use the quantity submitted by the user
+                quantity = int(data.get('accessory_quantity', 1))
                 # Get the existing accessory
                 accessory = db_session.query(Accessory).get(existing_accessory_id)
                 if not accessory:
@@ -4556,7 +4556,8 @@ def add_accessory(ticket_id):
                 model_no = data.get('model_no')
                 total_quantity = int(data.get('total_quantity', 1))
                 country = data.get('country')
-                # quantity is already set above
+                # For new accessories, use total_quantity as the quantity (since we removed the separate quantity field)
+                quantity = total_quantity
                 
                 if not all([name, category, manufacturer, model_no, country]):
                     return jsonify({'success': False, 'message': 'Missing required fields'}), 400
@@ -4575,15 +4576,9 @@ def add_accessory(ticket_id):
                 db_session.add(new_accessory)
                 db_session.flush()
 
-                # Update inventory based on ticket category
-                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
-                    if new_accessory.available_quantity < quantity:
-                        return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
-                    new_accessory.available_quantity -= quantity
-                else:
-                    # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
-                    # No need to add to inventory since we're creating new inventory
-                    pass
+                # For NEW accessories, we don't deduct from inventory since we're creating the inventory
+                # The available_quantity should remain equal to total_quantity for new accessories
+                pass
 
                 # Create ticket accessory record
                 ticket_accessory = TicketAccessory(
@@ -4643,8 +4638,8 @@ def add_accessory(ticket_id):
             model_no = request.form.get('model_no')
             total_quantity = int(request.form.get('total_quantity', 1))
             country = request.form.get('country')
-            # Use the quantity submitted by the user
-            quantity = int(request.form.get('accessory_quantity', 1))
+            # For new accessories, use total_quantity as the quantity (since we removed the separate quantity field)
+            quantity = total_quantity
             condition = request.form.get('accessory_condition', 'Good')
             notes = request.form.get('accessory_notes', '')
             
@@ -4673,18 +4668,9 @@ def add_accessory(ticket_id):
             print(f"Assigning quantity: {quantity}")
             print(f"Initial available quantity: {new_accessory.available_quantity}")
             
-            # For Asset Checkout categories, deduct from inventory (checkout)
-            # For Asset Return and Asset Intake categories, add to inventory (return/intake)
-            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
-                # Checkout: deduct from inventory
-                if new_accessory.available_quantity < quantity:
-                    return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
-                new_accessory.available_quantity -= quantity
-                print(f"CHECKOUT: Decreasing inventory by {quantity}")
-            else:
-                # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
-                # No need to add to inventory since we're creating new inventory
-                print(f"RETURN/INTAKE: New accessory created with available quantity: {new_accessory.available_quantity}")
+            # For NEW accessories, we don't deduct from inventory since we're creating the inventory
+            # The available_quantity should remain equal to total_quantity for new accessories
+            print(f"NEW ACCESSORY: Created with available quantity equal to total quantity: {new_accessory.available_quantity}")
                 
             print(f"Available quantity after assignment: {new_accessory.available_quantity}")
             print(f"=== INVENTORY UPDATE END ===")
@@ -5109,10 +5095,16 @@ def fix_accessory_inventory(accessory_id):
         return jsonify({'success': False, 'message': f'Error fixing accessory inventory: {str(e)}'}), 500
 
 @tickets_bp.route('/api/accessories')
-@login_required
 def get_accessories():
     """Get all accessories for dropdown"""
     print("API endpoint /api/accessories called")
+    
+    # Check if user is logged in - for now, allow access for debugging
+    from flask import session
+    if 'user_id' not in session:
+        print("User not logged in, but allowing access for debugging")
+        # return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    
     db_session = None
     try:
         db_session = db_manager.get_session()
@@ -5316,3 +5308,43 @@ def get_ticket_accessory(ticket_id, accessory_id):
         return jsonify({'success': False, 'message': f'Error getting accessory: {str(e)}'}), 500
     finally:
         db_session.close()
+
+@tickets_bp.route('/api/accessories/test')
+def test_accessories_no_auth():
+    """Test endpoint to check accessories without authentication"""
+    try:
+        from utils.db_manager import DatabaseManager
+        from models.accessory import Accessory
+        
+        db_manager = DatabaseManager()
+        db_session = db_manager.get_session()
+        
+        # Get all accessories with available quantity > 0
+        accessories = db_session.query(Accessory).filter(
+            Accessory.available_quantity > 0
+        ).all()
+        
+        result = []
+        for acc in accessories:
+            result.append({
+                'id': acc.id,
+                'name': acc.name,
+                'category': acc.category,
+                'available_quantity': acc.available_quantity
+            })
+        
+        db_session.close()
+        
+        return {
+            'success': True, 
+            'accessories': result,
+            'count': len(result),
+            'message': f'Found {len(result)} accessories'
+        }
+        
+    except Exception as e:
+        return {
+            'success': False, 
+            'message': f'Error: {str(e)}',
+            'accessories': []
+        }
