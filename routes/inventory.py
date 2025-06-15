@@ -240,6 +240,7 @@ def view_tech_assets():
             'assets': [
                 {
                     'id': asset.id,
+                    'name': asset.name or f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
                     'product': f"{asset.hardware_type} {asset.model}" if asset.hardware_type else asset.model,
                     'asset_tag': asset.asset_tag,
                     'serial_num': asset.serial_num,

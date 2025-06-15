@@ -2149,7 +2149,8 @@ def csv_import_preview_ticket():
                     for asset in serial_matches:
                         # Check availability status
                         is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
-                        availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                        status_display = asset.status.value if asset.status else 'Unknown'
+                        availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
                         
                         matches.append({
                             'match_type': 'Serial Number (Asset)',
@@ -2182,7 +2183,8 @@ def csv_import_preview_ticket():
                                 # Avoid duplicates
                                 if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
                                     is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
-                                    availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                                    status_display = asset.status.value if asset.status else 'Unknown'
+                                    availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
                                     
                                     matches.append({
                                         'match_type': 'Product Name (Asset)',
@@ -2204,7 +2206,8 @@ def csv_import_preview_ticket():
                     for asset in brand_matches:
                         if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
                             is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
-                            availability_text = f"Available ({asset.status.value})" if is_available else f"Not Available ({asset.status.value if asset.status else 'Unknown'})"
+                            status_display = asset.status.value if asset.status else 'Unknown'
+                            availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
                             
                             matches.append({
                                 'match_type': 'Brand (Asset)',
@@ -2220,11 +2223,16 @@ def csv_import_preview_ticket():
                 # 4. Search for accessories
                 accessory_query = db_session.query(Accessory)
                 
+                # Debug logging for accessory matching
+                print(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                
                 # Search by exact product name in accessories
                 if product_title:
                     accessory_matches = accessory_query.filter(
                         Accessory.name.ilike(f'%{product_title}%')
                     ).limit(3).all()
+                    
+                    print(f"CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
                     
                     for accessory in accessory_matches:
                         is_available = accessory.available_quantity > 0
@@ -2245,9 +2253,11 @@ def csv_import_preview_ticket():
                 if len(matches) < 5:
                     # Create search terms for fuzzy matching
                     search_terms = product_title.lower().split() if product_title else []
+                    print(f"CSV_ACCESSORY_DEBUG: Fuzzy search terms: {search_terms}")
                     
                     for term in search_terms:
                         if len(term) > 3:  # Only search terms longer than 3 characters
+                            print(f"CSV_ACCESSORY_DEBUG: Searching fuzzy matches for term: '{term}'")
                             fuzzy_matches = accessory_query.filter(
                                 or_(
                                     Accessory.name.ilike(f'%{term}%'),
@@ -2448,6 +2458,14 @@ def csv_import_import_ticket():
         selected_queue_id = data.get('queue_id')  # Get selected queue
         selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
         selected_assets = data.get('selected_assets', [])  # Get selected assets
+        
+        # Add logging to see what we're receiving
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
+        print(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
+        print(f"[CSV IMPORT] Selected assets data: {selected_assets}")
         
         if file_id is None or row_index is None:
             return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
@@ -2672,6 +2690,7 @@ Additional Info:
 {description}"""
             
             # 7. CREATE THE TICKET WITH PROPER DATA FLOW
+            print(f"[CSV DEBUG] Creating ticket with subject: {subject}")
             ticket = Ticket(
                 subject=subject,
                 description=description,
@@ -2687,37 +2706,93 @@ Additional Info:
             
             db_session.add(ticket)
             db_session.commit()
+            print(f"[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
             
             # 8. ASSIGN SELECTED ASSETS AND ACCESSORIES TO TICKET
             assigned_accessories = []
             assigned_assets = []
             
             # Assign selected assets
+            print(f"[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
+            print(f"[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
+            
+            # Check for duplicate asset IDs in the selection
+            asset_ids = [asset_data.get('assetId') for asset_data in selected_assets if asset_data.get('assetId')]
+            unique_asset_ids = list(set(asset_ids))
+            print(f"[CSV DEBUG] Asset IDs: {asset_ids}")
+            print(f"[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
+            if len(asset_ids) != len(unique_asset_ids):
+                print(f"[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
+            
             if selected_assets:
                 from models.asset import Asset
+                print(f"[CSV DEBUG] Processing {len(selected_assets)} selected assets")
+                
+                # Deduplicate assets by ID to prevent constraint violations
+                processed_asset_ids = set()
                 
                 for asset_data in selected_assets:
                     asset_id = asset_data.get('assetId')
-                    if asset_id:
+                    print(f"[CSV DEBUG] Processing asset ID: {asset_id}")
+                    if asset_id and asset_id not in processed_asset_ids:
+                        processed_asset_ids.add(asset_id)
                         # Get the asset from database
                         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
-                        if asset and asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
-                            # Use the existing function to safely assign asset
-                            try:
-                                safely_assign_asset_to_ticket(ticket, asset, db_session)
-                                assigned_assets.append(asset.name)
-                                
-                                # Create activity log for asset assignment
-                                from models.activity import Activity
-                                activity = Activity(
-                                    user_id=current_user.id,
-                                    type='asset_assigned',
-                                    content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_number}) to ticket #{ticket.display_id}',
-                                    reference_id=ticket.id
-                                )
-                                db_session.add(activity)
-                            except Exception as e:
-                                print(f"Error assigning asset {asset_id}: {str(e)}")
+                        if asset:
+                            print(f"[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
+                            if asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
+                                # Use the existing function to safely assign asset
+                                try:
+                                    print(f"[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
+                                    success = safely_assign_asset_to_ticket(ticket, asset, db_session)
+                                    if success:
+                                        assigned_assets.append(asset.name)
+                                        print(f"[CSV DEBUG] Successfully assigned asset {asset.name}")
+                                        
+                                        # Also assign the asset to the customer and update status
+                                        if ticket.customer_id:
+                                            asset.customer_id = ticket.customer_id
+                                            print(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                        
+                                        if ticket.assigned_to_id:
+                                            asset.assigned_to_id = ticket.assigned_to_id
+                                            print(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                        
+                                        # Update asset status to DEPLOYED
+                                        from models.asset import AssetStatus
+                                        asset.status = AssetStatus.DEPLOYED
+                                        print(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                                        
+                                        # Create activity log for asset assignment
+                                        from models.activity import Activity
+                                        
+                                        # Use current_user.id, fallback to admin user
+                                        activity_user_id = current_user.id if current_user else 1
+                                        
+                                        activity = Activity(
+                                            user_id=activity_user_id,
+                                            type='asset_assigned',
+                                            content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_num}) to ticket #{ticket.display_id}',
+                                            reference_id=ticket.id
+                                        )
+                                        db_session.add(activity)
+                                    else:
+                                        print(f"[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
+                                except Exception as e:
+                                    print(f"[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
+                                    import traceback
+                                    traceback.print_exc()
+                            else:
+                                print(f"[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
+                        else:
+                            print(f"[CSV DEBUG] Asset {asset_id} not found in database")
+                    elif asset_id in processed_asset_ids:
+                        print(f"[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
+            
+            # Commit asset assignments
+            if assigned_assets:
+                print(f"[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
+                db_session.commit()
             
             # Assign selected accessories
             if selected_accessories:
@@ -2751,8 +2826,12 @@ Additional Info:
                             
                             # Create activity log for accessory assignment
                             from models.activity import Activity
+                            
+                            # Use current_user.id, fallback to admin user
+                            activity_user_id = current_user.id if current_user else 1
+                            
                             activity = Activity(
-                                user_id=current_user.id,
+                                user_id=activity_user_id,
                                 type='accessory_assigned',
                                 content=f'Assigned accessory "{accessory.name}" to ticket #{ticket.display_id}',
                                 reference_id=ticket.id
@@ -2829,7 +2908,7 @@ def csv_import_bulk_import():
             
             # Import single ticket (reuse the logic)
             try:
-                result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer, selected_accessories, selected_assets)
+                result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer, selected_accessories, selected_assets, current_user.id)
                 results.append({'row_index': row_index, **result})
             except Exception as e:
                 results.append({'row_index': row_index, 'success': False, 'error': str(e)})
@@ -2848,7 +2927,7 @@ def csv_import_bulk_import():
         return jsonify({'success': False, 'error': f'Bulk import error: {str(e)}'})
 
 
-def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_accessories=[], selected_assets=[]):
+def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_accessories=[], selected_assets=[], user_id=None):
     """Internal function to import a single ticket (used by bulk import)"""
     db_session = db_manager.get_session()
     
@@ -2896,7 +2975,16 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_a
                 'IN': Country.INDIA,
                 'AU': Country.AUSTRALIA,
                 'PH': Country.PHILIPPINES,
-                'IL': Country.ISRAEL
+                'IL': Country.IL,
+                'CA': Country.CA,
+                'TW': Country.TAIWAN,
+                'CN': Country.CHINA,
+                'HK': Country.HONG_KONG,
+                'MY': Country.MALAYSIA,
+                'TH': Country.THAILAND,
+                'VN': Country.VIETNAM,
+                'KR': Country.SOUTH_KOREA,
+                'ID': Country.INDONESIA
             }
             country = country_mapping.get(row['country_code'], Country.SINGAPORE)
             
@@ -3001,6 +3089,15 @@ Order Information:
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
         
         # Create the ticket
+        # Use provided user_id or try to get current_user.id, fallback to 1 (admin)
+        requester_id = user_id
+        if not requester_id:
+            try:
+                from flask_login import current_user
+                requester_id = current_user.id if current_user and current_user.is_authenticated else 1
+            except:
+                requester_id = 1  # Fallback to admin user
+        
         ticket = Ticket(
             subject=f"Asset Checkout - {row['product_title']}",
             description=description,
@@ -3008,7 +3105,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             category=category,
             priority=priority,
             status=TicketStatus.NEW,
-            requester_id=current_user.id
+            requester_id=requester_id
         )
         
         db_session.add(ticket)
@@ -3033,12 +3130,26 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                             safely_assign_asset_to_ticket(ticket, asset, db_session)
                             assigned_assets.append(asset.name)
                             
+                            # Also assign the asset to the customer and update status
+                            if ticket.customer_id:
+                                asset.customer_id = ticket.customer_id
+                                print(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                            
+                            if ticket.assigned_to_id:
+                                asset.assigned_to_id = ticket.assigned_to_id
+                                print(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                            
+                            # Update asset status to DEPLOYED
+                            from models.asset import AssetStatus
+                            asset.status = AssetStatus.DEPLOYED
+                            print(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                            
                             # Create activity log for asset assignment
                             from models.activity import Activity
                             activity = Activity(
-                                user_id=current_user.id,
+                                user_id=requester_id,
                                 type='asset_assigned',
-                                content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_number}) to ticket #{ticket.display_id}',
+                                content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_num}) to ticket #{ticket.display_id}',
                                 reference_id=ticket.id
                             )
                             db_session.add(activity)
@@ -3078,7 +3189,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                         # Create activity log for accessory assignment
                         from models.activity import Activity
                         activity = Activity(
-                            user_id=current_user.id,
+                            user_id=requester_id,
                             type='accessory_assigned',
                             content=f'Assigned accessory "{accessory.name}" to ticket #{ticket.display_id}',
                             reference_id=ticket.id
@@ -3117,19 +3228,19 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         bool: True if assignment was successful or already exists, False otherwise
     """
     try:
+        print(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket.id}, Asset: {asset}")
+        
         # If asset is an ID, get the asset object
         if isinstance(asset, int):
-            asset = db_session.query(Asset).get(asset)
+            asset_id = asset
+            asset = db_session.query(Asset).get(asset_id)
             if not asset:
-                print(f"Asset with ID {asset} not found")
+                print(f"[ASSET ASSIGN DEBUG] Asset with ID {asset_id} not found")
                 return False
         
-        # Check if asset is already assigned to this ticket
-        if asset in ticket.assets:
-            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
-            return True
+        print(f"[ASSET ASSIGN DEBUG] Asset object: {asset.name} (ID: {asset.id})")
         
-        # Check if the relationship already exists in the database
+        # Check if the relationship already exists in the database first
         from sqlalchemy import text
         stmt = text("""
             SELECT COUNT(*) FROM ticket_assets 
@@ -3138,15 +3249,41 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
         count = result.scalar()
         
+        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {count}")
+        
         if count > 0:
-            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
         
-        # Safe to assign - add the asset to the ticket
-        ticket.assets.append(asset)
-        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
-        return True
+        # Check if asset is already assigned to this ticket in memory
+        if asset in ticket.assets:
+            print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id} in memory")
+            return True
+        
+        # Safe to assign - insert directly into ticket_assets table
+        print(f"[ASSET ASSIGN DEBUG] Inserting directly into ticket_assets table")
+        try:
+            from sqlalchemy import text
+            insert_stmt = text("""
+                INSERT INTO ticket_assets (ticket_id, asset_id) 
+                VALUES (:ticket_id, :asset_id)
+            """)
+            db_session.execute(insert_stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+            db_session.flush()
+            print(f"[ASSET ASSIGN DEBUG] Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+            return True
+        except Exception as insert_error:
+            print(f"[ASSET ASSIGN DEBUG] Error during direct insert: {str(insert_error)}")
+            # Check if it's a constraint violation (asset already assigned)
+            if "UNIQUE constraint failed" in str(insert_error):
+                print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} already assigned to ticket {ticket.id}")
+                return True  # Consider this a success since the asset is already assigned
+            else:
+                print(f"[ASSET ASSIGN DEBUG] Unexpected error during insert")
+                return False
         
     except Exception as e:
-        print(f"Error assigning asset to ticket: {str(e)}")
+        print(f"[ASSET ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False

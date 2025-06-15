@@ -364,10 +364,88 @@ Additional Notes:
                     else:
                         ticket_category = TicketCategory.ASSET_CHECKOUT
                     
-                    # Create the ticket without asset_id to avoid duplicate assignment
+                    # Handle accessory assignment from CSV before creating the ticket
+                    selected_accessories_json = request.form.get('selected_accessories', '')
+                    assigned_accessories = []
+                    accessory_description_part = ""
+                    
+                    # Debug logging - write to file to ensure it's captured
+                    import logging
+                    from datetime import datetime
+                    logging.basicConfig(level=logging.DEBUG)
+                    logger = logging.getLogger(__name__)
+                    
+                    logger.error(f"CSV_DEBUG: selected_accessories_json = '{selected_accessories_json}'")
+                    logger.error(f"CSV_DEBUG: Form keys: {list(request.form.keys())}")
+                    logger.error(f"CSV_DEBUG: Form values: {dict(request.form)}")
+                    
+                    # Also write to a specific debug file
+                    with open('csv_debug.log', 'a') as f:
+                        f.write(f"\n=== CSV DEBUG {datetime.now()} ===\n")
+                        f.write(f"selected_accessories_json = '{selected_accessories_json}'\n")
+                        f.write(f"Form keys: {list(request.form.keys())}\n")
+                        f.write(f"Form has selected_accessories: {'selected_accessories' in request.form}\n")
+                        if 'accessories_csv' in request.files:
+                            csv_file = request.files['accessories_csv']
+                            f.write(f"CSV file uploaded: {csv_file.filename if csv_file else 'None'}\n")
+                        else:
+                            f.write("No CSV file in request.files\n")
+                        
+                        # Check if selected_accessories is empty but should have data
+                        if not selected_accessories_json:
+                            f.write("No selected accessories data found in form\n")
+                        f.write("=== END CSV DEBUG ===\n")
+                    
+                    if selected_accessories_json:
+                        try:
+                            import json
+                            selected_accessories_data = json.loads(selected_accessories_json)
+                            print(f"Processing {len(selected_accessories_data)} selected accessories")  # Debug log
+                            
+                            for acc_data in selected_accessories_data:
+                                inventory_id = acc_data.get('inventoryId')
+                                product_name = acc_data.get('product', '')
+                                category = acc_data.get('category', '')
+                                quantity = acc_data.get('quantity', 1)
+                                
+                                if inventory_id:
+                                    # Check inventory item
+                                    accessory = db_session.query(Accessory).filter(Accessory.id == inventory_id).first()
+                                    if accessory and accessory.available_quantity > 0:
+                                        assigned_qty = min(quantity, accessory.available_quantity)
+                                        assigned_accessories.append({
+                                            'type': 'inventory',
+                                            'id': accessory.id,
+                                            'name': accessory.name,
+                                            'category': accessory.category,
+                                            'quantity': assigned_qty
+                                        })
+                                else:
+                                    # CSV-only item
+                                    assigned_accessories.append({
+                                        'type': 'csv',
+                                        'name': product_name,
+                                        'category': category,
+                                        'quantity': quantity
+                                    })
+                            
+                            # Create accessory description part
+                            if assigned_accessories:
+                                accessory_description_part = f"\n\nSelected Accessories from CSV:\n"
+                                for acc in assigned_accessories:
+                                    source = "(from inventory)" if acc['type'] == 'inventory' else "(from CSV only)"
+                                    accessory_description_part += f"- {acc['name']} (x{acc['quantity']}) {source}\n"
+                                
+                        except Exception as acc_error:
+                            print(f"Error processing accessories JSON: {str(acc_error)}")
+                    
+                    # Update description with accessory information
+                    final_description = description + accessory_description_part
+
+                    # Create the ticket
                     ticket_id = ticket_store.create_ticket(
                         subject=subject,
-                        description=description,
+                        description=final_description,
                         requester_id=user_id,
                         category=ticket_category,
                         priority=priority,
@@ -383,10 +461,77 @@ Additional Notes:
                     # Update asset status and assign to customer
                     asset.customer_user_id = customer_id
                     asset.status = AssetStatus.DEPLOYED
+                    
+                    # Now assign accessories to the created ticket
+                    if assigned_accessories:
+                        try:
+                            # Get the ticket object for accessory assignment
+                            ticket = db_session.query(Ticket).get(ticket_id)
+                            actual_assigned = []
+                            
+                            for acc_data in assigned_accessories:
+                                if acc_data['type'] == 'inventory':
+                                    # Assign from inventory
+                                    accessory = db_session.query(Accessory).filter(Accessory.id == acc_data['id']).first()
+                                    if accessory and accessory.available_quantity > 0:
+                                        # Create ticket-accessory assignment
+                                        ticket_accessory = TicketAccessory(
+                                            ticket_id=ticket.id,
+                                            name=accessory.name,
+                                            category=accessory.category,
+                                            quantity=acc_data['quantity'],
+                                            condition='Good',
+                                            notes=f'Assigned from CSV import - inventory item',
+                                            original_accessory_id=accessory.id
+                                        )
+                                        db_session.add(ticket_accessory)
+                                        
+                                        # Update accessory quantity
+                                        accessory.available_quantity -= acc_data['quantity']
+                                        if accessory.available_quantity == 0:
+                                            accessory.status = 'Out of Stock'
+                                        
+                                        actual_assigned.append(f"{accessory.name} (x{acc_data['quantity']})")
+                                        
+                                        # Create activity log
+                                        from models.activity import Activity
+                                        activity = Activity(
+                                            user_id=user_id,
+                                            type='accessory_assigned',
+                                            content=f'Assigned accessory "{accessory.name}" (x{acc_data["quantity"]}) to ticket #{ticket.display_id} from CSV import',
+                                            reference_id=ticket.id
+                                        )
+                                        db_session.add(activity)
+                                        print(f"Created TicketAccessory for {accessory.name}")  # Debug log
+                                else:
+                                    # Create ticket accessory from CSV data (no inventory match)
+                                    ticket_accessory = TicketAccessory(
+                                        ticket_id=ticket.id,
+                                        name=acc_data['name'],
+                                        category=acc_data['category'],
+                                        quantity=acc_data['quantity'],
+                                        condition='Unknown',
+                                        notes=f'Added from CSV import - no inventory match',
+                                        original_accessory_id=None
+                                    )
+                                    db_session.add(ticket_accessory)
+                                    actual_assigned.append(f"{acc_data['name']} (x{acc_data['quantity']}) - from CSV")
+                                    print(f"Created TicketAccessory for CSV item {acc_data['name']}")  # Debug log
+                            
+                            assigned_accessories = actual_assigned
+                                
+                        except Exception as acc_error:
+                            print(f"Error creating ticket accessories: {str(acc_error)}")
+                            import traceback
+                            traceback.print_exc()
+                    
                     db_session.commit()
 
                     print(f"Ticket created successfully with ID: {ticket_id}")  # Debug log
-                    flash('Asset checkout ticket created successfully')
+                    if assigned_accessories:
+                        flash(f'Asset checkout ticket created successfully with {len(assigned_accessories)} accessories assigned')
+                    else:
+                        flash('Asset checkout ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
@@ -714,6 +859,8 @@ def view_ticket(ticket_id):
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
+
+
         print("Loading additional data...")
         # Load additional data needed for the template
         all_users = db_session.query(User).order_by(User.username).all()
@@ -799,10 +946,18 @@ def view_ticket(ticket_id):
         )
         
     except Exception as e:
-        print(f"Error loading ticket: {str(e)}")
-        print("Error traceback:")
+        print(f"[TICKET VIEW DEBUG] Error loading ticket {ticket_id}: {str(e)}")
+        print("[TICKET VIEW DEBUG] Error traceback:")
         traceback.print_exc()
-        flash('Error loading the ticket', 'error')
+        
+        # Try to provide more specific error information
+        error_msg = str(e)
+        if "asset" in error_msg.lower():
+            flash(f'Error loading ticket assets: {error_msg}', 'error')
+        elif "relationship" in error_msg.lower():
+            flash(f'Error loading ticket relationships: {error_msg}', 'error')
+        else:
+            flash(f'Error loading the ticket: {error_msg}', 'error')
         return redirect(url_for('tickets.list_tickets'))
     finally:
         db_session.close()
@@ -1011,9 +1166,52 @@ def update_ticket(ticket_id):
         # Update assigned_to_id if admin
         if session['user_type'] == 'admin' or session['user_type'] == 'SUPER_ADMIN':
             assigned_to_id = request.form.get('assigned_to_id')
+            print(f"DEBUG - Form assigned_to_id: {assigned_to_id}")
             if assigned_to_id and assigned_to_id.strip():
-                ticket.assigned_to_id = int(assigned_to_id)
-                print(f"DEBUG - Set assigned_to_id to {assigned_to_id}")
+                new_assigned_to_id = int(assigned_to_id)
+                
+                # Check if assignment is changing
+                old_assigned_to_id = ticket.assigned_to_id
+                print(f"DEBUG - Old assigned_to_id: {old_assigned_to_id}, New assigned_to_id: {new_assigned_to_id}")
+                if old_assigned_to_id != new_assigned_to_id:
+                    # Get the previous assignee for notification
+                    previous_assignee = None
+                    if old_assigned_to_id:
+                        previous_assignee = db_session.query(User).get(old_assigned_to_id)
+                    
+                    # Update the assignment
+                    ticket.assigned_to_id = new_assigned_to_id
+                    print(f"DEBUG - Set assigned_to_id to {assigned_to_id}")
+                    
+                    # Send email notification to new assignee
+                    try:
+                        print(f"DEBUG - Assignment changed, attempting to send email notification")
+                        new_assignee = db_session.query(User).get(new_assigned_to_id)
+                        print(f"DEBUG - New assignee: {new_assignee.username if new_assignee else 'None'} ({new_assignee.email if new_assignee else 'No email'})")
+                        if new_assignee and new_assignee.email:
+                            from utils.email_sender import send_ticket_assignment_notification
+                            
+                            print(f"DEBUG - Calling send_ticket_assignment_notification")
+                            # Send notification email
+                            email_sent = send_ticket_assignment_notification(
+                                assigned_user=new_assignee,
+                                assigner=current_user,
+                                ticket=ticket,
+                                previous_assignee=previous_assignee
+                            )
+                            
+                            if email_sent:
+                                print(f"DEBUG - Assignment notification email sent to {new_assignee.email}")
+                            else:
+                                print(f"DEBUG - Failed to send assignment notification email to {new_assignee.email}")
+                        else:
+                            print(f"DEBUG - New assignee not found or has no email address")
+                    except Exception as e:
+                        print(f"DEBUG - Error sending assignment notification: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                        # Don't fail the ticket update if email fails
+                        pass
         
         # Commit the changes directly to database
         db_session.commit()
@@ -4233,6 +4431,38 @@ def transfer_ticket(ticket_id):
         previous_user_id = ticket.assigned_to_id
         ticket.assigned_to_id = transfer_to_id
         
+        # Send email notification to new assignee
+        try:
+            print(f"DEBUG - Transfer: sending email notification to {target_user.username} ({target_user.email})")
+            if target_user.email:
+                from utils.email_sender import send_ticket_assignment_notification
+                
+                # Get previous assignee for notification
+                previous_assignee = None
+                if previous_user_id:
+                    previous_assignee = db_session.query(User).get(previous_user_id)
+                
+                # Send notification email
+                email_sent = send_ticket_assignment_notification(
+                    assigned_user=target_user,
+                    assigner=current_user,
+                    ticket=ticket,
+                    previous_assignee=previous_assignee
+                )
+                
+                if email_sent:
+                    print(f"DEBUG - Transfer notification email sent to {target_user.email}")
+                else:
+                    print(f"DEBUG - Failed to send transfer notification email to {target_user.email}")
+            else:
+                print(f"DEBUG - Target user {target_user.username} has no email address")
+        except Exception as e:
+            print(f"DEBUG - Error sending transfer notification: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Don't fail the transfer if email fails
+            pass
+        
         # Add a comment about the transfer
         comment_text = f"Ticket transferred from {current_user.username} to {target_user.username}"
         if transfer_notes:
@@ -4476,12 +4706,12 @@ def add_accessory(ticket_id):
         if request.is_json:
             data = request.get_json()
             existing_accessory_id = data.get('existing_accessory_id')
+            # Use the quantity submitted by the user
+            quantity = int(data.get('accessory_quantity', 1))
             condition = data.get('accessory_condition', 'Good')
             notes = data.get('accessory_notes', '')
 
             if existing_accessory_id:
-                # For existing accessories, use the quantity submitted by the user
-                quantity = int(data.get('accessory_quantity', 1))
                 # Get the existing accessory
                 accessory = db_session.query(Accessory).get(existing_accessory_id)
                 if not accessory:
@@ -4556,8 +4786,7 @@ def add_accessory(ticket_id):
                 model_no = data.get('model_no')
                 total_quantity = int(data.get('total_quantity', 1))
                 country = data.get('country')
-                # For new accessories, use total_quantity as the quantity (since we removed the separate quantity field)
-                quantity = total_quantity
+                # quantity is already set above
                 
                 if not all([name, category, manufacturer, model_no, country]):
                     return jsonify({'success': False, 'message': 'Missing required fields'}), 400
@@ -4576,9 +4805,15 @@ def add_accessory(ticket_id):
                 db_session.add(new_accessory)
                 db_session.flush()
 
-                # For NEW accessories, we don't deduct from inventory since we're creating the inventory
-                # The available_quantity should remain equal to total_quantity for new accessories
-                pass
+                # Update inventory based on ticket category
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                    if new_accessory.available_quantity < quantity:
+                        return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
+                    new_accessory.available_quantity -= quantity
+                else:
+                    # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
+                    # No need to add to inventory since we're creating new inventory
+                    pass
 
                 # Create ticket accessory record
                 ticket_accessory = TicketAccessory(
@@ -4638,8 +4873,8 @@ def add_accessory(ticket_id):
             model_no = request.form.get('model_no')
             total_quantity = int(request.form.get('total_quantity', 1))
             country = request.form.get('country')
-            # For new accessories, use total_quantity as the quantity (since we removed the separate quantity field)
-            quantity = total_quantity
+            # Use the quantity submitted by the user
+            quantity = int(request.form.get('accessory_quantity', 1))
             condition = request.form.get('accessory_condition', 'Good')
             notes = request.form.get('accessory_notes', '')
             
@@ -4668,9 +4903,18 @@ def add_accessory(ticket_id):
             print(f"Assigning quantity: {quantity}")
             print(f"Initial available quantity: {new_accessory.available_quantity}")
             
-            # For NEW accessories, we don't deduct from inventory since we're creating the inventory
-            # The available_quantity should remain equal to total_quantity for new accessories
-            print(f"NEW ACCESSORY: Created with available quantity equal to total quantity: {new_accessory.available_quantity}")
+            # For Asset Checkout categories, deduct from inventory (checkout)
+            # For Asset Return and Asset Intake categories, add to inventory (return/intake)
+            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                # Checkout: deduct from inventory
+                if new_accessory.available_quantity < quantity:
+                    return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
+                new_accessory.available_quantity -= quantity
+                print(f"CHECKOUT: Decreasing inventory by {quantity}")
+            else:
+                # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
+                # No need to add to inventory since we're creating new inventory
+                print(f"RETURN/INTAKE: New accessory created with available quantity: {new_accessory.available_quantity}")
                 
             print(f"Available quantity after assignment: {new_accessory.available_quantity}")
             print(f"=== INVENTORY UPDATE END ===")
@@ -5095,16 +5339,10 @@ def fix_accessory_inventory(accessory_id):
         return jsonify({'success': False, 'message': f'Error fixing accessory inventory: {str(e)}'}), 500
 
 @tickets_bp.route('/api/accessories')
+@login_required
 def get_accessories():
     """Get all accessories for dropdown"""
     print("API endpoint /api/accessories called")
-    
-    # Check if user is logged in - for now, allow access for debugging
-    from flask import session
-    if 'user_id' not in session:
-        print("User not logged in, but allowing access for debugging")
-        # return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    
     db_session = None
     try:
         db_session = db_manager.get_session()
@@ -5309,42 +5547,174 @@ def get_ticket_accessory(ticket_id, accessory_id):
     finally:
         db_session.close()
 
-@tickets_bp.route('/api/accessories/test')
-def test_accessories_no_auth():
-    """Test endpoint to check accessories without authentication"""
+@tickets_bp.route('/api/debug/form-data', methods=['POST'])
+@login_required
+def debug_form_data():
+    """Debug endpoint to check what form data is being received"""
     try:
-        from utils.db_manager import DatabaseManager
-        from models.accessory import Accessory
+        print("=== FORM DEBUG ENDPOINT ===")
+        print("Form keys:", list(request.form.keys()))
+        print("Form data:")
+        for key, value in request.form.items():
+            if key == 'selected_accessories':
+                print(f"  {key}: {value[:200]}..." if len(value) > 200 else f"  {key}: {value}")
+            else:
+                print(f"  {key}: {value}")
         
-        db_manager = DatabaseManager()
+        selected_accessories = request.form.get('selected_accessories', '')
+        if selected_accessories:
+            try:
+                import json
+                parsed = json.loads(selected_accessories)
+                print(f"Parsed accessories: {len(parsed)} items")
+                for i, acc in enumerate(parsed):
+                    print(f"  {i}: {acc}")
+            except Exception as e:
+                print(f"Error parsing accessories JSON: {e}")
+        else:
+            print("No selected_accessories field found")
+        
+        return jsonify({
+            'status': 'success',
+            'form_keys': list(request.form.keys()),
+            'selected_accessories_present': 'selected_accessories' in request.form,
+            'selected_accessories_length': len(request.form.get('selected_accessories', ''))
+        })
+    except Exception as e:
+        print(f"Debug endpoint error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@tickets_bp.route('/api/accessories/search', methods=['POST'])
+@login_required
+def search_accessories_for_csv():
+    """Search for accessories in inventory based on CSV data"""
+    try:
+        data = request.get_json()
+        product_name = data.get('product_name', '')
+        category = data.get('category', '')
+        brand = data.get('brand', '')
+        model = data.get('model', '')
+        
         db_session = db_manager.get_session()
         
-        # Get all accessories with available quantity > 0
-        accessories = db_session.query(Accessory).filter(
+        # Build search query
+        accessories_query = db_session.query(Accessory).filter(
             Accessory.available_quantity > 0
-        ).all()
+        )
         
-        result = []
-        for acc in accessories:
-            result.append({
-                'id': acc.id,
-                'name': acc.name,
-                'category': acc.category,
-                'available_quantity': acc.available_quantity
-            })
+        matches = []
         
-        db_session.close()
+        # Search by exact product name match
+        if product_name:
+            exact_matches = accessories_query.filter(
+                Accessory.name.ilike(f'%{product_name}%')
+            ).limit(3).all()
+            
+            for accessory in exact_matches:
+                matches.append({
+                    'id': accessory.id,
+                    'name': accessory.name,
+                    'category': accessory.category,
+                    'manufacturer': accessory.manufacturer,
+                    'model_no': accessory.model_no,
+                    'available_quantity': accessory.available_quantity,
+                    'match_type': 'Product Name',
+                    'confidence': 'High'
+                })
         
-        return {
-            'success': True, 
-            'accessories': result,
-            'count': len(result),
-            'message': f'Found {len(result)} accessories'
-        }
+        # Search by category if provided
+        if category and len(matches) < 5:
+            category_matches = accessories_query.filter(
+                Accessory.category.ilike(f'%{category}%')
+            ).limit(3).all()
+            
+            for accessory in category_matches:
+                # Avoid duplicates
+                if not any(m['id'] == accessory.id for m in matches):
+                    matches.append({
+                        'id': accessory.id,
+                        'name': accessory.name,
+                        'category': accessory.category,
+                        'manufacturer': accessory.manufacturer,
+                        'model_no': accessory.model_no,
+                        'available_quantity': accessory.available_quantity,
+                        'match_type': 'Category',
+                        'confidence': 'Medium'
+                    })
+        
+        # Search by brand/manufacturer if provided
+        if brand and len(matches) < 5:
+            brand_matches = accessories_query.filter(
+                or_(
+                    Accessory.manufacturer.ilike(f'%{brand}%'),
+                    Accessory.name.ilike(f'%{brand}%')
+                )
+            ).limit(3).all()
+            
+            for accessory in brand_matches:
+                # Avoid duplicates
+                if not any(m['id'] == accessory.id for m in matches):
+                    matches.append({
+                        'id': accessory.id,
+                        'name': accessory.name,
+                        'category': accessory.category,
+                        'manufacturer': accessory.manufacturer,
+                        'model_no': accessory.model_no,
+                        'available_quantity': accessory.available_quantity,
+                        'match_type': 'Brand/Manufacturer',
+                        'confidence': 'Medium'
+                    })
+        
+        # Fuzzy search for remaining slots
+        if len(matches) < 5:
+            search_terms = []
+            if product_name:
+                search_terms.extend(product_name.split())
+            if category:
+                search_terms.extend(category.split())
+            if brand:
+                search_terms.extend(brand.split())
+            if model:
+                search_terms.extend(model.split())
+            
+            for term in search_terms:
+                if len(term) > 3:  # Only search terms longer than 3 characters
+                    fuzzy_matches = accessories_query.filter(
+                        or_(
+                            Accessory.name.ilike(f'%{term}%'),
+                            Accessory.category.ilike(f'%{term}%'),
+                            Accessory.manufacturer.ilike(f'%{term}%'),
+                            Accessory.model_no.ilike(f'%{term}%')
+                        )
+                    ).limit(2).all()
+                    
+                    for accessory in fuzzy_matches:
+                        # Avoid duplicates
+                        if not any(m['id'] == accessory.id for m in matches):
+                            matches.append({
+                                'id': accessory.id,
+                                'name': accessory.name,
+                                'category': accessory.category,
+                                'manufacturer': accessory.manufacturer,
+                                'model_no': accessory.model_no,
+                                'available_quantity': accessory.available_quantity,
+                                'match_type': 'Fuzzy Match',
+                                'confidence': 'Low'
+                            })
+                    
+                    if len(matches) >= 5:
+                        break
+        
+        return jsonify({
+            'success': True,
+            'matches': matches[:5]  # Limit to top 5 matches
+        })
         
     except Exception as e:
-        return {
-            'success': False, 
-            'message': f'Error: {str(e)}',
-            'accessories': []
-        }
+        print(f"Error searching accessories: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        db_session.close()

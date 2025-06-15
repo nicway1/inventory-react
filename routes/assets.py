@@ -74,11 +74,11 @@ def add_asset():
         notes = data.get('notes', '')
         asset_type = data.get('type', 'MISC')
         ticket_id = data.get('ticket_id')  # Optional ticket ID to link to
-        
+
         # Input validation
         if not all([asset_tag, serial_number, name]):
             return jsonify({'success': False, 'error': 'Asset tag, serial number, and name are required'}), 400
-        
+
         # Check if asset tag or serial number already exists
         existing_asset = db_session.query(Asset).filter(
             (Asset.asset_tag == asset_tag) | (Asset.serial_num == serial_number)
@@ -89,7 +89,7 @@ def add_asset():
                 return jsonify({'success': False, 'error': 'Asset tag already exists'}), 400
             else:
                 return jsonify({'success': False, 'error': 'Serial number already exists'}), 400
-        
+
         # Create new asset
         new_asset = Asset(
             asset_tag=asset_tag,
@@ -113,7 +113,7 @@ def add_asset():
             reference_id=new_asset.id
         )
         db_session.add(activity)
-        
+
         # If ticket_id is provided, try to link the asset to the ticket
         if ticket_id:
             try:

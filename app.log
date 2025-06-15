@@ -1,0 +1,216 @@
+[DEBUG] Initializing CommentStore
+[DEBUG] Loading comments from data/comments.json
+[DEBUG] Found 31 comments in file
+[DEBUG] Comment.__init__ for ID 1132: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 1132: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 1132: Found mentions: []
+[DEBUG] Loaded comment 1132 for ticket 2
+[DEBUG] Comment.__init__ for ID 2890: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 2890: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 2890: Found mentions: []
+[DEBUG] Loaded comment 2890 for ticket 2
+[DEBUG] Comment.__init__ for ID 2903: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 2903: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 2903: Found mentions: []
+[DEBUG] Loaded comment 2903 for ticket 2
+[DEBUG] Comment.__init__ for ID 3416: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 3416: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 3416: Found mentions: []
+[DEBUG] Loaded comment 3416 for ticket 2
+[DEBUG] Comment.__init__ for ID 3696: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 3696: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 3696: Found mentions: []
+[DEBUG] Loaded comment 3696 for ticket 2
+[DEBUG] Comment.__init__ for ID 4112: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 4112: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 4112: Found mentions: []
+[DEBUG] Loaded comment 4112 for ticket 2
+[DEBUG] Comment.__init__ for ID 4779: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 4779: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 4779: Found mentions: []
+[DEBUG] Loaded comment 4779 for ticket 2
+[DEBUG] Comment.__init__ for ID 4953: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 4953: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 4953: Found mentions: []
+[DEBUG] Loaded comment 4953 for ticket 2
+[DEBUG] Comment.__init__ for ID 5193: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 5193: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 5193: Found mentions: []
+[DEBUG] Loaded comment 5193 for ticket 2
+[DEBUG] Comment.__init__ for ID 5303: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 5303: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 5303: Found mentions: []
+[DEBUG] Loaded comment 5303 for ticket 2
+[DEBUG] Comment.__init__ for ID 7246: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 7246: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 7246: Found mentions: []
+[DEBUG] Loaded comment 7246 for ticket 2
+[DEBUG] Comment.__init__ for ID 7365: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 7365: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 7365: Found mentions: []
+[DEBUG] Loaded comment 7365 for ticket 2
+[DEBUG] Comment.__init__ for ID 9436: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 9436: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 9436: Found mentions: []
+[DEBUG] Loaded comment 9436 for ticket 2
+[DEBUG] Comment.__init__ for ID 9646: Raw content: ''
+[DEBUG] Comment._parse_mentions for ID 9646: Content: ''
+[DEBUG] Comment._parse_mentions: Content has plain text mentions
+[DEBUG] Comment._parse_mentions: Extracted plain text mentions: []
+[DEBUG] Comment.__init__ for ID 9646: Found mentions: []
+[DEBUG] Loaded comment 9646 for ticket 2
+[DEBUG] Comment.__init__ for ID 3635: Raw content: '<span class="mention">@ronny</span> hi'
+[DEBUG] Comment._parse_mentions for ID 3635: Content: '<span class="mention">@ronny</span> hi'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['ronny']
+[DEBUG] Comment.__init__ for ID 3635: Found mentions: ['ronny']
+[DEBUG] Loaded comment 3635 for ticket 5
+[DEBUG] Comment.__init__ for ID 5730: Raw content: 'Test comment for functionality check <span class="mention">@admin</span>'
+[DEBUG] Comment._parse_mentions for ID 5730: Content: 'Test comment for functionality check <span class="mention">@admin</span>'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['admin']
+[DEBUG] Comment.__init__ for ID 5730: Found mentions: ['admin']
+[DEBUG] Loaded comment 5730 for ticket 2
+[DEBUG] Comment.__init__ for ID 9640: Raw content: '<span class="mention">@ronny</span> '
+[DEBUG] Comment._parse_mentions for ID 9640: Content: '<span class="mention">@ronny</span> '
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['ronny']
+[DEBUG] Comment.__init__ for ID 9640: Found mentions: ['ronny']
+[DEBUG] Loaded comment 9640 for ticket 5
+[DEBUG] Comment.__init__ for ID 2437: Raw content: 'Hey <span class="mention">@admin</span>, please check this urgent issue! It needs immediate attention.'
+[DEBUG] Comment._parse_mentions for ID 2437: Content: 'Hey <span class="mention">@admin</span>, please check this urgent issue! It needs immediate attention.'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['admin']
+[DEBUG] Comment.__init__ for ID 2437: Found mentions: ['admin']
+[DEBUG] Loaded comment 2437 for ticket 2
+[DEBUG] Comment.__init__ for ID 3246: Raw content: '<span class="mention">@admin</span> please fix cthis 
+'
+[DEBUG] Comment._parse_mentions for ID 3246: Content: '<span class="mention">@admin</span> please fix cthis 
+'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['admin']
+[DEBUG] Comment.__init__ for ID 3246: Found mentions: ['admin']
+[DEBUG] Loaded comment 3246 for ticket 4
+[DEBUG] Comment.__init__ for ID 5336: Raw content: 'Hey <span class="mention">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.'
+[DEBUG] Comment._parse_mentions for ID 5336: Content: 'Hey <span class="mention">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 5336: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 5336 for ticket 2
+[DEBUG] Comment.__init__ for ID 7014: Raw content: 'Hey <span class="mention">@testuser</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention.'
+2025-06-14 15:18:09,673 - root - INFO - Mail Configuration: Microsoft 365 OAuth2
+2025-06-14 15:18:09,673 - root - INFO - MS_CLIENT_ID: b5d3d9b5-5ec0-4bb3-a127-5bce2c8e632d
+2025-06-14 15:18:09,673 - root - INFO - MS_TENANT_ID: fdc52ee0-3b36-4a9b-ad4f-216bd2d20c4e
+2025-06-14 15:18:09,673 - root - INFO - MS_FROM_EMAIL: support@truelog.com.sg
+2025-06-14 15:18:09,673 - root - INFO - USE_OAUTH2_EMAIL: True
+2025-06-14 15:18:09,673 - root - INFO - MAIL_SERVER: smtp.gmail.com
+2025-06-14 15:18:09,673 - root - INFO - MAIL_PORT: 587
+2025-06-14 15:18:09,673 - root - INFO - MAIL_USE_TLS: True
+2025-06-14 15:18:09,673 - root - INFO - MAIL_USERNAME: trueloginventory@gmail.com
+2025-06-14 15:18:09,673 - root - INFO - MAIL_DEFAULT_SENDER: trueloginventory@gmail.com
+[DEBUG] Comment._parse_mentions for ID 7014: Content: 'Hey <span class="mention">@testuser</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention.'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['testuser']
+[DEBUG] Comment.__init__ for ID 7014: Found mentions: ['testuser']
+[DEBUG] Loaded comment 7014 for ticket 2
+[DEBUG] Comment.__init__ for ID 2907: Raw content: '<span class="mention">@nicway1</span>  please fix this'
+[DEBUG] Comment._parse_mentions for ID 2907: Content: '<span class="mention">@nicway1</span>  please fix this'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 2907: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 2907 for ticket 1
+[DEBUG] Comment.__init__ for ID 8833: Raw content: '<span class="mention">@testuser</span> hiii'
+[DEBUG] Comment._parse_mentions for ID 8833: Content: '<span class="mention">@testuser</span> hiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['testuser']
+[DEBUG] Comment.__init__ for ID 8833: Found mentions: ['testuser']
+[DEBUG] Loaded comment 8833 for ticket 3
+[DEBUG] Comment.__init__ for ID 8596: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 8596: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 8596: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 8596 for ticket 3
+[DEBUG] Comment.__init__ for ID 2920: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 2920: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 2920: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 2920 for ticket 3
+[DEBUG] Comment.__init__ for ID 4283: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 4283: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 4283: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 4283 for ticket 3
+[DEBUG] Comment.__init__ for ID 7210: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 7210: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 7210: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 7210 for ticket 10
+[DEBUG] Comment.__init__ for ID 9877: Raw content: '<span class="mention">@nicway1</span> hii can u see'
+[DEBUG] Comment._parse_mentions for ID 9877: Content: '<span class="mention">@nicway1</span> hii can u see'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 9877: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 9877 for ticket 10
+[DEBUG] Comment.__init__ for ID 8336: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 8336: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 8336: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 8336 for ticket 14
+[DEBUG] Comment.__init__ for ID 4793: Raw content: 'Hey <span class="mention">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.'
+[DEBUG] Comment._parse_mentions for ID 4793: Content: 'Hey <span class="mention">@nicway1</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system.'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 4793: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 4793 for ticket 2
+[DEBUG] Comment.__init__ for ID 3467: Raw content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions for ID 3467: Content: '<span class="mention">@nicway1</span> hiiii'
+[DEBUG] Comment._parse_mentions: Content has HTML mentions
+[DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['nicway1']
+[DEBUG] Comment.__init__ for ID 3467: Found mentions: ['nicway1']
+[DEBUG] Loaded comment 3467 for ticket 14
+[DEBUG] Loaded 31 comments
+Using active database API key: key2
+FirecrawlClient initialized with API key: fc-26...
+Initializing trackingmore v0.2
+Successfully initialized TrackingMore
+Starting application...
+Initializing database...
+Database initialized successfully
+
+Checking for admin user...
+Admin user already exists: admin
+ * Serving Flask app 'app'
+ * Debug mode: on
+Address already in use
+Port 5001 is in use by another program. Either identify and stop that program, or start the server with a different port.

@@ -398,6 +398,66 @@
                             Select which support queue this asset checkout ticket should be assigned to.
                         </p>
                     </div>
+                    
+                    <!-- CSV Upload for Accessories -->
+                    <div>
+                        <label for="accessories_csv" class="block text-sm font-medium text-gray-700">
+                            Import Accessories from CSV (Optional)
+                        </label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md" id="csvDropZone">
+                            <div class="space-y-1 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <div class="flex text-sm text-gray-600">
+                                    <label for="accessories_csv" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                        <span>Upload CSV file</span>
+                                        <input id="accessories_csv" name="accessories_csv" type="file" accept=".csv" class="sr-only" onchange="handleCsvUpload(this)">
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500">CSV files only</p>
+                            </div>
+                        </div>
+                        <div id="csvFileName" class="mt-2 text-sm text-gray-600 hidden"></div>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Upload a CSV file containing accessory information to automatically detect and assign accessories to this checkout.
+                        </p>
+                    </div>
+                    
+                    <!-- Accessory Selection (populated from CSV) -->
+                    <div id="accessorySelectionContainer" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Select Accessories from CSV
+                        </label>
+                        <div id="accessoryPreview" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">
+                            <!-- Accessory items will be populated here -->
+                        </div>
+                        <div id="selectedAccessoriesSummary" class="mt-4 hidden">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Accessories:</h4>
+                            <div id="selectedAccessoriesList" class="space-y-1"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden field to store selected accessories -->
+                    <input type="hidden" id="selected_accessories" name="selected_accessories" value="">
+                    
+                    <!-- Debug: Test button to simulate accessory selection -->
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <h4 class="text-sm font-medium text-yellow-800 mb-2">Debug: Test Accessory Assignment</h4>
+                        <div class="space-x-2">
+                            <button type="button" onclick="testAccessoryAssignment()" 
+                                    class="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600">
+                                Test: Add Sample Accessories
+                            </button>
+                            <button type="button" onclick="debugFormSubmission()" 
+                                    class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+                                Debug: Test Form Data
+                            </button>
+                        </div>
+                        <p class="text-xs text-yellow-700 mt-1">Use these buttons to test the CSV accessory functionality</p>
+                    </div>
+                    
                     <!-- DEBUG: Queue field added for Asset Checkout - v2.0 -->
                 </div>
 
@@ -1379,6 +1439,29 @@ $(document).ready(function() {
             
             console.log('Submit validation passed for asset selection.');
 
+            // Debug: Check selected accessories
+            const selectedAccessories = $('#selected_accessories').val();
+            console.log('FORM SUBMIT DEBUG: Selected accessories data:', selectedAccessories);
+            console.log('FORM SUBMIT DEBUG: Hidden input element exists:', $('#selected_accessories').length > 0);
+            console.log('FORM SUBMIT DEBUG: Hidden input name attribute:', $('#selected_accessories').attr('name'));
+            
+            if (selectedAccessories) {
+                try {
+                    const accessoriesData = JSON.parse(selectedAccessories);
+                    console.log('FORM SUBMIT DEBUG: Parsed accessories data:', accessoriesData);
+                    console.log('FORM SUBMIT DEBUG: Number of selected accessories:', accessoriesData.length);
+                    
+                    // Force the form to include this data by ensuring it's properly set
+                    $('#selected_accessories').val(selectedAccessories);
+                    console.log('FORM SUBMIT DEBUG: Re-confirmed hidden input value:', $('#selected_accessories').val());
+                } catch (e) {
+                    console.error('FORM SUBMIT DEBUG: Error parsing accessories data:', e);
+                }
+            } else {
+                console.log('FORM SUBMIT DEBUG: No accessories selected - this is the issue!');
+                console.log('FORM SUBMIT DEBUG: Check if CSV was uploaded and accessories were selected');
+            }
+
             // Ensure no tracking format validation for any carrier
             $('#shipping_tracking').removeAttr('pattern');
             
@@ -1753,5 +1836,496 @@ function submitAssetReturnForm() {
     
     return true;
 }
+
+// CSV Upload and Accessory Selection Functions
+let csvAccessoryData = [];
+let selectedAccessories = [];
+
+function handleCsvUpload(input) {
+    const file = input.files[0];
+    const fileName = document.getElementById('csvFileName');
+    
+    if (file) {
+        fileName.textContent = `Selected file: ${file.name}`;
+        fileName.classList.remove('hidden');
+        
+        // Parse CSV file
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csv = e.target.result;
+            parseCsvData(csv);
+        };
+        reader.readAsText(file);
+    } else {
+        fileName.classList.add('hidden');
+        hideAccessorySelection();
+    }
+}
+
+function parseCsvData(csvText) {
+    const lines = csvText.split('\n');
+    if (lines.length < 2) {
+        alert('CSV file must contain at least a header row and one data row.');
+        return;
+    }
+    
+    // Parse header
+    const header = lines[0].split(',').map(col => col.trim().replace(/"/g, ''));
+    
+    // Find relevant columns (flexible column mapping)
+    const columnMapping = {};
+    header.forEach((col, index) => {
+        const colLower = col.toLowerCase();
+        if (colLower.includes('product') || colLower.includes('name') || colLower.includes('title')) {
+            columnMapping.product = index;
+        } else if (colLower.includes('category') || colLower.includes('type')) {
+            columnMapping.category = index;
+        } else if (colLower.includes('quantity') || colLower.includes('qty')) {
+            columnMapping.quantity = index;
+        } else if (colLower.includes('brand') || colLower.includes('manufacturer')) {
+            columnMapping.brand = index;
+        } else if (colLower.includes('model') || colLower.includes('model_no')) {
+            columnMapping.model = index;
+        } else if (colLower.includes('serial') || colLower.includes('serial_number')) {
+            columnMapping.serial = index;
+        }
+    });
+    
+    // Parse data rows
+    csvAccessoryData = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const data = line.split(',').map(cell => cell.trim().replace(/"/g, ''));
+        
+        const accessoryItem = {
+            id: i,
+            product: data[columnMapping.product || 0] || '',
+            category: data[columnMapping.category || 1] || '',
+            quantity: parseInt(data[columnMapping.quantity || 2]) || 1,
+            brand: data[columnMapping.brand || 3] || '',
+            model: data[columnMapping.model || 4] || '',
+            serial: data[columnMapping.serial || 5] || ''
+        };
+        
+        // Only add items that look like accessories
+        if (accessoryItem.product && isLikelyAccessory(accessoryItem)) {
+            csvAccessoryData.push(accessoryItem);
+        }
+    }
+    
+    if (csvAccessoryData.length > 0) {
+        displayAccessoryPreview();
+        searchForMatchingAccessories();
+    } else {
+        alert('No accessory items found in the CSV file. Please ensure the CSV contains accessory-related products.');
+    }
+}
+
+function isLikelyAccessory(item) {
+    const accessoryKeywords = [
+        'adapter', 'cable', 'charger', 'mouse', 'keyboard', 'headset', 
+        'webcam', 'dock', 'hub', 'dongle', 'stand', 'pad', 'cover',
+        'case', 'sleeve', 'bag', 'power supply', 'cord', 'usb', 'hdmi',
+        'ethernet', 'wifi', 'bluetooth', 'speaker', 'microphone'
+    ];
+    
+    const searchText = `${item.product} ${item.category} ${item.brand} ${item.model}`.toLowerCase();
+    return accessoryKeywords.some(keyword => searchText.includes(keyword));
+}
+
+function displayAccessoryPreview() {
+    const container = document.getElementById('accessorySelectionContainer');
+    const preview = document.getElementById('accessoryPreview');
+    
+    container.classList.remove('hidden');
+    
+    let html = '';
+    csvAccessoryData.forEach((item, index) => {
+        html += `
+            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-md bg-gray-50" data-item-index="${index}">
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900">${item.product}</div>
+                    <div class="text-sm text-gray-500">
+                        Category: ${item.category || 'N/A'} | 
+                        Brand: ${item.brand || 'N/A'} | 
+                        Qty: ${item.quantity}
+                        ${item.serial ? ` | Serial: ${item.serial}` : ''}
+                    </div>
+                    <div id="matches_${index}" class="mt-2 hidden">
+                        <div class="text-xs text-blue-600 font-medium">Inventory Matches:</div>
+                        <div id="matchList_${index}" class="text-xs text-gray-600"></div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" 
+                           id="accessory_${index}" 
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           onchange="toggleAccessorySelection(${index})">
+                    <label for="accessory_${index}" class="text-sm text-gray-700">Select</label>
+                </div>
+            </div>
+        `;
+    });
+    
+    preview.innerHTML = html;
+}
+
+function searchForMatchingAccessories() {
+    // Search for matching accessories in the inventory
+    csvAccessoryData.forEach((item, index) => {
+        fetch('/tickets/api/accessories/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                product_name: item.product,
+                category: item.category,
+                brand: item.brand,
+                model: item.model
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.matches && data.matches.length > 0) {
+                displayMatches(index, data.matches);
+            }
+        })
+        .catch(error => {
+            console.error('Error searching for accessories:', error);
+        });
+    });
+}
+
+function displayMatches(itemIndex, matches) {
+    const matchesContainer = document.getElementById(`matches_${itemIndex}`);
+    const matchList = document.getElementById(`matchList_${itemIndex}`);
+    
+    if (matches.length > 0) {
+        matchesContainer.classList.remove('hidden');
+        
+        let html = '';
+        matches.forEach(match => {
+            const isAvailable = match.available_quantity > 0;
+            const statusColor = isAvailable ? 'text-green-600' : 'text-red-600';
+            const statusText = isAvailable ? `Available (${match.available_quantity})` : 'Out of Stock';
+            
+            html += `
+                <div class="flex items-center justify-between p-2 bg-white border rounded mb-1">
+                    <div class="flex-1">
+                        <div class="font-medium">${match.name}</div>
+                        <div class="text-xs text-gray-500">Category: ${match.category || 'N/A'} | Model: ${match.model_no || 'N/A'}</div>
+                        <div class="text-xs ${statusColor}">${statusText}</div>
+                    </div>
+                    ${isAvailable ? `
+                        <button onclick="selectInventoryAccessory(${itemIndex}, ${match.id}, '${match.name}')" 
+                                class="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">
+                            Select
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        });
+        
+        matchList.innerHTML = html;
+    }
+}
+
+function selectInventoryAccessory(itemIndex, accessoryId, accessoryName) {
+    // Check the corresponding checkbox
+    const checkbox = document.getElementById(`accessory_${itemIndex}`);
+    if (!checkbox.checked) {
+        checkbox.checked = true;
+        toggleAccessorySelection(itemIndex);
+    }
+    
+    // Store the inventory accessory ID for later use
+    csvAccessoryData[itemIndex].inventoryId = accessoryId;
+    csvAccessoryData[itemIndex].inventoryName = accessoryName;
+    
+    // Update the display
+    updateSelectedAccessoriesSummary();
+}
+
+function toggleAccessorySelection(index) {
+    const checkbox = document.getElementById(`accessory_${index}`);
+    const item = csvAccessoryData[index];
+    
+    if (checkbox.checked) {
+        // Add to selected accessories
+        selectedAccessories.push({
+            csvIndex: index,
+            product: item.product,
+            category: item.category,
+            quantity: item.quantity,
+            inventoryId: item.inventoryId,
+            inventoryName: item.inventoryName
+        });
+    } else {
+        // Remove from selected accessories
+        selectedAccessories = selectedAccessories.filter(acc => acc.csvIndex !== index);
+    }
+    
+    updateSelectedAccessoriesSummary();
+}
+
+function updateSelectedAccessoriesSummary() {
+    const summaryContainer = document.getElementById('selectedAccessoriesSummary');
+    const summaryList = document.getElementById('selectedAccessoriesList');
+    const hiddenInput = document.getElementById('selected_accessories');
+    
+    if (selectedAccessories.length > 0) {
+        summaryContainer.classList.remove('hidden');
+        
+        let html = '';
+        selectedAccessories.forEach(acc => {
+            const displayName = acc.inventoryName || acc.product;
+            const source = acc.inventoryId ? '(from inventory)' : '(from CSV)';
+            
+            html += `
+                <div class="flex items-center justify-between bg-blue-50 p-2 rounded border">
+                    <div class="flex-1">
+                        <span class="font-medium">${displayName}</span>
+                        <span class="text-sm text-gray-500 ml-2">${source}</span>
+                        <span class="text-sm text-gray-500 ml-2">Qty: ${acc.quantity}</span>
+                    </div>
+                    <button onclick="removeSelectedAccessory(${acc.csvIndex})" 
+                            class="text-red-500 hover:text-red-700 text-sm">
+                        Remove
+                    </button>
+                </div>
+            `;
+        });
+        
+        summaryList.innerHTML = html;
+        
+        // Update hidden input with selected accessories data
+        const jsonData = JSON.stringify(selectedAccessories);
+        hiddenInput.value = jsonData;
+        console.log('Updated hidden input with accessories data:', jsonData);
+        console.log('Hidden input element:', hiddenInput);
+        console.log('Hidden input value:', hiddenInput.value);
+    } else {
+        summaryContainer.classList.add('hidden');
+        hiddenInput.value = '';
+        console.log('Cleared hidden input - no accessories selected');
+    }
+}
+
+function removeSelectedAccessory(csvIndex) {
+    // Uncheck the checkbox
+    const checkbox = document.getElementById(`accessory_${csvIndex}`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+    
+    // Remove from selected accessories
+    selectedAccessories = selectedAccessories.filter(acc => acc.csvIndex !== csvIndex);
+    
+    updateSelectedAccessoriesSummary();
+}
+
+function hideAccessorySelection() {
+    const container = document.getElementById('accessorySelectionContainer');
+    container.classList.add('hidden');
+    
+    // Reset data
+    csvAccessoryData = [];
+    selectedAccessories = [];
+    
+    const hiddenInput = document.getElementById('selected_accessories');
+    hiddenInput.value = '';
+}
+
+// Test function to simulate accessory selection
+function testAccessoryAssignment() {
+    console.log('TEST: Simulating accessory selection...');
+    
+    // Clear existing data
+    selectedAccessories = [];
+    csvAccessoryData = [];
+    
+    // Simulate CSV data
+    csvAccessoryData = [
+        {
+            id: 1,
+            product: 'Test Wireless Mouse',
+            category: 'Mouse',
+            quantity: 1,
+            brand: 'Logitech',
+            model: 'M705',
+            serial: 'TEST001'
+        },
+        {
+            id: 2,
+            product: 'Test USB-C Cable',
+            category: 'Cable',
+            quantity: 2,
+            brand: 'Anker',
+            model: 'PowerLine',
+            serial: 'TEST002'
+        }
+    ];
+    
+    // Simulate selecting accessories
+    selectedAccessories = [
+        {
+            csvIndex: 0,
+            product: 'Test Wireless Mouse',
+            category: 'Mouse',
+            quantity: 1,
+            inventoryId: null,
+            inventoryName: null
+        },
+        {
+            csvIndex: 1,
+            product: 'Test USB-C Cable',
+            category: 'Cable',
+            quantity: 2,
+            inventoryId: null,
+            inventoryName: null
+        }
+    ];
+    
+    console.log('TEST: Simulated selected accessories:', selectedAccessories);
+    
+    // Show the accessory selection container
+    const container = document.getElementById('accessorySelectionContainer');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+    
+    // Update the summary
+    updateSelectedAccessoriesSummary();
+    
+    console.log('TEST: Updated hidden input value:', document.getElementById('selected_accessories').value);
+    alert('Test accessories added! Check the console for debug info and try submitting the form.');
+}
+
+// Debug function to test form submission
+function debugFormSubmission() {
+    console.log('DEBUG: Testing form data submission...');
+    
+    // Get form data
+    const form = document.getElementById('ticketForm');
+    if (!form) {
+        alert('Form not found!');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    // Log all form data
+    console.log('DEBUG: Current form data:');
+    for (let [key, value] of formData.entries()) {
+        if (key === 'selected_accessories') {
+            console.log(`  ${key}: ${value.substring(0, 100)}...`);
+        } else {
+            console.log(`  ${key}: ${value}`);
+        }
+    }
+    
+    // Check if selected_accessories field exists and has data
+    const selectedAccessoriesInput = document.getElementById('selected_accessories');
+    if (selectedAccessoriesInput) {
+        console.log('DEBUG: selected_accessories input found');
+        console.log('DEBUG: selected_accessories value:', selectedAccessoriesInput.value);
+        
+        // Force update if we have selected accessories
+        if (selectedAccessories.length > 0) {
+            const jsonData = JSON.stringify(selectedAccessories);
+            selectedAccessoriesInput.value = jsonData;
+            console.log('DEBUG: Force updated selected_accessories to:', jsonData);
+        }
+    } else {
+        console.log('DEBUG: selected_accessories input NOT FOUND');
+    }
+    
+    // Send test request to debug endpoint
+    const testFormData = new FormData();
+    testFormData.append('category', 'ASSET_CHECKOUT_CLAW');
+    testFormData.append('selected_accessories', selectedAccessoriesInput ? selectedAccessoriesInput.value : '');
+    testFormData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+    
+    fetch('/tickets/api/debug/form-data', {
+        method: 'POST',
+        body: testFormData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('DEBUG: Server response:', data);
+        alert(`Debug test completed! Check console for details.\nSelected accessories present: ${data.selected_accessories_present}\nData length: ${data.selected_accessories_length}`);
+    })
+    .catch(error => {
+        console.error('DEBUG: Error:', error);
+        alert('Debug test failed. Check console for details.');
+    });
+}
+
+// Handle drag and drop for CSV upload
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form submission debugging
+    const form = document.getElementById('ticketForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('FORM SUBMIT DEBUG: Form is being submitted');
+            
+            const selectedAccessoriesInput = document.getElementById('selected_accessories');
+            if (selectedAccessoriesInput) {
+                console.log('FORM SUBMIT DEBUG: selected_accessories field exists');
+                console.log('FORM SUBMIT DEBUG: selected_accessories value:', selectedAccessoriesInput.value);
+                console.log('FORM SUBMIT DEBUG: selected_accessories name:', selectedAccessoriesInput.name);
+                
+                // Force update the hidden field value before submission
+                if (selectedAccessories.length > 0) {
+                    const jsonData = JSON.stringify(selectedAccessories);
+                    selectedAccessoriesInput.value = jsonData;
+                    console.log('FORM SUBMIT DEBUG: Force updated selected_accessories to:', jsonData);
+                }
+            } else {
+                console.log('FORM SUBMIT DEBUG: selected_accessories field NOT FOUND');
+            }
+            
+            // Log all form data
+            const formData = new FormData(form);
+            console.log('FORM SUBMIT DEBUG: All form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`  ${key}: ${value}`);
+            }
+        });
+    }
+    
+    // Handle CSV drag and drop
+    const dropZone = document.getElementById('csvDropZone');
+    const fileInput = document.getElementById('accessories_csv');
+    
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-500', 'bg-blue-50');
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'text/csv') {
+                fileInput.files = files;
+                handleCsvUpload(fileInput);
+            } else {
+                alert('Please upload a CSV file');
+            }
+        });
+    }
+});
 </script>
 {% endblock %} 

@@ -1228,20 +1228,33 @@ document.getElementById('confirmImport').addEventListener('click', function() {
             row_index: currentPreviewIndex,
             is_grouped: currentIsGrouped,
             file_id: currentFileId,
-            queue_id: selectedQueueId
+            queue_id: selectedQueueId,
+            selected_accessories: selectedAccessories,  // Include selected accessories
+            selected_assets: selectedAssets  // Include selected assets
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message
-            showSuccessMessage(data.message || 'Ticket created successfully!');
+            // Show success message with accessory info
+            let message = data.message || 'Ticket created successfully!';
+            if (data.assigned_accessories && data.assigned_accessories.length > 0) {
+                message += `\n🔧 Assigned accessories: ${data.assigned_accessories.join(', ')}`;
+            }
+            if (data.assigned_assets && data.assigned_assets.length > 0) {
+                message += `\n📦 Assigned assets: ${data.assigned_assets.join(', ')}`;
+            }
             
             // Close modal
             document.getElementById('previewModal').classList.add('hidden');
             
-            // Optionally reload the page or update the UI
-            location.reload();
+            // Redirect to the created ticket
+            if (data.ticket_id) {
+                window.location.href = `/tickets/${data.ticket_id}`;
+            } else {
+                showSuccessMessage(message);
+                location.reload();
+            }
         } else {
             alert('Error: ' + data.error);
         }
