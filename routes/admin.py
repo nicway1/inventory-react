@@ -868,6 +868,86 @@ def system_config():
     finally:
         db_session.close()
 
+
+@admin_bp.route('/theme-settings')
+@super_admin_required
+def theme_settings():
+    """Theme configuration page"""
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+        
+        # Get theme statistics
+        theme_stats = db_session.execute(text("""
+            SELECT theme_preference, COUNT(*) as count 
+            FROM users 
+            WHERE theme_preference IS NOT NULL 
+            GROUP BY theme_preference
+        """)).fetchall()
+        
+        theme_counts = {
+            'light': 0,
+            'dark': 0
+        }
+        
+        for stat in theme_stats:
+            theme_counts[stat[0]] = stat[1]
+            
+        total_users = sum(theme_counts.values())
+        
+        return render_template('admin/theme_settings.html', 
+                             user=user,
+                             theme_counts=theme_counts,
+                             total_users=total_users)
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error loading theme settings: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/update-user-theme', methods=['POST'])
+@login_required
+def update_user_theme():
+    """Update current user's theme preference"""
+    theme = request.form.get('theme')
+    
+    if theme not in ['light', 'dark']:
+        flash('Invalid theme selection', 'error')
+        return redirect(request.referrer or url_for('main.index'))
+    
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+        
+        # Update theme preference
+        user.theme_preference = theme
+        db_session.commit()
+        
+        # Update session to reflect theme change immediately
+        session['user_theme'] = theme
+        
+        flash(f'Theme updated to {theme} mode', 'success')
+        
+        # Return to previous page or theme settings
+        return redirect(request.referrer or url_for('admin.theme_settings'))
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating theme: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('main.index'))
+    finally:
+        db_session.close()
+
 @admin_bp.route('/changelog')
 @login_required
 def changelog():

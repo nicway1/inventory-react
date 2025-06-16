@@ -42,6 +42,7 @@ def login():
                     session['user_id'] = user.id
                     session['user_type'] = user.user_type.value
                     session['username'] = user.username
+                    session['user_theme'] = user.theme_preference or 'light'
                     
                     # Update last login time
                     user.last_login = datetime.utcnow()

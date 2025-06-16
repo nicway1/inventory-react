@@ -20,6 +20,7 @@ class User(Base, UserMixin):
     company_id = Column(Integer, ForeignKey('companies.id'))
     assigned_country = Column(Enum(Country), nullable=True)
     role = Column(String(50), nullable=True, default='user')
+    theme_preference = Column(String(20), default='light')  # 'light' or 'dark'
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
