@@ -139,11 +139,27 @@ def view_inventory():
             countries = [user.assigned_country.value]
         # For Client users, only show countries relevant to their company's assets
         elif user.user_type == UserType.CLIENT and user.company:
-            countries = tech_assets_query.with_entities(Asset.country).distinct().all()
-            countries = sorted(list(set([c[0] for c in countries if c[0]])))
+            countries_raw = tech_assets_query.with_entities(Asset.country).distinct().all()
+            # Use case-insensitive deduplication and proper capitalization
+            countries_seen = set()
+            countries = []
+            for c in sorted([c[0] for c in countries_raw if c[0]]):
+                country_lower = c.lower()
+                if country_lower not in countries_seen:
+                    countries_seen.add(country_lower)
+                    # Use proper case format
+                    countries.append(c.title())
         else:
-            countries = tech_assets_query.with_entities(Asset.country).distinct().all()
-            countries = sorted(list(set([c[0] for c in countries if c[0]])))
+            countries_raw = tech_assets_query.with_entities(Asset.country).distinct().all()
+            # Use case-insensitive deduplication and proper capitalization
+            countries_seen = set()
+            countries = []
+            for c in sorted([c[0] for c in countries_raw if c[0]]):
+                country_lower = c.lower()
+                if country_lower not in countries_seen:
+                    countries_seen.add(country_lower)
+                    # Use proper case format
+                    countries.append(c.title())
 
         # Get accessories with counts
         accessories = db_session.query(
@@ -1445,7 +1461,15 @@ def add_asset():
             unique_countries = [user.assigned_country.value]
         else:
             unique_countries_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
-            unique_countries = sorted([c[0] for c in unique_countries_query if c[0]])
+            # Use case-insensitive deduplication and proper capitalization
+            countries_seen = set()
+            unique_countries = []
+            for c in sorted([c[0] for c in unique_countries_query if c[0]]):
+                country_lower = c.lower()
+                if country_lower not in countries_seen:
+                    countries_seen.add(country_lower)
+                    # Use proper case format
+                    unique_countries.append(c.title())
         
         unique_models = []
         model_product_map = {}
