@@ -142,36 +142,43 @@ def index():
         # Get counts from database with proper filtering
         queue_ticket_counts = {}
         for queue in queues:
+            # Count ALL tickets for this queue
+            total_ticket_query = db.session.query(Ticket).filter(Ticket.queue_id == queue.id)
+            
             # Count OPEN tickets for this queue (exclude resolved tickets)
-            ticket_query = db.session.query(Ticket).filter(
+            open_ticket_query = db.session.query(Ticket).filter(
                 Ticket.queue_id == queue.id,
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
             )
             
-            # Apply COUNTRY_ADMIN filtering
+            # Apply COUNTRY_ADMIN filtering to both queries
             if user.user_type == UserType.COUNTRY_ADMIN:
                 if user.assigned_country:
                     # Filter by assigned country
-                    ticket_query = ticket_query.filter(Ticket.country == user.assigned_country.value)
+                    total_ticket_query = total_ticket_query.filter(Ticket.country == user.assigned_country.value)
+                    open_ticket_query = open_ticket_query.filter(Ticket.country == user.assigned_country.value)
                 if user.company_id:
                     # Filter by company association - tickets assigned to their company's users or assets
-                    ticket_query = ticket_query.filter(
-                        or_(
-                            Ticket.requester_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
-                            ),
-                            Ticket.assigned_to_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
-                            ),
-                            # Also include tickets related to assets from their company
-                            Ticket.subject.in_(
-                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
-                            )
+                    company_filter = or_(
+                        Ticket.requester_id.in_(
+                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                        ),
+                        Ticket.assigned_to_id.in_(
+                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                        ),
+                        # Also include tickets related to assets from their company
+                        Ticket.subject.in_(
+                            db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
                         )
                     )
+                    total_ticket_query = total_ticket_query.filter(company_filter)
+                    open_ticket_query = open_ticket_query.filter(company_filter)
             
-            queue_ticket_counts[queue.id] = ticket_query.count()
+            queue_ticket_counts[queue.id] = {
+                'total': total_ticket_query.count(),
+                'open': open_ticket_query.count()
+            }
         
         # Apply filtering to asset counts for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:

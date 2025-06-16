@@ -400,7 +400,10 @@
             {% for queue in queues %}
             <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <h3 class="font-semibold text-lg mb-1">{{ queue.name }}</h3>
-                <div class="text-sm text-gray-600 mb-2">{{ queue_ticket_counts[queue.id] }} open tickets</div>
+                <div class="text-sm text-gray-600 mb-2">
+                    <div class="font-medium">{{ queue_ticket_counts[queue.id].open }} open tickets</div>
+                    <div class="text-xs text-gray-500">{{ queue_ticket_counts[queue.id].total }} total tickets</div>
+                </div>
                 <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}" class="text-amber-600 hover:text-amber-800 text-sm">View Queue →</a>
             </div>
             {% endfor %}

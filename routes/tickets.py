@@ -999,12 +999,20 @@ def list_queues():
         # Get ticket counts for each queue to avoid detached session issues
         queue_ticket_counts = {}
         for queue in queues:
+            # Count ALL tickets for this queue
+            total_count = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+            
             # Count OPEN tickets for this queue (exclude resolved tickets)
-            queue_ticket_counts[queue.id] = db_session.query(Ticket).filter(
+            open_count = db_session.query(Ticket).filter(
                 Ticket.queue_id == queue.id,
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
             ).count()
+            
+            queue_ticket_counts[queue.id] = {
+                'total': total_count,
+                'open': open_count
+            }
         
         return render_template('tickets/queues.html', queues=queues, queue_ticket_counts=queue_ticket_counts, user=user)
     finally:
