@@ -142,8 +142,12 @@ def index():
         # Get counts from database with proper filtering
         queue_ticket_counts = {}
         for queue in queues:
-            # Count tickets for this queue with user-specific filtering
-            ticket_query = db.session.query(Ticket).filter(Ticket.queue_id == queue.id)
+            # Count OPEN tickets for this queue (exclude resolved tickets)
+            ticket_query = db.session.query(Ticket).filter(
+                Ticket.queue_id == queue.id,
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            )
             
             # Apply COUNTRY_ADMIN filtering
             if user.user_type == UserType.COUNTRY_ADMIN:

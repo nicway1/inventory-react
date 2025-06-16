@@ -49,7 +49,7 @@
                 {% endif %}
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-500">
-                        {{ queue_ticket_counts[queue.id] }} tickets
+                        {{ queue_ticket_counts[queue.id] }} open tickets
                     </span>
                     <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}" 
                        class="text-blue-500 hover:text-blue-700">
