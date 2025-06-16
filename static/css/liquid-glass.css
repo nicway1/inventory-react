@@ -1,0 +1,277 @@
+/* Liquid Glass Effect for Login Page */
+
+.liquid-glass-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    transform-style: preserve-3d;
+}
+
+.liquid-glass-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+        from var(--angle, 0deg),
+        transparent,
+        rgba(255, 255, 255, 0.1) 10%,
+        transparent 20%,
+        rgba(255, 255, 255, 0.05) 30%,
+        transparent
+    );
+    animation: liquidRotate 8s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.liquid-glass-container:hover::before {
+    opacity: 1;
+}
+
+.liquid-glass-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(0, 0, 0, 0.05) 100%
+    );
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.liquid-glass-content {
+    position: relative;
+    z-index: 2;
+    padding: 2rem;
+}
+
+/* Interactive glow effect */
+.liquid-glass-glow {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(
+        circle,
+        rgba(59, 130, 246, 0.15) 0%,
+        rgba(147, 51, 234, 0.1) 30%,
+        transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+    filter: blur(20px);
+    transform: translate(-50%, -50%);
+}
+
+.liquid-glass-container:hover .liquid-glass-glow {
+    opacity: 1;
+}
+
+/* Button glass effect */
+.liquid-glass-button {
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.liquid-glass-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    transition: left 0.5s ease;
+    z-index: 1;
+}
+
+.liquid-glass-button:hover::before {
+    left: 100%;
+}
+
+.liquid-glass-button:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 
+        0 12px 24px rgba(59, 130, 246, 0.2),
+        0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.liquid-glass-button:active {
+    transform: translateY(-1px);
+    transition: transform 0.1s ease;
+}
+
+.liquid-glass-button span {
+    position: relative;
+    z-index: 2;
+}
+
+/* Input glass effect */
+.liquid-glass-input {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    color: white;
+    padding: 12px 16px;
+    width: 100%;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.liquid-glass-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.liquid-glass-input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 
+        0 0 0 3px rgba(59, 130, 246, 0.1),
+        0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Background animation */
+.liquid-glass-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: linear-gradient(
+        135deg,
+        #667eea 0%,
+        #764ba2 25%,
+        #f093fb 50%,
+        #f5576c 75%,
+        #4facfe 100%
+    );
+    background-size: 400% 400%;
+    animation: liquidGradient 15s ease infinite;
+}
+
+/* Floating particles */
+.liquid-glass-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+    opacity: 0;
+}
+
+.liquid-glass-particle:nth-child(odd) {
+    animation-delay: -2s;
+}
+
+.liquid-glass-particle:nth-child(even) {
+    animation-delay: -4s;
+}
+
+/* Keyframe animations */
+@keyframes liquidRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes liquidGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-100px) rotate(180deg);
+        opacity: 0.7;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .liquid-glass-content {
+        padding: 1.5rem;
+    }
+    
+    .liquid-glass-glow {
+        width: 200px;
+        height: 200px;
+    }
+}
+
+/* Chrome aberration effect */
+.liquid-glass-container.chromatic {
+    position: relative;
+}
+
+.liquid-glass-container.chromatic::before {
+    filter: 
+        drop-shadow(2px 0 0 rgba(255, 0, 0, 0.1))
+        drop-shadow(-2px 0 0 rgba(0, 255, 255, 0.1));
+}
+
+/* Enhanced hover states */
+.liquid-glass-container:hover {
+    transform: translateY(-8px) rotateX(5deg);
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.15),
+        0 8px 16px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.liquid-glass-container:active {
+    transform: translateY(-4px) rotateX(2deg);
+    transition: transform 0.1s ease;
+} 
