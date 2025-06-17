@@ -38,6 +38,7 @@ from models.customer_user import CustomerUser
 from models.asset import Asset
 from sqlalchemy import text
 from models.accessory import Accessory
+from models.company_customer_permission import CompanyCustomerPermission
 
 admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
@@ -868,6 +869,186 @@ def system_config():
     finally:
         db_session.close()
 
+@admin_bp.route('/customer-permissions')
+@super_admin_required
+def manage_customer_permissions():
+    """Manage which companies can see which customers"""
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Get all companies
+        companies = db_session.query(Company).order_by(Company.name).all()
+        
+        # Get all existing permissions with company information
+        from sqlalchemy.orm import aliased
+        CompanyAlias = aliased(Company)
+        
+        permission_data = db_session.query(CompanyCustomerPermission, Company, CompanyAlias)\
+            .join(Company, CompanyCustomerPermission.company_id == Company.id)\
+            .join(CompanyAlias, CompanyCustomerPermission.customer_company_id == CompanyAlias.id)\
+            .order_by(Company.name).all()
+        
+        # Structure the data for the template
+        permissions = []
+        for perm, company, customer_company in permission_data:
+            # Add company and customer_company as attributes to the permission object
+            perm.company = company
+            perm.customer_company = customer_company
+            permissions.append(perm)
+
+        return render_template('admin/customer_permissions.html',
+                             user=user,
+                             companies=companies,
+                             permissions=permissions)
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error loading customer permissions: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/customer-permissions/update', methods=['POST'])
+@super_admin_required
+def update_customer_permissions():
+    """Update customer viewing permissions (legacy single permission route)"""
+    db_session = db_manager.get_session()
+    try:
+        company_id = request.form.get('company_id')
+        customer_company_id = request.form.get('customer_company_id')
+        can_view = request.form.get('can_view') == 'true'
+
+        if not company_id or not customer_company_id:
+            flash('Company and customer company are required', 'error')
+            return redirect(url_for('admin.manage_customer_permissions'))
+
+        # Check if permission already exists
+        existing_permission = db_session.query(CompanyCustomerPermission)\
+            .filter_by(company_id=company_id, customer_company_id=customer_company_id)\
+            .first()
+
+        if existing_permission:
+            existing_permission.can_view = can_view
+            existing_permission.updated_at = datetime.utcnow()
+            action = "updated"
+        else:
+            # Create new permission
+            new_permission = CompanyCustomerPermission(
+                company_id=company_id,
+                customer_company_id=customer_company_id,
+                can_view=can_view
+            )
+            db_session.add(new_permission)
+            action = "created"
+
+        db_session.commit()
+        flash(f'Customer permission {action} successfully', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating permission: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_customer_permissions'))
+
+@admin_bp.route('/customer-permissions/update-bulk', methods=['POST'])
+@super_admin_required
+def update_customer_permissions_bulk():
+    """Update customer viewing permissions in bulk"""
+    db_session = db_manager.get_session()
+    try:
+        company_id = request.form.get('company_id')
+        customer_company_ids = request.form.getlist('customer_company_ids')
+        can_view = request.form.get('can_view') == 'true'
+
+        if not company_id:
+            flash('Company is required', 'error')
+            return redirect(url_for('admin.manage_customer_permissions'))
+
+        if not customer_company_ids:
+            flash('At least one customer company must be selected', 'error')
+            return redirect(url_for('admin.manage_customer_permissions'))
+
+        # Prevent self-permissions
+        customer_company_ids = [cid for cid in customer_company_ids if cid != company_id]
+
+        if not customer_company_ids:
+            flash('Cannot grant permissions to view own customers (already have access)', 'error')
+            return redirect(url_for('admin.manage_customer_permissions'))
+
+        created_count = 0
+        updated_count = 0
+
+        for customer_company_id in customer_company_ids:
+            # Check if permission already exists
+            existing_permission = db_session.query(CompanyCustomerPermission)\
+                .filter_by(company_id=company_id, customer_company_id=customer_company_id)\
+                .first()
+
+            if existing_permission:
+                if existing_permission.can_view != can_view:
+                    existing_permission.can_view = can_view
+                    existing_permission.updated_at = datetime.utcnow()
+                    updated_count += 1
+            else:
+                # Create new permission
+                new_permission = CompanyCustomerPermission(
+                    company_id=company_id,
+                    customer_company_id=customer_company_id,
+                    can_view=can_view
+                )
+                db_session.add(new_permission)
+                created_count += 1
+
+        db_session.commit()
+        
+        # Build success message
+        messages = []
+        if created_count > 0:
+            messages.append(f'{created_count} permission(s) created')
+        if updated_count > 0:
+            messages.append(f'{updated_count} permission(s) updated')
+        
+        if messages:
+            flash(f'Success: {", ".join(messages)}', 'success')
+        else:
+            flash('No changes were made (permissions already exist with the same settings)', 'info')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating permissions: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_customer_permissions'))
+
+@admin_bp.route('/customer-permissions/delete/<int:permission_id>', methods=['POST'])
+@super_admin_required
+def delete_customer_permission(permission_id):
+    """Delete a customer permission"""
+    db_session = db_manager.get_session()
+    try:
+        permission = db_session.query(CompanyCustomerPermission).get(permission_id)
+        if not permission:
+            flash('Permission not found', 'error')
+            return redirect(url_for('admin.manage_customer_permissions'))
+
+        db_session.delete(permission)
+        db_session.commit()
+        flash('Customer permission deleted successfully', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting permission: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_customer_permissions'))
 
 @admin_bp.route('/theme-settings')
 @super_admin_required
@@ -891,12 +1072,16 @@ def theme_settings():
         
         theme_counts = {
             'light': 0,
-            'dark': 0
+            'dark': 0,
+            'liquid_glass': 0
         }
         
         for stat in theme_stats:
-            theme_counts[stat[0]] = stat[1]
-            
+            if stat[0] == 'liquid-glass':
+                theme_counts['liquid_glass'] = stat[1]
+            elif stat[0] in theme_counts:
+                theme_counts[stat[0]] = stat[1]
+        
         total_users = sum(theme_counts.values())
         
         return render_template('admin/theme_settings.html', 
@@ -917,7 +1102,7 @@ def update_user_theme():
     """Update current user's theme preference"""
     theme = request.form.get('theme')
     
-    if theme not in ['light', 'dark']:
+    if theme not in ['light', 'dark', 'liquid-glass']:
         flash('Invalid theme selection', 'error')
         return redirect(request.referrer or url_for('main.index'))
     
@@ -3338,7 +3523,7 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         # Check if asset is already assigned to this ticket in memory
         if asset in ticket.assets:
             print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id} in memory")
-            return True
+        return True
         
         # Safe to assign - insert directly into ticket_assets table
         print(f"[ASSET ASSIGN DEBUG] Inserting directly into ticket_assets table")

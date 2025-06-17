@@ -124,20 +124,17 @@ def index():
             flash('You do not have permission to import data')
             return redirect(url_for('main.index'))
 
-        # Get queues with filtering for COUNTRY_ADMIN and other user types
+        # Get queues with filtering based on user permissions
         if user.user_type == UserType.SUPER_ADMIN:
             # Super admins can see all queues
             queues = queue_store.get_all_queues()
-        elif user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
-            # Country admins can only see queues their company has access to
+        else:
+            # For all other user types, filter queues based on company permissions
             queues = []
             all_queues = queue_store.get_all_queues()
             for queue in all_queues:
                 if user.can_access_queue(queue.id):
                     queues.append(queue)
-        else:
-            # For other user types, use existing queue permissions logic
-            queues = queue_store.get_all_queues()
 
         # Get counts from database with proper filtering
         queue_ticket_counts = {}
@@ -161,17 +158,17 @@ def index():
                 if user.company_id:
                     # Filter by company association - tickets assigned to their company's users or assets
                     company_filter = or_(
-                        Ticket.requester_id.in_(
-                            db.session.query(User.id).filter(User.company_id == user.company_id)
-                        ),
-                        Ticket.assigned_to_id.in_(
-                            db.session.query(User.id).filter(User.company_id == user.company_id)
-                        ),
-                        # Also include tickets related to assets from their company
-                        Ticket.subject.in_(
-                            db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            Ticket.requester_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.assigned_to_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            # Also include tickets related to assets from their company
+                            Ticket.subject.in_(
+                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            )
                         )
-                    )
                     total_ticket_query = total_ticket_query.filter(company_filter)
                     open_ticket_query = open_ticket_query.filter(company_filter)
             

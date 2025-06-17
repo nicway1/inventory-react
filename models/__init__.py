@@ -16,6 +16,7 @@ from models.ticket_attachment import TicketAttachment
 from models.intake_ticket import IntakeTicket
 from models.user_company_permission import UserCompanyPermission
 from models.company_queue_permission import CompanyQueuePermission
+from models.company_customer_permission import CompanyCustomerPermission
 from models.tracking_history import TrackingHistory
 from models.asset_history import AssetHistory
 from models.accessory_history import AccessoryHistory
@@ -49,6 +50,7 @@ __all__ = [
     "IntakeTicket",
     "UserCompanyPermission",
     "CompanyQueuePermission",
+    "CompanyCustomerPermission",
     "TrackingHistory",
     "AssetHistory",
     "AccessoryHistory",

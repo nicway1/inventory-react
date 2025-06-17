@@ -1,9 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from utils.auth_decorators import login_required
 from utils.db_manager import DatabaseManager
 from models.asset import Asset
 from models.customer_user import CustomerUser
 from models.company import Company
+from models.user import User, UserType
 from sqlalchemy import or_
 from flask import current_app
 
@@ -47,10 +48,33 @@ def search_customers():
         query = request.args.get('q', '').strip()
         
         db_session = db_manager.get_session()
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query
+        customers_query = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True)
+        
+        # Apply permission-based filtering for non-SUPER_ADMIN users
+        if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+            from models.company_customer_permission import CompanyCustomerPermission
+            
+            # Get companies this user's company has permission to view customers from
+            permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                .filter(
+                    CompanyCustomerPermission.company_id == user.company_id,
+                    CompanyCustomerPermission.can_view == True
+                ).subquery()
+            
+            # Users can see their own company's customers plus any permitted ones
+            customers_query = customers_query.filter(
+                or_(
+                    CustomerUser.company_id == user.company_id,  # Own company customers
+                    CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+                )
+            )
         
         if query and len(query) >= 2:
             # Search customers by name, email, company name, or address
-            customers = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True).filter(
+            customers = customers_query.filter(
                 or_(
                     CustomerUser.name.ilike(f'%{query}%'),
                     CustomerUser.email.ilike(f'%{query}%'),
@@ -60,7 +84,7 @@ def search_customers():
             ).limit(20).all()
         else:
             # No query or query too short - return all customers (limited)
-            customers = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True).limit(50).all()
+            customers = customers_query.limit(50).all()
         
         results = []
         for customer in customers:
@@ -216,9 +240,30 @@ def unified_search():
                     'url': f"/inventory/accessory/{accessory.id}"
                 })
         
-        # Search customers (only for super admins)
-        if result_type in ['all', 'customers'] and user.is_super_admin:
-            customers = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True).filter(
+        # Search customers - apply company filtering for non-SUPER_ADMIN users
+        if result_type in ['all', 'customers']:
+            customers_query = db_session.query(CustomerUser).join(Company, CustomerUser.company_id == Company.id, isouter=True)
+            
+            # Apply permission-based filtering for non-SUPER_ADMIN users
+            if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+                from models.company_customer_permission import CompanyCustomerPermission
+                
+                # Get companies this user's company has permission to view customers from
+                permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                    .filter(
+                        CompanyCustomerPermission.company_id == user.company_id,
+                        CompanyCustomerPermission.can_view == True
+                    ).subquery()
+                
+                # Users can see their own company's customers plus any permitted ones
+                customers_query = customers_query.filter(
+                    or_(
+                        CustomerUser.company_id == user.company_id,  # Own company customers
+                        CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+                    )
+                )
+            
+            customers = customers_query.filter(
                 or_(
                     CustomerUser.name.ilike(f'%{query}%'),
                     CustomerUser.email.ilike(f'%{query}%'),

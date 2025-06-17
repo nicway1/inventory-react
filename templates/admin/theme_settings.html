@@ -60,11 +60,29 @@
                                 Dark
                             </button>
                         </form>
+
+                        <!-- Liquid Glass Theme Button -->
+                        <form method="POST" action="{{ url_for('admin.update_user_theme') }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="theme" value="liquid-glass">
+                            <button type="submit" 
+                                    class="flex items-center px-4 py-2 border rounded-md text-sm font-medium transition-colors
+                                           {% if user.theme_preference == 'liquid-glass' %}
+                                               bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-600
+                                           {% else %}
+                                               bg-white text-gray-700 border-gray-300 hover:bg-gray-50
+                                           {% endif %}">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                </svg>
+                                💎 Glass
+                            </button>
+                        </form>
                     </div>
                 </div>
                 
                 <!-- Theme Preview -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                     <!-- Light Theme Preview -->
                     <div class="border rounded-lg overflow-hidden">
                         <div class="bg-white p-4 border-b">
@@ -100,6 +118,26 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Liquid Glass Theme Preview -->
+                    <div class="border rounded-lg overflow-hidden relative"
+                         style="background: linear-gradient(135deg, rgba(4, 14, 24, 0.9) 0%, rgba(14, 34, 54, 0.8) 50%, rgba(24, 54, 84, 0.7) 100%), 
+                                url('https://plus.unsplash.com/premium_photo-1661879449050-069f67e200bd?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8bG9naXN0aWNzfGVufDB8fDB8fHww') center/cover;">
+                        <div class="p-4 border-b border-white/20" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+                            <h3 class="text-sm font-medium text-white">💎 Liquid Glass Theme</h3>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="p-3 rounded" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm text-white">Sample Content</div>
+                                    <div class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Active</div>
+                                </div>
+                            </div>
+                            <div class="border border-blue-400/30 p-3 rounded" style="background: rgba(59, 130, 246, 0.1); backdrop-filter: blur(10px);">
+                                <div class="text-sm text-blue-200">Information Panel</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -108,7 +146,7 @@
         <div class="mb-8">
             <h2 class="text-xl font-semibold mb-4">System Theme Usage</h2>
             <div class="bg-gray-50 p-4 rounded-lg">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <!-- Light Theme Stats -->
                     <div class="bg-white p-4 rounded-lg border">
                         <div class="flex items-center">
@@ -151,6 +189,29 @@
                                 <div class="bg-gray-700 h-2 rounded-full" style="width: {{ (theme_counts.dark / total_users * 100)|round(1) }}%"></div>
                             </div>
                             <p class="text-xs text-gray-500 mt-1">{{ (theme_counts.dark / total_users * 100)|round(1) }}% of users</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Liquid Glass Theme Stats -->
+                    <div class="bg-white p-4 rounded-lg border">
+                        <div class="flex items-center">
+                            <div class="bg-gradient-to-br from-blue-100 to-purple-100 p-2 rounded-full">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">💎 Glass Theme</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ theme_counts.liquid_glass }}</p>
+                            </div>
+                        </div>
+                        {% if total_users > 0 %}
+                        <div class="mt-3">
+                            <div class="bg-gray-200 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style="width: {{ (theme_counts.liquid_glass / total_users * 100)|round(1) }}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ (theme_counts.liquid_glass / total_users * 100)|round(1) }}% of users</p>
                         </div>
                         {% endif %}
                     </div>
@@ -202,6 +263,18 @@
                         <div>
                             <h3 class="text-sm font-medium text-gray-900">Dark Theme</h3>
                             <p class="text-sm text-gray-600">Dark backgrounds with light text. Reduces eye strain in low-light environments and may help conserve battery on OLED displays.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-gradient-to-br from-blue-100 to-purple-100 p-1 rounded">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-900">💎 Liquid Glass Theme</h3>
+                            <p class="text-sm text-gray-600">Premium glass morphism design with logistics backgrounds. Features translucent elements with blur effects and stunning container ship visuals for an immersive experience.</p>
                         </div>
                     </div>
                     

@@ -67,6 +67,36 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 
+def get_filtered_customers(db_session, user):
+    """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
+    from models.company_customer_permission import CompanyCustomerPermission
+    from sqlalchemy import or_
+    
+    customers_query = db_session.query(CustomerUser)
+    
+    # SUPER_ADMIN users can see all customers
+    if user.user_type == UserType.SUPER_ADMIN:
+        return customers_query.order_by(CustomerUser.name).all()
+    
+    # For other users, apply permission-based filtering
+    if user.company_id:
+        # Get companies this user's company has permission to view customers from
+        permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+            .filter(
+                CompanyCustomerPermission.company_id == user.company_id,
+                CompanyCustomerPermission.can_view == True
+            ).subquery()
+        
+        # Users can always see their own company's customers, plus any permitted ones
+        customers_query = customers_query.filter(
+            or_(
+                CustomerUser.company_id == user.company_id,  # Own company customers
+                CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+            )
+        )
+    
+    return customers_query.order_by(CustomerUser.name).all()
+
 # Initialize TrackingMore API key
 TRACKINGMORE_API_KEY = "7yyp17vj-t0bh-jtg0-xjf0-v9m3335cjbtc"
 # Trackingmore client is initialized above depending on the available package
@@ -123,8 +153,8 @@ def create_ticket():
             'asset_tag': asset.asset_tag
         } for asset in assets]
         
-        # Get all customers for the dropdown
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get all customers for the dropdown (filtered by company for non-SUPER_ADMIN users)
+        customers = get_filtered_customers(db_session, user)
         
         # Get all queues for the dropdown and filter based on permissions
         all_queues = queue_store.get_all_queues()
@@ -528,11 +558,24 @@ Additional Notes:
                     db_session.commit()
 
                     print(f"Ticket created successfully with ID: {ticket_id}")  # Debug log
-                    if assigned_accessories:
-                        flash(f'Asset checkout ticket created successfully with {len(assigned_accessories)} accessories assigned')
+                    
+                    # Check if this is an AJAX request (for popup functionality)
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        response_data = {
+                            'success': True,
+                            'ticket_id': ticket_id,
+                            'message': f'Asset checkout ticket created successfully{f" with {len(assigned_accessories)} accessories assigned" if assigned_accessories else ""}',
+                            'assigned_accessories': [acc.name for acc in assigned_accessories] if assigned_accessories else [],
+                            'ticket_display_id': ticket_id
+                        }
+                        return jsonify(response_data)
                     else:
-                        flash('Asset checkout ticket created successfully')
-                    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+                        # Regular form submission - existing behavior
+                        if assigned_accessories:
+                            flash(f'Asset checkout ticket created successfully with {len(assigned_accessories)} accessories assigned')
+                        else:
+                            flash('Asset checkout ticket created successfully')
+                        return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
@@ -900,8 +943,9 @@ def view_ticket(ticket_id):
                 'status': asset.status.value if asset.status else None
             })
         
-        # Get customers for the template
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get customers for the template (filtered by company for non-SUPER_ADMIN users)
+        user = db_manager.get_user(session['user_id'])
+        customers = get_filtered_customers(db_session, user)
         
         # Get asset model names for the model dropdown
         asset_models = db_session.query(Asset.model).filter(Asset.model.isnot(None)).distinct().all()
@@ -1013,7 +1057,7 @@ def list_queues():
                 'total': total_count,
                 'open': open_count
             }
-        
+            
         return render_template('tickets/queues.html', queues=queues, queue_ticket_counts=queue_ticket_counts, user=user)
     finally:
         db_session.close()
@@ -3983,7 +4027,9 @@ def get_customers():
     """Get a list of all customers for use in AJAX requests"""
     db_session = db_manager.get_session()
     try:
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get current user and apply company filtering
+        user = db_manager.get_user(session['user_id'])
+        customers = get_filtered_customers(db_session, user)
         return jsonify({
             'success': True,
             'customers': [

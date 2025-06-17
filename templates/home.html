@@ -35,12 +35,12 @@
                 </svg>
                 <h2 class="text-xl font-semibold">Tickets</h2>
             </div>
-            {% if user.user_type.value == 'CLIENT' %}
-            <p class="text-gray-600">Manage Support Tickets</p>
-            {% else %}
+            {% if user.user_type.value == 'SUPER_ADMIN' %}
             <p class="text-3xl font-bold text-green-600">{{ ticket_counts.open }}</p>
             <p class="text-gray-600">Open Tickets</p>
             <p class="text-sm text-gray-500">Total: {{ ticket_counts.total }} | Resolved: {{ ticket_counts.resolved }}</p>
+            {% else %}
+            <p class="text-gray-600">Manage Support Tickets</p>
             {% endif %}
             <a href="{{ url_for('tickets.list_tickets') }}" class="mt-4 inline-block text-green-600 hover:text-green-800">View Tickets →</a>
         </div>
@@ -59,6 +59,7 @@
         </div>
 
         <!-- Documents Card -->
+        {% if user.can_access_documents() %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,15 +72,20 @@
                 <p class="text-gray-600">Generate documents</p>
             </div>
             <div class="space-y-2">
+                {% if user.can_create_commercial_invoices() %}
                 <div class="text-sm text-gray-500">
                     • Commercial Invoices
                 </div>
+                {% endif %}
+                {% if user.can_create_packing_lists() %}
                 <div class="text-sm text-gray-500">
                     • Packing Lists
                 </div>
+                {% endif %}
             </div>
             <a href="{{ url_for('documents.dashboard') }}" class="mt-4 inline-block text-orange-600 hover:text-orange-800">Generate Documents →</a>
         </div>
+        {% endif %}
 
         <!-- Manage Customers Card -->
         {% if user.user_type.value != 'CLIENT' %}

@@ -12,18 +12,45 @@ documents_bp = Blueprint('documents', __name__, url_prefix='/documents')
 @login_required
 def commercial_invoice_form():
     """Display the commercial invoice creation form"""
+    from utils.db_manager import DatabaseManager
+    from flask import session, redirect, url_for, flash
+    
+    db_manager = DatabaseManager()
+    user = db_manager.get_user(session['user_id'])
+    if not user.can_access_documents() or not user.can_create_commercial_invoices():
+        flash('You do not have permission to create commercial invoices', 'error')
+        return redirect(url_for('main.index'))
+    
     return render_template('documents/commercial_invoice_form.html')
 
 @documents_bp.route('/packing-list')
 @login_required
 def packing_list_form():
     """Display the packing list creation form"""
+    from utils.db_manager import DatabaseManager
+    from flask import session, redirect, url_for, flash
+    
+    db_manager = DatabaseManager()
+    user = db_manager.get_user(session['user_id'])
+    if not user.can_access_documents() or not user.can_create_packing_lists():
+        flash('You do not have permission to create packing lists', 'error')
+        return redirect(url_for('main.index'))
+    
     return render_template('documents/packing_list_form.html')
 
 @documents_bp.route('/generate-commercial-invoice', methods=['POST'])
 @login_required
 def generate_commercial_invoice():
     """Generate commercial invoice from form data"""
+    from utils.db_manager import DatabaseManager
+    from flask import session, redirect, url_for, flash
+    
+    db_manager = DatabaseManager()
+    user = db_manager.get_user(session['user_id'])
+    if not user.can_access_documents() or not user.can_create_commercial_invoices():
+        flash('You do not have permission to create commercial invoices', 'error')
+        return redirect(url_for('main.index'))
+    
     try:
         print("DEBUG: Starting commercial invoice generation")
         # Get form data
@@ -115,6 +142,15 @@ def generate_commercial_invoice():
 @login_required
 def generate_packing_list():
     """Generate packing list from form data"""
+    from utils.db_manager import DatabaseManager
+    from flask import session, redirect, url_for, flash
+    
+    db_manager = DatabaseManager()
+    user = db_manager.get_user(session['user_id'])
+    if not user.can_access_documents() or not user.can_create_packing_lists():
+        flash('You do not have permission to create packing lists', 'error')
+        return redirect(url_for('main.index'))
+    
     try:
         # Get form data
         packing_data = {
@@ -348,4 +384,13 @@ def view_saved_invoice(invoice_id):
 @login_required
 def dashboard():
     """Display the documents dashboard"""
+    from utils.db_manager import DatabaseManager
+    from flask import session, redirect, url_for, flash
+    
+    db_manager = DatabaseManager()
+    user = db_manager.get_user(session['user_id'])
+    if not user.can_access_documents():
+        flash('You do not have permission to access documents', 'error')
+        return redirect(url_for('main.index'))
+    
     return render_template('documents/dashboard.html') 

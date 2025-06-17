@@ -296,6 +296,46 @@
     </div>
 </div>
 
+<!-- Success Action Modal -->
+<div id="successActionModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-6 rounded-t-lg">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">✅ Ticket Created Successfully!</h3>
+                    <p class="text-green-100 mt-1" id="successTicketId">Ticket #1234</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6">
+            <div class="text-center space-y-4">
+                <div class="text-4xl">🎉</div>
+                <p class="text-gray-700" id="successMessage">Your ticket has been created successfully!</p>
+                
+                <!-- Success Details -->
+                <div id="successDetails" class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    <!-- Details will be populated by JavaScript -->
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3 mt-6">
+                    <button id="viewTicketBtn" 
+                            class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                        👁️ View Ticket
+                    </button>
+                    <button id="closePreviewBtn" 
+                            class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition-colors">
+                        ✖️ Close Preview
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let csvData = [];
 let currentPreviewIndex = null;
@@ -427,7 +467,7 @@ function displayCSVData(data) {
                         </div>
                     </div>` :
                     `<div class="text-sm font-medium text-gray-900 max-w-xs" title="${row.product_title}">
-                        📱 ${row.product_title || 'N/A'}
+                                                        💻 ${row.product_title || 'N/A'}
                     </div>`
                 }
                 <div class="text-xs text-gray-500">
@@ -1236,25 +1276,11 @@ document.getElementById('confirmImport').addEventListener('click', function() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message with accessory info
-            let message = data.message || 'Ticket created successfully!';
-            if (data.assigned_accessories && data.assigned_accessories.length > 0) {
-                message += `\n🔧 Assigned accessories: ${data.assigned_accessories.join(', ')}`;
-            }
-            if (data.assigned_assets && data.assigned_assets.length > 0) {
-                message += `\n📦 Assigned assets: ${data.assigned_assets.join(', ')}`;
-            }
-            
-            // Close modal
+            // Close preview modal
             document.getElementById('previewModal').classList.add('hidden');
             
-            // Redirect to the created ticket
-            if (data.ticket_id) {
-                window.location.href = `/tickets/${data.ticket_id}`;
-            } else {
-                showSuccessMessage(message);
-                location.reload();
-            }
+            // Show success action modal
+            showSuccessActionModal(data);
         } else {
             alert('Error: ' + data.error);
         }
@@ -1283,6 +1309,58 @@ function showSuccessMessage(message) {
 
 function getCsrfToken() {
     return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+}
+
+function showSuccessActionModal(data) {
+    // Populate ticket information
+    const ticketDisplayId = data.ticket_display_id || data.ticket_id || 'Unknown';
+    document.getElementById('successTicketId').textContent = `Ticket #${ticketDisplayId}`;
+    
+    // Create success message
+    let message = data.message || 'Your ticket has been created successfully!';
+    document.getElementById('successMessage').textContent = message;
+    
+    // Create success details
+    let detailsHtml = '';
+    if (data.assigned_accessories && data.assigned_accessories.length > 0) {
+        detailsHtml += `<div class="flex items-center justify-between mb-2">
+            <span class="font-medium">🔧 Accessories:</span>
+            <span>${data.assigned_accessories.join(', ')}</span>
+        </div>`;
+    }
+    if (data.assigned_assets && data.assigned_assets.length > 0) {
+        detailsHtml += `<div class="flex items-center justify-between mb-2">
+            <span class="font-medium">📦 Assets:</span>
+            <span>${data.assigned_assets.join(', ')}</span>
+        </div>`;
+    }
+    if (!detailsHtml) {
+        detailsHtml = '<div class="text-center text-gray-500">No additional details</div>';
+    }
+    document.getElementById('successDetails').innerHTML = detailsHtml;
+    
+    // Set up button handlers
+    const viewTicketBtn = document.getElementById('viewTicketBtn');
+    const closePreviewBtn = document.getElementById('closePreviewBtn');
+    
+    // Store ticket ID for the view button
+    viewTicketBtn.onclick = function() {
+        if (data.ticket_id) {
+            window.location.href = `/tickets/${data.ticket_id}`;
+        } else {
+            alert('Ticket ID not available');
+        }
+    };
+    
+    // Close preview window handler
+    closePreviewBtn.onclick = function() {
+        document.getElementById('successActionModal').classList.add('hidden');
+        // Just close the modal, don't reload the page
+        // This allows users to continue working with the same CSV file
+    };
+    
+    // Show the modal
+    document.getElementById('successActionModal').classList.remove('hidden');
 }
 
 function populateAssetInfo(assets) {

@@ -1377,8 +1377,64 @@ $(document).ready(function() {
         const category = $('#category').val();
         console.log(`Form submit event triggered for category: ${category}`);
         
+        // For ASSET_CHECKOUT_CLAW, handle with AJAX for popup functionality
+        if (category === 'ASSET_CHECKOUT_CLAW') {
+            console.log('Using AJAX submission for ASSET_CHECKOUT_CLAW');
+            e.preventDefault();
+            
+            // Validate form first
+            const serialNumber = $('#asset_checkout_serial').val();
+            if (!serialNumber) {
+                alert('Please select an asset');
+                return false;
+            }
+            
+            const customerId = $('#customer_id').val();
+            if (!customerId) {
+                alert('Please select a customer');
+                return false;
+            }
+            
+            const shippingAddress = $('#shipping_address').val();
+            if (!shippingAddress) {
+                alert('Please provide a shipping address');
+                return false;
+            }
+            
+            // Force update accessories data
+            if (selectedAccessories.length > 0) {
+                const jsonData = JSON.stringify(selectedAccessories);
+                $('#selected_accessories').val(jsonData);
+            }
+            
+            // Submit via AJAX
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAssetCheckoutSuccessModal(data);
+                } else {
+                    alert('Error creating ticket: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while creating the ticket');
+            });
+            
+            return false;
+        }
+        
         // For ASSET_RETURN_CLAW, validate outbound tracking number is provided
-        if (category === 'ASSET_RETURN_CLAW') {
+        else if (category === 'ASSET_RETURN_CLAW') {
             console.log('Validating ASSET_RETURN_CLAW category...');
             // Validate customer selection
             const customerId = $('#return_customer_id').val();
@@ -2327,5 +2383,105 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
+<!-- Success Action Modal for Asset Checkout -->
+<div id="assetCheckoutSuccessModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-6 rounded-t-lg">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">✅ Asset Checkout Ticket Created!</h3>
+                    <p class="text-green-100 mt-1" id="assetCheckoutSuccessTicketId">Ticket #1234</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6">
+            <div class="text-center space-y-4">
+                <div class="text-4xl">🎉</div>
+                <p class="text-gray-600" id="assetCheckoutSuccessMessage">Your asset checkout ticket has been created successfully!</p>
+                
+                <!-- Success Details -->
+                <div class="bg-gray-50 rounded-lg p-4 text-left" id="assetCheckoutSuccessDetails">
+                    <!-- Details will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="bg-gray-50 px-6 py-4 rounded-b-lg">
+            <div class="flex justify-between space-x-3">
+                <button id="assetCheckoutCloseBtn" type="button" 
+                        class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    ✖️ Close
+                </button>
+                <button id="assetCheckoutViewTicketBtn" type="button" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    👁️ View Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAssetCheckoutSuccessModal(data) {
+    // Populate ticket information
+    const ticketDisplayId = data.ticket_display_id || data.ticket_id || 'Unknown';
+    document.getElementById('assetCheckoutSuccessTicketId').textContent = `Ticket #${ticketDisplayId}`;
+    
+    // Create success message
+    let message = data.message || 'Your asset checkout ticket has been created successfully!';
+    document.getElementById('assetCheckoutSuccessMessage').textContent = message;
+    
+    // Create success details
+    let detailsHtml = '';
+    if (data.assigned_accessories && data.assigned_accessories.length > 0) {
+        detailsHtml += `<div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-gray-700">🔧 Accessories:</span>
+            <span class="text-sm text-gray-600">${data.assigned_accessories.length} items</span>
+        </div>
+        <div class="text-xs text-gray-500 mb-2">${data.assigned_accessories.join(', ')}</div>`;
+    }
+    
+    if (!detailsHtml) {
+        detailsHtml = '<div class="text-sm text-gray-500 text-center">✅ Ticket created successfully</div>';
+    }
+    
+    document.getElementById('assetCheckoutSuccessDetails').innerHTML = detailsHtml;
+    
+    // Set up button handlers
+    const viewTicketBtn = document.getElementById('assetCheckoutViewTicketBtn');
+    const closeBtn = document.getElementById('assetCheckoutCloseBtn');
+    
+    // Store ticket ID for the view button
+    viewTicketBtn.onclick = function() {
+        if (data.ticket_id) {
+            window.location.href = `/tickets/${data.ticket_id}`;
+        } else {
+            alert('Ticket ID not available');
+        }
+    };
+    
+    // Close modal handler
+    closeBtn.onclick = function() {
+        document.getElementById('assetCheckoutSuccessModal').classList.add('hidden');
+        // Optionally clear the form and reset
+        document.getElementById('ticketForm').reset();
+        // Clear selected accessories
+        selectedAccessories = [];
+        csvAccessoryData = [];
+        updateSelectedAccessoriesSummary();
+        // Reset category to trigger field visibility changes
+        document.getElementById('category').value = '';
+        categoryChanged();
+    };
+    
+    // Show the modal
+    document.getElementById('assetCheckoutSuccessModal').classList.remove('hidden');
+}
 </script>
 {% endblock %} 

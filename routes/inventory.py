@@ -35,6 +35,35 @@ import traceback
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
 
+def get_filtered_customers(db_session, user):
+    """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
+    from models.company_customer_permission import CompanyCustomerPermission
+    
+    customers_query = db_session.query(CustomerUser)
+    
+    # SUPER_ADMIN users can see all customers
+    if user.user_type == UserType.SUPER_ADMIN:
+        return customers_query.order_by(CustomerUser.name).all()
+    
+    # For other users, apply permission-based filtering
+    if user.company_id:
+        # Get companies this user's company has permission to view customers from
+        permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+            .filter(
+                CompanyCustomerPermission.company_id == user.company_id,
+                CompanyCustomerPermission.can_view == True
+            ).subquery()
+        
+        # Users can always see their own company's customers, plus any permitted ones
+        customers_query = customers_query.filter(
+            or_(
+                CustomerUser.company_id == user.company_id,  # Own company customers
+                CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+            )
+        )
+    
+    return customers_query.order_by(CustomerUser.name).all()
+
 def _safely_assign_asset_to_ticket(ticket, asset, db_session):
     """
     Safely assign an asset to a ticket, checking for existing relationships first
@@ -181,8 +210,8 @@ def view_inventory():
             for acc in accessories
         ]
 
-        # Get all customers for the checkout form
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get all customers for the checkout form (filtered by company for non-SUPER_ADMIN users)
+        customers = get_filtered_customers(db_session, user)
 
         # Debug template data
         is_supervisor = user.user_type == UserType.SUPERVISOR
@@ -298,8 +327,8 @@ def view_accessories():
         # Log for debugging
         print(f"User type: {user.user_type}, Accessories returned: {len(accessories)}")
         
-        # Get customers for checkout
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get customers for checkout (filtered by company for non-SUPER_ADMIN users)
+        customers = get_filtered_customers(db_session, user)
         
         # Render the template with appropriate context
         return render_template('inventory/accessories.html', 
@@ -1117,8 +1146,8 @@ def view_asset(asset_id):
                 flash('You do not have permission to view this asset', 'error')
                 return redirect(url_for('inventory.view_inventory'))
         
-        # Get all customers for the deployment dropdown
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
+        # Get all customers for the deployment dropdown (filtered by company for non-SUPER_ADMIN users)
+        customers = get_filtered_customers(db_session, user)
         
         return render_template('inventory/asset_details.html', 
                              asset=asset, 
@@ -2074,11 +2103,11 @@ def view_accessory(id):
             flash('Accessory not found', 'error')
             return redirect(url_for('inventory.view_accessories'))
         
-        # Get all customers for the checkout form
-        customers = db_session.query(CustomerUser).order_by(CustomerUser.name).all()
-        
         # Get current user
         user = db_manager.get_user(session['user_id'])
+        
+        # Get all customers for the checkout form (filtered by company for non-SUPER_ADMIN users)
+        customers = get_filtered_customers(db_session, user)
         if not user:
             flash('User session expired', 'error')
             return redirect(url_for('auth.login'))
@@ -2104,12 +2133,9 @@ def list_customer_users():
         if user.user_type == UserType.CLIENT:
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
-            
-        customers = db_session.query(CustomerUser)\
-            .options(joinedload(CustomerUser.company))\
-            .options(joinedload(CustomerUser.assigned_assets))\
-            .options(joinedload(CustomerUser.assigned_accessories))\
-            .order_by(CustomerUser.name).all()
+        
+        # Use the centralized customer filtering function
+        customers = get_filtered_customers(db_session, user)
         
         # Debug print
         for customer in customers:
@@ -2399,17 +2425,20 @@ def search():
             )
         ).all()
 
-        # Search customers (only for super admins)
+        # Search customers - apply company filtering for non-SUPER_ADMIN users
         customers = []
-        if user.is_super_admin:
-            customers = customer_query.filter(
-                or_(
-                    CustomerUser.name.ilike(f'%{search_term}%'),
-                    CustomerUser.email.ilike(f'%{search_term}%'),
-                    CustomerUser.contact_number.ilike(f'%{search_term}%'),
-                    CustomerUser.address.ilike(f'%{search_term}%')
-                )
-            ).all()
+        if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+            # Filter customers by company for non-super admin users
+            customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
+        
+        customers = customer_query.filter(
+            or_(
+                CustomerUser.name.ilike(f'%{search_term}%'),
+                CustomerUser.email.ilike(f'%{search_term}%'),
+                CustomerUser.contact_number.ilike(f'%{search_term}%'),
+                CustomerUser.address.ilike(f'%{search_term}%')
+            )
+        ).all()
 
         # Search tickets
         tickets = ticket_query.filter(
@@ -2956,11 +2985,20 @@ def export_customer_users():
     """Export customer users to CSV"""
     db_session = db_manager.get_session()
     try:
-        customers = db_session.query(CustomerUser)\
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        
+        # Base query for customers
+        customers_query = db_session.query(CustomerUser)\
             .options(joinedload(CustomerUser.company))\
             .options(joinedload(CustomerUser.assigned_assets))\
-            .options(joinedload(CustomerUser.assigned_accessories))\
-            .order_by(CustomerUser.name).all()
+            .options(joinedload(CustomerUser.assigned_accessories))
+        
+        # Apply company filtering for non-SUPER_ADMIN users
+        if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+            customers_query = customers_query.filter(CustomerUser.company_id == user.company_id)
+        
+        customers = customers_query.order_by(CustomerUser.name).all()
         
         # Create a string buffer to write CSV data
         output = io.StringIO()

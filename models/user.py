@@ -182,6 +182,30 @@ class User(Base, UserMixin):
                 
         return False
 
+    def can_access_documents(self):
+        """Check if user has permission to access documents"""
+        try:
+            return self.permissions.can_access_documents
+        except Exception as e:
+            logging.error(f"Error checking document access: {str(e)}")
+            return False
+
+    def can_create_commercial_invoices(self):
+        """Check if user has permission to create commercial invoices"""
+        try:
+            return self.permissions.can_create_commercial_invoices
+        except Exception as e:
+            logging.error(f"Error checking commercial invoice permission: {str(e)}")
+            return False
+
+    def can_create_packing_lists(self):
+        """Check if user has permission to create packing lists"""
+        try:
+            return self.permissions.can_create_packing_lists
+        except Exception as e:
+            logging.error(f"Error checking packing list permission: {str(e)}")
+            return False
+
     def get_accessible_companies(self):
         """Get list of companies the user has access to"""
         from sqlalchemy.orm import Session

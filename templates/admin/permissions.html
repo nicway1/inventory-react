@@ -238,6 +238,31 @@
                     </div>
                 </div>
 
+                <!-- Document Permissions -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Document Permissions</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="can_access_documents" value="true"
+                                   {% if permissions[user_type].can_access_documents %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 rounded border-gray-300">
+                            <label class="ml-2 text-sm text-gray-700">Access Documents Section</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="can_create_commercial_invoices" value="true"
+                                   {% if permissions[user_type].can_create_commercial_invoices %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 rounded border-gray-300">
+                            <label class="ml-2 text-sm text-gray-700">Create Commercial Invoices</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="can_create_packing_lists" value="true"
+                                   {% if permissions[user_type].can_create_packing_lists %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 rounded border-gray-300">
+                            <label class="ml-2 text-sm text-gray-700">Create Packing Lists</label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Form Actions -->
                 <div class="flex justify-between items-center pt-6 border-t border-gray-200">
                     <a href="{{ url_for('admin.reset_permissions', user_type=user_type.name) }}"

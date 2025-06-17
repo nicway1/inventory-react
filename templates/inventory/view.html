@@ -4,6 +4,137 @@
 <!-- Add CSRF token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+<style>
+.button2 {
+  display: inline-block;
+  transition: all 0.2s ease-in;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  color: #ffffff;
+  padding: 0.4em 1em;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 0.4em;
+  background: #009087;
+  border: 1px solid #009087;
+  box-shadow: 4px 4px 8px #00706a, -4px -4px 8px #00b8a8;
+}
+
+.button2:active {
+  color: #ffffff;
+  box-shadow: inset 3px 3px 8px #00706a, inset -3px -3px 8px #00b8a8;
+}
+
+.button2:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) scaleY(1) scaleX(1.25);
+  top: 100%;
+  width: 140%;
+  height: 180%;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: block;
+  transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+  z-index: -1;
+}
+
+.button2:after {
+  content: "";
+  position: absolute;
+  left: 55%;
+  transform: translateX(-50%) scaleY(1) scaleX(1.45);
+  top: 180%;
+  width: 160%;
+  height: 190%;
+  background-color: #e8e8e8;
+  border-radius: 50%;
+  display: block;
+  transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+  z-index: -1;
+}
+
+.button2:hover {
+  color: #090909;
+  border: 1px solid #e8e8e8;
+}
+
+.button2:hover:before {
+  top: -35%;
+  background-color: #e8e8e8;
+  transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+}
+
+.button2:hover:after {
+  top: -45%;
+  background-color: #e8e8e8;
+  transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+}
+
+/* Variants for different button colors */
+.button2.green {
+  background: #10b981;
+  border: 1px solid #10b981;
+  box-shadow: 4px 4px 8px #0d9567, -4px -4px 8px #13d39b;
+}
+
+.button2.green:active {
+  box-shadow: inset 3px 3px 8px #0d9567, inset -3px -3px 8px #13d39b;
+}
+
+.button2.purple {
+  background: #8b5cf6;
+  border: 1px solid #8b5cf6;
+  box-shadow: 4px 4px 8px #7c3aed, -4px -4px 8px #a78bfa;
+}
+
+.button2.purple:active {
+  box-shadow: inset 3px 3px 8px #7c3aed, inset -3px -3px 8px #a78bfa;
+}
+
+.button2.blue {
+  background: #3b82f6;
+  border: 1px solid #3b82f6;
+  box-shadow: 4px 4px 8px #2563eb, -4px -4px 8px #60a5fa;
+}
+
+.button2.blue:active {
+  box-shadow: inset 3px 3px 8px #2563eb, inset -3px -3px 8px #60a5fa;
+}
+
+.button2.gray {
+  background: #6b7280;
+  border: 1px solid #6b7280;
+  box-shadow: 4px 4px 8px #4b5563, -4px -4px 8px #9ca3af;
+}
+
+.button2.gray:active {
+  box-shadow: inset 3px 3px 8px #4b5563, inset -3px -3px 8px #9ca3af;
+}
+
+.button2.red {
+  background: #ef4444;
+  border: 1px solid #ef4444;
+  box-shadow: 4px 4px 8px #dc2626, -4px -4px 8px #f87171;
+}
+
+.button2.red:active {
+  box-shadow: inset 3px 3px 8px #dc2626, inset -3px -3px 8px #f87171;
+}
+
+.button2.yellow {
+  background: #eab308;
+  border: 1px solid #eab308;
+  box-shadow: 4px 4px 8px #ca8a04, -4px -4px 8px #fbbf24;
+}
+
+.button2.yellow:active {
+  box-shadow: inset 3px 3px 8px #ca8a04, inset -3px -3px 8px #fbbf24;
+}
+</style>
+
 <!-- Add global variables for use in JavaScript -->
 <script>
     // Global variables for user permissions and type
@@ -108,30 +239,30 @@
     <div class="flex flex-wrap justify-end mb-6 gap-2">
         {% if user and (user.is_admin or user.is_supervisor) %}
         <a href="{{ url_for('inventory.export_inventory', item_type='assets') }}" 
-           class="bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600 transition-colors flex items-center text-sm">
+           class="button2 green flex items-center">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Export to CSV
         </a>
         <a href="{{ url_for('assets.labels_dashboard') }}" 
-           class="bg-purple-500 text-white px-3 py-1.5 rounded hover:bg-purple-600 transition-colors flex items-center text-sm">
+           class="button2 purple flex items-center">
             <i class="fas fa-barcode mr-2"></i>
             Asset Labels
         </a>
         {% endif %}
         {% if is_admin %}
         <a href="{{ url_for('inventory.add_asset') }}" 
-           class="bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600 transition-colors text-sm">
+           class="button2 green">
             Add Asset
         </a>
         {% endif %}
         <button id="applyFiltersBtn" 
-                class="bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition-colors text-sm">
+                class="button2 blue">
             Apply Filters
         </button>
         <button id="clearFiltersBtn" 
-                class="bg-gray-500 text-white px-3 py-1.5 rounded hover:bg-gray-600 transition-colors text-sm">
+                class="button2 gray">
             Clear Filters
         </button>
     </div>
@@ -190,14 +321,14 @@
                     <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete" value="[]">
                     
                     <button type="submit" id="bulkDeleteBtn" disabled
-                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="button2 red disabled:opacity-50 disabled:cursor-not-allowed">
                         Delete Selected
                     </button>
                 </form>
 
                 <!-- Remove Serial Prefix Button -->
                 <button id="removeSerialPrefix" disabled
-                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="button2 yellow disabled:opacity-50 disabled:cursor-not-allowed">
                     Remove Serial Prefix
                 </button>
                 {% endif %}
@@ -205,11 +336,11 @@
                 <!-- Checkout List Buttons -->
                 {% if is_admin %}
                 <button id="addToCheckoutList" disabled
-                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="button2 blue disabled:opacity-50 disabled:cursor-not-allowed">
                     Add to Checkout List
                 </button>
                 <button id="viewCheckoutList"
-                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        class="button2 green">
                     View Checkout List
                     <span id="checkoutCount" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         0
@@ -260,7 +391,7 @@
                     <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete2" value="[]">
                     
                     <button type="submit" id="bulkDeleteAccessoriesBtn" disabled
-                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="button2 red disabled:opacity-50 disabled:cursor-not-allowed">
                         Delete Selected
                     </button>
                 </form>
@@ -268,11 +399,11 @@
                 
                 <!-- Checkout List Buttons for Accessories -->
                 <button id="addToCheckoutListAccessories" disabled
-                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="button2 blue disabled:opacity-50 disabled:cursor-not-allowed">
                     Add to Checkout List
                 </button>
                 <button id="viewCheckoutListAccessories"
-                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        class="button2 green">
                     View Checkout List
                     <span id="checkoutCountAccessories" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         0
@@ -281,7 +412,7 @@
                 
                 <!-- Add New Accessory Button -->
                 <a href="{{ url_for('inventory.add_accessory') }}" 
-                   class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                   class="button2 green">
                     Add New Accessory
                 </a>
                 

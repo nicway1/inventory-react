@@ -1,105 +1,103 @@
-{% extends "base.html" %}
-
-{% block head %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>TrueLog Asset Management - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/liquid-glass.css') }}">
-{% endblock %}
-
-{% block content %}
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
+</head>
+<body class="overflow-hidden h-screen w-screen">
 <!-- Liquid Glass Background -->
 <div class="liquid-glass-bg"></div>
 
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+<div class="h-screen w-full flex items-center justify-center p-4">
     <div class="max-w-md w-full space-y-8">
-        <!-- Logo Section with Glass Effect -->
-        <div class="text-center">
-            <div class="liquid-glass-container" style="display: inline-block; padding: 1rem; margin-bottom: 2rem;">
-                <div class="liquid-glass-glow"></div>
-                <div class="liquid-glass-content" style="padding: 1rem;">
-                    <img src="{{ url_for('static', filename='images/truelglogo.png') }}" 
-                         alt="TrueLog Logo" 
-                         class="h-32 w-auto object-contain"
-                         style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));">
-                </div>
+        <!-- Theme Switcher -->
+        <div class="theme-switcher">
+            <div class="theme-options">
+                <button class="theme-btn" data-theme="light" title="Light Theme">
+                    ☀️ Light
+                </button>
+                <button class="theme-btn active" data-theme="liquid-glass" title="Liquid Glass Theme">
+                    💎 Glass
+                </button>
+                <button class="theme-btn" data-theme="dark" title="Dark Theme">
+                    🌙 Dark
+                </button>
             </div>
-            <h2 class="text-center text-3xl font-extrabold text-white mb-8"
-                style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                Sign in to your account
-            </h2>
         </div>
-        
-        <!-- Main Login Glass Container -->
-        <div class="liquid-glass-container">
-            <div class="liquid-glass-glow"></div>
+
+        <!-- Logo Container -->
+        <div class="liquid-glass-container liquid-glass-logo">
             <div class="liquid-glass-content">
-                {% with messages = get_flashed_messages() %}
-                    {% if messages %}
-                        {% for message in messages %}
+                <img src="{{ url_for('static', filename='images/truelglogo.png') }}" 
+                     alt="TrueLog Logo" 
+                     class="mx-auto">
+                <h1 class="text-3xl font-bold text-white mt-6 tracking-wide" style="text-align: center; margin-left: 2rem;">Asset Management</h1>
+            </div>
+        </div>
+
+        <!-- Main Login Form Container -->
+        <div class="liquid-glass-container">
+            <div class="liquid-glass-content">
+                <h2 class="liquid-glass-title">Sign in to your account</h2>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
                             <div class="bg-red-500 bg-opacity-20 border border-red-400 border-opacity-30 text-red-100 px-4 py-3 rounded-lg relative mb-4 backdrop-blur-sm" 
                                  role="alert" style="backdrop-filter: blur(10px);">
-                                <span class="block sm:inline">{{ message }}</span>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-                <form class="space-y-6" action="{{ url_for('auth.login') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
-                    <div class="space-y-4">
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-white mb-2" 
-                                   style="text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                Username
-                            </label>
-                            <input id="username" 
-                                   name="username" 
-                                   type="text" 
-                                   required 
-                                   class="liquid-glass-input"
-                                   placeholder="Enter your username">
-                        </div>
-                        
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-white mb-2"
-                                   style="text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                Password
-                            </label>
-                            <input id="password" 
-                                   name="password" 
-                                   type="password" 
-                                   required 
-                                   class="liquid-glass-input"
-                                   placeholder="Enter your password">
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <button type="submit" class="liquid-glass-button w-full">
-                            <span>Sign in</span>
-                        </button>
-                        
-                        <a href="{{ url_for('where_we_operate') }}"
-                           class="liquid-glass-button w-full block text-center"
-                           style="background: rgba(107, 114, 128, 0.2); border-color: rgba(107, 114, 128, 0.3); text-decoration: none;">
-                           <span>Where We Operate</span>
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Additional Glass Card for Branding -->
-        <div class="liquid-glass-container mt-8" style="text-align: center;">
-            <div class="liquid-glass-glow"></div>
-            <div class="liquid-glass-content" style="padding: 1.5rem;">
-                <p class="text-white text-sm opacity-80" style="text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                    Experience the future of inventory management
-                </p>
-                <div class="flex justify-center space-x-4 mt-4">
-                    <div class="w-8 h-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full opacity-60"></div>
-                    <div class="w-8 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-60"></div>
-                    <div class="w-8 h-1 bg-gradient-to-r from-pink-500 to-blue-400 rounded-full opacity-60"></div>
+                    <div class="form-group">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" 
+                               id="username" 
+                               name="username" 
+                               class="liquid-glass-input" 
+                               placeholder="Enter your username" 
+                               required>
                 </div>
+                    
+                    <div class="form-group">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" 
+                               id="password" 
+                               name="password" 
+                               class="liquid-glass-input" 
+                               placeholder="Enter your password" 
+                               required>
+            </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="liquid-glass-button">
+                    Sign in
+                </button>
+            </div>
+                    
+                    <div class="form-group">
+                        <a href="{{ url_for('where_we_operate') }}" class="liquid-glass-button secondary">
+                   Where We Operate
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+        <!-- Branding Container -->
+        <div class="liquid-glass-container liquid-glass-branding">
+            <div class="liquid-glass-content">
+                <p>Experience the future of inventory management</p>
             </div>
         </div>
     </div>
@@ -110,6 +108,121 @@
 <!-- Enhanced Login Page Interactions -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Theme switching functionality
+    const themeButtons = document.querySelectorAll('.theme-btn');
+    const body = document.body;
+    
+    // Load saved theme or default to liquid-glass
+    const savedTheme = localStorage.getItem('theme') || 'liquid-glass';
+    console.log('🎨 Loading theme:', savedTheme);
+    setTheme(savedTheme);
+    
+    function setTheme(theme) {
+        console.log('🎨 Setting theme to:', theme);
+        
+        // Remove all theme classes
+        body.classList.remove('light-theme', 'dark-theme');
+        
+        // Add new theme class
+        if (theme === 'light') {
+            body.classList.add('light-theme');
+            console.log('☀️ Light theme activated');
+        } else if (theme === 'dark') {
+            body.classList.add('dark-theme');
+            console.log('🌙 Dark theme activated');
+        } else {
+            console.log('💎 Liquid Glass theme activated (default)');
+        }
+        
+        // Update active button
+        themeButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.theme === theme) {
+                btn.classList.add('active');
+                console.log('✅ Activated button for theme:', theme, '- Button text:', btn.textContent);
+            }
+        });
+        
+        // Save theme preference
+        localStorage.setItem('theme', theme);
+        console.log('💾 Theme saved to localStorage:', theme);
+        
+        // Add visual feedback
+        showThemeNotification(theme);
+    }
+    
+    function showThemeNotification(theme) {
+        // Remove existing notification
+        const existingNotification = document.querySelector('.theme-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        // Create notification
+        const notification = document.createElement('div');
+        notification.className = 'theme-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s ease;
+        `;
+        
+        const themeNames = {
+            'light': '☀️ Light Theme',
+            'dark': '🌙 Dark Theme', 
+            'liquid-glass': '💎 Liquid Glass Theme'
+        };
+        
+        notification.textContent = themeNames[theme] || '💎 Liquid Glass Theme';
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // Remove after 2 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
+    
+    // Add click handlers for theme buttons
+    themeButtons.forEach(button => {
+        console.log('🔘 Found theme button:', button.textContent.trim(), 'with data-theme:', button.dataset.theme);
+        
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const theme = this.dataset.theme;
+            console.log('🔄 Theme button clicked:', theme, '- Button text:', this.textContent.trim());
+            setTheme(theme);
+            
+            // Add enhanced click animation
+            this.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1.1) translateY(-2px)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 200);
+            }, 150);
+        });
+    });
+    
     // Add enhanced loading effect
     const containers = document.querySelectorAll('.liquid-glass-container');
     containers.forEach((container, index) => {
@@ -193,4 +306,5 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 </script>
-{% endblock %} 
+</body>
+</html> 

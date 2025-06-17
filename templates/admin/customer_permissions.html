@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Permissions - Admin{% endblock %}
+
+{% block content %}
+<style>
+/* The switch - the box around the slider */
+.switch {
+  font-size: 17px;
+  position: relative;
+  display: inline-block;
+  width: 3.5em;
+  height: 2em;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #9fccfa;
+  border-radius: 50px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2em;
+  width: 2em;
+  inset: 0;
+  background-color: white;
+  border-radius: 50px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.switch input:checked + .slider {
+  background: #0974f1;
+}
+
+.switch input:focus + .slider {
+  box-shadow: 0 0 1px #0974f1;
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(1.6em);
+}
+</style>
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Customer Permissions Management</h1>
+        <a href="{{ url_for('admin.system_config') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Back to System Config
+        </a>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">About Customer Permissions</h2>
+        <p class="text-gray-600 mb-4">
+            This page allows you to control which companies can view customers from other companies. 
+            By default, companies can only see their own customers. You can grant additional permissions here.
+        </p>
+        <div class="bg-blue-50 border border-blue-200 rounded p-4">
+            <h3 class="font-semibold text-blue-800 mb-2">Important Notes:</h3>
+            <ul class="list-disc list-inside text-blue-700 space-y-1">
+                <li>SUPER_ADMIN users can always see all customers regardless of these settings</li>
+                <li>Companies always have access to their own customers</li>
+                <li>These permissions apply to customer listings, searches, and selections</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Add New Permissions (Bulk Selection) -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Add Customer Permissions</h2>
+        <form method="POST" action="{{ url_for('admin.update_customer_permissions_bulk') }}" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Company Selection -->
+                <div>
+                    <label for="company_id" class="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                    <select name="company_id" id="company_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Company</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}">{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">The company that will gain access</p>
+                </div>
+                
+                <!-- Permission Type -->
+                <div>
+                    <label for="can_view" class="block text-sm font-medium text-gray-700 mb-2">Permission</label>
+                    <select name="can_view" id="can_view" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="true">Can View</option>
+                        <option value="false">Cannot View</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Customer Companies Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">Customer Companies</label>
+                <p class="text-xs text-gray-500 mb-4">Select the companies whose customers will be accessible (you can select multiple)</p>
+                
+                <div class="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4">
+                    <!-- Select All Option -->
+                    <div class="mb-3 pb-3 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-gray-700">Select All Companies</span>
+                            <label class="switch">
+                                <input type="checkbox" id="select_all_companies">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Individual Company Switches -->
+                    <div class="space-y-3" id="customer_companies_list">
+                        {% for company in companies %}
+                        <div class="flex items-center justify-between company-checkbox-item" data-company-id="{{ company.id }}">
+                            <span class="text-gray-700">{{ company.name }}</span>
+                            <label class="switch">
+                                <input type="checkbox" name="customer_company_ids" value="{{ company.id }}" class="customer-company-checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mt-2 text-xs text-gray-500">
+                    <span id="selected_count">0</span> companies selected
+                </div>
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Add/Update Permissions
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Current Permissions -->
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold">Current Permissions</h2>
+        </div>
+        
+        {% if permissions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Company
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Can View Customers From
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Permission
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for permission in permissions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ permission.company.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ permission.customer_company.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if permission.can_view %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                {% if permission.can_view %}Can View{% else %}Cannot View{% endif %}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ permission.created_at.strftime('%Y-%m-%d %H:%M') if permission.created_at else 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <form method="POST" action="{{ url_for('admin.delete_customer_permission', permission_id=permission.id) }}" class="inline" 
+                                  onsubmit="return confirm('Are you sure you want to delete this permission?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-4">
+            <p class="text-gray-500 text-center">No custom permissions configured. Companies can only see their own customers.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const companySelect = document.getElementById('company_id');
+    const selectAllCheckbox = document.getElementById('select_all_companies');
+    const customerCompanyCheckboxes = document.querySelectorAll('.customer-company-checkbox');
+    const selectedCountSpan = document.getElementById('selected_count');
+    const companyCheckboxItems = document.querySelectorAll('.company-checkbox-item');
+
+    // Update selected count
+    function updateSelectedCount() {
+        const checkedCount = document.querySelectorAll('.customer-company-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+    }
+
+    // Update select all checkbox state
+    function updateSelectAllState() {
+        const totalCheckboxes = customerCompanyCheckboxes.length;
+        const checkedCheckboxes = document.querySelectorAll('.customer-company-checkbox:checked').length;
+        
+        if (checkedCheckboxes === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCheckboxes === totalCheckboxes) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Hide/show companies based on selected company (prevent self-selection)
+    function updateCustomerCompanyOptions() {
+        const selectedCompanyId = companySelect.value;
+        
+        companyCheckboxItems.forEach(item => {
+            const companyId = item.dataset.companyId;
+            const checkbox = item.querySelector('.customer-company-checkbox');
+            
+            if (selectedCompanyId && companyId === selectedCompanyId) {
+                item.style.display = 'none';
+                checkbox.checked = false;
+            } else {
+                item.style.display = 'flex';
+            }
+        });
+        
+        updateSelectedCount();
+        updateSelectAllState();
+    }
+
+    // Select/deselect all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        const shouldCheck = this.checked;
+        
+        customerCompanyCheckboxes.forEach(checkbox => {
+            const item = checkbox.closest('.company-checkbox-item');
+            if (item.style.display !== 'none') {
+                checkbox.checked = shouldCheck;
+            }
+        });
+        
+        updateSelectedCount();
+    });
+
+    // Individual checkbox change
+    customerCompanyCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedCount();
+            updateSelectAllState();
+        });
+    });
+
+    // Company selection change
+    companySelect.addEventListener('change', updateCustomerCompanyOptions);
+
+    // Initial setup
+    updateCustomerCompanyOptions();
+    updateSelectedCount();
+    updateSelectAllState();
+});
+</script>
+{% endblock %} 

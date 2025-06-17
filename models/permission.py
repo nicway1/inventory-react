@@ -53,6 +53,11 @@ class Permission(Base):
     # Import/Export Permissions
     can_import_data = Column(Boolean, default=False)
     can_export_data = Column(Boolean, default=True)
+    
+    # Document Permissions
+    can_access_documents = Column(Boolean, default=True)
+    can_create_commercial_invoices = Column(Boolean, default=True)
+    can_create_packing_lists = Column(Boolean, default=True)
 
     @classmethod
     def permission_fields(cls):
@@ -95,7 +100,10 @@ class Permission(Base):
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
-                'can_export_data': True
+                'can_export_data': True,
+                'can_access_documents': True,
+                'can_create_commercial_invoices': True,
+                'can_create_packing_lists': True
             }
         elif user_type == UserType.COUNTRY_ADMIN:
             return {
@@ -127,7 +135,10 @@ class Permission(Base):
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
-                'can_export_data': True
+                'can_export_data': True,
+                'can_access_documents': True,
+                'can_create_commercial_invoices': True,
+                'can_create_packing_lists': True
             }
         elif user_type == UserType.CLIENT:
             return {
@@ -159,7 +170,10 @@ class Permission(Base):
                 'can_view_reports': False,
                 'can_generate_reports': False,
                 'can_import_data': False,
-                'can_export_data': False
+                'can_export_data': False,
+                'can_access_documents': False,
+                'can_create_commercial_invoices': False,
+                'can_create_packing_lists': False
             }
         else:  # Supervisor
             return {
@@ -191,5 +205,8 @@ class Permission(Base):
                 'can_view_reports': True,
                 'can_generate_reports': False,
                 'can_import_data': False,
-                'can_export_data': True
+                'can_export_data': True,
+                'can_access_documents': True,
+                'can_create_commercial_invoices': True,
+                'can_create_packing_lists': True
             } 

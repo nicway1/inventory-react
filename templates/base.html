@@ -46,6 +46,7 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/liquid-glass.css') }}">
     <script>
         tailwind.config = {
             theme: {
@@ -266,10 +267,228 @@
         .dark .text-truelog-dark {
             color: #7ba7de !important;
         }
+
+        /* Liquid Glass Theme Styles */
+        .liquid-glass {
+            background: linear-gradient(
+                135deg,
+                rgba(4, 14, 24, 0.85) 0%,
+                rgba(14, 34, 54, 0.75) 50%,
+                rgba(24, 54, 84, 0.65) 100%
+            ),
+            url('https://plus.unsplash.com/premium_photo-1661879449050-069f67e200bd?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8bG9naXN0aWNzfGVufDB8fDB8fHww') center/cover;
+            background-attachment: fixed;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+
+        /* Glass morphism containers */
+        .liquid-glass .bg-white,
+        .liquid-glass .bg-gray-50,
+        .liquid-glass .bg-gray-100 {
+            background: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            color: #f8fafc !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .liquid-glass .shadow-lg {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        /* Navigation bar glass effect */
+        .liquid-glass nav {
+            background: rgba(255, 255, 255, 0.12) !important;
+            backdrop-filter: blur(25px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }
+
+        /* Text colors for liquid glass - improved visibility with white theme */
+        .liquid-glass .text-gray-900,
+        .liquid-glass .text-gray-800,
+        .liquid-glass .text-gray-700 {
+            color: #f8fafc !important;
+            font-weight: 600 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+        }
+        
+        .liquid-glass .text-gray-600 {
+            color: #e2e8f0 !important;
+            font-weight: 500 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .liquid-glass .text-gray-500 {
+            color: #cbd5e1 !important;
+            font-weight: 500 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .liquid-glass .text-gray-400 {
+            color: #94a3b8 !important;
+            font-weight: 500 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        /* Form elements glass effect */
+        .liquid-glass input,
+        .liquid-glass select,
+        .liquid-glass textarea {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            color: #f8fafc !important;
+            backdrop-filter: blur(10px) !important;
+            font-weight: 500 !important;
+        }
+
+        .liquid-glass input::placeholder,
+        .liquid-glass textarea::placeholder {
+            color: rgba(248, 250, 252, 0.7) !important;
+        }
+
+        .liquid-glass input:focus,
+        .liquid-glass select:focus,
+        .liquid-glass textarea:focus {
+            background: rgba(255, 255, 255, 0.4) !important;
+            border-color: rgba(59, 130, 246, 0.8) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        /* Button glass effects */
+        .liquid-glass .bg-blue-600,
+        .liquid-glass .bg-blue-500 {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 1) 100%) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(59, 130, 246, 0.7) !important;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4) !important;
+            color: white !important;
+        }
+
+        .liquid-glass .bg-green-600 {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.9) 0%, rgba(22, 163, 74, 1) 100%) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(34, 197, 94, 0.7) !important;
+            color: white !important;
+        }
+
+        .liquid-glass .bg-red-600 {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 1) 100%) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(239, 68, 68, 0.7) !important;
+            color: white !important;
+        }
+
+        .liquid-glass .bg-purple-600 {
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.9) 0%, rgba(126, 34, 206, 1) 100%) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(147, 51, 234, 0.7) !important;
+            color: white !important;
+        }
+
+        /* Table glass effects */
+        .liquid-glass table {
+            background: rgba(255, 255, 255, 0.2) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .liquid-glass th {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: #f8fafc !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            font-weight: 700 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .liquid-glass td {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            color: #f8fafc !important;
+            font-weight: 500 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .liquid-glass tr:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        /* Cards and panels glass effect */
+        .liquid-glass .border-gray-200,
+        .liquid-glass .border-gray-300 {
+            border-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        /* Flash messages glass effect */
+        .liquid-glass .bg-success-100 { 
+            background: rgba(34, 197, 94, 0.3) !important; 
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(34, 197, 94, 0.5) !important;
+        }
+        .liquid-glass .bg-error-100 { 
+            background: rgba(239, 68, 68, 0.3) !important; 
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(239, 68, 68, 0.5) !important;
+        }
+        .liquid-glass .bg-warning-100 { 
+            background: rgba(245, 158, 11, 0.3) !important; 
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(245, 158, 11, 0.5) !important;
+        }
+        .liquid-glass .bg-info-100 { 
+            background: rgba(59, 130, 246, 0.3) !important; 
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(59, 130, 246, 0.5) !important;
+        }
+
+        /* Special liquid glass brand colors */
+        .liquid-glass .text-truelog-dark {
+            color: #1e40af !important;
+            font-weight: 700 !important;
+        }
+
+        /* Ensure nav text is visible */
+        .liquid-glass nav .text-gray-900,
+        .liquid-glass nav .text-truelog-dark {
+            color: #f8fafc !important;
+            font-weight: 600 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Links in liquid glass */
+        .liquid-glass a {
+            color: #60a5fa !important;
+            font-weight: 500 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .liquid-glass a:hover {
+            color: #93c5fd !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Numbers and stats visibility */
+        .liquid-glass .text-2xl {
+            color: #f8fafc !important;
+            font-weight: 800 !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        /* Priority badges and labels */
+        .liquid-glass .bg-yellow-100,
+        .liquid-glass .bg-green-100,
+        .liquid-glass .bg-orange-100 {
+            background: rgba(255, 255, 255, 0.4) !important;
+            backdrop-filter: blur(5px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="{% if session.get('user_theme') == 'dark' %}dark{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
+<body class="{% if session.get('user_theme') == 'dark' %}dark{% elif session.get('user_theme') == 'liquid-glass' %}liquid-glass{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
+    {% if session.get('user_theme') == 'liquid-glass' %}
+    <!-- Liquid Glass Background -->
+    <div class="liquid-glass-bg"></div>
+    {% endif %}
     <!-- Navigation -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
@@ -347,11 +566,16 @@
                     <!-- Theme Toggle -->
                     <form method="POST" action="{{ url_for('admin.update_user_theme') }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="theme" value="{% if session.get('user_theme') == 'dark' %}light{% else %}dark{% endif %}">
+                        <input type="hidden" name="theme" value="{% if session.get('user_theme') == 'light' %}dark{% elif session.get('user_theme') == 'dark' %}liquid-glass{% else %}light{% endif %}">
                         <button type="submit" 
                                 class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md"
-                                title="Toggle {% if session.get('user_theme') == 'dark' %}Light{% else %}Dark{% endif %} Theme">
+                                title="Switch to {% if session.get('user_theme') == 'light' %}Dark{% elif session.get('user_theme') == 'dark' %}Liquid Glass{% else %}Light{% endif %} Theme">
                             {% if session.get('user_theme') == 'dark' %}
+                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                </svg>
+                                💎
+                            {% elif session.get('user_theme') == 'liquid-glass' %}
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                 </svg>

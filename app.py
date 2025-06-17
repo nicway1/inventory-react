@@ -71,7 +71,7 @@ def create_app():
         SESSION_COOKIE_SECURE=False,  # Set to False for development without HTTPS
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
-        PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
+        PERMANENT_SESSION_LIFETIME=7200,  # 2 hours
         SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:////home/nicway2/inventory/inventory.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_TIME_LIMIT=None,  # Disable CSRF token expiration

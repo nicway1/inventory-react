@@ -25,6 +25,7 @@
         <!-- Document Type Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Commercial Invoice Card -->
+            {% if current_user.can_create_commercial_invoices() %}
             <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                 <div class="flex items-center mb-4">
                     <div class="bg-blue-100 p-3 rounded-lg">
@@ -59,8 +60,10 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Packing List Card -->
+            {% if current_user.can_create_packing_lists() %}
             <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                 <div class="flex items-center mb-4">
                     <div class="bg-green-100 p-3 rounded-lg">
@@ -90,6 +93,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- Recent Documents Section (for future enhancement) -->
