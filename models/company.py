@@ -3,8 +3,6 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from models.base import Base
 from datetime import datetime
-# Import the related model explicitly
-from models.user_company_permission import UserCompanyPermission
 
 class Company(Base):
     __tablename__ = 'companies'
@@ -23,20 +21,21 @@ class Company(Base):
     users = relationship("User", back_populates="company", lazy="dynamic", viewonly=True)
     assets = relationship("Asset", back_populates="company", lazy="dynamic", viewonly=True)
     customer_users = relationship("CustomerUser", back_populates="company")
-    user_permissions = relationship(UserCompanyPermission, back_populates="company")
+    user_permissions = relationship("UserCompanyPermission", back_populates="company")
     queue_permissions = relationship("CompanyQueuePermission", back_populates="company")
     
-    # Fixed relationships for CompanyCustomerPermission
+    # Fixed relationships for CompanyCustomerPermission using proper string references and foreign_keys
     customer_view_permissions = relationship(
-        "CompanyCustomerPermission", 
-        foreign_keys="[CompanyCustomerPermission.company_id]", 
+        "CompanyCustomerPermission",
+        foreign_keys="CompanyCustomerPermission.company_id",
         back_populates="company", 
         lazy="dynamic",
         overlaps="customer_permissions_received"
     )
     customer_permissions_received = relationship(
-        "CompanyCustomerPermission", 
-        foreign_keys="[CompanyCustomerPermission.customer_company_id]", 
+        "CompanyCustomerPermission",
+        foreign_keys="CompanyCustomerPermission.customer_company_id",
+        back_populates="customer_company",
         lazy="dynamic",
         overlaps="customer_view_permissions"
     )
