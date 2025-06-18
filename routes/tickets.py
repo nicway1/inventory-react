@@ -504,13 +504,21 @@ Additional Notes:
                         print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {1 if existing_relationship else 0}")
                         
                         if not existing_relationship:
-                            # Create the ticket-asset relationship
-                            ticket_asset = TicketAsset(
-                                ticket_id=ticket_id,
-                                asset_id=asset.id
-                            )
-                            db_session.add(ticket_asset)
-                            print(f"[ASSET ASSIGN DEBUG] Created TicketAsset relationship")
+                            # Create the ticket-asset relationship using direct SQL
+                            try:
+                                from sqlalchemy import text
+                                insert_stmt = text("""
+                                    INSERT INTO ticket_assets (ticket_id, asset_id) 
+                                    VALUES (:ticket_id, :asset_id)
+                                """)
+                                db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset.id})
+                                db_session.flush()
+                                print(f"[ASSET ASSIGN DEBUG] Created TicketAsset relationship via direct SQL")
+                            except Exception as e:
+                                print(f"[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
+                                # If it's a constraint violation, that's OK - relationship already exists
+                                if "UNIQUE constraint failed" not in str(e):
+                                    raise
                         
                         # Update asset status and assign to customer
                         asset.customer_user_id = customer_id
@@ -5049,7 +5057,7 @@ def add_accessory(ticket_id):
             else:
                 assignment_transaction_type = 'Return'
                 assignment_transaction_notes = f'New accessory created and returned via ticket #{ticket_id} - inventory increased'
-                
+
             transaction = AccessoryTransaction(
                 accessory_id=new_accessory.id,
                 transaction_type=assignment_transaction_type,
