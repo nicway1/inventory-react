@@ -2838,22 +2838,45 @@
                             <div class="mb-6">
                                 <h4 class="text-lg font-medium text-gray-900 mb-4">Select an existing tech asset to assign to this ticket</h4>
                                 
-                                <!-- Search and Filter -->
-                                <div class="mb-4 flex gap-4">
-                                    <div class="flex-1">
-                                        <input type="text" id="assetSearchInput" placeholder="Search by asset tag, serial number, or name..." 
-                                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                               onkeyup="filterExistingAssets()">
-                                    </div>
-                                    <div class="w-48">
-                                        <select id="assetStatusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                                onchange="filterExistingAssets()">
-                                            <option value="">All Statuses</option>
-                                            <option value="Active">Active</option>
-                                            <option value="Deployed">Deployed</option>
-                                            <option value="Ready to Deploy">Ready to Deploy</option>
-                                            <option value="Pending">Pending</option>
+                                <!-- Selection Methods -->
+                                <div class="mb-4 space-y-4">
+                                    <!-- Quick Dropdown Selection -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Quick Select from Dropdown</label>
+                                        <select id="assetDropdownSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                                onchange="selectAssetFromDropdown()">
+                                            <option value="">Choose an asset...</option>
+                                            <!-- Options will be populated dynamically -->
                                         </select>
+                                    </div>
+                                    
+                                    <!-- OR Divider -->
+                                    <div class="flex items-center">
+                                        <div class="flex-1 border-t border-gray-300"></div>
+                                        <div class="px-4 text-sm text-gray-500 bg-white">OR</div>
+                                        <div class="flex-1 border-t border-gray-300"></div>
+                                    </div>
+                                    
+                                    <!-- Search and Filter -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Search and Filter from Table</label>
+                                        <div class="flex gap-4">
+                                            <div class="flex-1">
+                                                <input type="text" id="assetSearchInput" placeholder="Search by asset tag, serial number, or name..." 
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                                       onkeyup="filterExistingAssets()">
+                                            </div>
+                                            <div class="w-48">
+                                                <select id="assetStatusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                                        onchange="filterExistingAssets()">
+                                                    <option value="">All Statuses</option>
+                                                    <option value="Active">Active</option>
+                                                    <option value="Deployed">Deployed</option>
+                                                    <option value="Ready to Deploy">Ready to Deploy</option>
+                                                    <option value="Pending">Pending</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -3472,6 +3495,13 @@ window.hideAssetModal = function() {
         // Reset selected asset
         selectedAssetId = null;
         updateAssignButton();
+        
+        // Reset dropdown selection
+        const dropdown = document.getElementById('assetDropdownSelect');
+        if (dropdown) dropdown.value = '';
+        
+        // Clear table highlights
+        clearTableHighlight();
     } else {
         console.error('assetModal element not found!');
     }
@@ -3523,12 +3553,100 @@ window.loadExistingAssets = function() {
         .then(data => {
             existingAssetsData = data.assets || [];
             existingAssetsLoaded = true;
+            populateAssetDropdown();
             renderExistingAssets();
         })
         .catch(error => {
             console.error('Error loading assets:', error);
             alert('Failed to load existing assets. Please try again.');
         });
+};
+
+// Populate the asset dropdown
+window.populateAssetDropdown = function() {
+    const dropdown = document.getElementById('assetDropdownSelect');
+    if (!dropdown) return;
+    
+    // Clear existing options except the first one
+    dropdown.innerHTML = '<option value="">Choose an asset...</option>';
+    
+    // Sort assets by asset_tag for easier browsing
+    const sortedAssets = [...existingAssetsData].sort((a, b) => {
+        const tagA = a.asset_tag || '';
+        const tagB = b.asset_tag || '';
+        return tagA.localeCompare(tagB);
+    });
+    
+    // Populate dropdown with assets
+    sortedAssets.forEach(asset => {
+        const option = document.createElement('option');
+        option.value = asset.id;
+        
+        // Create descriptive text for the option
+        let optionText = '';
+        if (asset.asset_tag) optionText += asset.asset_tag;
+        if (asset.serial_num) optionText += ` | ${asset.serial_num}`;
+        if (asset.name) optionText += ` | ${asset.name}`;
+        if (asset.status) optionText += ` | ${asset.status}`;
+        
+        option.textContent = optionText || `Asset ${asset.id}`;
+        option.setAttribute('data-status', asset.status || '');
+        
+        dropdown.appendChild(option);
+    });
+};
+
+// Handle dropdown selection
+window.selectAssetFromDropdown = function() {
+    const dropdown = document.getElementById('assetDropdownSelect');
+    const selectedAssetId = dropdown.value;
+    
+    if (selectedAssetId) {
+        // Clear the table selection
+        const radios = document.querySelectorAll('input[name="selectedAsset"]');
+        radios.forEach(radio => radio.checked = false);
+        
+        // Clear search inputs
+        const searchInput = document.getElementById('assetSearchInput');
+        const statusFilter = document.getElementById('assetStatusFilter');
+        if (searchInput) searchInput.value = '';
+        if (statusFilter) statusFilter.value = '';
+        
+        // Set the selected asset
+        handleAssetSelection(parseInt(selectedAssetId));
+        
+        // Highlight the selected asset in the table
+        highlightAssetInTable(parseInt(selectedAssetId));
+    } else {
+        // Clear selection if "Choose an asset..." is selected
+        selectedAssetId = null;
+        updateAssignButton();
+        clearTableHighlight();
+    }
+};
+
+// Highlight selected asset in the table
+window.highlightAssetInTable = function(assetId) {
+    // Remove previous highlights
+    clearTableHighlight();
+    
+    // Find and highlight the selected asset row
+    const rows = document.querySelectorAll('#existingAssetsTableBody tr');
+    rows.forEach(row => {
+        const radio = row.querySelector('input[name="selectedAsset"]');
+        if (radio && parseInt(radio.value) === assetId) {
+            row.classList.add('bg-blue-50', 'border-blue-200');
+            radio.checked = true;
+        }
+    });
+};
+
+// Clear table highlights
+window.clearTableHighlight = function() {
+    const rows = document.querySelectorAll('#existingAssetsTableBody tr');
+    rows.forEach(row => {
+        row.classList.remove('bg-blue-50', 'border-blue-200');
+    });
 };
 
 // Render assets in the table
@@ -3586,11 +3704,22 @@ window.handleAssetSelection = function(assetId) {
 };
 
 window.selectAsset = function(assetId) {
+    // Clear dropdown selection
+    const dropdown = document.getElementById('assetDropdownSelect');
+    if (dropdown) dropdown.value = '';
+    
     // Check the radio button
     const radio = document.querySelector(`input[name="selectedAsset"][value="${assetId}"]`);
     if (radio) {
         radio.checked = true;
         handleAssetSelection(assetId);
+    }
+    
+    // Clear any highlights and highlight this row
+    clearTableHighlight();
+    const row = radio?.closest('tr');
+    if (row) {
+        row.classList.add('bg-blue-50', 'border-blue-200');
     }
 };
 
@@ -3645,6 +3774,14 @@ window.assignSelectedAsset = function() {
 
 // Filter existing assets (called on search/filter change)
 window.filterExistingAssets = function() {
+    // Clear dropdown selection when filtering
+    const dropdown = document.getElementById('assetDropdownSelect');
+    if (dropdown) dropdown.value = '';
+    
+    // Clear selection state
+    selectedAssetId = null;
+    updateAssignButton();
+    
     renderExistingAssets();
 };
 
