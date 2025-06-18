@@ -124,16 +124,16 @@
 [DEBUG] Comment.__init__ for ID 5336: Found mentions: ['nicway1']
 [DEBUG] Loaded comment 5336 for ticket 2
 [DEBUG] Comment.__init__ for ID 7014: Raw content: 'Hey <span class="mention">@testuser</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention.'
-2025-06-17 15:16:51,971 - root - INFO - Mail Configuration: Microsoft 365 OAuth2
-2025-06-17 15:16:51,971 - root - INFO - MS_CLIENT_ID: b5d3d9b5-5ec0-4bb3-a127-5bce2c8e632d
-2025-06-17 15:16:51,971 - root - INFO - MS_TENANT_ID: fdc52ee0-3b36-4a9b-ad4f-216bd2d20c4e
-2025-06-17 15:16:51,971 - root - INFO - MS_FROM_EMAIL: support@truelog.com.sg
-2025-06-17 15:16:51,971 - root - INFO - USE_OAUTH2_EMAIL: True
-2025-06-17 15:16:51,971 - root - INFO - MAIL_SERVER: smtp.gmail.com
-2025-06-17 15:16:51,971 - root - INFO - MAIL_PORT: 587
-2025-06-17 15:16:51,971 - root - INFO - MAIL_USE_TLS: True
-2025-06-17 15:16:51,971 - root - INFO - MAIL_USERNAME: trueloginventory@gmail.com
-2025-06-17 15:16:51,971 - root - INFO - MAIL_DEFAULT_SENDER: trueloginventory@gmail.com
+2025-06-17 17:27:55,924 - root - INFO - Mail Configuration: Microsoft 365 OAuth2
+2025-06-17 17:27:55,924 - root - INFO - MS_CLIENT_ID: b5d3d9b5-5ec0-4bb3-a127-5bce2c8e632d
+2025-06-17 17:27:55,924 - root - INFO - MS_TENANT_ID: fdc52ee0-3b36-4a9b-ad4f-216bd2d20c4e
+2025-06-17 17:27:55,924 - root - INFO - MS_FROM_EMAIL: support@truelog.com.sg
+2025-06-17 17:27:55,924 - root - INFO - USE_OAUTH2_EMAIL: True
+2025-06-17 17:27:55,924 - root - INFO - MAIL_SERVER: smtp.gmail.com
+2025-06-17 17:27:55,924 - root - INFO - MAIL_PORT: 587
+2025-06-17 17:27:55,924 - root - INFO - MAIL_USE_TLS: True
+2025-06-17 17:27:55,924 - root - INFO - MAIL_USERNAME: trueloginventory@gmail.com
+2025-06-17 17:27:55,925 - root - INFO - MAIL_DEFAULT_SENDER: trueloginventory@gmail.com
 [DEBUG] Comment._parse_mentions for ID 7014: Content: 'Hey <span class="mention">@testuser</span>, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention.'
 [DEBUG] Comment._parse_mentions: Content has HTML mentions
 [DEBUG] Comment._parse_mentions: Extracted mentions from HTML: ['testuser']

@@ -47,6 +47,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/liquid-glass.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-2.0.css') }}">
     <script>
         tailwind.config = {
             theme: {
@@ -484,7 +485,7 @@
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="{% if session.get('user_theme') == 'dark' %}dark{% elif session.get('user_theme') == 'liquid-glass' %}liquid-glass{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
+<body class="{% if session.get('user_theme') == 'dark' %}dark{% elif session.get('user_theme') == 'liquid-glass' %}liquid-glass{% elif session.get('user_theme') == 'ui-2.0' %}ui-2-0{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
     {% if session.get('user_theme') == 'liquid-glass' %}
     <!-- Liquid Glass Background -->
     <div class="liquid-glass-bg"></div>
@@ -566,16 +567,21 @@
                     <!-- Theme Toggle -->
                     <form method="POST" action="{{ url_for('admin.update_user_theme') }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="theme" value="{% if session.get('user_theme') == 'light' %}dark{% elif session.get('user_theme') == 'dark' %}liquid-glass{% else %}light{% endif %}">
+                        <input type="hidden" name="theme" value="{% if session.get('user_theme') == 'light' %}dark{% elif session.get('user_theme') == 'dark' %}liquid-glass{% elif session.get('user_theme') == 'liquid-glass' %}ui-2.0{% else %}light{% endif %}">
                         <button type="submit" 
                                 class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md"
-                                title="Switch to {% if session.get('user_theme') == 'light' %}Dark{% elif session.get('user_theme') == 'dark' %}Liquid Glass{% else %}Light{% endif %} Theme">
+                                title="Switch to {% if session.get('user_theme') == 'light' %}Dark{% elif session.get('user_theme') == 'dark' %}Liquid Glass{% elif session.get('user_theme') == 'liquid-glass' %}UI 2.0{% else %}Light{% endif %} Theme">
                             {% if session.get('user_theme') == 'dark' %}
                                 <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
                                 </svg>
                                 💎
                             {% elif session.get('user_theme') == 'liquid-glass' %}
+                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                ⚡
+                            {% elif session.get('user_theme') == 'ui-2.0' %}
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                 </svg>

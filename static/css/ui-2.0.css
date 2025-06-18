@@ -1,0 +1,300 @@
+/* UI 2.0 Theme - Modern Interface Design */
+
+/* Base UI 2.0 Styles */
+.ui-2-0 {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+/* Modern Button Base Styles */
+.ui-2-0 .sf-button,
+.ui-2-0 button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-height: 2.25rem;
+    overflow: hidden;
+}
+
+/* Hover Effects */
+.ui-2-0 .sf-button:hover,
+.ui-2-0 button:hover {
+    background: #F5F5F5;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Icon Styling */
+.ui-2-0 .sf-button svg,
+.ui-2-0 button svg {
+    width: 1.375rem;
+    height: 1.375rem;
+    stroke: currentColor;
+    fill: none;
+    transition: all 0.3s ease;
+}
+
+/* Primary Buttons */
+.ui-2-0 .sf-button.primary-button,
+.ui-2-0 .primary-button {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.ui-2-0 .sf-button.primary-button:hover,
+.ui-2-0 .primary-button:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Specific Button Types with Colors */
+
+/* Delete Button */
+.ui-2-0 .sf-button:has(svg path[d*="M19 7l"]),
+.ui-2-0 button:has(svg path[d*="M19 7l"]) {
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M19 7l"]):hover,
+.ui-2-0 button:has(svg path[d*="M19 7l"]):hover {
+    background: #fef2f2;
+    border-color: #f87171;
+    color: #b91c1c;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M19 7l"]) svg,
+.ui-2-0 button:has(svg path[d*="M19 7l"]) svg {
+    stroke: #dc2626;
+}
+
+/* Email Button */
+.ui-2-0 .sf-button:has(svg path[d*="M3 8l7.89"]),
+.ui-2-0 button:has(svg path[d*="M3 8l7.89"]) {
+    border-color: #a7f3d0;
+    color: #059669;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M3 8l7.89"]):hover,
+.ui-2-0 button:has(svg path[d*="M3 8l7.89"]):hover {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #047857;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M3 8l7.89"]) svg,
+.ui-2-0 button:has(svg path[d*="M3 8l7.89"]) svg {
+    stroke: #059669;
+}
+
+/* Edit Button */
+.ui-2-0 .sf-button:has(svg path[d*="M11 5H6a2"]),
+.ui-2-0 button:has(svg path[d*="M11 5H6a2"]) {
+    border-color: #fed7aa;
+    color: #ea580c;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M11 5H6a2"]):hover,
+.ui-2-0 button:has(svg path[d*="M11 5H6a2"]):hover {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #c2410c;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M11 5H6a2"]) svg,
+.ui-2-0 button:has(svg path[d*="M11 5H6a2"]) svg {
+    stroke: #ea580c;
+}
+
+/* User/Assign Button */
+.ui-2-0 .sf-button:has(svg path[d*="M16 7a4"]),
+.ui-2-0 button:has(svg path[d*="M16 7a4"]) {
+    border-color: #c4b5fd;
+    color: #7c3aed;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M16 7a4"]):hover,
+.ui-2-0 button:has(svg path[d*="M16 7a4"]):hover {
+    background: #f5f3ff;
+    border-color: #a78bfa;
+    color: #6d28d9;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M16 7a4"]) svg,
+.ui-2-0 button:has(svg path[d*="M16 7a4"]) svg {
+    stroke: #7c3aed;
+}
+
+/* Tracking Buttons */
+.ui-2-0 .sf-button:has(svg path[d*="M5 13l4 4L19 7"]),
+.ui-2-0 button:has(svg path[d*="M5 13l4 4L19 7"]) {
+    border-color: #bfdbfe;
+    color: #2563eb;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M5 13l4 4L19 7"]):hover,
+.ui-2-0 button:has(svg path[d*="M5 13l4 4L19 7"]):hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M5 13l4 4L19 7"]) svg,
+.ui-2-0 button:has(svg path[d*="M5 13l4 4L19 7"]) svg {
+    stroke: #2563eb;
+}
+
+/* Return Button */
+.ui-2-0 .sf-button:has(svg path[d*="M16 15v-1a4"]),
+.ui-2-0 button:has(svg path[d*="M16 15v-1a4"]) {
+    border-color: #fde68a;
+    color: #d97706;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M16 15v-1a4"]):hover,
+.ui-2-0 button:has(svg path[d*="M16 15v-1a4"]):hover {
+    background: #fffbeb;
+    border-color: #fcd34d;
+    color: #b45309;
+}
+
+.ui-2-0 .sf-button:has(svg path[d*="M16 15v-1a4"]) svg,
+.ui-2-0 button:has(svg path[d*="M16 15v-1a4"]) svg {
+    stroke: #d97706;
+}
+
+/* Button Group Styling */
+.ui-2-0 .sf-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced Focus States */
+.ui-2-0 .sf-button:focus,
+.ui-2-0 button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #60a5fa;
+}
+
+/* Disabled State */
+.ui-2-0 .sf-button:disabled,
+.ui-2-0 button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ui-2-0 .sf-button:disabled:hover,
+.ui-2-0 button:disabled:hover {
+    background: white;
+    transform: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Animation for Button Press */
+.ui-2-0 .sf-button:active,
+.ui-2-0 button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Text Labels with smooth animations */
+.ui-2-0 .sf-button span.origin-left {
+    transition: transform 0.3s ease;
+}
+
+/* Modern Cards */
+.ui-2-0 .sf-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.ui-2-0 .sf-card-header {
+    background: rgba(248, 250, 252, 0.8);
+    border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+/* Form Elements */
+.ui-2-0 input,
+.ui-2-0 select,
+.ui-2-0 textarea {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.ui-2-0 input:focus,
+.ui-2-0 select:focus,
+.ui-2-0 textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: white;
+}
+
+/* Modern Tables */
+.ui-2-0 table {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.ui-2-0 th {
+    background: rgba(248, 250, 252, 0.9);
+    color: #374151;
+    font-weight: 600;
+}
+
+.ui-2-0 tr:hover {
+    background: rgba(248, 250, 252, 0.5);
+}
+
+/* Enhanced responsiveness */
+@media (max-width: 768px) {
+    .ui-2-0 .sf-toolbar {
+        gap: 0.25rem;
+    }
+    
+    .ui-2-0 .sf-button,
+    .ui-2-0 button {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .ui-2-0 .sf-button svg,
+    .ui-2-0 button svg {
+        width: 1.125rem;
+        height: 1.125rem;
+    }
+} 

@@ -1073,12 +1073,15 @@ def theme_settings():
         theme_counts = {
             'light': 0,
             'dark': 0,
-            'liquid_glass': 0
+            'liquid_glass': 0,
+            'ui_2_0': 0
         }
         
         for stat in theme_stats:
             if stat[0] == 'liquid-glass':
                 theme_counts['liquid_glass'] = stat[1]
+            elif stat[0] == 'ui-2.0':
+                theme_counts['ui_2_0'] = stat[1]
             elif stat[0] in theme_counts:
                 theme_counts[stat[0]] = stat[1]
         
@@ -1102,7 +1105,7 @@ def update_user_theme():
     """Update current user's theme preference"""
     theme = request.form.get('theme')
     
-    if theme not in ['light', 'dark', 'liquid-glass']:
+    if theme not in ['light', 'dark', 'liquid-glass', 'ui-2.0']:
         flash('Invalid theme selection', 'error')
         return redirect(request.referrer or url_for('main.index'))
     
@@ -3523,7 +3526,7 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         # Check if asset is already assigned to this ticket in memory
         if asset in ticket.assets:
             print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id} in memory")
-        return True
+            return True
         
         # Safe to assign - insert directly into ticket_assets table
         print(f"[ASSET ASSIGN DEBUG] Inserting directly into ticket_assets table")
