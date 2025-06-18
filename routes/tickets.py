@@ -36,7 +36,7 @@ from utils.tracking_cache import TrackingCache
 import re
 from models.tracking_history import TrackingHistory
 from sqlalchemy.orm import joinedload # Import joinedload
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, text
 from models.company import Company
 from models.activity import Activity
 from models.accessory import Accessory
@@ -928,6 +928,24 @@ def view_ticket(ticket_id):
             joinedload(Ticket.accessories),
             joinedload(Ticket.comments).joinedload(Comment.user)
         ).get(ticket_id)
+        
+        # Debug: Check how many assets are loaded
+        if ticket:
+            print(f"[TICKET VIEW DEBUG] Ticket {ticket_id} loaded with {len(ticket.assets)} assets")
+            for asset in ticket.assets:
+                print(f"[TICKET VIEW DEBUG] - Asset: {asset.name} (ID: {asset.id})")
+            
+            # Also check ticket_assets table directly
+            from models.asset_transaction import AssetTransaction
+            direct_assets = db_session.execute(
+                text("SELECT * FROM ticket_assets WHERE ticket_id = :ticket_id"),
+                {"ticket_id": ticket_id}
+            ).fetchall()
+            print(f"[TICKET VIEW DEBUG] Direct query found {len(direct_assets)} ticket-asset relationships")
+            for row in direct_assets:
+                print(f"[TICKET VIEW DEBUG] - Ticket-Asset: {dict(row)}")
+        else:
+            print(f"[TICKET VIEW DEBUG] Ticket {ticket_id} not found")
 
         if not ticket:
             print(f"Ticket {ticket_id} not found")
