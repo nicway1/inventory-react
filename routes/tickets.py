@@ -488,9 +488,36 @@ Additional Notes:
                         notes=notes
                     )
 
-                    # Update asset status and assign to customer
-                    asset.customer_user_id = customer_id
-                    asset.status = AssetStatus.DEPLOYED
+                    # Get the created ticket for asset assignment
+                    created_ticket = db_session.query(Ticket).get(ticket_id)
+                    if created_ticket and asset:
+                        print(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
+                        print(f"[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
+                        
+                        # Create proper ticket-asset relationship
+                        from models.ticket_asset import TicketAsset
+                        existing_relationship = db_session.query(TicketAsset).filter(
+                            TicketAsset.ticket_id == ticket_id,
+                            TicketAsset.asset_id == asset.id
+                        ).first()
+                        
+                        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {1 if existing_relationship else 0}")
+                        
+                        if not existing_relationship:
+                            # Create the ticket-asset relationship
+                            ticket_asset = TicketAsset(
+                                ticket_id=ticket_id,
+                                asset_id=asset.id
+                            )
+                            db_session.add(ticket_asset)
+                            print(f"[ASSET ASSIGN DEBUG] Created TicketAsset relationship")
+                        
+                        # Update asset status and assign to customer
+                        asset.customer_user_id = customer_id
+                        asset.status = AssetStatus.DEPLOYED
+                        print(f"[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
+                    else:
+                        print(f"[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
                     
                     # Now assign accessories to the created ticket
                     if assigned_accessories:
