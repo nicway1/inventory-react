@@ -3094,6 +3094,7 @@ def get_all_transactions():
 @login_required
 def get_assets_api():
     """Get all assets for asset selection modal"""
+    print(f"[ASSETS API] Starting assets API request for user_id: {session.get('user_id')}")
     db_session = db_manager.get_session()
     try:
         # Get current user for filtering
@@ -3126,17 +3127,30 @@ def get_assets_api():
         # Convert to dictionaries for JSON response
         assets_data = []
         for asset in assets:
-            assets_data.append({
-                'id': asset.id,
-                'asset_tag': asset.asset_tag,
-                'serial_num': asset.serial_num,
-                'name': asset.name,
-                'model': asset.model,
-                'status': asset.status.value if asset.status else 'Unknown',
-                'product': asset.product,
-                'customer': asset.customer_user.name if asset.customer_user else None,
-                'country': asset.country
-            })
+            try:
+                # Safely get customer name with proper error handling
+                customer_name = None
+                try:
+                    if asset.customer_user:
+                        customer_name = asset.customer_user.name
+                except Exception as customer_err:
+                    print(f"[ASSETS API] Error getting customer for asset {asset.id}: {customer_err}")
+                    customer_name = None
+                
+                assets_data.append({
+                    'id': asset.id,
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'name': asset.name,
+                    'model': asset.model,
+                    'status': asset.status.value if asset.status else 'Unknown',
+                    'product': asset.product,
+                    'customer': customer_name,
+                    'country': asset.country
+                })
+            except Exception as asset_err:
+                print(f"[ASSETS API] Error processing asset {asset.id}: {asset_err}")
+                continue
         
         print(f"[ASSETS API] Returning {len(assets_data)} assets")
         return jsonify({
