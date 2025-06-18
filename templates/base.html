@@ -485,11 +485,12 @@
 
         /* Default Light Theme sf-card styling */
         .sf-card {
-            background: white;
+            background: white !important;
             border: 1px solid #e5e7eb;
             border-radius: 0.75rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.5rem !important;
+            padding: 0 !important;
         }
 
         .sf-card-header {
@@ -515,11 +516,11 @@
             gap: 0.5rem;
             flex-wrap: wrap;
             padding: 1rem 1.5rem;
-            background: white;
+            background: white !important;
             border: 1px solid #e5e7eb;
             border-radius: 0.75rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.5rem !important;
         }
 
         .sf-button {
@@ -582,6 +583,26 @@
         .sf-badge-info {
             background: #dbeafe;
             color: #1e40af;
+        }
+
+        /* Force white backgrounds and spacing for all card elements */
+        .sf-card,
+        .sf-card > div,
+        .sf-toolbar {
+            background-color: white !important;
+        }
+
+        /* Ensure proper spacing between all sections */
+        .sf-card + .sf-card,
+        .sf-card + .sf-toolbar,
+        .sf-toolbar + .sf-card {
+            margin-top: 1.5rem !important;
+        }
+
+        /* Override any gray backgrounds that might be interfering */
+        .bg-gray-100 .sf-card,
+        .bg-gray-50 .sf-card {
+            background: white !important;
         }
 
         /* Dark theme sf-card styling */
