@@ -583,6 +583,11 @@ Additional Notes:
                             traceback.print_exc()
                     
                     db_session.commit()
+                    
+                    # Refresh the ticket to ensure relationships are loaded
+                    if created_ticket:
+                        db_session.refresh(created_ticket)
+                        print(f"[ASSET ASSIGN DEBUG] Refreshed ticket - now has {len(created_ticket.assets)} assets")
 
                     print(f"Ticket created successfully with ID: {ticket_id}")  # Debug log
                     
