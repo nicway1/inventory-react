@@ -3098,6 +3098,7 @@ def get_assets_api():
     try:
         # Get current user for filtering
         user = db_manager.get_user(session['user_id'])
+        print(f"[ASSETS API] User {user.username} (Type: {user.user_type}) requesting assets")
         
         # Build query with permissions filtering
         assets_query = db_session.query(Asset)
@@ -3107,8 +3108,20 @@ def get_assets_api():
             assets = assets_query.all()
         elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
             assets = assets_query.filter(Asset.country == user.assigned_country.value).all()
+        elif user.user_type == UserType.SUPERVISOR and user.assigned_country:
+            # Supervisors can see assets from their assigned country
+            assets = assets_query.filter(Asset.country == user.assigned_country.value).all()
+        elif user.user_type == UserType.CLIENT and user.company:
+            # Clients can see assets from their company
+            assets = assets_query.filter(
+                or_(
+                    Asset.company_id == user.company_id,
+                    Asset.customer == user.company.name
+                )
+            ).all()
         else:
-            assets = []  # Regular users can't see assets in this context
+            # For other user types, show all assets (this includes regular staff who might need to assign assets)
+            assets = assets_query.all()
         
         # Convert to dictionaries for JSON response
         assets_data = []
@@ -3125,6 +3138,7 @@ def get_assets_api():
                 'country': asset.country
             })
         
+        print(f"[ASSETS API] Returning {len(assets_data)} assets")
         return jsonify({
             'success': True,
             'assets': assets_data
