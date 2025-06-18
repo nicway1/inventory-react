@@ -1407,6 +1407,80 @@ def assign_asset(ticket_id):
     
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
 
+@tickets_bp.route('/<int:ticket_id>/assign-asset', methods=['POST'])
+@login_required
+def assign_existing_asset(ticket_id):
+    """Assign an existing asset to a ticket via AJAX"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        asset_id = data.get('asset_id')
+        
+        if not asset_id:
+            return jsonify({'success': False, 'error': 'Asset ID is required'}), 400
+        
+        # Get database session
+        db_session = db_manager.get_session()
+        
+        try:
+            # Get the ticket
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+            
+            # Get the asset
+            asset = db_session.query(Asset).get(asset_id)
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+            
+            # Check if asset is already assigned to this ticket
+            existing_relationship = db_session.execute(
+                text("SELECT 1 FROM ticket_assets WHERE ticket_id = :ticket_id AND asset_id = :asset_id"),
+                {"ticket_id": ticket_id, "asset_id": asset_id}
+            ).fetchone()
+            
+            if existing_relationship:
+                return jsonify({'success': False, 'error': 'Asset is already assigned to this ticket'}), 400
+            
+            # Create the ticket-asset relationship using direct SQL
+            insert_stmt = text("""
+                INSERT INTO ticket_assets (ticket_id, asset_id) 
+                VALUES (:ticket_id, :asset_id)
+            """)
+            db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset_id})
+            
+            # Update asset status if it's for asset checkout
+            if ticket.category and 'ASSET_CHECKOUT' in ticket.category.name:
+                if asset.status != AssetStatus.DEPLOYED:
+                    asset.status = AssetStatus.DEPLOYED
+                    print(f"[ASSIGN ASSET] Updated asset {asset.asset_tag} status to DEPLOYED")
+                
+                # Assign to customer if there's a customer on the ticket
+                if ticket.customer_id and not asset.customer_user_id:
+                    asset.customer_user_id = ticket.customer_id
+                    print(f"[ASSIGN ASSET] Assigned asset {asset.asset_tag} to customer {ticket.customer_id}")
+            
+            # Commit the changes
+            db_session.commit()
+            
+            print(f"[ASSIGN ASSET] Successfully assigned asset {asset.asset_tag} to ticket {ticket_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Asset {asset.asset_tag} assigned successfully'
+            })
+            
+        except Exception as e:
+            db_session.rollback()
+            print(f"[ASSIGN ASSET] Error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        print(f"[ASSIGN ASSET] Request error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+
 @tickets_bp.route('/<int:ticket_id>/accessory', methods=['POST'])
 @admin_required
 def assign_accessory(ticket_id):

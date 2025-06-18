@@ -3090,6 +3090,53 @@ def get_all_transactions():
     finally:
         db_session.close()
 
+@inventory_bp.route('/api/assets')
+@login_required
+def get_assets_api():
+    """Get all assets for asset selection modal"""
+    db_session = db_manager.get_session()
+    try:
+        # Get current user for filtering
+        user = db_manager.get_user(session['user_id'])
+        
+        # Build query with permissions filtering
+        assets_query = db_session.query(Asset)
+        
+        # Filter assets based on user type and permissions
+        if user.is_super_admin:
+            assets = assets_query.all()
+        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            assets = assets_query.filter(Asset.country == user.assigned_country.value).all()
+        else:
+            assets = []  # Regular users can't see assets in this context
+        
+        # Convert to dictionaries for JSON response
+        assets_data = []
+        for asset in assets:
+            assets_data.append({
+                'id': asset.id,
+                'asset_tag': asset.asset_tag,
+                'serial_num': asset.serial_num,
+                'name': asset.name,
+                'model': asset.model,
+                'status': asset.status.value if asset.status else 'Unknown',
+                'product': asset.product,
+                'customer': asset.customer_user.name if asset.customer_user else None,
+                'country': asset.country
+            })
+        
+        return jsonify({
+            'success': True,
+            'assets': assets_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        db_session.close()
+
 @inventory_bp.route('/download-customer-template')
 @login_required
 def download_customer_template():

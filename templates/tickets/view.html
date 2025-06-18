@@ -2808,7 +2808,7 @@
 
             <!-- Add Asset Modal -->
             <div id="assetModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                     <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-10">
                         <h3 class="text-lg font-medium text-gray-900">Add Tech Asset</h3>
                         <button type="button" class="text-gray-400 hover:text-gray-500" onclick="hideAssetModal()">
@@ -2817,7 +2817,79 @@
                             </svg>
                         </button>
                     </div>
+                    
+                    <!-- Modal Tabs -->
+                    <div class="px-6 pt-4 border-b border-gray-200">
+                        <div class="flex space-x-1">
+                            <button id="selectExistingTab" onclick="switchAssetModalTab('select')" 
+                                    class="asset-modal-tab px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-white">
+                                Select Existing Asset
+                            </button>
+                            <button id="createNewTab" onclick="switchAssetModalTab('create')" 
+                                    class="asset-modal-tab px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                Create New Asset
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="p-6">
+                        <!-- Select Existing Asset Tab Content -->
+                        <div id="selectExistingContent" class="asset-modal-content">
+                            <div class="mb-6">
+                                <h4 class="text-lg font-medium text-gray-900 mb-4">Select an existing tech asset to assign to this ticket</h4>
+                                
+                                <!-- Search and Filter -->
+                                <div class="mb-4 flex gap-4">
+                                    <div class="flex-1">
+                                        <input type="text" id="assetSearchInput" placeholder="Search by asset tag, serial number, or name..." 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                               onkeyup="filterExistingAssets()">
+                                    </div>
+                                    <div class="w-48">
+                                        <select id="assetStatusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                                onchange="filterExistingAssets()">
+                                            <option value="">All Statuses</option>
+                                            <option value="Active">Active</option>
+                                            <option value="Deployed">Deployed</option>
+                                            <option value="Ready to Deploy">Ready to Deploy</option>
+                                            <option value="Pending">Pending</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Asset List -->
+                                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="existingAssetsTableBody" class="bg-white divide-y divide-gray-200">
+                                            <!-- Assets will be loaded here dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-4 flex justify-end gap-3">
+                                    <button type="button" onclick="hideAssetModal()" 
+                                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        Cancel
+                                    </button>
+                                    <button type="button" id="assignSelectedAssetBtn" onclick="assignSelectedAsset()" disabled
+                                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Assign Selected Asset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Create New Asset Tab Content -->
+                        <div id="createNewContent" class="asset-modal-content hidden">
                         <form id="assetForm" class="space-y-6" method="POST" action="{{ url_for('inventory.add_asset') }}" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="intake_ticket_id" value="{{ ticket.id }}">
@@ -2996,14 +3068,16 @@
                                 <ul class="text-sm list-disc ml-5 mt-1" id="errorDetails"></ul>
                             </div>
                         </form>
-                    </div>
-                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-2 sticky bottom-0">
-                        <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="hideAssetModal()">
-                            Cancel
-                        </button>
-                        <button type="button" id="assetSubmitBtn" onclick="submitAssetForm()" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center">
-                            Add Asset
-                        </button>
+                        
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="hideAssetModal()">
+                                Cancel
+                            </button>
+                            <button type="button" id="assetSubmitBtn" onclick="submitAssetForm()" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center">
+                                Add Asset
+                            </button>
+                        </div>
+                        </div> <!-- Close createNewContent div -->
                     </div>
                 </div>
             </div>
@@ -3394,8 +3468,194 @@ window.hideAssetModal = function() {
         // Reset feedback message
         const formFeedback = document.getElementById('formFeedback');
         if (formFeedback) formFeedback.classList.add('hidden');
+        
+        // Reset selected asset
+        selectedAssetId = null;
+        updateAssignButton();
     } else {
         console.error('assetModal element not found!');
+    }
+};
+
+// Asset modal tab switching
+window.switchAssetModalTab = function(tab) {
+    const selectTab = document.getElementById('selectExistingTab');
+    const createTab = document.getElementById('createNewTab');
+    const selectContent = document.getElementById('selectExistingContent');
+    const createContent = document.getElementById('createNewContent');
+    
+    if (tab === 'select') {
+        // Switch to select existing tab
+        selectTab.classList.add('border-blue-600', 'text-blue-600', 'bg-white');
+        selectTab.classList.remove('border-transparent', 'text-gray-500');
+        createTab.classList.add('border-transparent', 'text-gray-500');
+        createTab.classList.remove('border-blue-600', 'text-blue-600', 'bg-white');
+        
+        selectContent.classList.remove('hidden');
+        createContent.classList.add('hidden');
+        
+        // Load existing assets if not already loaded
+        if (!existingAssetsLoaded) {
+            loadExistingAssets();
+        }
+    } else {
+        // Switch to create new tab
+        createTab.classList.add('border-blue-600', 'text-blue-600', 'bg-white');
+        createTab.classList.remove('border-transparent', 'text-gray-500');
+        selectTab.classList.add('border-transparent', 'text-gray-500');
+        selectTab.classList.remove('border-blue-600', 'text-blue-600', 'bg-white');
+        
+        createContent.classList.remove('hidden');
+        selectContent.classList.add('hidden');
+    }
+};
+
+// Asset selection variables
+let existingAssetsData = [];
+let existingAssetsLoaded = false;
+let selectedAssetId = null;
+
+// Load existing assets from server
+window.loadExistingAssets = function() {
+    console.log('Loading existing assets...');
+    fetch('/inventory/api/assets')
+        .then(response => response.json())
+        .then(data => {
+            existingAssetsData = data.assets || [];
+            existingAssetsLoaded = true;
+            renderExistingAssets();
+        })
+        .catch(error => {
+            console.error('Error loading assets:', error);
+            alert('Failed to load existing assets. Please try again.');
+        });
+};
+
+// Render assets in the table
+window.renderExistingAssets = function() {
+    const tbody = document.getElementById('existingAssetsTableBody');
+    if (!tbody) return;
+    
+    let filteredAssets = filterAssets();
+    
+    if (filteredAssets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No assets found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filteredAssets.map(asset => `
+        <tr class="hover:bg-gray-50 cursor-pointer" onclick="selectAsset(${asset.id})">
+            <td class="px-6 py-4 whitespace-nowrap">
+                <input type="radio" name="selectedAsset" value="${asset.id}" 
+                       onchange="handleAssetSelection(${asset.id})" 
+                       class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${asset.asset_tag || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${asset.name || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(asset.status)}">
+                    ${asset.status || 'Unknown'}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+};
+
+// Filter assets based on search and status
+window.filterAssets = function() {
+    const searchTerm = (document.getElementById('assetSearchInput')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('assetStatusFilter')?.value || '';
+    
+    return existingAssetsData.filter(asset => {
+        const matchesSearch = !searchTerm || 
+            (asset.asset_tag && asset.asset_tag.toLowerCase().includes(searchTerm)) ||
+            (asset.serial_num && asset.serial_num.toLowerCase().includes(searchTerm)) ||
+            (asset.name && asset.name.toLowerCase().includes(searchTerm));
+        
+        const matchesStatus = !statusFilter || asset.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
+};
+
+// Handle asset selection
+window.handleAssetSelection = function(assetId) {
+    selectedAssetId = assetId;
+    updateAssignButton();
+};
+
+window.selectAsset = function(assetId) {
+    // Check the radio button
+    const radio = document.querySelector(`input[name="selectedAsset"][value="${assetId}"]`);
+    if (radio) {
+        radio.checked = true;
+        handleAssetSelection(assetId);
+    }
+};
+
+// Update assign button state
+window.updateAssignButton = function() {
+    const button = document.getElementById('assignSelectedAssetBtn');
+    if (button) {
+        button.disabled = !selectedAssetId;
+    }
+};
+
+// Assign selected asset to ticket
+window.assignSelectedAsset = function() {
+    if (!selectedAssetId) {
+        alert('Please select an asset first.');
+        return;
+    }
+    
+    console.log('Assigning asset', selectedAssetId, 'to ticket', ticketId);
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Send request to assign asset
+    fetch(`/tickets/${ticketId}/assign-asset`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            asset_id: selectedAssetId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Asset assigned successfully!');
+            hideAssetModal();
+            // Refresh the page to show the assigned asset
+            location.reload();
+        } else {
+            alert('Failed to assign asset: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error assigning asset:', error);
+        alert('Failed to assign asset. Please try again.');
+    });
+};
+
+// Filter existing assets (called on search/filter change)
+window.filterExistingAssets = function() {
+    renderExistingAssets();
+};
+
+// Get status badge CSS class
+window.getStatusBadgeClass = function(status) {
+    switch(status) {
+        case 'Active': return 'bg-green-100 text-green-800';
+        case 'Deployed': return 'bg-blue-100 text-blue-800';
+        case 'Ready to Deploy': return 'bg-yellow-100 text-yellow-800';
+        case 'Pending': return 'bg-gray-100 text-gray-800';
+        default: return 'bg-gray-100 text-gray-800';
     }
 };
 
