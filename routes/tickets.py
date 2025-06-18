@@ -946,12 +946,12 @@ def view_ticket(ticket_id):
             # Also check ticket_assets table directly
             from models.asset_transaction import AssetTransaction
             direct_assets = db_session.execute(
-                text("SELECT * FROM ticket_assets WHERE ticket_id = :ticket_id"),
+                text("SELECT ticket_id, asset_id FROM ticket_assets WHERE ticket_id = :ticket_id"),
                 {"ticket_id": ticket_id}
             ).fetchall()
             print(f"[TICKET VIEW DEBUG] Direct query found {len(direct_assets)} ticket-asset relationships")
             for row in direct_assets:
-                print(f"[TICKET VIEW DEBUG] - Ticket-Asset: {dict(row)}")
+                print(f"[TICKET VIEW DEBUG] - Ticket-Asset: Ticket {row[0]} -> Asset {row[1]}")
         else:
             print(f"[TICKET VIEW DEBUG] Ticket {ticket_id} not found")
 
