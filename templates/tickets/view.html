@@ -3549,26 +3549,48 @@ let selectedAssetId = null;
 window.loadExistingAssets = function() {
     console.log('Loading existing assets...');
     fetch('/inventory/api/assets')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Asset API response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Asset API response data:', data);
             existingAssetsData = data.assets || [];
             existingAssetsLoaded = true;
+            console.log(`Loaded ${existingAssetsData.length} assets`);
             populateAssetDropdown();
             renderExistingAssets();
         })
         .catch(error => {
             console.error('Error loading assets:', error);
-            alert('Failed to load existing assets. Please try again.');
+            alert(`Failed to load existing assets: ${error.message}`);
         });
 };
 
 // Populate the asset dropdown
 window.populateAssetDropdown = function() {
+    console.log('Populating asset dropdown with', existingAssetsData.length, 'assets');
     const dropdown = document.getElementById('assetDropdownSelect');
-    if (!dropdown) return;
+    if (!dropdown) {
+        console.error('Asset dropdown element not found!');
+        return;
+    }
     
     // Clear existing options except the first one
     dropdown.innerHTML = '<option value="">Choose an asset...</option>';
+    
+    if (existingAssetsData.length === 0) {
+        console.warn('No assets available to populate dropdown');
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No assets available';
+        option.disabled = true;
+        dropdown.appendChild(option);
+        return;
+    }
     
     // Sort assets by asset_tag for easier browsing
     const sortedAssets = [...existingAssetsData].sort((a, b) => {
@@ -3594,6 +3616,8 @@ window.populateAssetDropdown = function() {
         
         dropdown.appendChild(option);
     });
+    
+    console.log(`Populated dropdown with ${sortedAssets.length} assets`);
 };
 
 // Handle dropdown selection
