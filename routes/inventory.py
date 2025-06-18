@@ -3144,7 +3144,7 @@ def get_assets_api():
                     'name': asset.name,
                     'model': asset.model,
                     'status': asset.status.value if asset.status else 'Unknown',
-                    'product': asset.product,
+                    'manufacturer': asset.manufacturer,
                     'customer': customer_name,
                     'country': asset.country
                 })
