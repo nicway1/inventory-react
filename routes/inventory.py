@@ -3144,6 +3144,8 @@ def get_assets_api():
             'assets': assets_data
         })
     except Exception as e:
+        import traceback
+        print(f"[ASSETS API ERROR] Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e)
