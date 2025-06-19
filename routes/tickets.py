@@ -524,6 +524,21 @@ Additional Notes:
                         asset.customer_id = customer_id
                         asset.status = AssetStatus.DEPLOYED
                         print(f"[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
+                        
+                        # Create asset transaction record for the checkout
+                        from models.asset_transaction import AssetTransaction
+                        from datetime import datetime
+                        transaction = AssetTransaction(
+                            asset_id=asset.id,
+                            transaction_type='checkout',
+                            customer_id=customer_id,
+                            notes=f'Asset checkout via ticket #{ticket_id} - {shipping_method}',
+                            transaction_date=datetime.utcnow()
+                        )
+                        # Set user_id manually since it's not in the constructor
+                        transaction.user_id = user_id
+                        db_session.add(transaction)
+                        print(f"[ASSET ASSIGN DEBUG] Created asset transaction record for checkout")
                     else:
                         print(f"[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
                     

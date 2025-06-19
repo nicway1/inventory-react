@@ -7,8 +7,9 @@ from database import SessionLocal
 from models import (
     Ticket, Asset, AssetTransaction, AccessoryTransaction,
     User, Company, CustomerUser, TicketStatus, TicketPriority,
-    AssetStatus, TicketCategory
+    TicketCategory
 )
+from models.asset import AssetStatus
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
@@ -101,7 +102,7 @@ def case_reports():
         # 6. Top Customers by Ticket Count
         customer_counts = {}
         for ticket in tickets:
-            if ticket.customer:
+            if ticket.customer and hasattr(ticket.customer, 'name'):
                 customer_name = ticket.customer.name
                 customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
         
@@ -211,28 +212,54 @@ def asset_reports():
         # 6. Assets by Customer (Top 10)
         customer_counts = {}
         for asset in assets:
-            if asset.customer:
-                customer_name = asset.customer.name
+            customer_name = None
+            if asset.customer_user:
+                # Use the relationship to CustomerUser
+                customer_name = asset.customer_user.name
+            elif asset.customer:
+                # Use the string field if customer_user relationship is not set
+                customer_name = asset.customer
+            
+            if customer_name:
                 customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
         
         top_asset_customers = sorted(customer_counts.items(), key=lambda x: x[1], reverse=True)[:10]
         
-        # 7. Asset Transaction History (Last 30 days)
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        transactions = db.query(AssetTransaction).filter(
-            AssetTransaction.created_at >= thirty_days_ago
-        ).all()
+        # 7. Asset Transaction History (Dynamic time range)
+        # Try last 30 days first, then 90 days, then all transactions
+        time_periods = [30, 90, None]  # None means all transactions
+        transaction_period = "Last 30 days"
+        transactions = []
+        
+        for days in time_periods:
+            if days:
+                cutoff_date = datetime.utcnow() - timedelta(days=days)
+                transactions = db.query(AssetTransaction).filter(
+                    AssetTransaction.transaction_date >= cutoff_date
+                ).all()
+                if days == 30:
+                    transaction_period = "Last 30 days"
+                elif days == 90:
+                    transaction_period = "Last 90 days"
+            else:
+                # Get all transactions
+                transactions = db.query(AssetTransaction).all()
+                transaction_period = "All time"
+            
+            # If we found transactions, break out of the loop
+            if transactions:
+                break
         
         transaction_counts = {}
         for transaction in transactions:
-            date_str = transaction.created_at.strftime('%Y-%m-%d')
+            date_str = transaction.transaction_date.strftime('%Y-%m-%d')
             transaction_counts[date_str] = transaction_counts.get(date_str, 0) + 1
         
         # 8. Summary Statistics
         total_assets = len(assets)
-        active_assets = len([a for a in assets if a.status and a.status.name == 'ACTIVE'])
-        deployed_assets = len([a for a in assets if a.status and a.status.name == 'DEPLOYED'])
-        in_repair = len([a for a in assets if a.status and a.status.name == 'IN_REPAIR'])
+        active_assets = len([a for a in assets if a.status and a.status == AssetStatus.READY_TO_DEPLOY])
+        deployed_assets = len([a for a in assets if a.status and a.status == AssetStatus.DEPLOYED])
+        in_repair = len([a for a in assets if a.status and a.status == AssetStatus.REPAIR])
         
         # Calculate asset utilization rate
         utilization_rate = ((active_assets + deployed_assets) / total_assets * 100) if total_assets > 0 else 0
@@ -250,7 +277,9 @@ def asset_reports():
                 'active': active_assets,
                 'deployed': deployed_assets,
                 'in_repair': in_repair,
-                'utilization_rate': round(utilization_rate, 1)
+                'utilization_rate': round(utilization_rate, 1),
+                'transaction_period': transaction_period,
+                'total_transactions': len(transactions)
             }
         )
     finally:
