@@ -9,7 +9,6 @@ from models import (
     User, Company, CustomerUser, TicketStatus, TicketPriority,
     AssetStatus, TicketCategory
 )
-from utils.auth_decorators import admin_or_country_admin_required
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
