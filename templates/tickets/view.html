@@ -478,7 +478,8 @@
             </div>
         </div>
         
-        <!-- Main content -->
+        <!-- Main content wrapper with white background -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
         <!-- Case Header -->
         <div class="sf-card mb-6">
                 <div class="sf-card-header">
@@ -3439,6 +3440,11 @@ window.showAssetModal = function() {
         console.log('Found assetModal, removing hidden class');
         modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden'); // Prevent scrolling
+        
+        // Load existing assets when modal opens (since "Select Existing Asset" tab is default)
+        if (!existingAssetsLoaded) {
+            loadExistingAssets();
+        }
     } else {
         console.error('assetModal element not found!');
     }
@@ -3993,11 +3999,31 @@ function submitAssetForm() {
     // Make sure the ticket ID is included in the form data
     formData.append('intake_ticket_id', '{{ ticket.id }}');
     
+    // Prepare JSON payload with debugging
+    const jsonPayload = {
+        asset_tag: formData.get('asset_tag'),
+        serial_number: formData.get('serial_num'),
+        name: formData.get('product'),
+        category: formData.get('asset_type'),
+        condition: formData.get('condition') || 'Good',
+        status: formData.get('status') || 'In Stock',
+        notes: formData.get('notes') || '',
+        type: formData.get('asset_type'),
+        ticket_id: '{{ ticket.id }}'
+    };
+    
+    console.log(`[FRONTEND DEBUG ${new Date().toISOString()}] Sending payload:`, jsonPayload);
+    
+    // Get the URL
+    const targetUrl = '{{ url_for("assets.add_asset") }}';
+    console.log("[FRONTEND DEBUG] Target URL:", targetUrl);
+    
     // Submit the form using fetch API
-    fetch('{{ url_for("inventory.add_asset") }}', {
+    fetch(targetUrl, {
         method: 'POST',
-        body: formData,
+        body: JSON.stringify(jsonPayload),
         headers: {
+            'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
         }
@@ -4017,6 +4043,9 @@ function submitAssetForm() {
     })
     .then(data => {
         console.log("Full server response:", data);
+        console.log("[FRONTEND DEBUG] Response status:", data.status);
+        console.log("[FRONTEND DEBUG] Response success:", data.success);
+        console.log("[FRONTEND DEBUG] Response error:", data.error);
         
         if (data.success) {
             console.log("Asset added successfully:", data.asset);
@@ -4037,7 +4066,7 @@ function submitAssetForm() {
             newRow.setAttribute('data-asset-id', data.asset.id);
             newRow.innerHTML = `
                 <td>${data.asset.asset_tag || '-'}</td>
-                <td>${data.asset.serial_num || '-'}</td>
+                <td>${data.asset.serial_number || data.asset.serial_num || '-'}</td>
                 <td>${data.asset.name || data.asset.model || '-'}</td>
                 <td>
                     <span class="sf-badge sf-badge-success">
@@ -4072,13 +4101,16 @@ function submitAssetForm() {
             console.error("Server reported error:", data);
             
             // Check if this is a duplicate asset error
-            if (data.error && data.error.includes('UNIQUE constraint failed')) {
+            if (data.error && (data.error.includes('UNIQUE constraint failed') || 
+                              data.error.includes('Asset tag already exists') || 
+                              data.error.includes('Serial number already exists'))) {
                 formFeedback.classList.remove('hidden');
-                formFeedback.querySelector('p').textContent = 'This asset is already linked to this ticket.';
+                formFeedback.querySelector('p').textContent = data.error; // Show the actual error message
             } else {
                 // Show general error message
+                console.log("[FRONTEND DEBUG] Error case - showing error message:", data.error);
                 formFeedback.classList.remove('hidden');
-                formFeedback.querySelector('p').textContent = data.error || 'Failed to add asset. Please try again.';
+                formFeedback.querySelector('p').textContent = `[FRONTEND] ${data.error || 'Failed to add asset. Please try again.'}`;
                 
                 // Display detailed error information if available
                 const errorDetails = document.getElementById('errorDetails');
@@ -4114,7 +4146,7 @@ function viewAsset(assetId) {
 
 function unlinkAsset(assetId, ticketId) {
     if (confirm('Are you sure you want to unlink this asset from the ticket?')) {
-        fetch(`${window.CURRENT_ORIGIN}/tickets/${ticketId}/unlink-asset/${assetId}`, {
+        fetch(`${window.CURRENT_ORIGIN}/assets/${assetId}/unlink/${ticketId}`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -5770,6 +5802,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+        </div> <!-- Close white background wrapper -->
+    </div> <!-- Close container -->
+</div> <!-- Close bg-gray-100 -->
 {% endblock %}
 
 <!-- Debug button for accessory modal (will be removed after fixing) -->
