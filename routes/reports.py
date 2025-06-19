@@ -147,77 +147,77 @@ def asset_reports():
     try:
         # Query assets based on user permissions
         query = db.query(Asset)
-    
-    # Apply permission filters
-    if current_user.user_type.value == 'COUNTRY_ADMIN':
-        # Country admins see assets from their country
-        query = query.filter(Asset.country == current_user.country)
-    elif current_user.user_type.value == 'CLIENT':
-        # Clients see only assets assigned to them
-        query = query.filter(Asset.customer_id == current_user.id)
-    
-    assets = query.all()
-    
-    # 1. Assets by Status (Pie Chart)
-    status_counts = {}
-    for asset in assets:
-        status_name = asset.status.value if asset.status else 'No Status'
-        status_counts[status_name] = status_counts.get(status_name, 0) + 1
-    
-    # 2. Assets by Type (Bar Chart)
-    type_counts = {}
-    for asset in assets:
-        asset_type = asset.asset_type or 'Unknown'
-        type_counts[asset_type] = type_counts.get(asset_type, 0) + 1
-    
-    # 3. Assets by Model (Horizontal Bar Chart - Top 10)
-    model_counts = {}
-    for asset in assets:
-        model = asset.model or 'Unknown Model'
-        model_counts[model] = model_counts.get(model, 0) + 1
-    
-    # Sort and get top 10
-    top_models = sorted(model_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    
-    # 4. Assets by Country (Map or Bar Chart)
-    country_counts = {}
-    for asset in assets:
-        country = asset.country or 'Unknown'
-        country_counts[country] = country_counts.get(country, 0) + 1
-    
-    # 5. Asset Age Distribution (Histogram)
-    age_distribution = {
-        '0-6 months': 0,
-        '6-12 months': 0,
-        '1-2 years': 0,
-        '2-3 years': 0,
-        '3+ years': 0
-    }
-    
-    current_date = datetime.utcnow()
-    for asset in assets:
-        if asset.receiving_date:
-            age_days = (current_date - asset.receiving_date).days
-            if age_days <= 180:
-                age_distribution['0-6 months'] += 1
-            elif age_days <= 365:
-                age_distribution['6-12 months'] += 1
-            elif age_days <= 730:
-                age_distribution['1-2 years'] += 1
-            elif age_days <= 1095:
-                age_distribution['2-3 years'] += 1
-            else:
-                age_distribution['3+ years'] += 1
-    
-    # 6. Assets by Customer (Top 10)
-    customer_counts = {}
-    for asset in assets:
-        if asset.customer:
-            customer_name = asset.customer.name
-            customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
-    
-    top_asset_customers = sorted(customer_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    
+        
+        # Apply permission filters
+        if current_user.user_type.value == 'COUNTRY_ADMIN':
+            # Country admins see assets from their country
+            query = query.filter(Asset.country == current_user.country)
+        elif current_user.user_type.value == 'CLIENT':
+            # Clients see only assets assigned to them
+            query = query.filter(Asset.customer_id == current_user.id)
+        
+        assets = query.all()
+        
+        # 1. Assets by Status (Pie Chart)
+        status_counts = {}
+        for asset in assets:
+            status_name = asset.status.value if asset.status else 'No Status'
+            status_counts[status_name] = status_counts.get(status_name, 0) + 1
+        
+        # 2. Assets by Type (Bar Chart)
+        type_counts = {}
+        for asset in assets:
+            asset_type = asset.asset_type or 'Unknown'
+            type_counts[asset_type] = type_counts.get(asset_type, 0) + 1
+        
+        # 3. Assets by Model (Horizontal Bar Chart - Top 10)
+        model_counts = {}
+        for asset in assets:
+            model = asset.model or 'Unknown Model'
+            model_counts[model] = model_counts.get(model, 0) + 1
+        
+        # Sort and get top 10
+        top_models = sorted(model_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        # 4. Assets by Country (Map or Bar Chart)
+        country_counts = {}
+        for asset in assets:
+            country = asset.country or 'Unknown'
+            country_counts[country] = country_counts.get(country, 0) + 1
+        
+        # 5. Asset Age Distribution (Histogram)
+        age_distribution = {
+            '0-6 months': 0,
+            '6-12 months': 0,
+            '1-2 years': 0,
+            '2-3 years': 0,
+            '3+ years': 0
+        }
+        
+        current_date = datetime.utcnow()
+        for asset in assets:
+            if asset.receiving_date:
+                age_days = (current_date - asset.receiving_date).days
+                if age_days <= 180:
+                    age_distribution['0-6 months'] += 1
+                elif age_days <= 365:
+                    age_distribution['6-12 months'] += 1
+                elif age_days <= 730:
+                    age_distribution['1-2 years'] += 1
+                elif age_days <= 1095:
+                    age_distribution['2-3 years'] += 1
+                else:
+                    age_distribution['3+ years'] += 1
+        
+        # 6. Assets by Customer (Top 10)
+        customer_counts = {}
+        for asset in assets:
+            if asset.customer:
+                customer_name = asset.customer.name
+                customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
+        
+        top_asset_customers = sorted(customer_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
         # 7. Asset Transaction History (Last 30 days)
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
         transactions = db.query(AssetTransaction).filter(
