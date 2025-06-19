@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .sf-chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    .sf-stat-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .sf-chart-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .sf-chart-header {
+        background-color: #f9fafb;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Asset Reports</h1>
+                    <p class="text-gray-600">Comprehensive asset inventory analytics</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Export Button -->
+                <button onclick="exportReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Assets</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+                </div>
+                <div class="p-2 bg-green-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Active</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ stats.active }}</p>
+                </div>
+                <div class="p-2 bg-blue-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Deployed</p>
+                    <p class="text-2xl font-bold text-indigo-600">{{ stats.deployed }}</p>
+                </div>
+                <div class="p-2 bg-indigo-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">In Repair</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ stats.in_repair }}</p>
+                </div>
+                <div class="p-2 bg-orange-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Utilization</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ stats.utilization_rate }}%</p>
+                </div>
+                <div class="p-2 bg-purple-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Status Distribution Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Asset Status Distribution</h3>
+            <div class="sf-chart-container">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Type Distribution Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Assets by Type</h3>
+            <div class="sf-chart-container">
+                <canvas id="typeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Model Distribution (Horizontal Bar Chart) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Top 10 Models</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="modelChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Country Distribution (Bar Chart) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Assets by Country</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="countryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Age Distribution (Histogram) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Asset Age Distribution</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="ageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Top Customers -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Top Customers by Asset Count</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="customerChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Asset Transactions (Last 30 Days)</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="transactionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Insights -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Asset Health Score</h3>
+            <div class="text-center">
+                <div class="text-5xl font-bold text-green-600 mb-2">85%</div>
+                <p class="text-gray-600">Above Target</p>
+                <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-green-600 h-2 rounded-full" style="width: 85%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Maintenance Due</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">This Week</span>
+                    <span class="font-semibold text-red-600">12 Assets</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Next Week</span>
+                    <span class="font-semibold text-orange-600">8 Assets</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">This Month</span>
+                    <span class="font-semibold text-yellow-600">35 Assets</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div class="space-y-2">
+                <button class="w-full text-left px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 font-medium">
+                    Download Full Report
+                </button>
+                <button class="w-full text-left px-4 py-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-700 font-medium">
+                    Schedule Maintenance
+                </button>
+                <button class="w-full text-left px-4 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg text-purple-700 font-medium">
+                    Asset Audit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart.js default configuration
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+Chart.defaults.color = '#374151';
+
+// Parse data from backend
+const statusData = {{ status_data|safe }};
+const typeData = {{ type_data|safe }};
+const modelData = {{ model_data|safe }};
+const countryData = {{ country_data|safe }};
+const ageData = {{ age_data|safe }};
+const customerData = {{ customer_data|safe }};
+const transactionData = {{ transaction_data|safe }};
+
+// Color palettes
+const salesforceColors = [
+    '#1B96FF', '#032D60', '#0176D3', '#57A4FB', '#78B8FD',
+    '#FF538A', '#CB2039', '#E34850', '#FF7A8A', '#FFA0B4',
+    '#7F8DE1', '#2E2E5F', '#4B4CDB', '#9EA0E7', '#C3C4ED',
+    '#32C832', '#0B5CAB', '#FFA500', '#8B4513', '#4169E1'
+];
+
+// 1. Status Distribution Chart
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+    type: 'pie',
+    data: {
+        labels: Object.keys(statusData),
+        datasets: [{
+            data: Object.values(statusData),
+            backgroundColor: salesforceColors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// 2. Type Distribution Chart
+const typeCtx = document.getElementById('typeChart').getContext('2d');
+new Chart(typeCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(typeData),
+        datasets: [{
+            label: 'Count',
+            data: Object.values(typeData),
+            backgroundColor: '#32C832',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// 3. Model Distribution Chart
+const modelCtx = document.getElementById('modelChart').getContext('2d');
+new Chart(modelCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(modelData),
+        datasets: [{
+            label: 'Count',
+            data: Object.values(modelData),
+            backgroundColor: '#1B96FF',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            },
+            y: {
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+
+// 4. Country Distribution Chart
+const countryCtx = document.getElementById('countryChart').getContext('2d');
+new Chart(countryCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(countryData),
+        datasets: [{
+            label: 'Assets',
+            data: Object.values(countryData),
+            backgroundColor: '#FF538A',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// 5. Age Distribution Chart
+const ageCtx = document.getElementById('ageChart').getContext('2d');
+new Chart(ageCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(ageData),
+        datasets: [{
+            label: 'Assets',
+            data: Object.values(ageData),
+            backgroundColor: '#7F8DE1',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// 6. Customer Chart
+const customerCtx = document.getElementById('customerChart').getContext('2d');
+new Chart(customerCtx, {
+    type: 'bar',
+    data: {
+        labels: customerData.map(c => c[0]),
+        datasets: [{
+            label: 'Assets',
+            data: customerData.map(c => c[1]),
+            backgroundColor: '#FFA500',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            },
+            y: {
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+
+// 7. Transaction Chart
+const transactionCtx = document.getElementById('transactionChart').getContext('2d');
+const transactionLabels = Object.keys(transactionData).sort();
+const transactionValues = transactionLabels.map(label => transactionData[label] || 0);
+
+new Chart(transactionCtx, {
+    type: 'line',
+    data: {
+        labels: transactionLabels,
+        datasets: [{
+            label: 'Transactions',
+            data: transactionValues,
+            borderColor: '#4B4CDB',
+            backgroundColor: 'rgba(75, 76, 219, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// Functions
+function exportReport() {
+    window.location.href = "{{ url_for('reports.export_report', report_type='assets') }}";
+}
+</script>
+{% endblock %} 

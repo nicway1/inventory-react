@@ -8,6 +8,7 @@ class AssetTransaction(Base):
     __tablename__ = 'asset_transactions'
     
     id = Column(Integer, primary_key=True)
+    transaction_number = Column(String(50), nullable=False)
     asset_id = Column(Integer, ForeignKey('assets.id'), nullable=False)
     customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)

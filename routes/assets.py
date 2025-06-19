@@ -11,14 +11,113 @@ from utils.barcode_generator import barcode_generator
 from database import SessionLocal
 import io
 from sqlalchemy import text
+from datetime import datetime
 
 # Create Blueprint
 assets_bp = Blueprint('assets', __name__, url_prefix='/assets')
 db_manager = DatabaseManager()
 
+def _is_asset_checkout_ticket(ticket_category):
+    """
+    Check if the ticket category is an Asset Checkout type
+    
+    Args:
+        ticket_category: TicketCategory enum value
+        
+    Returns:
+        bool: True if this is an Asset Checkout ticket
+    """
+    from models.ticket import TicketCategory
+    
+    checkout_categories = [
+        TicketCategory.ASSET_CHECKOUT,
+        TicketCategory.ASSET_CHECKOUT_SINGPOST,
+        TicketCategory.ASSET_CHECKOUT_DHL,
+        TicketCategory.ASSET_CHECKOUT_UPS,
+        TicketCategory.ASSET_CHECKOUT_BLUEDART,
+        TicketCategory.ASSET_CHECKOUT_DTDC,
+        TicketCategory.ASSET_CHECKOUT_AUTO,
+        TicketCategory.ASSET_CHECKOUT_CLAW,
+    ]
+    
+    return ticket_category in checkout_categories
+
+
+def _auto_checkout_asset_to_customer(ticket, asset, db_session):
+    """
+    Automatically checkout an asset to the customer associated with the ticket
+    
+    Args:
+        ticket: Ticket object
+        asset: Asset object  
+        db_session: Database session
+        
+    Returns:
+        bool: True if checkout was successful, False otherwise
+    """
+    try:
+        print(f"[AUTO_CHECKOUT DEBUG] Starting auto-checkout for asset {asset.id} to customer")
+        
+        # Check if ticket has a customer
+        if not ticket.customer_id:
+            print(f"[AUTO_CHECKOUT DEBUG] Ticket {ticket.id} has no customer assigned")
+            return False
+            
+        # Get the customer
+        from models.customer_user import CustomerUser
+        customer = db_session.query(CustomerUser).get(ticket.customer_id)
+        if not customer:
+            print(f"[AUTO_CHECKOUT DEBUG] Customer {ticket.customer_id} not found")
+            return False
+            
+        print(f"[AUTO_CHECKOUT DEBUG] Found customer: {customer.name} (ID: {customer.id})")
+        
+        # Update asset status and assign to customer
+        from models.asset import AssetStatus
+        asset.status = AssetStatus.DEPLOYED
+        asset.customer_id = customer.id
+        
+        print(f"[AUTO_CHECKOUT DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer.id}")
+        
+        # Create asset transaction record
+        from models.asset_transaction import AssetTransaction
+        transaction = AssetTransaction(
+            asset_id=asset.id,
+            transaction_type='checkout',
+            customer_id=customer.id,
+            notes=f'Auto-checkout via ticket #{ticket.id}',
+            transaction_date=datetime.utcnow()
+        )
+        
+        # Set user_id manually since it's not in the constructor
+        transaction.user_id = current_user.id
+        
+        db_session.add(transaction)
+        
+        # Create activity for checkout
+        from models.activity import Activity
+        from flask_login import current_user
+        checkout_activity = Activity(
+            user_id=current_user.id,
+            type='asset_checkout',
+            content=f'Auto-checked out asset {asset.asset_tag} to {customer.name} via ticket #{ticket.id}',
+            reference_id=asset.id
+        )
+        db_session.add(checkout_activity)
+        
+        print(f"[AUTO_CHECKOUT DEBUG] Created transaction and activity records")
+        return True
+        
+    except Exception as e:
+        print(f"[AUTO_CHECKOUT DEBUG] Error during auto-checkout: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def _safely_assign_asset_to_ticket(ticket, asset, db_session):
     """
-    Safely assign an asset to a ticket, checking for existing relationships first
+    Safely assign an asset to a ticket using direct SQL to avoid relationship issues
     
     Args:
         ticket: Ticket object
@@ -29,12 +128,9 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         bool: True if assignment was successful or already exists, False otherwise
     """
     try:
-        # Check if asset is already assigned to this ticket
-        if asset in ticket.assets:
-            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
-            return True
+        print(f"[SAFELY_ASSIGN DEBUG] Checking assignment for asset {asset.id} to ticket {ticket.id}")
         
-        # Check if the relationship already exists in the database
+        # Check if the relationship already exists in the database FIRST
         stmt = text("""
             SELECT COUNT(*) FROM ticket_assets 
             WHERE ticket_id = :ticket_id AND asset_id = :asset_id
@@ -43,16 +139,31 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         count = result.scalar()
         
         if count > 0:
-            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            print(f"[SAFELY_ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
         
-        # Safe to assign - add the asset to the ticket
-        ticket.assets.append(asset)
-        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
-        return True
+        # Use direct SQL insertion to avoid SQLAlchemy relationship issues
+        print(f"[SAFELY_ASSIGN DEBUG] Inserting relationship via direct SQL")
+        insert_stmt = text("""
+            INSERT INTO ticket_assets (ticket_id, asset_id) 
+            VALUES (:ticket_id, :asset_id)
+        """)
+        
+        try:
+            db_session.execute(insert_stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
+            print(f"[SAFELY_ASSIGN DEBUG] Successfully inserted asset {asset.id} to ticket {ticket.id} via SQL")
+            return True
+        except Exception as sql_error:
+            # Check if it's a duplicate key error (which is actually OK)
+            if "UNIQUE constraint failed" in str(sql_error):
+                print(f"[SAFELY_ASSIGN DEBUG] Relationship already exists (UNIQUE constraint), this is OK")
+                return True
+            else:
+                print(f"[SAFELY_ASSIGN DEBUG] SQL insertion failed: {str(sql_error)}")
+                return False
         
     except Exception as e:
-        print(f"Error assigning asset to ticket: {str(e)}")
+        print(f"[SAFELY_ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
         return False
 
 @assets_bp.route('/add', methods=['POST'])
@@ -62,6 +173,7 @@ def add_asset():
     db_session = db_manager.get_session()
     try:
         data = request.get_json()
+        print(f"[ASSETS DEBUG] Received data: {data}")
         
         # Get form data
         asset_tag = data.get('asset_tag')
@@ -75,9 +187,16 @@ def add_asset():
         asset_type = data.get('type', 'MISC')
         ticket_id = data.get('ticket_id')  # Optional ticket ID to link to
 
+        print(f"[ASSETS DEBUG] Parsed fields: asset_tag={asset_tag}, serial_number={serial_number}, name={name}, ticket_id={ticket_id}")
+
         # Input validation
         if not all([asset_tag, serial_number, name]):
-            return jsonify({'success': False, 'error': 'Asset tag, serial number, and name are required'}), 400
+            missing = []
+            if not asset_tag: missing.append('asset_tag')
+            if not serial_number: missing.append('serial_number') 
+            if not name: missing.append('name')
+            print(f"[ASSETS DEBUG] Missing required fields: {missing}")
+            return jsonify({'success': False, 'error': '[ASSETS_ROUTE] Asset tag, serial number, and name are required'}), 400
 
         # Check if asset tag or serial number already exists
         existing_asset = db_session.query(Asset).filter(
@@ -86,11 +205,12 @@ def add_asset():
         
         if existing_asset:
             if existing_asset.asset_tag == asset_tag:
-                return jsonify({'success': False, 'error': 'Asset tag already exists'}), 400
+                return jsonify({'success': False, 'error': '[ASSETS_ROUTE] Asset tag already exists'}), 400
             else:
-                return jsonify({'success': False, 'error': 'Serial number already exists'}), 400
+                return jsonify({'success': False, 'error': '[ASSETS_ROUTE] Serial number already exists'}), 400
 
         # Create new asset
+        print(f"[ASSETS DEBUG] Creating new asset with: asset_tag={asset_tag}, serial_num={serial_number}, name={name}")
         new_asset = Asset(
             asset_tag=asset_tag,
             serial_num=serial_number,
@@ -103,7 +223,8 @@ def add_asset():
         )
         
         db_session.add(new_asset)
-        db_session.commit()
+        db_session.flush()  # Get the ID without committing
+        print(f"[ASSETS DEBUG] Asset created successfully with ID: {new_asset.id}")
         
         # Create activity log for asset creation
         activity = Activity(
@@ -116,23 +237,65 @@ def add_asset():
 
         # If ticket_id is provided, try to link the asset to the ticket
         if ticket_id:
+            print(f"[ASSETS DEBUG] Attempting to link asset {new_asset.id} to ticket {ticket_id}")
             try:
                 ticket = db_session.query(Ticket).get(int(ticket_id))
                 if ticket:
+                    print(f"[ASSETS DEBUG] Found ticket {ticket.id}")
+                    print(f"[ASSETS DEBUG] Current ticket.assets before linking: {[a.id for a in ticket.assets]}")
+                    
                     # Safely link asset to ticket
                     if _safely_assign_asset_to_ticket(ticket, new_asset, db_session):
+                        print(f"[ASSETS DEBUG] Successfully linked asset to ticket")
+                        print(f"[ASSETS DEBUG] Current ticket.assets after linking: {[a.id for a in ticket.assets]}")
+                        
                         # Add activity for linking
-                        activity = Activity(
+                        linking_activity = Activity(
                             user_id=current_user.id,
                             type='asset_linked',
                             content=f'Linked asset {new_asset.asset_tag} to ticket #{ticket_id}',
                             reference_id=new_asset.id
                         )
-                        db_session.add(activity)
-                        db_session.commit()
-            except (ValueError, AttributeError) as e:
-                # Log the error but don't fail - still return success for asset creation
-                print(f"Error linking asset to ticket: {str(e)}")
+                        db_session.add(linking_activity)
+                        print(f"[ASSETS DEBUG] Added linking activity")
+                        
+                        # Auto-checkout asset for Asset Checkout tickets
+                        print(f"[ASSETS DEBUG] Checking if ticket should auto-checkout asset")
+                        print(f"[ASSETS DEBUG] Ticket category: {ticket.category}")
+                        print(f"[ASSETS DEBUG] Ticket customer_id: {ticket.customer_id}")
+                        
+                        if ticket.category and _is_asset_checkout_ticket(ticket.category):
+                            print(f"[ASSETS DEBUG] This is an Asset Checkout ticket ({ticket.category.value}), auto-checking out asset")
+                            if _auto_checkout_asset_to_customer(ticket, new_asset, db_session):
+                                print(f"[ASSETS DEBUG] Successfully auto-checked out asset to customer")
+                                print(f"[ASSETS DEBUG] Asset status after checkout: {new_asset.status}")
+                                print(f"[ASSETS DEBUG] Asset customer_id after checkout: {new_asset.customer_id}")
+                            else:
+                                print(f"[ASSETS DEBUG] Failed to auto-checkout asset to customer")
+                        else:
+                            if not ticket.category:
+                                print(f"[ASSETS DEBUG] Ticket has no category - skipping auto-checkout")
+                            else:
+                                print(f"[ASSETS DEBUG] Ticket category {ticket.category.value} is not an Asset Checkout type - skipping auto-checkout")
+                    else:
+                        print(f"[ASSETS DEBUG] Failed to link asset to ticket")
+                else:
+                    print(f"[ASSETS DEBUG] Ticket {ticket_id} not found")
+            except Exception as e:
+                print(f"[ASSETS DEBUG] Exception during linking: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
+        # Single commit for everything
+        print(f"[ASSETS DEBUG] About to commit all operations")
+        try:
+            db_session.commit()
+            print(f"[ASSETS DEBUG] All operations committed successfully")
+        except Exception as e:
+            print(f"[ASSETS DEBUG] Error during commit: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
 
         # Return success response with asset data
         return jsonify({
@@ -142,15 +305,15 @@ def add_asset():
                 'asset_tag': new_asset.asset_tag,
                 'serial_number': new_asset.serial_num,
                 'name': new_asset.name,
-                'status': status,
+                'status': new_asset.status.value if new_asset.status else status,
                 'type': asset_type
             }
         })
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error adding asset: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"[ASSETS DEBUG] Exception in add_asset: {str(e)}")
+        return jsonify({'success': False, 'error': f'[ASSETS_ROUTE] {str(e)}'}), 500
     finally:
         db_session.close()
 

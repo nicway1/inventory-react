@@ -36,7 +36,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-bold text-gray-900 break-words">
-                        {{ asset.hardware_type or asset.model or "Unnamed Asset" }}
+                        {{ asset.name or asset.hardware_type or asset.model or "Unnamed Asset" }}
                     </h1>
                     <div class="flex items-center mt-1 space-x-2">
                         <p class="text-sm text-gray-500">Asset ID: {{ asset.asset_tag }}</p>

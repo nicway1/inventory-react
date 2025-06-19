@@ -43,6 +43,7 @@ from utils.auth import safe_generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
 from routes.intake import intake_bp
+from routes.reports import reports_bp
 # Import category blueprints
 from routes.ticket_categories.asset_checkout_claw import asset_checkout_claw_bp
 from routes.ticket_categories.asset_return_claw import asset_return_claw_bp
@@ -168,6 +169,7 @@ def create_app():
     app.register_blueprint(assets_bp)
     app.register_blueprint(documents_bp)
     app.register_blueprint(debug_bp)
+    app.register_blueprint(reports_bp)
     # Register category blueprints
     app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file

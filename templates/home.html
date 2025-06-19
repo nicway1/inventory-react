@@ -102,18 +102,31 @@
         </div>
         {% endif %}
 
+        <!-- Reports Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <h2 class="text-xl font-semibold">Reports</h2>
+            </div>
+            <p class="text-3xl font-bold text-indigo-600">Analytics</p>
+            <p class="text-gray-600">View Reports & Insights</p>
+            <a href="{{ url_for('reports.index') }}" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800">View Reports →</a>
+        </div>
+
         <!-- Import Card -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
-                <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-teal-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
                 <h2 class="text-xl font-semibold">Import Data</h2>
             </div>
-            <p class="text-3xl font-bold text-indigo-600">Import</p>
+            <p class="text-3xl font-bold text-teal-600">Import</p>
             <p class="text-gray-600">Import New Data</p>
-            <a href="{{ url_for('inventory.import_inventory') }}" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800">Import Data →</a>
+            <a href="{{ url_for('inventory.import_inventory') }}" class="mt-4 inline-block text-teal-600 hover:text-teal-800">Import Data →</a>
         </div>
         {% endif %}
 

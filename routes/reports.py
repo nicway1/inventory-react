@@ -1,0 +1,285 @@
+from flask import Blueprint, render_template, jsonify, request
+from flask_login import login_required, current_user
+from sqlalchemy import func, extract, and_, or_, case
+from datetime import datetime, timedelta
+import json
+from database import SessionLocal
+from models import (
+    Ticket, Asset, AssetTransaction, AccessoryTransaction,
+    User, Company, CustomerUser, TicketStatus, TicketPriority,
+    AssetStatus, TicketCategory
+)
+from utils.auth_decorators import admin_or_country_admin_required
+
+reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+
+@reports_bp.route('/')
+@login_required
+def index():
+    """Reports dashboard"""
+    return render_template('reports/index.html')
+
+@reports_bp.route('/cases')
+@login_required
+def case_reports():
+    """Case/Ticket reports with various visualizations"""
+    # Get date range from request
+    days = request.args.get('days', 30, type=int)
+    start_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get database session
+    db = SessionLocal()
+    try:
+        # Query tickets based on user permissions
+        query = db.query(Ticket)
+        
+        # Apply permission filters
+        if current_user.user_type.value == 'COUNTRY_ADMIN':
+            # Country admins see tickets from their country
+            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
+        elif current_user.user_type.value == 'CLIENT':
+            # Clients see only their tickets
+            query = query.filter(Ticket.requester_id == current_user.id)
+        
+        # Get all tickets for the period
+        tickets = query.filter(Ticket.created_at >= start_date).all()
+        
+        # Prepare data for charts
+        # 1. Tickets by Status (Pie Chart)
+        status_counts = {}
+        for ticket in tickets:
+            status_name = ticket.status.value if ticket.status else 'No Status'
+            status_counts[status_name] = status_counts.get(status_name, 0) + 1
+        
+        # 2. Tickets by Priority (Donut Chart)
+        priority_counts = {}
+        for ticket in tickets:
+            priority_name = ticket.priority.value if ticket.priority else 'No Priority'
+            priority_counts[priority_name] = priority_counts.get(priority_name, 0) + 1
+        
+        # 3. Tickets by Category (Bar Chart)
+        category_counts = {}
+        for ticket in tickets:
+            category_name = ticket.get_category_display_name() if ticket.category else 'No Category'
+            category_counts[category_name] = category_counts.get(category_name, 0) + 1
+        
+        # 4. Tickets over Time (Line Chart)
+        tickets_by_date = {}
+        for ticket in tickets:
+            date_str = ticket.created_at.strftime('%Y-%m-%d')
+            tickets_by_date[date_str] = tickets_by_date.get(date_str, 0) + 1
+        
+        # Sort dates and fill missing dates
+        all_dates = []
+        current_date = start_date.date()
+        end_date = datetime.utcnow().date()
+        while current_date <= end_date:
+            date_str = current_date.strftime('%Y-%m-%d')
+            all_dates.append({
+                'date': date_str,
+                'count': tickets_by_date.get(date_str, 0)
+            })
+            current_date += timedelta(days=1)
+        
+        # 5. Average Resolution Time by Category
+        resolution_times = {}
+        resolved_counts = {}
+        for ticket in tickets:
+            if ticket.status and ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED']:
+                category_name = ticket.get_category_display_name() if ticket.category else 'No Category'
+                # Calculate resolution time in hours
+                resolution_time = (ticket.updated_at - ticket.created_at).total_seconds() / 3600
+                if category_name not in resolution_times:
+                    resolution_times[category_name] = 0
+                    resolved_counts[category_name] = 0
+                resolution_times[category_name] += resolution_time
+                resolved_counts[category_name] += 1
+        
+        avg_resolution_times = {}
+        for category, total_time in resolution_times.items():
+            avg_resolution_times[category] = round(total_time / resolved_counts[category], 2)
+        
+        # 6. Top Customers by Ticket Count
+        customer_counts = {}
+        for ticket in tickets:
+            if ticket.customer:
+                customer_name = ticket.customer.name
+                customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
+        
+        # Sort and get top 10
+        top_customers = sorted(customer_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        # 7. Summary Statistics
+        total_tickets = len(tickets)
+        open_tickets = len([t for t in tickets if t.status and t.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED']])
+        resolved_tickets = total_tickets - open_tickets
+        resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
+        
+        high_priority = len([t for t in tickets if t.priority and t.priority.name == 'HIGH'])
+        critical_priority = len([t for t in tickets if t.priority and t.priority.name == 'CRITICAL'])
+        
+        return render_template('reports/case_reports.html',
+            status_data=json.dumps(status_counts),
+            priority_data=json.dumps(priority_counts),
+            category_data=json.dumps(category_counts),
+            timeline_data=json.dumps(all_dates),
+            resolution_data=json.dumps(avg_resolution_times),
+            top_customers=json.dumps(top_customers),
+            stats={
+                'total': total_tickets,
+                'open': open_tickets,
+                'resolved': resolved_tickets,
+                'resolution_rate': round(resolution_rate, 1),
+                'high_priority': high_priority,
+                'critical_priority': critical_priority
+            },
+            days=days
+        )
+    finally:
+        db.close()
+
+@reports_bp.route('/assets')
+@login_required
+def asset_reports():
+    """Asset reports with various visualizations"""
+    # Get database session
+    db = SessionLocal()
+    try:
+        # Query assets based on user permissions
+        query = db.query(Asset)
+    
+    # Apply permission filters
+    if current_user.user_type.value == 'COUNTRY_ADMIN':
+        # Country admins see assets from their country
+        query = query.filter(Asset.country == current_user.country)
+    elif current_user.user_type.value == 'CLIENT':
+        # Clients see only assets assigned to them
+        query = query.filter(Asset.customer_id == current_user.id)
+    
+    assets = query.all()
+    
+    # 1. Assets by Status (Pie Chart)
+    status_counts = {}
+    for asset in assets:
+        status_name = asset.status.value if asset.status else 'No Status'
+        status_counts[status_name] = status_counts.get(status_name, 0) + 1
+    
+    # 2. Assets by Type (Bar Chart)
+    type_counts = {}
+    for asset in assets:
+        asset_type = asset.asset_type or 'Unknown'
+        type_counts[asset_type] = type_counts.get(asset_type, 0) + 1
+    
+    # 3. Assets by Model (Horizontal Bar Chart - Top 10)
+    model_counts = {}
+    for asset in assets:
+        model = asset.model or 'Unknown Model'
+        model_counts[model] = model_counts.get(model, 0) + 1
+    
+    # Sort and get top 10
+    top_models = sorted(model_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # 4. Assets by Country (Map or Bar Chart)
+    country_counts = {}
+    for asset in assets:
+        country = asset.country or 'Unknown'
+        country_counts[country] = country_counts.get(country, 0) + 1
+    
+    # 5. Asset Age Distribution (Histogram)
+    age_distribution = {
+        '0-6 months': 0,
+        '6-12 months': 0,
+        '1-2 years': 0,
+        '2-3 years': 0,
+        '3+ years': 0
+    }
+    
+    current_date = datetime.utcnow()
+    for asset in assets:
+        if asset.receiving_date:
+            age_days = (current_date - asset.receiving_date).days
+            if age_days <= 180:
+                age_distribution['0-6 months'] += 1
+            elif age_days <= 365:
+                age_distribution['6-12 months'] += 1
+            elif age_days <= 730:
+                age_distribution['1-2 years'] += 1
+            elif age_days <= 1095:
+                age_distribution['2-3 years'] += 1
+            else:
+                age_distribution['3+ years'] += 1
+    
+    # 6. Assets by Customer (Top 10)
+    customer_counts = {}
+    for asset in assets:
+        if asset.customer:
+            customer_name = asset.customer.name
+            customer_counts[customer_name] = customer_counts.get(customer_name, 0) + 1
+    
+    top_asset_customers = sorted(customer_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+        # 7. Asset Transaction History (Last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        transactions = db.query(AssetTransaction).filter(
+            AssetTransaction.created_at >= thirty_days_ago
+        ).all()
+        
+        transaction_counts = {}
+        for transaction in transactions:
+            date_str = transaction.created_at.strftime('%Y-%m-%d')
+            transaction_counts[date_str] = transaction_counts.get(date_str, 0) + 1
+        
+        # 8. Summary Statistics
+        total_assets = len(assets)
+        active_assets = len([a for a in assets if a.status and a.status.name == 'ACTIVE'])
+        deployed_assets = len([a for a in assets if a.status and a.status.name == 'DEPLOYED'])
+        in_repair = len([a for a in assets if a.status and a.status.name == 'IN_REPAIR'])
+        
+        # Calculate asset utilization rate
+        utilization_rate = ((active_assets + deployed_assets) / total_assets * 100) if total_assets > 0 else 0
+        
+        return render_template('reports/asset_reports.html',
+            status_data=json.dumps(status_counts),
+            type_data=json.dumps(type_counts),
+            model_data=json.dumps(dict(top_models)),
+            country_data=json.dumps(country_counts),
+            age_data=json.dumps(age_distribution),
+            customer_data=json.dumps(top_asset_customers),
+            transaction_data=json.dumps(transaction_counts),
+            stats={
+                'total': total_assets,
+                'active': active_assets,
+                'deployed': deployed_assets,
+                'in_repair': in_repair,
+                'utilization_rate': round(utilization_rate, 1)
+            }
+        )
+    finally:
+        db.close()
+
+@reports_bp.route('/export/<report_type>')
+@login_required
+def export_report(report_type):
+    """Export report data as JSON or CSV"""
+    format = request.args.get('format', 'json')
+    
+    if report_type == 'cases':
+        # Get case report data
+        data = {
+            'report_type': 'cases',
+            'generated_at': datetime.utcnow().isoformat(),
+            'user': current_user.username,
+            # Add actual data here
+        }
+    elif report_type == 'assets':
+        # Get asset report data
+        data = {
+            'report_type': 'assets',
+            'generated_at': datetime.utcnow().isoformat(),
+            'user': current_user.username,
+            # Add actual data here
+        }
+    else:
+        return jsonify({'error': 'Invalid report type'}), 400
+    
+    return jsonify(data) 

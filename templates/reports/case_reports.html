@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+    .sf-chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    .sf-stat-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .sf-chart-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .sf-chart-header {
+        background-color: #f9fafb;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Case Reports</h1>
+                    <p class="text-gray-600">Comprehensive ticket analytics and insights</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Date Range Selector -->
+                <select id="dateRange" onchange="updateDateRange()" class="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                    <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+                </select>
+                <!-- Export Button -->
+                <button onclick="exportReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Cases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+                </div>
+                <div class="p-2 bg-blue-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Open Cases</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ stats.open }}</p>
+                </div>
+                <div class="p-2 bg-orange-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Resolved</p>
+                    <p class="text-2xl font-bold text-green-600">{{ stats.resolved }}</p>
+                </div>
+                <div class="p-2 bg-green-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Resolution Rate</p>
+                    <p class="text-2xl font-bold text-indigo-600">{{ stats.resolution_rate }}%</p>
+                </div>
+                <div class="p-2 bg-indigo-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">High Priority</p>
+                    <p class="text-2xl font-bold text-red-600">{{ stats.high_priority }}</p>
+                </div>
+                <div class="p-2 bg-red-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.833-1.732-.833-2.464 0L3.268 16.5C2.498 18.333 3.46 20 5 20z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sf-stat-card rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Critical</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ stats.critical_priority }}</p>
+                </div>
+                <div class="p-2 bg-purple-500 bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Status Distribution (Pie Chart) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Case Status Distribution</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Priority Breakdown (Donut Chart) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Priority Breakdown</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="priorityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Category Distribution (Bar Chart) -->
+        <div class="bg-white sf-chart-card lg:col-span-2">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Cases by Category</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Customers (Horizontal Bar) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Top Customers</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="customerChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="grid grid-cols-1 gap-6 mb-6">
+        <!-- Timeline (Line Chart) -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Case Trend Over Time</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container" style="height: 400px;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 4 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Resolution Time by Category -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Average Resolution Time by Category (Hours)</h3>
+            </div>
+            <div class="p-6">
+                <div class="sf-chart-container">
+                    <canvas id="resolutionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Insights -->
+        <div class="bg-white sf-chart-card">
+            <div class="sf-chart-header">
+                <h3 class="text-lg font-semibold text-gray-900">Key Insights</h3>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h4 class="font-semibold text-blue-900 mb-2">Most Active Day</h4>
+                        <p class="text-blue-700">Analyzing case creation patterns...</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h4 class="font-semibold text-green-900 mb-2">Fastest Resolution</h4>
+                        <p class="text-green-700">Category with quickest turnaround...</p>
+                    </div>
+                    <div class="p-4 bg-yellow-50 rounded-lg">
+                        <h4 class="font-semibold text-yellow-900 mb-2">Attention Needed</h4>
+                        <p class="text-yellow-700">Categories with increasing case volume...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart.js default configuration
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+Chart.defaults.color = '#374151';
+
+// Parse data from backend
+const statusData = {{ status_data|safe }};
+const priorityData = {{ priority_data|safe }};
+const categoryData = {{ category_data|safe }};
+const timelineData = {{ timeline_data|safe }};
+const resolutionData = {{ resolution_data|safe }};
+const topCustomers = {{ top_customers|safe }};
+
+// Color palettes
+const salesforceColors = [
+    '#1B96FF', '#032D60', '#0176D3', '#57A4FB', '#78B8FD',
+    '#FF538A', '#CB2039', '#E34850', '#FF7A8A', '#FFA0B4',
+    '#7F8DE1', '#2E2E5F', '#4B4CDB', '#9EA0E7', '#C3C4ED'
+];
+
+// 1. Status Distribution Chart
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+    type: 'pie',
+    data: {
+        labels: Object.keys(statusData),
+        datasets: [{
+            data: Object.values(statusData),
+            backgroundColor: salesforceColors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// 2. Priority Breakdown Chart
+const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+new Chart(priorityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(priorityData),
+        datasets: [{
+            data: Object.values(priorityData),
+            backgroundColor: ['#E34850', '#FF7A8A', '#FFA500', '#4B4CDB', '#9EA0E7'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// 3. Category Distribution Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(categoryData),
+        datasets: [{
+            label: 'Number of Cases',
+            data: Object.values(categoryData),
+            backgroundColor: '#1B96FF',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// 4. Top Customers Chart
+const customerCtx = document.getElementById('customerChart').getContext('2d');
+new Chart(customerCtx, {
+    type: 'bar',
+    data: {
+        labels: topCustomers.map(c => c[0]),
+        datasets: [{
+            label: 'Cases',
+            data: topCustomers.map(c => c[1]),
+            backgroundColor: '#7F8DE1',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            },
+            y: {
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+
+// 5. Timeline Chart
+const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+new Chart(timelineCtx, {
+    type: 'line',
+    data: {
+        labels: timelineData.map(d => d.date),
+        datasets: [{
+            label: 'Cases Created',
+            data: timelineData.map(d => d.count),
+            borderColor: '#1B96FF',
+            backgroundColor: 'rgba(27, 150, 255, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    parser: 'YYYY-MM-DD',
+                    unit: 'day',
+                    displayFormats: {
+                        day: 'MMM DD'
+                    }
+                },
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+
+// 6. Resolution Time Chart
+const resolutionCtx = document.getElementById('resolutionChart').getContext('2d');
+new Chart(resolutionCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(resolutionData),
+        datasets: [{
+            label: 'Avg Hours',
+            data: Object.values(resolutionData),
+            backgroundColor: '#32C832',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Functions
+function updateDateRange() {
+    const days = document.getElementById('dateRange').value;
+    window.location.href = `{{ url_for('reports.case_reports') }}?days=${days}`;
+}
+
+function exportReport() {
+    window.location.href = `{{ url_for('reports.export_report', report_type='cases') }}`;
+}
+</script>
+{% endblock %} 

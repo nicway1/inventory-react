@@ -521,7 +521,7 @@ Additional Notes:
                                     raise
                         
                         # Update asset status and assign to customer
-                        asset.customer_user_id = customer_id
+                        asset.customer_id = customer_id
                         asset.status = AssetStatus.DEPLOYED
                         print(f"[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
                     else:
@@ -1456,8 +1456,8 @@ def assign_existing_asset(ticket_id):
                     print(f"[ASSIGN ASSET] Updated asset {asset.asset_tag} status to DEPLOYED")
                 
                 # Assign to customer if there's a customer on the ticket
-                if ticket.customer_id and not asset.customer_user_id:
-                    asset.customer_user_id = ticket.customer_id
+                if ticket.customer_id and not asset.customer_id:
+                    asset.customer_id = ticket.customer_id
                     print(f"[ASSIGN ASSET] Assigned asset {asset.asset_tag} to customer {ticket.customer_id}")
             
             # Commit the changes
@@ -4751,8 +4751,8 @@ def debug_documents(ticket_id):
         # Get asset data
         if ticket.assets:
             for asset in ticket.assets:
-                if asset.customer_user_id:
-                    asset.customer_user = db_session.query(CustomerUser).filter_by(id=asset.customer_user_id).first()
+                if asset.customer_id:
+                    asset.customer_user = db_session.query(CustomerUser).filter_by(id=asset.customer_id).first()
         
         # Current user
         user = db_manager.get_user(session['user_id'])
