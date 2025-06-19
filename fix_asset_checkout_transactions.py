@@ -68,9 +68,10 @@ def fix_missing_asset_transactions():
                                 transaction_type='checkout',
                                 customer_id=ticket.customer_id,
                                 notes=f'Retroactive transaction for Asset Checkout (claw) ticket #{ticket.id}',
-                                transaction_date=ticket.created_at,
-                                user_id=ticket.requester_id
+                                transaction_date=ticket.created_at
                             )
+                            # Set user_id after creation since it's not in __init__
+                            transaction.user_id = ticket.requester_id
                             
                             db.add(transaction)
                             fixed_count += 1
