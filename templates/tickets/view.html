@@ -876,6 +876,117 @@
                         </div>
                     </div>
 
+                    <!-- Customer Information Card for Asset Checkout Categories -->
+                    {% if ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_CLAW' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DHL' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_UPS' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_BLUEDART' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_DTDC' or 
+                          ticket.category.name == 'ASSET_CHECKOUT_AUTO') and ticket.customer %}
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <h2 class="sf-card-title">Customer Information</h2>
+                        </div>
+                        <div class="sf-card-body">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <!-- Customer Details -->
+                                <div class="space-y-4">
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Customer Name</div>
+                                        <div class="sf-field-value font-medium">{{ ticket.customer.name }}</div>
+                                    </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Email</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.customer.email %}
+                                            <a href="mailto:{{ ticket.customer.email }}" class="text-blue-600 hover:text-blue-800">
+                                                {{ ticket.customer.email }}
+                                            </a>
+                                            {% else %}
+                                            <span class="text-gray-500">Not provided</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Phone</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.customer.phone %}
+                                            <a href="tel:{{ ticket.customer.phone }}" class="text-blue-600 hover:text-blue-800">
+                                                {{ ticket.customer.phone }}
+                                            </a>
+                                            {% else %}
+                                            <span class="text-gray-500">Not provided</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Company Details -->
+                                <div class="space-y-4">
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Company</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.customer.company %}
+                                            {{ ticket.customer.company.name }}
+                                            {% else %}
+                                            <span class="text-gray-500">No Company</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if ticket.customer.company and ticket.customer.company.website %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Website</div>
+                                        <div class="sf-field-value">
+                                            <a href="{{ ticket.customer.company.website }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                                {{ ticket.customer.company.website }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if ticket.customer.department %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Department</div>
+                                        <div class="sf-field-value">{{ ticket.customer.department }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Address Details -->
+                                <div class="space-y-4">
+                                    {% if ticket.customer.address or ticket.shipping_address %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">{% if ticket.shipping_address %}Shipping Address{% else %}Address{% endif %}</div>
+                                        <div class="sf-field-value whitespace-pre-wrap">
+                                            {% if ticket.shipping_address %}
+                                            {{ ticket.shipping_address }}
+                                            {% elif ticket.customer.address %}
+                                            {{ ticket.customer.address }}
+                                            {% else %}
+                                            <span class="text-gray-500">Not provided</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if ticket.customer.country %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Country</div>
+                                        <div class="sf-field-value">{{ ticket.customer.country }}</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if ticket.customer.timezone %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Timezone</div>
+                                        <div class="sf-field-value">{{ ticket.customer.timezone }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Related Records Section -->
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
