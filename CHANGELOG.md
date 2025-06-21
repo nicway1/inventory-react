@@ -5,6 +5,45 @@ All notable changes to the TrueLog Inventory Management System will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2025-06-22
+
+### 🚀 New Features
+
+#### Multiple Tracking Numbers for Asset Checkout (claw)
+- **Added support for multiple tracking numbers** per ticket
+- **Renamed "Outbound Tracking" to "Outbound Tracking 1"** for clarity
+- **Dynamic tracking number management** with add/delete capabilities
+- **Item assignment system** allowing assets and accessories to be assigned to specific tracking numbers
+- **Smart dropdown menus** that automatically remove assigned items from available selections
+- **Visual tracking status indicators** with color-coded badges
+- **Automatic sequence numbering** for tracking (Outbound Tracking 1, 2, 3, etc.)
+
+### 💾 Database Enhancements
+- **New `ticket_tracking` table** for storing multiple tracking numbers per ticket
+- **New `tracking_item_assignments` table** for linking items to tracking numbers
+- **Migration system** to preserve existing tracking data
+- **Performance indexes** on all foreign key relationships
+
+### 🔧 Technical Improvements
+- **New API endpoints** for tracking management:
+  - `GET /api/tickets/{id}/tracking` - Get all tracking numbers for a ticket
+  - `POST /api/tickets/{id}/tracking` - Add new tracking number
+  - `DELETE /api/tracking/{id}` - Delete tracking number
+  - `POST /api/tracking/{id}/items` - Assign items to tracking
+  - `DELETE /api/tracking/{id}/items` - Remove items from tracking
+  - `POST /api/tracking/{id}/refresh` - Refresh tracking status
+  - `GET /api/tickets/{id}/available-items` - Get unassigned items
+- **Real-time tracking status refresh** per individual tracking number
+- **Auto-close functionality** when all packages are delivered
+
+### 🎨 User Interface Enhancements
+- **Modern tracking cards** with expandable item assignments
+- **Interactive modal** for managing item assignments
+- **Checkbox-based selection** for bulk item assignment
+- **Clear visual separation** between assets (blue badges) and accessories (green badges)
+- **Empty state graphics** when no tracking numbers exist
+- **Responsive design** for mobile and desktop
+
 ## [0.6.1] - 2025-06-22
 
 ### 🎨 User Interface Improvements
