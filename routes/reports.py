@@ -167,13 +167,32 @@ def asset_reports():
         # 2. Assets by Type (Bar Chart)
         type_counts = {}
         for asset in assets:
-            asset_type = asset.asset_type or 'Unknown'
+            # Normalize asset type to avoid duplicates like "Apple" and "APPLE"
+            raw_type = (asset.asset_type or 'Unknown').strip()
+            asset_type = raw_type.title()  # Convert to Title Case (e.g., "apple" -> "Apple")
+            
+            # Special handling for PC types to display as "Windows (PC)"
+            if asset_type.lower() == 'pc':
+                asset_type = 'Windows (PC)'
+            elif asset_type.lower() == 'desktop pc':
+                asset_type = 'Windows (PC)'
+            
             type_counts[asset_type] = type_counts.get(asset_type, 0) + 1
         
         # 3. Assets by Model (Horizontal Bar Chart - Top 10)
         model_counts = {}
         for asset in assets:
-            model = asset.model or 'Unknown Model'
+            # Handle model field more robustly
+            if asset.model is None:
+                model = 'Unknown Model'
+            elif isinstance(asset.model, str) and asset.model.strip() == '':
+                model = 'Unknown Model'
+            else:
+                model = str(asset.model).strip()
+                # If it's still empty after stripping, mark as unknown
+                if not model:
+                    model = 'Unknown Model'
+            
             model_counts[model] = model_counts.get(model, 0) + 1
         
         # Sort and get top 10
@@ -259,7 +278,8 @@ def asset_reports():
         total_assets = len(assets)
         active_assets = len([a for a in assets if a.status and a.status == AssetStatus.READY_TO_DEPLOY])
         deployed_assets = len([a for a in assets if a.status and a.status == AssetStatus.DEPLOYED])
-        in_repair = len([a for a in assets if a.status and a.status == AssetStatus.REPAIR])
+        # Maintenance uses the same logic as inventory Maintenance tab (assets where ERASED is not COMPLETED)
+        maintenance = len([a for a in assets if not a.erased or a.erased.strip() == '' or a.erased.lower() != 'completed'])
         
         # Calculate asset utilization rate
         utilization_rate = ((active_assets + deployed_assets) / total_assets * 100) if total_assets > 0 else 0
@@ -276,7 +296,7 @@ def asset_reports():
                 'total': total_assets,
                 'active': active_assets,
                 'deployed': deployed_assets,
-                'in_repair': in_repair,
+                'maintenance': maintenance,
                 'utilization_rate': round(utilization_rate, 1),
                 'transaction_period': transaction_period,
                 'total_transactions': len(transactions)
@@ -285,29 +305,136 @@ def asset_reports():
     finally:
         db.close()
 
-@reports_bp.route('/export/<report_type>')
+# Removed unused export route - now using client-side CSV generation
+
+@reports_bp.route('/assets/by-model/<model_name>')
 @login_required
-def export_report(report_type):
-    """Export report data as JSON or CSV"""
-    format = request.args.get('format', 'json')
-    
-    if report_type == 'cases':
-        # Get case report data
-        data = {
-            'report_type': 'cases',
-            'generated_at': datetime.utcnow().isoformat(),
-            'user': current_user.username,
-            # Add actual data here
-        }
-    elif report_type == 'assets':
-        # Get asset report data
-        data = {
-            'report_type': 'assets',
-            'generated_at': datetime.utcnow().isoformat(),
-            'user': current_user.username,
-            # Add actual data here
-        }
-    else:
-        return jsonify({'error': 'Invalid report type'}), 400
-    
-    return jsonify(data) 
+def assets_by_model(model_name):
+    """View all assets for a specific model"""
+    # Get database session
+    db = SessionLocal()
+    try:
+        # Handle "Unknown Model" case
+        if model_name == 'Unknown Model':
+            # Get all assets first, then filter using the same logic as the main chart
+            all_assets = db.query(Asset)
+            
+            # Apply permission filters first
+            if current_user.user_type.value == 'COUNTRY_ADMIN':
+                all_assets = all_assets.filter(Asset.country == current_user.country)
+            elif current_user.user_type.value == 'CLIENT':
+                all_assets = all_assets.filter(Asset.customer_id == current_user.id)
+            
+            # Get all assets and filter using the same logic as the main chart
+            all_assets_list = all_assets.all()
+            assets = []
+            
+            for asset in all_assets_list:
+                # Use the EXACT same logic as the main chart
+                if asset.model is None:
+                    model = 'Unknown Model'
+                elif isinstance(asset.model, str) and asset.model.strip() == '':
+                    model = 'Unknown Model'
+                else:
+                    model = str(asset.model).strip()
+                    # If it's still empty after stripping, mark as unknown
+                    if not model:
+                        model = 'Unknown Model'
+                
+                # If this asset would be classified as Unknown Model, include it
+                if model == 'Unknown Model':
+                    assets.append(asset)
+            
+            # Skip the normal query since we already have our filtered assets
+            query = None
+        else:
+            # Query assets with the specific model (exact match after stripping)
+            query = db.query(Asset).filter(Asset.model == model_name)
+            
+            # Apply permission filters
+            if current_user.user_type.value == 'COUNTRY_ADMIN':
+                # Country admins see assets from their country
+                query = query.filter(Asset.country == current_user.country)
+            elif current_user.user_type.value == 'CLIENT':
+                # Clients see only assets assigned to them
+                query = query.filter(Asset.customer_id == current_user.id)
+            
+            assets = query.all()
+        
+        # Group assets by status for display
+        status_groups = {}
+        for asset in assets:
+            status_name = asset.status.value if asset.status else 'No Status'
+            if status_name not in status_groups:
+                status_groups[status_name] = []
+            status_groups[status_name].append(asset)
+        
+        return render_template('reports/assets_by_model.html',
+            model_name=model_name,
+            assets=assets,
+            status_groups=status_groups,
+            total_count=len(assets)
+        )
+    finally:
+        db.close()
+
+@reports_bp.route('/debug/unknown-models')
+@login_required
+def debug_unknown_models():
+    """Debug route to investigate Unknown Model assets"""
+    # Get database session
+    db = SessionLocal()
+    try:
+        # Use the EXACT same logic as the main chart and assets_by_model route
+        query = db.query(Asset)
+        
+        # Apply permission filters
+        if current_user.user_type.value == 'COUNTRY_ADMIN':
+            query = query.filter(Asset.country == current_user.country)
+        elif current_user.user_type.value == 'CLIENT':
+            query = query.filter(Asset.customer_id == current_user.id)
+        
+        # Get all assets and filter using the same logic as the main chart
+        all_assets = query.all()
+        unknown_model_assets = []
+        
+        for asset in all_assets:
+            # Use the EXACT same logic as the main chart
+            if asset.model is None:
+                model = 'Unknown Model'
+            elif isinstance(asset.model, str) and asset.model.strip() == '':
+                model = 'Unknown Model'
+            else:
+                model = str(asset.model).strip()
+                # If it's still empty after stripping, mark as unknown
+                if not model:
+                    model = 'Unknown Model'
+            
+            # If this asset would be classified as Unknown Model, include it
+            if model == 'Unknown Model':
+                unknown_model_assets.append(asset)
+        
+        # Show first 50 for debugging, but report the actual total
+        debug_info = []
+        sample_assets = unknown_model_assets[:50]  # First 50 for debugging
+        
+        for asset in sample_assets:
+            debug_info.append({
+                'id': asset.id,
+                'asset_tag': asset.asset_tag,
+                'serial_num': asset.serial_num,
+                'model': asset.model,
+                'model_repr': repr(asset.model),
+                'model_type': type(asset.model).__name__,
+                'model_length': len(asset.model) if asset.model else 0,
+                'name': asset.name,
+                'asset_type': asset.asset_type
+            })
+        
+        return jsonify({
+            'total_unknown_models': len(unknown_model_assets),
+            'sample_assets': debug_info,
+            'message': f'Found {len(unknown_model_assets)} assets with Unknown Model (showing first {len(sample_assets)} for debugging)'
+        })
+    finally:
+        db.close() 

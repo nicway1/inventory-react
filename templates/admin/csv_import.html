@@ -342,6 +342,38 @@ let currentPreviewIndex = null;
 let currentIsGrouped = false;
 let currentFileId = null;
 
+// Global variables to store selected items
+let selectedAccessories = [];
+let selectedAssets = [];
+
+// Helper function to clear all selections and checkboxes
+function clearAllSelections() {
+    // Clear arrays
+    selectedAccessories = [];
+    selectedAssets = [];
+    
+    // Uncheck all asset checkboxes
+    const assetCheckboxes = document.querySelectorAll('input[data-asset-id]');
+    assetCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Uncheck all accessory checkboxes
+    const accessoryCheckboxes = document.querySelectorAll('input[data-accessory-id]');
+    accessoryCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Update UI
+    updateSelectedItemsSummary();
+    
+    // Clear all item-specific selected lists
+    const selectedContainers = document.querySelectorAll('[id^="selected_items_"]');
+    selectedContainers.forEach(container => {
+        container.classList.add('hidden');
+    });
+}
+
 // Upload form handler
 document.getElementById('csvUploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -931,10 +963,6 @@ function populateInventoryStatus(inventoryInfo) {
     container.innerHTML = html;
 }
 
-// Global variables to store selected items
-let selectedAccessories = [];
-let selectedAssets = [];
-
 // Handle asset selection
 function handleAssetSelection(checkbox) {
     const itemIndex = parseInt(checkbox.dataset.itemIndex);
@@ -1227,9 +1255,7 @@ document.getElementById('bulkImportBtn').addEventListener('click', async functio
             });
             
             // Clear selected items after successful bulk import
-            selectedAccessories = [];
-            selectedAssets = [];
-            updateSelectedItemsSummary();
+            clearAllSelections();
             
         } else {
             progressText.textContent = '❌ Bulk import failed';
@@ -1244,10 +1270,14 @@ document.getElementById('bulkImportBtn').addEventListener('click', async functio
 // Modal handlers
 document.getElementById('closePreview').addEventListener('click', function() {
     document.getElementById('previewModal').classList.add('hidden');
+    // Clear all selected items and checkboxes when closing modal
+    clearAllSelections();
 });
 
 document.getElementById('cancelPreview').addEventListener('click', function() {
     document.getElementById('previewModal').classList.add('hidden');
+    // Clear all selected items and checkboxes when canceling modal
+    clearAllSelections();
 });
 
 document.getElementById('confirmImport').addEventListener('click', function() {
@@ -1278,6 +1308,9 @@ document.getElementById('confirmImport').addEventListener('click', function() {
         if (data.success) {
             // Close preview modal
             document.getElementById('previewModal').classList.add('hidden');
+            
+            // Clear selected items after successful ticket creation
+            clearAllSelections();
             
             // Show success action modal
             showSuccessActionModal(data);
@@ -1355,6 +1388,8 @@ function showSuccessActionModal(data) {
     // Close preview window handler
     closePreviewBtn.onclick = function() {
         document.getElementById('successActionModal').classList.add('hidden');
+        // Clear selected items when closing success modal
+        clearAllSelections();
         // Just close the modal, don't reload the page
         // This allows users to continue working with the same CSV file
     };

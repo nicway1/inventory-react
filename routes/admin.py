@@ -3555,3 +3555,35 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         import traceback
         traceback.print_exc()
         return False
+
+@admin_bp.route('/permissions/unified')
+@login_required
+@admin_required
+def unified_permissions():
+    """Unified permissions management page combining user permissions and queue permissions"""
+    db_session = db_manager.get_session()
+    try:
+        # Get all users for permission management
+        users = db_session.query(User).all()
+        
+        # Get all companies and queues for queue permissions
+        companies = db_session.query(Company).all()
+        queues = db_session.query(Queue).all()
+        
+        # Get existing queue permissions
+        queue_permissions = db_session.query(CompanyQueuePermission).all()
+        
+        # Get existing user permissions
+        user_permissions = db_session.query(Permission).all()
+        
+        return render_template('admin/unified_permissions.html', 
+                             users=users,
+                             companies=companies,
+                             queues=queues,
+                             queue_permissions=queue_permissions,
+                             user_permissions=user_permissions)
+    except Exception as e:
+        flash(f'Error loading permissions: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+    finally:
+        db_session.close()

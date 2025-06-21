@@ -51,11 +51,11 @@
                     <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
                 </select>
                 <!-- Export Button -->
-                <button onclick="exportReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <button onclick="exportCaseReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                     </svg>
-                    Export
+                    Export CSV
                 </button>
             </div>
         </div>
@@ -202,58 +202,7 @@
         </div>
     </div>
 
-    <!-- Charts Row 3 -->
-    <div class="grid grid-cols-1 gap-6 mb-6">
-        <!-- Timeline (Line Chart) -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Case Trend Over Time</h3>
-            </div>
-            <div class="p-6">
-                <div class="sf-chart-container" style="height: 400px;">
-                    <canvas id="timelineChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Charts Row 4 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Resolution Time by Category -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Average Resolution Time by Category (Hours)</h3>
-            </div>
-            <div class="p-6">
-                <div class="sf-chart-container">
-                    <canvas id="resolutionChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Additional Insights -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Key Insights</h3>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    <div class="p-4 bg-blue-50 rounded-lg">
-                        <h4 class="font-semibold text-blue-900 mb-2">Most Active Day</h4>
-                        <p class="text-blue-700">Analyzing case creation patterns...</p>
-                    </div>
-                    <div class="p-4 bg-green-50 rounded-lg">
-                        <h4 class="font-semibold text-green-900 mb-2">Fastest Resolution</h4>
-                        <p class="text-green-700">Category with quickest turnaround...</p>
-                    </div>
-                    <div class="p-4 bg-yellow-50 rounded-lg">
-                        <h4 class="font-semibold text-yellow-900 mb-2">Attention Needed</h4>
-                        <p class="text-yellow-700">Categories with increasing case volume...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -408,86 +357,7 @@ new Chart(customerCtx, {
     }
 });
 
-// 5. Timeline Chart
-const timelineCtx = document.getElementById('timelineChart').getContext('2d');
-new Chart(timelineCtx, {
-    type: 'line',
-    data: {
-        labels: timelineData.map(d => d.date),
-        datasets: [{
-            label: 'Cases Created',
-            data: timelineData.map(d => d.count),
-            borderColor: '#1B96FF',
-            backgroundColor: 'rgba(27, 150, 255, 0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
-        scales: {
-            x: {
-                type: 'time',
-                time: {
-                    parser: 'YYYY-MM-DD',
-                    unit: 'day',
-                    displayFormats: {
-                        day: 'MMM DD'
-                    }
-                },
-                grid: {
-                    display: false
-                }
-            },
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    precision: 0
-                }
-            }
-        }
-    }
-});
 
-// 6. Resolution Time Chart
-const resolutionCtx = document.getElementById('resolutionChart').getContext('2d');
-new Chart(resolutionCtx, {
-    type: 'bar',
-    data: {
-        labels: Object.keys(resolutionData),
-        datasets: [{
-            label: 'Avg Hours',
-            data: Object.values(resolutionData),
-            backgroundColor: '#32C832',
-            borderRadius: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
-        scales: {
-            x: {
-                grid: {
-                    display: false
-                }
-            },
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-});
 
 // Functions
 function updateDateRange() {
@@ -495,8 +365,72 @@ function updateDateRange() {
     window.location.href = `{{ url_for('reports.case_reports') }}?days=${days}`;
 }
 
-function exportReport() {
-    window.location.href = `{{ url_for('reports.export_report', report_type='cases') }}`;
+function exportCaseReport() {
+    // Get current date for filename
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    
+    // Prepare CSV data
+    const csvData = [];
+    
+    // Header
+    csvData.push(['Case Reports Export', '', '', '']);
+    csvData.push(['Generated:', dateStr, '', '']);
+    csvData.push(['Time Period:', '{{ days }} days', '', '']);
+    csvData.push(['', '', '', '']);
+    
+    // Summary Statistics
+    csvData.push(['SUMMARY STATISTICS', '', '', '']);
+    csvData.push(['Total Cases', '{{ stats.total }}', '', '']);
+    csvData.push(['Open Cases', '{{ stats.open }}', '', '']);
+    csvData.push(['Resolved Cases', '{{ stats.resolved }}', '', '']);
+    csvData.push(['Resolution Rate', '{{ stats.resolution_rate }}%', '', '']);
+    csvData.push(['High Priority Cases', '{{ stats.high_priority }}', '', '']);
+    csvData.push(['Critical Priority Cases', '{{ stats.critical_priority }}', '', '']);
+    csvData.push(['', '', '', '']);
+    
+    // Status Distribution
+    csvData.push(['STATUS DISTRIBUTION', '', '', '']);
+    Object.entries(statusData).forEach(([status, count]) => {
+        csvData.push([status, count, '', '']);
+    });
+    csvData.push(['', '', '', '']);
+    
+    // Priority Breakdown
+    csvData.push(['PRIORITY BREAKDOWN', '', '', '']);
+    Object.entries(priorityData).forEach(([priority, count]) => {
+        csvData.push([priority, count, '', '']);
+    });
+    csvData.push(['', '', '', '']);
+    
+    // Category Distribution
+    csvData.push(['CATEGORY DISTRIBUTION', '', '', '']);
+    Object.entries(categoryData).forEach(([category, count]) => {
+        csvData.push([category, count, '', '']);
+    });
+    csvData.push(['', '', '', '']);
+    
+    // Top Customers
+    csvData.push(['TOP CUSTOMERS', '', '', '']);
+    topCustomers.forEach(([customer, count]) => {
+        csvData.push([customer, `${count} cases`, '', '']);
+    });
+    
+    // Convert to CSV string
+    const csvContent = csvData.map(row => 
+        row.map(cell => `"${cell}"`).join(',')
+    ).join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `case_reports_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 {% endblock %} 

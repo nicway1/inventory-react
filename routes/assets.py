@@ -154,7 +154,7 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
             print(f"[SAFELY_ASSIGN DEBUG] Successfully inserted asset {asset.id} to ticket {ticket.id} via SQL")
             return True
         except Exception as sql_error:
-            # Check if it's a duplicate key error (which is actually OK)
+            # Check for duplicate key error (safe to ignore)
             if "UNIQUE constraint failed" in str(sql_error):
                 print(f"[SAFELY_ASSIGN DEBUG] Relationship already exists (UNIQUE constraint), this is OK")
                 return True

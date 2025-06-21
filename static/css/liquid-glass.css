@@ -691,6 +691,257 @@ body.dark-theme .theme-btn.active {
     box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
 }
 
+/* COMPREHENSIVE DARK MODE FOR TICKET VIEW AND ALL PAGES */
+body.dark-theme,
+body.dark-theme * {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Override ALL white and light backgrounds */
+body.dark-theme .bg-white,
+body.dark-theme .bg-gray-50,
+body.dark-theme .bg-gray-100,
+body.dark-theme .bg-gray-200,
+body.dark-theme .bg-blue-50,
+body.dark-theme [class*="bg-gray"],
+body.dark-theme [class*="bg-white"],
+body.dark-theme [class*="bg-slate"],
+body.dark-theme [class*="bg-neutral"] {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Force dark theme on ALL containers and elements */
+body.dark-theme div,
+body.dark-theme span,
+body.dark-theme p,
+body.dark-theme td,
+body.dark-theme th,
+body.dark-theme li,
+body.dark-theme section,
+body.dark-theme article,
+body.dark-theme main,
+body.dark-theme aside,
+body.dark-theme header,
+body.dark-theme footer {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Headers should be bright white */
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme h5,
+body.dark-theme h6 {
+    color: #ffffff !important;
+    background-color: #1f2937 !important;
+}
+
+/* Special handling for field labels */
+body.dark-theme .sf-field-label,
+body.dark-theme label,
+body.dark-theme .block.text-sm.font-medium.text-gray-700 {
+    color: #9ca3af !important;
+    background-color: #1f2937 !important;
+}
+
+/* Card specific overrides */
+body.dark-theme .sf-card,
+body.dark-theme .sf-card-header,
+body.dark-theme .sf-card-body {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+    border-color: #374151 !important;
+}
+
+/* Form elements */
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+/* Buttons */
+body.dark-theme button,
+body.dark-theme .sf-button,
+body.dark-theme .btn {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+/* Special buttons that should stay colored */
+body.dark-theme .bg-blue-600,
+body.dark-theme .bg-blue-700,
+body.dark-theme .primary-button,
+body.dark-theme .btn-primary {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .bg-green-600 {
+    background-color: #059669 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .bg-red-600 {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+/* Links should be visible */
+body.dark-theme a {
+    color: #60a5fa !important;
+    background-color: transparent !important;
+}
+
+/* Tables */
+body.dark-theme table,
+body.dark-theme tbody,
+body.dark-theme thead,
+body.dark-theme .sf-data-table,
+body.dark-theme .sf-data-table th,
+body.dark-theme .sf-data-table td {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+    border-color: #374151 !important;
+}
+
+/* Badges and status indicators */
+body.dark-theme .sf-badge,
+body.dark-theme .badge {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+}
+
+/* Override ALL Tailwind text color classes */
+body.dark-theme .text-gray-900,
+body.dark-theme .text-gray-800,
+body.dark-theme .text-gray-700,
+body.dark-theme .text-gray-600,
+body.dark-theme .text-gray-500,
+body.dark-theme .text-black,
+body.dark-theme .text-slate-900,
+body.dark-theme .text-slate-800 {
+    color: #e5e7eb !important;
+}
+
+/* Ensure no white text on white background */
+body.dark-theme .text-white {
+    color: #e5e7eb !important;
+}
+
+/* Toolbar and action areas */
+body.dark-theme .sf-toolbar {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+}
+
+/* Navigation and menus */
+body.dark-theme nav,
+body.dark-theme .navbar,
+body.dark-theme .menu {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Modal overrides */
+body.dark-theme .modal,
+body.dark-theme .modal-content,
+body.dark-theme .modal-header,
+body.dark-theme .modal-body,
+body.dark-theme .modal-footer {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+    border-color: #374151 !important;
+}
+
+/* NUCLEAR OPTION - OVERRIDE EVERYTHING WITH HIGHEST SPECIFICITY */
+body.dark-theme div[class*="bg-"],
+body.dark-theme div[class*="white"],
+body.dark-theme section[class*="bg-"],
+body.dark-theme article[class*="bg-"],
+body.dark-theme main[class*="bg-"],
+body.dark-theme .rounded-lg,
+body.dark-theme .shadow-sm,
+body.dark-theme .shadow,
+body.dark-theme .container,
+body.dark-theme .wrapper,
+body.dark-theme .content {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Target the specific white areas visible in the screenshot */
+body.dark-theme .max-w-7xl > div,
+body.dark-theme .max-w-7xl .bg-white,
+body.dark-theme .px-4 > div,
+body.dark-theme .px-6 > div,
+body.dark-theme .lg\\:px-8 > div {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* More specific targeting */
+body.dark-theme .bg-white.rounded-lg.shadow-sm.p-6,
+body.dark-theme .bg-white.rounded-lg.shadow-sm,
+body.dark-theme .bg-white.rounded-lg,
+body.dark-theme .rounded-lg.shadow-sm {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Ultra-specific card targeting */
+body.dark-theme .sf-card .sf-card-body > div,
+body.dark-theme .sf-card .sf-card-body .grid,
+body.dark-theme .sf-card .sf-card-body .space-y-2,
+body.dark-theme .sf-card .sf-card-body .gap-4 {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Force all grid and flex containers */
+body.dark-theme .grid > div,
+body.dark-theme .flex > div,
+body.dark-theme .space-y-2 > div,
+body.dark-theme .gap-4 > div {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Emergency override for any remaining white areas */
+body.dark-theme * {
+    background: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* But preserve certain colored elements */
+body.dark-theme .bg-blue-600,
+body.dark-theme .bg-blue-700,
+body.dark-theme .text-blue-600,
+body.dark-theme .text-blue-700 {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .bg-green-600,
+body.dark-theme .text-green-600 {
+    background-color: #059669 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .bg-red-600,
+body.dark-theme .text-red-600 {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
 /* Responsive theme switcher */
 @media (max-width: 768px) {
     .theme-switcher {

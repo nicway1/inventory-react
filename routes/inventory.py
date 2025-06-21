@@ -3659,7 +3659,7 @@ def get_maintenance_assets():
         for asset in items:
             customer_name = None
             if asset.customer_id:
-                customer = db_session.query(Customer).filter_by(id=asset.customer_id).first()
+                customer = db_session.query(CustomerUser).filter_by(id=asset.customer_id).first()
                 if customer:
                     customer_name = customer.name
                     

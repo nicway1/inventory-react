@@ -41,13 +41,7 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
-                <!-- Export Button -->
-                <button onclick="exportReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                    </svg>
-                    Export
-                </button>
+                <!-- Removed Export Button -->
             </div>
         </div>
     </div>
@@ -99,8 +93,9 @@
         <div class="sf-stat-card rounded-lg p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-600">In Repair</p>
-                    <p class="text-2xl font-bold text-orange-600">{{ stats.in_repair }}</p>
+                    <p class="text-sm font-medium text-gray-600">Maintenance</p>
+                    <p class="text-xs text-gray-500">Erased ≠ Completed</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ stats.maintenance }}</p>
                 </div>
                 <div class="p-2 bg-orange-500 bg-opacity-20 rounded-lg">
                     <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,10 +146,11 @@
         <div class="bg-white sf-chart-card">
             <div class="sf-chart-header">
                 <h3 class="text-lg font-semibold text-gray-900">Top 10 Models</h3>
+                <p class="text-sm text-gray-500 mt-1">Click on any bar to view assets for that model</p>
             </div>
             <div class="p-6">
                 <div class="sf-chart-container">
-                    <canvas id="modelChart"></canvas>
+                    <canvas id="modelChart" style="cursor: pointer;"></canvas>
                 </div>
             </div>
         </div>
@@ -245,14 +241,8 @@
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div class="space-y-2">
-                <button class="w-full text-left px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 font-medium">
+                <button onclick="downloadFullReport()" class="w-full text-left px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 font-medium">
                     Download Full Report
-                </button>
-                <button class="w-full text-left px-4 py-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-700 font-medium">
-                    Schedule Maintenance
-                </button>
-                <button class="w-full text-left px-4 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg text-purple-700 font-medium">
-                    Asset Audit
                 </button>
             </div>
         </div>
@@ -346,9 +336,9 @@ new Chart(typeCtx, {
     }
 });
 
-// 3. Model Distribution Chart
+// 3. Model Distribution Chart (Clickable)
 const modelCtx = document.getElementById('modelChart').getContext('2d');
-new Chart(modelCtx, {
+const modelChart = new Chart(modelCtx, {
     type: 'bar',
     data: {
         labels: Object.keys(modelData),
@@ -356,7 +346,8 @@ new Chart(modelCtx, {
             label: 'Count',
             data: Object.values(modelData),
             backgroundColor: '#1B96FF',
-            borderRadius: 4
+            borderRadius: 4,
+            hoverBackgroundColor: '#0F7FFF'
         }]
     },
     options: {
@@ -366,6 +357,16 @@ new Chart(modelCtx, {
         plugins: {
             legend: {
                 display: false
+            },
+            tooltip: {
+                callbacks: {
+                    title: function(context) {
+                        return 'Model: ' + context[0].label;
+                    },
+                    label: function(context) {
+                        return context.parsed.x + ' assets (Click to view details)';
+                    }
+                }
             }
         },
         scales: {
@@ -379,6 +380,20 @@ new Chart(modelCtx, {
                 grid: {
                     display: false
                 }
+            }
+        },
+        interaction: {
+            intersect: false
+        },
+        onHover: (event, activeElements) => {
+            event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+        },
+        onClick: (event, activeElements) => {
+            if (activeElements.length > 0) {
+                const dataIndex = activeElements[0].index;
+                const modelName = modelChart.data.labels[dataIndex];
+                // Navigate to the assets by model page
+                window.location.href = `/reports/assets/by-model/${encodeURIComponent(modelName)}`;
             }
         }
     }
@@ -498,8 +513,16 @@ new Chart(customerCtx, {
 
 // 7. Transaction Chart
 const transactionCtx = document.getElementById('transactionChart').getContext('2d');
-const transactionLabels = Object.keys(transactionData).sort();
-const transactionValues = transactionLabels.map(label => transactionData[label] || 0);
+
+// Sort the raw label strings (YYYY-MM-DD) so they are in chronological order
+const transactionRawLabels = Object.keys(transactionData).sort();
+const transactionValues = transactionRawLabels.map(label => transactionData[label] || 0);
+
+// Convert the ISO-style date strings to a friendlier format like "Apr 05"
+const transactionLabels = transactionRawLabels.map(label => {
+    const dateObj = new Date(label);
+    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+});
 
 new Chart(transactionCtx, {
     type: 'line',
@@ -539,8 +562,75 @@ new Chart(transactionCtx, {
 });
 
 // Functions
-function exportReport() {
-    window.location.href = "{{ url_for('reports.export_report', report_type='assets') }}";
+function downloadFullReport() {
+    // Create a comprehensive CSV report
+    const reportData = {
+        generated_at: new Date().toISOString(),
+        summary_stats: {
+                         total_assets: {{ stats.total }},
+             active_assets: {{ stats.active }},
+             deployed_assets: {{ stats.deployed }},
+             maintenance: {{ stats.maintenance }},
+             utilization_rate: {{ stats.utilization_rate }}
+        },
+        status_distribution: statusData,
+        type_distribution: typeData,
+        model_distribution: modelData,
+        country_distribution: countryData,
+        age_distribution: ageData,
+        customer_distribution: Object.fromEntries(customerData),
+        transaction_period: "{{ stats.transaction_period }}",
+        total_transactions: {{ stats.total_transactions }}
+    };
+    
+    // Convert to CSV format
+    let csvContent = "Asset Report Summary\n";
+    csvContent += "Generated: " + new Date().toLocaleString() + "\n\n";
+    
+    csvContent += "Summary Statistics\n";
+    csvContent += "Total Assets," + reportData.summary_stats.total_assets + "\n";
+                csvContent += "Active Assets," + reportData.summary_stats.active_assets + "\n";
+            csvContent += "Deployed Assets," + reportData.summary_stats.deployed_assets + "\n";
+            csvContent += "Maintenance (Erased ≠ Completed)," + reportData.summary_stats.maintenance + "\n";
+            csvContent += "Utilization Rate," + reportData.summary_stats.utilization_rate + "%\n\n";
+    
+    csvContent += "Status Distribution\n";
+    csvContent += "Status,Count\n";
+    Object.entries(statusData).forEach(([status, count]) => {
+        csvContent += status + "," + count + "\n";
+    });
+    csvContent += "\n";
+    
+    csvContent += "Type Distribution\n";
+    csvContent += "Type,Count\n";
+    Object.entries(typeData).forEach(([type, count]) => {
+        csvContent += type + "," + count + "\n";
+    });
+    csvContent += "\n";
+    
+    csvContent += "Top 10 Models\n";
+    csvContent += "Model,Count\n";
+    Object.entries(modelData).forEach(([model, count]) => {
+        csvContent += '"' + model + '",' + count + "\n";
+    });
+    csvContent += "\n";
+    
+    csvContent += "Country Distribution\n";
+    csvContent += "Country,Count\n";
+    Object.entries(countryData).forEach(([country, count]) => {
+        csvContent += country + "," + count + "\n";
+    });
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "asset_report_" + new Date().toISOString().split('T')[0] + ".csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 {% endblock %} 

@@ -5,6 +5,74 @@ All notable changes to the TrueLog Inventory Management System will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-06-22
+
+### 🎨 User Interface Improvements
+
+#### System Management Dashboard Redesign
+- **Redesigned System Management card** with modern, professional styling
+- **Simplified navigation** with only 7 essential functions:
+  - Manage Users
+  - Manage Companies  
+  - Create New User
+  - Unified Permissions Management
+  - View System History
+  - System Configuration
+- **Beautiful gradient backgrounds** for each button with subtle color coding
+- **Uniform button sizing** with consistent 3-column grid layout
+- **Enhanced visual hierarchy** with improved spacing and typography
+
+#### Unified Permissions Management
+- **New unified permissions page** combining user and queue permissions
+- **Tab-based interface** for seamless switching between permission types
+- **Modern purple-themed design** with professional card layouts
+- **Quick action buttons** for common permission tasks
+- **Streamlined navigation** reducing complexity from 2 buttons to 1
+
+### 🔧 Technical Improvements
+
+#### Route Management
+- **New unified permissions route** (`/admin/permissions/unified`)
+- **Proper database session management** following existing patterns
+- **Fixed BuildError issues** with correct URL endpoint references
+- **Consistent error handling** across all admin routes
+
+#### UI/UX Enhancements
+- **Responsive design improvements** for better mobile experience
+- **Smooth hover effects** and transitions for interactive elements
+- **Professional color scheme** maintaining business-appropriate styling
+- **Improved accessibility** with better contrast and button sizing
+
+### 🐛 Bug Fixes
+
+#### Dashboard Loading Issues
+- **Fixed port conflict errors** when starting the application
+- **Corrected route name references** from `main.home` to `main.index`
+- **Resolved BuildError** in unified permissions template
+- **Improved error handling** for database session management
+
+#### Visual Consistency
+- **Fixed inconsistent button sizes** in System Management card
+- **Standardized color palette** across admin interface
+- **Improved layout alignment** and spacing consistency
+- **Enhanced text readability** with better typography choices
+
+### 📱 User Experience
+
+#### Navigation Improvements
+- **Simplified admin navigation** with fewer, more intuitive options
+- **Clear visual feedback** for interactive elements
+- **Consistent design language** across all admin pages
+- **Better organization** of system management functions
+
+#### Performance Optimizations
+- **Faster page loading** with optimized CSS and JavaScript
+- **Reduced cognitive load** with cleaner, more focused interfaces
+- **Improved responsiveness** across different screen sizes
+- **Better accessibility** compliance with modern web standards
+
+---
+
 ## [0.6.0] - 2025-06-11
 
 ### 🎉 Major Features Added

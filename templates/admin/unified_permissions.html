@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Unified Permissions Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <!-- Page Header -->
+        <div class="flex items-center mb-6">
+            <div class="bg-gradient-to-r from-purple-500 to-purple-600 p-3 rounded-lg mr-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Permissions Management</h1>
+                <p class="text-gray-600">Manage user permissions and queue access controls</p>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="showTab('user-permissions')" 
+                        class="tab-button active py-2 px-4 border-b-2 border-purple-500 text-purple-600 font-medium text-sm">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                    User Permissions
+                </button>
+                <button onclick="showTab('queue-permissions')" 
+                        class="tab-button py-2 px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Queue Permissions
+                </button>
+            </nav>
+        </div>
+
+        <!-- User Permissions Tab -->
+        <div id="user-permissions" class="tab-content">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-blue-800 mb-2">User Permissions</h3>
+                <p class="text-blue-700">Manage what actions each user can perform in the system.</p>
+            </div>
+
+            <div class="grid gap-6">
+                {% for user in users %}
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium mr-3">
+                                {{ user.username[0].upper() }}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">{{ user.username }}</h4>
+                                <p class="text-sm text-gray-600">{{ user.user_type.value }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('admin.permission_management') }}?user_id={{ user.id }}" 
+                           class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                            Edit Permissions
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Queue Permissions Tab -->
+        <div id="queue-permissions" class="tab-content hidden">
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-orange-800 mb-2">Queue Permissions</h3>
+                <p class="text-orange-700">Control which companies can access which support queues.</p>
+            </div>
+
+            <div class="grid gap-6">
+                {% for company in companies %}
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium mr-3">
+                                {{ company.name[0].upper() }}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">{{ company.name }}</h4>
+                                <p class="text-sm text-gray-600">Company ID: {{ company.id }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('admin.manage_queue_permissions') }}?company_id={{ company.id }}" 
+                           class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                            Manage Queue Access
+                        </a>
+                    </div>
+                    
+                    <!-- Show current queue permissions -->
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for permission in queue_permissions %}
+                            {% if permission.company_id == company.id %}
+                                {% for queue in queues %}
+                                    {% if queue.id == permission.queue_id %}
+                                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                            {{ queue.name }}
+                                        </span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+            <a href="{{ url_for('main.index') }}" 
+               class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Dashboard
+            </a>
+            
+            <div class="space-x-3">
+                <a href="{{ url_for('admin.permission_management') }}" 
+                   class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    Advanced User Permissions
+                </a>
+                <a href="{{ url_for('admin.manage_queue_permissions') }}" 
+                   class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors">
+                    Advanced Queue Permissions
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tab contents
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active class from all tab buttons
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.classList.remove('active', 'border-purple-500', 'text-purple-600');
+        button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName).classList.remove('hidden');
+    
+    // Add active class to clicked button
+    event.target.classList.add('active', 'border-purple-500', 'text-purple-600');
+    event.target.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+}
+</script>
+{% endblock %} 
