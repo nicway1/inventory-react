@@ -163,12 +163,6 @@ def track_outbound(ticket_id):
                     fresh_ticket.shipping_status = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
                     print(f"Updated ticket {ticket_id} with status: {latest_status}")
-                    
-                    # Auto-close ticket if package is delivered
-                    if 'delivered' in latest_status.lower() and fresh_ticket.status.name != 'RESOLVED':
-                        from models.ticket import TicketStatus
-                        fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
-                        print(f"Auto-closed ticket {ticket_id} - package delivered")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(

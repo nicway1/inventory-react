@@ -129,7 +129,6 @@ class Ticket(Base):
     attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
     tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
     accessories = relationship('TicketAccessory', back_populates='ticket', cascade='all, delete-orphan')
-    tracking_numbers = relationship('TicketTracking', back_populates='ticket', cascade='all, delete-orphan')
     # Remove non-existent relationships
     # shipments, rma_pickups, and rma_replacements are not defined in the model
 
