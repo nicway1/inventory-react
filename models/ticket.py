@@ -96,10 +96,22 @@ class Ticket(Base):
     return_status = Column(String(100), default='Pending')
     replacement_status = Column(String(100), default='Pending')
     
-    # Second tracking for Asset Checkout (claw)
+    # Multiple tracking fields for Asset Checkout (claw) - up to 5 packages
     shipping_tracking_2 = Column(String(100), nullable=True)
     shipping_carrier_2 = Column(String(50), nullable=True)
     shipping_status_2 = Column(String(100), nullable=True, default='Pending')
+    
+    shipping_tracking_3 = Column(String(100), nullable=True)
+    shipping_carrier_3 = Column(String(50), nullable=True)
+    shipping_status_3 = Column(String(100), nullable=True, default='Pending')
+    
+    shipping_tracking_4 = Column(String(100), nullable=True)
+    shipping_carrier_4 = Column(String(50), nullable=True)
+    shipping_status_4 = Column(String(100), nullable=True, default='Pending')
+    
+    shipping_tracking_5 = Column(String(100), nullable=True)
+    shipping_carrier_5 = Column(String(50), nullable=True)
+    shipping_status_5 = Column(String(100), nullable=True, default='Pending')
     
     # Asset Intake specific fields
     packing_list_path = Column(String(500))
@@ -233,6 +245,161 @@ class Ticket(Base):
             except:
                 pass
         return False
+
+    def get_all_packages(self):
+        """Get all packages with their tracking information for Asset Checkout (claw) tickets"""
+        packages = []
+        
+        # Package 1 (main tracking) - only show if it has a tracking number
+        if self.shipping_tracking:
+            packages.append({
+                'package_number': 1,
+                'tracking_number': self.shipping_tracking,
+                'carrier': self.shipping_carrier,
+                'status': self.shipping_status or 'Pending'
+            })
+        
+        # Package 2 - only show if it has a tracking number
+        if self.shipping_tracking_2:
+            packages.append({
+                'package_number': 2,
+                'tracking_number': self.shipping_tracking_2,
+                'carrier': self.shipping_carrier_2,
+                'status': self.shipping_status_2 or 'Pending'
+            })
+        
+        # Package 3 - only show if it has a tracking number
+        if self.shipping_tracking_3:
+            packages.append({
+                'package_number': 3,
+                'tracking_number': self.shipping_tracking_3,
+                'carrier': self.shipping_carrier_3,
+                'status': self.shipping_status_3 or 'Pending'
+            })
+        
+        # Package 4 - only show if it has a tracking number
+        if self.shipping_tracking_4:
+            packages.append({
+                'package_number': 4,
+                'tracking_number': self.shipping_tracking_4,
+                'carrier': self.shipping_carrier_4,
+                'status': self.shipping_status_4 or 'Pending'
+            })
+        
+        # Package 5 - only show if it has a tracking number
+        if self.shipping_tracking_5:
+            packages.append({
+                'package_number': 5,
+                'tracking_number': self.shipping_tracking_5,
+                'carrier': self.shipping_carrier_5,
+                'status': self.shipping_status_5 or 'Pending'
+            })
+        
+        return packages
+
+    def get_package_items(self, package_number):
+        """Get all items (assets and accessories) associated with a specific package"""
+        from models.package_item import PackageItem
+        from database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            items = db.query(PackageItem).filter_by(
+                ticket_id=self.id,
+                package_number=package_number
+            ).all()
+            
+            return [{
+                'id': item.id,
+                'item_type': item.item_type,
+                'item_name': item.item_name,
+                'item_details': item.item_details,
+                'quantity': item.quantity,
+                'notes': item.notes,
+                'asset_id': item.asset_id,
+                'accessory_id': item.accessory_id
+            } for item in items]
+        finally:
+            db.close()
+
+    def add_package_item(self, package_number, asset_id=None, accessory_id=None, quantity=1, notes=None):
+        """Add an asset or accessory to a specific package"""
+        from models.package_item import PackageItem
+        from database import SessionLocal
+        
+        if not asset_id and not accessory_id:
+            raise ValueError("Either asset_id or accessory_id must be provided")
+        
+        if asset_id and accessory_id:
+            raise ValueError("Cannot specify both asset_id and accessory_id")
+        
+        db = SessionLocal()
+        try:
+            # Check if this item is already associated with this package
+            existing = db.query(PackageItem).filter_by(
+                ticket_id=self.id,
+                package_number=package_number,
+                asset_id=asset_id,
+                accessory_id=accessory_id
+            ).first()
+            
+            if existing:
+                # Update quantity if item already exists
+                existing.quantity += quantity
+                existing.notes = notes if notes else existing.notes
+                existing.updated_at = datetime.utcnow()
+                db.commit()
+                return existing
+            else:
+                # Create new package item association
+                package_item = PackageItem(
+                    ticket_id=self.id,
+                    package_number=package_number,
+                    asset_id=asset_id,
+                    accessory_id=accessory_id,
+                    quantity=quantity,
+                    notes=notes
+                )
+                db.add(package_item)
+                db.commit()
+                return package_item
+        finally:
+            db.close()
+
+    def remove_package_item(self, package_item_id):
+        """Remove an item from a package"""
+        from models.package_item import PackageItem
+        from database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            item = db.query(PackageItem).filter_by(
+                id=package_item_id,
+                ticket_id=self.id
+            ).first()
+            
+            if item:
+                db.delete(item)
+                db.commit()
+                return True
+            return False
+        finally:
+            db.close()
+
+    def get_next_available_package_number(self):
+        """Get the next available package number (1-5) for adding new tracking"""
+        if not self.shipping_tracking:
+            return 1
+        elif not self.shipping_tracking_2:
+            return 2
+        elif not self.shipping_tracking_3:
+            return 3
+        elif not self.shipping_tracking_4:
+            return 4
+        elif not self.shipping_tracking_5:
+            return 5
+        else:
+            return None  # All 5 packages are used
 
 class TicketAccessory(Base):
     """Model for accessories received with Asset Return (Claw) tickets"""

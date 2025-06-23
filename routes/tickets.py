@@ -473,47 +473,124 @@ Additional Notes:
                     final_description = description + accessory_description_part
 
                     # Create the ticket
-                    ticket_id = ticket_store.create_ticket(
-                        subject=subject,
-                        description=final_description,
-                        requester_id=user_id,
-                        category=ticket_category,
-                        priority=priority,
-                        asset_id=asset.id,  # Use old asset_id approach
-                        customer_id=customer_id,
-                        shipping_address=shipping_address,
-                        shipping_tracking=shipping_tracking if shipping_tracking else None,
-                        shipping_carrier=shipping_carrier,
-                        queue_id=queue_id,
-                        notes=notes
-                    )
+                    try:
+                        ticket_id = ticket_store.create_ticket(
+                            subject=subject,
+                            description=final_description,
+                            requester_id=user_id,
+                            category=ticket_category,
+                            priority=priority,
+                            asset_id=asset.id,  # Use old asset_id approach
+                            customer_id=customer_id,
+                            shipping_address=shipping_address,
+                            shipping_tracking=shipping_tracking if shipping_tracking else None,
+                            shipping_carrier=shipping_carrier,
+                            queue_id=queue_id,
+                            notes=notes
+                        )
+                        print(f"[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
+                    except Exception as ticket_creation_error:
+                        print(f"[TICKET CREATION ERROR] Failed to create ticket: {str(ticket_creation_error)}")
+                        import traceback
+                        traceback.print_exc()
+                        
+                        # Check if this is an AJAX request
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({
+                                'success': False,
+                                'error': f'Failed to create ticket: {str(ticket_creation_error)}'
+                            })
+                        else:
+                            flash(f'Error creating ticket: {str(ticket_creation_error)}')
+                            return redirect(url_for('tickets.create_ticket'))
+                    
+                    if not ticket_id:
+                        error_msg = "Ticket creation failed: No ticket ID returned"
+                        print(f"[TICKET CREATION ERROR] {error_msg}")
+                        
+                        # Check if this is an AJAX request
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({
+                                'success': False,
+                                'error': error_msg
+                            })
+                        else:
+                            flash(error_msg)
+                            return redirect(url_for('tickets.create_ticket'))
+
+                    # Handle package tracking fields for Asset Checkout (claw)
+                    if category == 'ASSET_CHECKOUT_CLAW':
+                        from models.ticket import Ticket  # Ensure import is available in this scope
+                        created_ticket = db_session.query(Ticket).get(ticket_id)
+                        if created_ticket:
+                            # Process up to 5 packages
+                            for package_num in range(1, 6):
+                                tracking_field = f'package_{package_num}_tracking'
+                                carrier_field = f'package_{package_num}_carrier'
+                                
+                                tracking_number = request.form.get(tracking_field)
+                                carrier = request.form.get(carrier_field)
+                                
+                                if tracking_number:  # Only process if tracking number is provided
+                                    if package_num == 1:
+                                        created_ticket.shipping_tracking = tracking_number
+                                        created_ticket.shipping_carrier = carrier or 'claw'
+                                        created_ticket.shipping_status = 'Pending'
+                                    elif package_num == 2:
+                                        created_ticket.shipping_tracking_2 = tracking_number
+                                        created_ticket.shipping_carrier_2 = carrier or 'claw'
+                                        created_ticket.shipping_status_2 = 'Pending'
+                                    elif package_num == 3:
+                                        created_ticket.shipping_tracking_3 = tracking_number
+                                        created_ticket.shipping_carrier_3 = carrier or 'claw'
+                                        created_ticket.shipping_status_3 = 'Pending'
+                                    elif package_num == 4:
+                                        created_ticket.shipping_tracking_4 = tracking_number
+                                        created_ticket.shipping_carrier_4 = carrier or 'claw'
+                                        created_ticket.shipping_status_4 = 'Pending'
+                                    elif package_num == 5:
+                                        created_ticket.shipping_tracking_5 = tracking_number
+                                        created_ticket.shipping_carrier_5 = carrier or 'claw'
+                                        created_ticket.shipping_status_5 = 'Pending'
+                                    
+                                    print(f"[PACKAGE DEBUG] Added Package {package_num}: {tracking_number} ({carrier})")
+                            
+                            # Update the ticket's updated_at timestamp
+                            from datetime import datetime
+                            created_ticket.updated_at = datetime.utcnow()
+                            
+                            # Commit the package changes
+                            db_session.commit()
+                            print(f"[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
 
                     # Get the created ticket for asset assignment
+                    from models.ticket import Ticket  # Ensure import is available in this scope
                     created_ticket = db_session.query(Ticket).get(ticket_id)
                     if created_ticket and asset:
                         print(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
                         print(f"[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
                         
-                        # Create proper ticket-asset relationship
-                        from models.ticket_asset import TicketAsset
-                        existing_relationship = db_session.query(TicketAsset).filter(
-                            TicketAsset.ticket_id == ticket_id,
-                            TicketAsset.asset_id == asset.id
-                        ).first()
+                        # Create proper ticket-asset relationship using direct SQL
+                        # Check if relationship already exists
+                        from sqlalchemy import text
+                        existing_check = text("""
+                            SELECT COUNT(*) FROM ticket_assets 
+                            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+                        """)
+                        existing_count = db_session.execute(existing_check, {"ticket_id": ticket_id, "asset_id": asset.id}).scalar()
                         
-                        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {1 if existing_relationship else 0}")
+                        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {existing_count}")
                         
-                        if not existing_relationship:
+                        if existing_count == 0:
                             # Create the ticket-asset relationship using direct SQL
                             try:
-                                from sqlalchemy import text
                                 insert_stmt = text("""
                                     INSERT INTO ticket_assets (ticket_id, asset_id) 
                                     VALUES (:ticket_id, :asset_id)
                                 """)
                                 db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset.id})
                                 db_session.flush()
-                                print(f"[ASSET ASSIGN DEBUG] Created TicketAsset relationship via direct SQL")
+                                print(f"[ASSET ASSIGN DEBUG] Created ticket-asset relationship via direct SQL")
                             except Exception as e:
                                 print(f"[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
                                 # If it's a constraint violation, that's OK - relationship already exists
@@ -546,6 +623,7 @@ Additional Notes:
                     if assigned_accessories:
                         try:
                             # Get the ticket object for accessory assignment
+                            from models.ticket import Ticket  # Ensure import is available in this scope
                             ticket = db_session.query(Ticket).get(ticket_id)
                             actual_assigned = []
                             
@@ -620,7 +698,7 @@ Additional Notes:
                             'success': True,
                             'ticket_id': ticket_id,
                             'message': f'Asset checkout ticket created successfully{f" with {len(assigned_accessories)} accessories assigned" if assigned_accessories else ""}',
-                            'assigned_accessories': [acc.name for acc in assigned_accessories] if assigned_accessories else [],
+                            'assigned_accessories': assigned_accessories if assigned_accessories else [],
                             'ticket_display_id': ticket_id
                         }
                         return jsonify(response_data)
@@ -633,9 +711,20 @@ Additional Notes:
                         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
                     print(f"Error creating ticket: {str(e)}")  # Debug log
+                    import traceback
+                    traceback.print_exc()  # Print full stack trace
                     db_session.rollback()
-                    flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
+                    
+                    # Return JSON error for AJAX requests
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({
+                            'success': False,
+                            'error': str(e),
+                            'message': f'Error creating ticket: {str(e)}'
+                        }), 500
+                    else:
+                        flash('Error creating ticket: ' + str(e), 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
 
             # Handle category-specific logic
             if category == 'PIN_REQUEST':
@@ -1044,6 +1133,33 @@ def view_ticket(ticket_id):
         # Use comment_store comments as primary source (since add_comment uses it)
         comments = comments_from_store
         
+        # Get packages for Asset Checkout (claw) tickets
+        packages = []
+        packages_tracking_data = {}
+        packages_items_data = {}
+        if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+            packages = ticket.get_all_packages()
+            
+            # Load tracking history for each package
+            from models.tracking_history import TrackingHistory
+            for package in packages:
+                package_number = package['package_number']
+                tracking_number = package['tracking_number']
+                
+                if tracking_number:
+                    # Look for tracking history for this package
+                    tracking_history = db_session.query(TrackingHistory).filter_by(
+                        tracking_number=tracking_number,
+                        ticket_id=ticket_id
+                    ).first()
+                    
+                    if tracking_history and tracking_history.events:
+                        packages_tracking_data[package_number] = tracking_history.events
+                
+                # Load package items (assets and accessories)
+                package_items = ticket.get_package_items(package_number)
+                packages_items_data[package_number] = package_items
+        
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -1053,6 +1169,9 @@ def view_ticket(ticket_id):
             assets_data=assets_data,
             customers=customers,
             comments=comments,  # Add comments here!
+            packages=packages,  # Add packages data
+            packages_tracking_data=packages_tracking_data,  # Add tracking data
+            packages_items_data=packages_items_data,  # Add package items data
             UserType=UserType,
             Country=Country,
             asset_modal_statuses=list(AssetStatus),
@@ -1425,11 +1544,12 @@ def assign_asset(ticket_id):
 @tickets_bp.route('/<int:ticket_id>/assign-asset', methods=['POST'])
 @login_required
 def assign_existing_asset(ticket_id):
-    """Assign an existing asset to a ticket via AJAX"""
+    """Assign an existing asset to a ticket via AJAX and optionally to a specific package"""
     try:
         # Get JSON data from request
         data = request.get_json()
         asset_id = data.get('asset_id')
+        package_number = data.get('package_number')  # Optional package number
         
         if not asset_id:
             return jsonify({'success': False, 'error': 'Asset ID is required'}), 400
@@ -1464,6 +1584,21 @@ def assign_existing_asset(ticket_id):
             """)
             db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset_id})
             
+            # If package number is specified, add to that package
+            if package_number:
+                try:
+                    # Validate package number is within range (1-5)
+                    if not (1 <= package_number <= 5):
+                        return jsonify({'success': False, 'error': 'Package number must be between 1 and 5'}), 400
+                    
+                    # Add asset to the specified package
+                    ticket.add_package_item(package_number, asset_id=asset.id)
+                    print(f"[ASSIGN ASSET] Added asset {asset.asset_tag} to package {package_number}")
+                    
+                except Exception as pkg_error:
+                    print(f"[ASSIGN ASSET] Error adding to package: {str(pkg_error)}")
+                    # Continue with asset assignment even if package assignment fails
+            
             # Update asset status if it's for asset checkout
             if ticket.category and 'ASSET_CHECKOUT' in ticket.category.name:
                 if asset.status != AssetStatus.DEPLOYED:
@@ -1478,11 +1613,15 @@ def assign_existing_asset(ticket_id):
             # Commit the changes
             db_session.commit()
             
+            success_message = f'Asset {asset.asset_tag} assigned successfully'
+            if package_number:
+                success_message += f' to Package {package_number}'
+            
             print(f"[ASSIGN ASSET] Successfully assigned asset {asset.asset_tag} to ticket {ticket_id}")
             
             return jsonify({
                 'success': True,
-                'message': f'Asset {asset.asset_tag} assigned successfully'
+                'message': success_message
             })
             
         except Exception as e:
@@ -4168,6 +4307,733 @@ def add_return_tracking(ticket_id):
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
+@tickets_bp.route('/<int:ticket_id>/add_package', methods=['POST'])
+@login_required
+def add_package(ticket_id):
+    """Add a package tracking number to an Asset Checkout (claw) ticket"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        package_number = data.get('package_number')
+        tracking_number = data.get('tracking_number')
+        carrier = data.get('carrier', 'auto')
+
+        if not package_number or not tracking_number:
+            return jsonify({'success': False, 'message': 'Package number and tracking number are required'}), 400
+
+        if package_number < 1 or package_number > 5:
+            return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Checkout (claw) ticket
+        if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package tracking is only available for Asset Checkout (claw) tickets'}), 400
+
+        # Update the appropriate tracking field based on package number
+        if package_number == 1:
+            ticket.shipping_tracking = tracking_number
+            ticket.shipping_carrier = carrier
+            ticket.shipping_status = 'Pending'
+        elif package_number == 2:
+            ticket.shipping_tracking_2 = tracking_number
+            ticket.shipping_carrier_2 = carrier
+            ticket.shipping_status_2 = 'Pending'
+        elif package_number == 3:
+            ticket.shipping_tracking_3 = tracking_number
+            ticket.shipping_carrier_3 = carrier
+            ticket.shipping_status_3 = 'Pending'
+        elif package_number == 4:
+            ticket.shipping_tracking_4 = tracking_number
+            ticket.shipping_carrier_4 = carrier
+            ticket.shipping_status_4 = 'Pending'
+        elif package_number == 5:
+            ticket.shipping_tracking_5 = tracking_number
+            ticket.shipping_carrier_5 = carrier
+            ticket.shipping_status_5 = 'Pending'
+
+        ticket.updated_at = datetime.datetime.now()
+        
+        # Add system note
+        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Package {package_number} tracking added: {tracking_number} (carrier: {carrier})"
+        
+        # Commit changes
+        db_session.commit()
+        db_session.close()
+        
+        return jsonify({'success': True, 'message': f'Package {package_number} tracking added successfully'})
+    
+    except Exception as e:
+        if 'db_session' in locals():
+            db_session.rollback()
+            db_session.close()
+        print(f"Error adding package: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error adding package: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/remove_package', methods=['POST'])
+@login_required
+def remove_package(ticket_id):
+    """Remove a package tracking number from an Asset Checkout (claw) ticket"""
+    try:
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        package_number = data.get('package_number')
+
+        if not package_number:
+            return jsonify({'success': False, 'message': 'Package number is required'}), 400
+
+        if package_number < 1 or package_number > 5:
+            return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Checkout (claw) ticket
+        if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package tracking is only available for Asset Checkout (claw) tickets'}), 400
+
+        # Clear the appropriate tracking field based on package number
+        old_tracking = None
+        if package_number == 1:
+            old_tracking = ticket.shipping_tracking
+            ticket.shipping_tracking = None
+            ticket.shipping_carrier = None
+            ticket.shipping_status = 'Pending'
+        elif package_number == 2:
+            old_tracking = ticket.shipping_tracking_2
+            ticket.shipping_tracking_2 = None
+            ticket.shipping_carrier_2 = None
+            ticket.shipping_status_2 = 'Pending'
+        elif package_number == 3:
+            old_tracking = ticket.shipping_tracking_3
+            ticket.shipping_tracking_3 = None
+            ticket.shipping_carrier_3 = None
+            ticket.shipping_status_3 = 'Pending'
+        elif package_number == 4:
+            old_tracking = ticket.shipping_tracking_4
+            ticket.shipping_tracking_4 = None
+            ticket.shipping_carrier_4 = None
+            ticket.shipping_status_4 = 'Pending'
+        elif package_number == 5:
+            old_tracking = ticket.shipping_tracking_5
+            ticket.shipping_tracking_5 = None
+            ticket.shipping_carrier_5 = None
+            ticket.shipping_status_5 = 'Pending'
+
+        ticket.updated_at = datetime.datetime.now()
+        
+        # Add system note
+        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Package {package_number} tracking removed: {old_tracking}"
+        
+        # Commit changes
+        db_session.commit()
+        db_session.close()
+        
+        return jsonify({'success': True, 'message': f'Package {package_number} tracking removed successfully'})
+    
+    except Exception as e:
+        if 'db_session' in locals():
+            db_session.rollback()
+            db_session.close()
+        print(f"Error removing package: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error removing package: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/track_package/<int:package_number>', methods=['GET'])
+@login_required
+def track_package(ticket_id, package_number):
+    """Track a specific package for an Asset Checkout (claw) ticket using the same robust tracking system as main tracking"""
+    import traceback
+    
+    try:
+        if package_number < 1 or package_number > 5:
+            return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Checkout (claw) ticket
+        if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package tracking is only available for Asset Checkout (claw) tickets'}), 400
+
+        # Get the tracking number and carrier for the specific package
+        tracking_number = None
+        carrier = None
+        status_field = None
+        
+        if package_number == 1:
+            tracking_number = ticket.shipping_tracking
+            carrier = ticket.shipping_carrier
+            status_field = 'shipping_status'
+        elif package_number == 2:
+            tracking_number = ticket.shipping_tracking_2
+            carrier = ticket.shipping_carrier_2
+            status_field = 'shipping_status_2'
+        elif package_number == 3:
+            tracking_number = ticket.shipping_tracking_3
+            carrier = ticket.shipping_carrier_3
+            status_field = 'shipping_status_3'
+        elif package_number == 4:
+            tracking_number = ticket.shipping_tracking_4
+            carrier = ticket.shipping_carrier_4
+            status_field = 'shipping_status_4'
+        elif package_number == 5:
+            tracking_number = ticket.shipping_tracking_5
+            carrier = ticket.shipping_carrier_5
+            status_field = 'shipping_status_5'
+
+        if not tracking_number:
+            db_session.close()
+            return jsonify({'success': False, 'message': f'No tracking number found for package {package_number}'}), 404
+
+        # Check for force refresh parameter
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        
+        # Check for cached tracking data if not forcing refresh
+        if not force_refresh:
+            from utils.tracking_cache import TrackingCache
+            cached_data = TrackingCache.get_cached_tracking(
+                db_session, 
+                tracking_number, 
+                ticket_id=ticket_id, 
+                tracking_type=f'package_{package_number}',
+                max_age_hours=24  # Cache for 24 hours
+            )
+            
+            if cached_data:
+                print(f"Using cached tracking data for package {package_number}: {tracking_number}")
+                # Add package number to cached response
+                cached_data['package_number'] = package_number
+                cached_data['tracking_number'] = tracking_number
+                cached_data['carrier'] = carrier
+                db_session.close()
+                return jsonify(cached_data)
+        else:
+            print(f"Force refresh requested for package {package_number}: {tracking_number}, bypassing cache")
+        
+        # If we get here, need to fetch fresh data
+        print(f"Fetching fresh tracking data for package {package_number}: {tracking_number}")
+        
+        # Use the centralized FirecrawlClient that automatically gets the active key from database
+        from utils.store_instances import firecrawl_client
+        
+        # Check if Firecrawl is available
+        if not firecrawl_client:
+            print("Error: Firecrawl API client not available. Returning enhanced mock data.")
+            # Return enhanced mock data as fallback
+            return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+    
+        try:
+            # Define Ship24 URL for the tracking number
+            ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
+            print(f"Scraping URL for package {package_number}: {ship24_url}")
+            
+            try:
+                # Use Firecrawl to scrape the tracking page and extract structured data
+                scrape_result = firecrawl_client.scrape_url(ship24_url, {
+                    'formats': ['json'],
+                    'jsonOptions': {
+                        'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
+                        For each event, extract:
+                        - date: The date and time of the event
+                        - status: The status description/message of the event
+                        - location: The location where the event occurred
+                        
+                        Also extract the current shipment status.
+                        Return as: 
+                        {{
+                            "current_status": "Current status of the shipment",
+                            "events": [
+                                {{
+                                    "date": "Date of event", 
+                                    "status": "Status description", 
+                                    "location": "Location"
+                                }}
+                            ]
+                        }}
+                        """
+                    }
+                })
+            except Exception as api_error:
+                # Check if this is a credit limit issue
+                error_msg = str(api_error).lower()
+                if "insufficient credits" in error_msg or "payment required" in error_msg:
+                    print(f"API credit limitation encountered for package {package_number}: {api_error}")
+                    # Return enhanced mock data as fallback for credit limit issues
+                    return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                else:
+                    # Rethrow other API errors
+                    raise
+            
+            # Log the raw response for debugging
+            print(f"Firecrawl Raw Response for package {package_number}: {scrape_result}")
+            
+            # Process the extracted data
+            tracking_info = []
+            latest_status = "Unknown"
+            
+            try:
+                # Check for the correct Firecrawl response structure
+                if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
+                    data = scrape_result['data']['json']
+                    
+                    # Extract the latest status
+                    latest_status = data.get('current_status', 'Unknown')
+                    
+                    # Extract tracking events
+                    events = data.get('events', [])
+                    if events:
+                        print(f"[DEBUG] Found {len(events)} tracking events for package {package_number}")
+                        for event in events:
+                            tracking_info.append({
+                                'date': event.get('date', ''),
+                                'status': event.get('status', ''),
+                                'location': event.get('location', '')
+                            })
+                    
+                    # If no events were extracted but we have a current status,
+                    # create at least one event with the current status
+                    if not tracking_info and latest_status != "Unknown":
+                        tracking_info.append({
+                            'date': datetime.datetime.now().isoformat(),
+                            'status': latest_status,
+                            'location': 'Ship24 System'
+                        })
+                        
+                    print(f"[DEBUG] Successfully extracted status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
+                
+                # Fallback: try old structure for backwards compatibility
+                elif 'json' in scrape_result and scrape_result['json']:
+                    data = scrape_result['json']
+                    
+                    # Extract the latest status
+                    latest_status = data.get('current_status', 'Unknown')
+                    
+                    # Extract tracking events
+                    events = data.get('events', [])
+                    if events:
+                        for event in events:
+                            tracking_info.append({
+                                'date': event.get('date', ''),
+                                'status': event.get('status', ''),
+                                'location': event.get('location', '')
+                            })
+                    
+                    # If no events were extracted but we have a current status,
+                    # create at least one event with the current status
+                    if not tracking_info and latest_status != "Unknown":
+                        tracking_info.append({
+                            'date': datetime.datetime.now().isoformat(),
+                            'status': latest_status,
+                            'location': 'Ship24 System'
+                        })
+                
+                # Fallback if no tracking info was extracted
+                if not tracking_info:
+                    print(f"Warning: No tracking events extracted for package {package_number}. Using fallback data.")
+                    return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                    
+            except Exception as parse_error:
+                print(f"Error parsing tracking data for package {package_number}: {str(parse_error)}")
+                traceback.print_exc()
+                return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+            
+            # Update ticket attributes in the same database session
+            fresh_ticket = db_session.query(Ticket).get(ticket_id)
+            if fresh_ticket:
+                # Update the specific package status field
+                setattr(fresh_ticket, status_field, latest_status)
+                fresh_ticket.updated_at = datetime.datetime.now()
+                db_session.commit()
+                print(f"Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
+            else:
+                print(f"Warning: Could not find ticket {ticket_id} in database session")
+            
+            # Save to cache for future requests
+            try:
+                from utils.tracking_cache import TrackingCache
+                TrackingCache.save_tracking_data(
+                    db_session,
+                    tracking_number, 
+                    tracking_info, 
+                    latest_status,
+                    ticket_id=ticket_id,
+                    tracking_type=f'package_{package_number}',
+                    carrier=carrier or "auto"
+                )
+                print(f"Real tracking data saved to cache for package {package_number}")
+            except Exception as cache_error:
+                print(f"Warning: Could not save tracking data to cache for package {package_number}: {str(cache_error)}")
+            
+            return jsonify({
+                'success': True,
+                'tracking_info': tracking_info,
+                'shipping_status': latest_status,
+                'tracking_number': tracking_number,
+                'carrier': carrier,
+                'package_number': package_number,
+                'is_real_data': True,
+                'is_cached': False,
+                'debug_info': {
+                    'source': 'firecrawl_ship24',
+                    'tracking_number': tracking_number,
+                    'package_number': package_number,
+                    'status': latest_status
+                }
+            })
+        
+        except Exception as e:
+            print(f"Error scraping ship24 for package {package_number} ({tracking_number}): {str(e)}")
+            traceback.print_exc()
+            return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+            
+    except Exception as e:
+        print(f"General error in track_package: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error tracking package: {str(e)}'}), 500
+            
+    finally:
+        # Always close the session
+        try:
+            if db_session:
+                if db_session.is_active:
+                    db_session.commit()
+                db_session.close()
+        except Exception as e:
+            print(f"Error closing database session in track_package: {str(e)}")
+
+
+def generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session):
+    """Generate enhanced mock tracking data for a specific package when real API data can't be obtained"""
+    print(f"Generating enhanced mock tracking data for package {package_number}: {tracking_number}")
+    
+    # Get the current time for timestamps
+    current_date = datetime.datetime.now()
+    
+    # Create a realistic-looking mock tracking timeline with multiple events
+    tracking_info = [
+        {
+            "status": "In Transit",
+            "location": f"Package {package_number} - Regional Sorting Center",
+            "date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "status": "Package Received",
+            "location": f"Package {package_number} - Origin Facility",
+            "date": (current_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "status": "Shipping Label Created",
+            "location": f"Package {package_number} - Sender Location",
+            "date": (current_date - datetime.timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+        }
+    ]
+    
+    # Use the latest status as the summary status
+    latest_status = tracking_info[0]["status"]
+    
+    try:
+        # Get the ticket to update its status
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if ticket:
+            # Update the specific package status field
+            setattr(ticket, status_field, latest_status)
+            ticket.updated_at = datetime.datetime.now()
+            db_session.commit()
+            print(f"Updated ticket {ticket_id} package {package_number} with mock status: {latest_status}")
+        
+        # Save to cache for future requests
+        try:
+            from utils.tracking_cache import TrackingCache
+            TrackingCache.save_tracking_data(
+                db_session,
+                tracking_number, 
+                tracking_info, 
+                latest_status,
+                ticket_id=ticket_id,
+                tracking_type=f'package_{package_number}',
+                carrier=carrier or "mock"
+            )
+            print(f"Mock data saved to cache for package {package_number}")
+        except Exception as cache_error:
+            print(f"Warning: Could not save mock data to cache for package {package_number}: {str(cache_error)}")
+    
+    except Exception as db_error:
+        print(f"Warning: Could not update ticket with mock data for package {package_number}: {str(db_error)}")
+    
+    # Return a successful response with mock data
+    return jsonify({
+        'success': True,
+        'tracking_info': tracking_info,
+        'shipping_status': latest_status,
+        'tracking_number': tracking_number,
+        'carrier': carrier,
+        'package_number': package_number,
+        'is_real_data': False,
+        'is_cached': False,
+        'debug_info': {
+            'source': 'enhanced_mock_data_generated',
+            'tracking_number': tracking_number,
+            'package_number': package_number,
+            'reason': 'API unavailable or insufficient credits',
+            'status': latest_status
+        }
+    })
+
+@tickets_bp.route('/<int:ticket_id>/package/<int:package_number>/add_item', methods=['POST'])
+@login_required
+def add_package_item(ticket_id, package_number):
+    """Add an asset or accessory to a specific package"""
+    try:
+        if package_number < 1 or package_number > 5:
+            return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Checkout (claw) ticket
+        if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package item management is only available for Asset Checkout (claw) tickets'}), 400
+
+        # Get request data
+        data = request.get_json()
+        item_type = data.get('item_type')  # 'asset' or 'accessory'
+        item_id = data.get('item_id')
+        quantity = data.get('quantity', 1)
+        notes = data.get('notes', '')
+
+        if not item_type or not item_id:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Item type and item ID are required'}), 400
+
+        # Get the item name first while we have an active session
+        if item_type == 'asset':
+            from models.asset import Asset
+            asset = db_session.query(Asset).get(item_id)
+            if not asset:
+                db_session.close()
+                return jsonify({'success': False, 'message': 'Asset not found'}), 404
+            item_name = asset.name
+            
+            # Add the item to the package
+            package_item = ticket.add_package_item(
+                package_number=package_number,
+                asset_id=item_id,
+                quantity=quantity,
+                notes=notes
+            )
+        elif item_type == 'accessory':
+            from models.accessory import Accessory
+            accessory = db_session.query(Accessory).get(item_id)
+            if not accessory:
+                db_session.close()
+                return jsonify({'success': False, 'message': 'Accessory not found'}), 404
+            item_name = accessory.name
+            
+            # Add the item to the package
+            package_item = ticket.add_package_item(
+                package_number=package_number,
+                accessory_id=item_id,
+                quantity=quantity,
+                notes=notes
+            )
+        else:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Invalid item type. Must be "asset" or "accessory"'}), 400
+
+        db_session.close()
+
+        # Note: Automatic comment generation removed as requested
+        return jsonify({
+            'success': True,
+            'message': f'{item_type.title()} added to Package {package_number} successfully'
+        })
+
+    except Exception as e:
+        print(f"Error adding package item: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error adding item to package: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/package_item/<int:package_item_id>/remove', methods=['POST'])
+@login_required
+def remove_package_item(ticket_id, package_item_id):
+    """Remove an item from a package"""
+    try:
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Checkout (claw) ticket
+        if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package item management is only available for Asset Checkout (claw) tickets'}), 400
+
+        # Get the package item to get details before removal
+        from models.package_item import PackageItem
+        package_item = db_session.query(PackageItem).filter_by(
+            id=package_item_id,
+            ticket_id=ticket_id
+        ).first()
+
+        if not package_item:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Package item not found'}), 404
+
+        # Store details for system note
+        item_name = package_item.item_name
+        item_type = package_item.item_type
+        package_number = package_item.package_number
+
+        # Remove the item
+        success = ticket.remove_package_item(package_item_id)
+
+        if success:
+            # Note: Automatic comment generation removed as requested
+
+            db_session.close()
+            return jsonify({
+                'success': True,
+                'message': f'{item_type} removed from Package {package_number} successfully'
+            })
+        else:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Failed to remove item from package'}), 500
+
+    except Exception as e:
+        print(f"Error removing package item: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error removing item from package: {str(e)}'}), 500
+
+@tickets_bp.route('/<int:ticket_id>/package/<int:package_number>/items', methods=['GET'])
+@login_required
+def get_package_items(ticket_id, package_number):
+    """Get all items associated with a specific package"""
+    try:
+        if package_number < 1 or package_number > 5:
+            return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
+
+        # Get ticket from database
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            db_session.close()
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+
+        # Get package items
+        package_items = ticket.get_package_items(package_number)
+
+        db_session.close()
+        return jsonify({
+            'success': True,
+            'package_items': package_items
+        })
+
+    except Exception as e:
+        print(f"Error getting package items: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error getting package items: {str(e)}'}), 500
+
+@tickets_bp.route('/api/assets', methods=['GET'])
+@login_required
+def get_assets_for_packages():
+    """Get available assets for package assignment"""
+    try:
+        from models.asset import Asset
+        db_session = ticket_store.db_manager.get_session()
+        
+        # Get all assets (you might want to filter by status, company, etc.)
+        assets = db_session.query(Asset).all()
+        
+        assets_data = []
+        for asset in assets:
+            assets_data.append({
+                'id': asset.id,
+                'name': asset.name,
+                'asset_tag': getattr(asset, 'asset_tag', ''),
+                'serial_num': getattr(asset, 'serial_num', ''),
+                'model': getattr(asset, 'model', ''),
+                'status': getattr(asset, 'status', '').value if hasattr(getattr(asset, 'status', ''), 'value') else str(getattr(asset, 'status', ''))
+            })
+        
+        db_session.close()
+        return jsonify({
+            'success': True,
+            'assets': assets_data
+        })
+    
+    except Exception as e:
+        print(f"Error getting assets: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error getting assets: {str(e)}'}), 500
+
+@tickets_bp.route('/api/accessories_for_packages', methods=['GET'])
+@login_required
+def get_accessories_for_packages():
+    """Get available accessories for package assignment"""
+    try:
+        from models.accessory import Accessory
+        db_session = ticket_store.db_manager.get_session()
+        
+        # Get all accessories (you might want to filter by stock quantity, etc.)
+        accessories = db_session.query(Accessory).all()
+        
+        accessories_data = []
+        for accessory in accessories:
+            accessories_data.append({
+                'id': accessory.id,
+                'name': accessory.name,
+                'category': getattr(accessory, 'category', ''),
+                'model': getattr(accessory, 'model', ''),
+                'stock_quantity': getattr(accessory, 'stock_quantity', 0)
+            })
+        
+        db_session.close()
+        return jsonify({
+            'success': True,
+            'accessories': accessories_data
+        })
+    
+    except Exception as e:
+        print(f"Error getting accessories: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error getting accessories: {str(e)}'}), 500
+
 @tickets_bp.route('/api/customers')
 @login_required
 def get_customers():
@@ -5923,3 +6789,86 @@ def search_accessories_for_csv():
         }), 500
     finally:
         db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/api/items', methods=['GET'])
+@login_required
+def get_ticket_items(ticket_id):
+    """API endpoint to get assets or accessories for a specific ticket"""
+    try:
+        item_type = request.args.get('type', '').lower()
+        
+        if item_type not in ['asset', 'accessory']:
+            return jsonify({'success': False, 'message': 'Invalid item type. Must be "asset" or "accessory"'})
+        
+        # Get database session
+        db_session = db_manager.get_session()
+        
+        try:
+            # Get the ticket using the database session to avoid lazy loading issues
+            from models.ticket import Ticket
+            from models.asset import Asset
+            from models.accessory import Accessory
+            from sqlalchemy import text
+            
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({'success': False, 'message': 'Ticket not found'})
+            
+            items = []
+            
+            if item_type == 'asset':
+                # Get assets assigned to this ticket using direct SQL query
+                result = db_session.execute(text("""
+                    SELECT a.id, a.asset_tag, a.model 
+                    FROM assets a 
+                    INNER JOIN ticket_assets ta ON a.id = ta.asset_id 
+                    WHERE ta.ticket_id = :ticket_id
+                """), {'ticket_id': ticket_id})
+                
+                for row in result:
+                    asset_id, asset_tag, model = row
+                    display_name = f"{asset_tag} - {model}" if asset_tag and model else f"Asset ID: {asset_id}"
+                    items.append({
+                        'id': asset_id,
+                        'display_name': display_name,
+                        'asset_tag': asset_tag or '',
+                        'model': model or ''
+                    })
+            
+            elif item_type == 'accessory':
+                # Get accessories assigned to this ticket using ticket_accessories table
+                result = db_session.execute(text("""
+                    SELECT a.id, a.name, a.model_no 
+                    FROM accessories a 
+                    INNER JOIN ticket_accessories ta ON a.id = ta.original_accessory_id 
+                    WHERE ta.ticket_id = :ticket_id
+                """), {'ticket_id': ticket_id})
+                
+                for row in result:
+                    accessory_id, name, model_no = row
+                    model_text = f" ({model_no})" if model_no else " (No Model)"
+                    display_name = f"{name}{model_text}"
+                    items.append({
+                        'id': accessory_id,
+                        'display_name': display_name,
+                        'name': name or '',
+                        'model': model_no or ''
+                    })
+            
+            return jsonify({
+                'success': True,
+                'items': items,
+                'count': len(items),
+                'item_type': item_type
+            })
+            
+        except Exception as e:
+            print(f"Error fetching {item_type}s for ticket {ticket_id}: {str(e)}")
+            return jsonify({'success': False, 'message': f'Database error: {str(e)}'})
+        
+        finally:
+            db_session.close()
+    
+    except Exception as e:
+        print(f"Error in get_ticket_items: {str(e)}")
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'})

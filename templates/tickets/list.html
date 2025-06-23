@@ -699,6 +699,16 @@
                 <div class="sf-pagination">
                     <div class="sf-pagination-info">
                         Showing <span id="itemsShown">1-10</span> of <span id="totalItems">{{ tickets|length }}</span> tickets
+                        <div class="inline-flex items-center ml-4">
+                            <label for="itemsPerPageSelect" class="text-xs text-gray-600 mr-2">Display:</label>
+                            <select id="itemsPerPageSelect" class="sf-filter-select text-xs" onchange="changeItemsPerPage()">
+                                <option value="10" selected>10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span class="text-xs text-gray-600 ml-2">per page</span>
+                        </div>
                     </div>
                     <div class="sf-pagination-controls">
                         <button class="sf-pagination-button" id="prevPage" onclick="changePage(-1)">
@@ -722,7 +732,7 @@
 <script>
     // Pagination variables
     let currentPage = 1;
-    const itemsPerPage = 10;
+    let itemsPerPage = 10;
     let filteredItems = [];
     
     // Current user ID for filtering
@@ -967,6 +977,18 @@
         } else {
             nextButton.classList.remove('disabled');
         }
+    }
+    
+    function changeItemsPerPage() {
+        const select = document.getElementById('itemsPerPageSelect');
+        itemsPerPage = parseInt(select.value);
+        
+        // Reset to first page
+        currentPage = 1;
+        
+        // Update pagination and display
+        updatePagination();
+        showPage(1);
     }
 </script>
 {% endblock %} 

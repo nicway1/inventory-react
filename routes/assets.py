@@ -179,13 +179,31 @@ def add_asset():
         asset_tag = data.get('asset_tag')
         serial_number = data.get('serial_number')
         name = data.get('name')
+        model = data.get('model')
         category = data.get('category')
         location = data.get('location')
         condition = data.get('condition')
-        status = data.get('status', 'In Stock')
+        status = data.get('status', 'IN_STOCK')
         notes = data.get('notes', '')
-        asset_type = data.get('type', 'MISC')
+        tech_notes = data.get('tech_notes', '')
+        asset_type = data.get('asset_type', 'MISC')
         ticket_id = data.get('ticket_id')  # Optional ticket ID to link to
+        
+        # Additional fields from the form
+        receiving_date = data.get('receiving_date')
+        po = data.get('po')
+        customer = data.get('customer')
+        country = data.get('country')
+        erased = data.get('erased')
+        hardware_type = data.get('hardware_type')
+        cpu_type = data.get('cpu_type')
+        cpu_cores = data.get('cpu_cores')
+        memory = data.get('memory')
+        harddrive = data.get('harddrive')
+        gpu_cores = data.get('gpu_cores')
+        keyboard = data.get('keyboard')
+        charger = data.get('charger')
+        diag = data.get('diag')
 
         print(f"[ASSETS DEBUG] Parsed fields: asset_tag={asset_tag}, serial_number={serial_number}, name={name}, ticket_id={ticket_id}")
 
@@ -209,17 +227,42 @@ def add_asset():
             else:
                 return jsonify({'success': False, 'error': '[ASSETS_ROUTE] Serial number already exists'}), 400
 
-        # Create new asset
-        print(f"[ASSETS DEBUG] Creating new asset with: asset_tag={asset_tag}, serial_num={serial_number}, name={name}")
+        # Parse receiving_date if provided
+        receiving_date_obj = None
+        if receiving_date:
+            try:
+                from datetime import datetime
+                receiving_date_obj = datetime.strptime(receiving_date, '%Y-%m-%d')
+            except ValueError:
+                print(f"[ASSETS DEBUG] Invalid receiving_date format: {receiving_date}")
+
+        # Create new asset with all fields
+        print(f"[ASSETS DEBUG] Creating new asset with: asset_tag={asset_tag}, serial_num={serial_number}, name={name}, model={model}")
         new_asset = Asset(
             asset_tag=asset_tag,
             serial_num=serial_number,
             name=name,
+            model=model,
             location=location,
             condition=condition,
             notes=notes,
+            tech_notes=tech_notes,
             asset_type=asset_type,
-            status=AssetStatus.IN_STOCK if status == 'In Stock' else AssetStatus.READY_TO_DEPLOY
+            status=getattr(AssetStatus, status, AssetStatus.IN_STOCK),
+            receiving_date=receiving_date_obj,
+            po=po,
+            customer=customer,
+            country=country,
+            erased=erased,
+            hardware_type=hardware_type,
+            cpu_type=cpu_type,
+            cpu_cores=cpu_cores,
+            memory=memory,
+            harddrive=harddrive,
+            gpu_cores=gpu_cores,
+            keyboard=keyboard,
+            charger=charger,
+            diag=diag
         )
         
         db_session.add(new_asset)
@@ -305,8 +348,16 @@ def add_asset():
                 'asset_tag': new_asset.asset_tag,
                 'serial_number': new_asset.serial_num,
                 'name': new_asset.name,
+                'model': new_asset.model,
                 'status': new_asset.status.value if new_asset.status else status,
-                'type': asset_type
+                'type': asset_type,
+                'condition': new_asset.condition,
+                'customer': new_asset.customer,
+                'country': new_asset.country,
+                'hardware_type': new_asset.hardware_type,
+                'cpu_type': new_asset.cpu_type,
+                'memory': new_asset.memory,
+                'harddrive': new_asset.harddrive
             }
         })
         
