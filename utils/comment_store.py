@@ -1,8 +1,11 @@
 import json
 import os
+import logging
 from datetime import datetime
 from models.comment import Comment
-import logging
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 
 class CommentStore:
     COMMENTS_FILE = 'data/comments.json'
@@ -12,17 +15,17 @@ class CommentStore:
         self.user_store = user_store
         self.activity_store = activity_store
         self.ticket_store = ticket_store
-        print("[DEBUG] Initializing CommentStore")
+        logger.debug("Initializing CommentStore")
         self.load_comments()
-        print(f"[DEBUG] Loaded {len(self.comments)} comments")
+        logger.debug(f"Loaded {len(self.comments)} comments")
 
     def load_comments(self):
-        print(f"[DEBUG] Loading comments from {self.COMMENTS_FILE}")
+        logger.debug(f"Loading comments from {self.COMMENTS_FILE}")
         if os.path.exists(self.COMMENTS_FILE):
             try:
                 with open(self.COMMENTS_FILE, 'r') as f:
                     comments_data = json.load(f)
-                    print(f"[DEBUG] Found {len(comments_data)} comments in file")
+                    logger.debug(f"Found {len(comments_data)} comments in file")
                     for comment_data in comments_data:
                         # Fix content with nested mentions
                         content = comment_data['content']
@@ -40,7 +43,7 @@ class CommentStore:
                             content = content.replace("</span>", "", close_spans - open_spans)
                         
                         if content != original_content:
-                            print(f"[DEBUG] Fixed comment {comment_data['id']}: '{original_content}' -> '{content}'")
+                            logger.debug(f"Fixed comment {comment_data['id']}: '{original_content}' -> '{content}'")
                         
                         comment = Comment(
                             id=comment_data['id'],
@@ -50,14 +53,14 @@ class CommentStore:
                             created_at=datetime.fromisoformat(comment_data['created_at'])
                         )
                         self.comments[comment.id] = comment
-                        print(f"[DEBUG] Loaded comment {comment.id} for ticket {comment.ticket_id}")
+                        logger.debug(f"Loaded comment {comment.id} for ticket {comment.ticket_id}")
             except Exception as e:
-                print(f"[ERROR] Error loading comments: {e}")
+                logger.error(f"Error loading comments: {e}")
                 # If there's an error, initialize with empty dict
                 self.comments = {}
 
     def save_comments(self):
-        print(f"[DEBUG] Saving {len(self.comments)} comments")
+        logger.debug(f"Saving {len(self.comments)} comments")
         os.makedirs(os.path.dirname(self.COMMENTS_FILE), exist_ok=True)
         comments_data = []
         for comment in self.comments.values():
@@ -77,7 +80,7 @@ class CommentStore:
                 content = content.replace("</span>", "", close_spans - open_spans)
                 
             if content != original_content:
-                print(f"[DEBUG] Fixed comment {comment.id} before saving: '{original_content}' -> '{content}'")
+                logger.debug(f"Fixed comment {comment.id} before saving: '{original_content}' -> '{content}'")
                 
             comments_data.append({
                 'id': comment.id,
@@ -90,20 +93,20 @@ class CommentStore:
         try:
             with open(self.COMMENTS_FILE, 'w') as f:
                 json.dump(comments_data, f, indent=2)
-            print(f"[DEBUG] Successfully saved {len(comments_data)} comments")
+            logger.debug(f"Successfully saved {len(comments_data)} comments")
         except Exception as e:
-            print(f"[ERROR] Error saving comments: {e}")
+            logger.error(f"Error saving comments: {e}")
 
     def add_comment(self, ticket_id, user_id, content):
-        print(f"[DEBUG] Adding comment for ticket {ticket_id} by user {user_id}: '{content}'")
+        logger.debug(f"Adding comment for ticket {ticket_id} by user {user_id}: '{content}'")
         comment = Comment.create(ticket_id, user_id, content)
         self.comments[comment.id] = comment
-        print(f"[DEBUG] Created comment with ID {comment.id}")
+        logger.debug(f"Created comment with ID {comment.id}")
         self.save_comments()
         
         # Notify mentioned users
         if comment.mentions:
-            print(f"[DEBUG] Found mentions in comment: {comment.mentions}")
+            logger.debug(f"Found mentions in comment: {comment.mentions}")
             self._notify_mentions(comment)
         
         return comment
@@ -124,16 +127,16 @@ class CommentStore:
                 commenter = db_session.query(User).get(comment.user_id)
                 
                 if not ticket or not commenter:
-                    print(f"[WARNING] Could not find ticket {comment.ticket_id} or user {comment.user_id}")
+                    logger.warning(f"Could not find ticket {comment.ticket_id} or user {comment.user_id}")
                     return
                 
-                print(f"[DEBUG] Found ticket {ticket.display_id} and commenter {commenter.username}")
+                logger.debug(f"Found ticket {ticket.display_id} and commenter {commenter.username}")
                 
                 for username in comment.mentions:
                     # Find mentioned user by username
                     mentioned_user = db_session.query(User).filter(User.username == username).first()
                     if mentioned_user:
-                        print(f"[DEBUG] Notifying user {username} (ID: {mentioned_user.id}) about mention")
+                        logger.debug(f"Notifying user {username} (ID: {mentioned_user.id}) about mention")
                         
                         # Clean up the content for notification (remove HTML tags)
                         import re
@@ -149,7 +152,7 @@ class CommentStore:
                         )
                         
                         # Send email notification
-                        print(f"[DEBUG] Sending mention email to {mentioned_user.email}")
+                        logger.debug(f"Sending mention email to {mentioned_user.email}")
                         email_sent = send_mention_notification_email(
                             mentioned_user=mentioned_user,
                             commenter=commenter,
@@ -158,17 +161,17 @@ class CommentStore:
                         )
                         
                         if email_sent:
-                            print(f"[SUCCESS] Mention email sent successfully to {mentioned_user.username}")
+                            logger.info(f"Mention email sent successfully to {mentioned_user.username}")
                         else:
-                            print(f"[WARNING] Failed to send mention email to {mentioned_user.username}")
+                            logger.warning(f"Failed to send mention email to {mentioned_user.username}")
                             
                     else:
-                        print(f"[WARNING] User {username} not found for mention notification")
+                        logger.warning(f"User {username} not found for mention notification")
             finally:
                 db_session.close()
                 
         except Exception as e:
-            print(f"[ERROR] Error sending mention notifications: {e}")
+            logger.error(f"Error sending mention notifications: {e}")
             import traceback
             traceback.print_exc()
 
@@ -177,14 +180,14 @@ class CommentStore:
             comment for comment in self.comments.values()
             if comment.ticket_id == ticket_id
         ]
-        print(f"[DEBUG] Retrieved {len(comments)} comments for ticket {ticket_id}")
+        logger.debug(f"Retrieved {len(comments)} comments for ticket {ticket_id}")
         for comment in comments:
-            print(f"[DEBUG] Comment {comment.id}: '{comment.content}'")
+            logger.debug(f"Comment {comment.id}: '{comment.content}'")
         return comments 
 
     def delete_ticket_comments(self, ticket_id):
         """Delete all comments associated with a ticket"""
-        print(f"[DEBUG] Deleting comments for ticket {ticket_id}")
+        logger.debug(f"Deleting comments for ticket {ticket_id}")
         
         # Find comment IDs associated with this ticket
         comment_ids_to_delete = [
@@ -199,7 +202,7 @@ class CommentStore:
                 del self.comments[comment_id]
                 deletion_count += 1
                 
-        print(f"[DEBUG] Deleted {deletion_count} comments for ticket {ticket_id}")
+        logger.debug(f"Deleted {deletion_count} comments for ticket {ticket_id}")
         
         # Save changes to file
         self.save_comments()
@@ -208,7 +211,7 @@ class CommentStore:
         
     def cleanup_orphaned_comments(self):
         """Remove comments that reference tickets that no longer exist"""
-        print("[DEBUG] Cleaning up orphaned comments")
+        logger.debug("Cleaning up orphaned comments")
         
         # Get all current valid ticket IDs from the database
         valid_ticket_ids = set()
@@ -222,10 +225,10 @@ class CommentStore:
             finally:
                 db_session.close()
         except Exception as e:
-            print(f"[ERROR] Error fetching valid ticket IDs: {e}")
+            logger.error(f"Error fetching valid ticket IDs: {e}")
             return 0
             
-        print(f"[DEBUG] Found {len(valid_ticket_ids)} valid tickets in database")
+        logger.debug(f"Found {len(valid_ticket_ids)} valid tickets in database")
         
         # Find comment IDs for comments referencing non-existent tickets
         comment_ids_to_delete = [
@@ -238,11 +241,11 @@ class CommentStore:
         for comment_id in comment_ids_to_delete:
             if comment_id in self.comments:
                 orphaned_ticket_id = self.comments[comment_id].ticket_id
-                print(f"[DEBUG] Deleting orphaned comment {comment_id} for non-existent ticket {orphaned_ticket_id}")
+                logger.debug(f"Deleting orphaned comment {comment_id} for non-existent ticket {orphaned_ticket_id}")
                 del self.comments[comment_id]
                 deletion_count += 1
                 
-        print(f"[DEBUG] Deleted {deletion_count} orphaned comments")
+        logger.debug(f"Deleted {deletion_count} orphaned comments")
         
         # Save changes to file if any comments were deleted
         if deletion_count > 0:
