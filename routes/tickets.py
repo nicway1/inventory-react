@@ -207,6 +207,17 @@ def create_ticket():
                         'sections': custom_category.sections_list  # Include section information
                     })
         
+        # Get all users for case owner selection (admin and super admin only)
+        users_for_assignment = []
+        if user.is_super_admin or user.user_type == UserType.ADMIN:
+            from models.user import User
+            all_users = db_session.query(User).filter(User.is_active == True).all()
+            users_for_assignment = [{
+                'id': u.id,
+                'username': u.username,
+                'company': u.company.name if u.company else None
+            } for u in all_users]
+        
         # Helper function to generate template context
         def get_template_context(form_data=None):
             return {
@@ -219,6 +230,7 @@ def create_ticket():
                 'is_client': is_client,
                 'user': user,
                 'companies': companies_list,
+                'users_for_assignment': users_for_assignment,
                 'form': form_data
             }
         
@@ -303,6 +315,7 @@ def create_ticket():
                 shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
                 notes = request.form.get('notes', '')
                 queue_id = request.form.get('queue_id')  # Get selected queue
+                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
                 
                 # Convert queue_id to int if provided
                 if queue_id:
@@ -486,7 +499,8 @@ Additional Notes:
                             shipping_tracking=shipping_tracking if shipping_tracking else None,
                             shipping_carrier=shipping_carrier,
                             queue_id=queue_id,
-                            notes=notes
+                            notes=notes,
+                            case_owner_id=int(case_owner_id) if case_owner_id else None
                         )
                         print(f"[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
                     except Exception as ticket_creation_error:
@@ -742,7 +756,8 @@ Additional Notes:
                         priority=priority,
                         asset_id=asset.id,  # Use old asset_id approach
                         queue_id=queue_id,  # Pass queue_id to create_ticket
-                        notes=notes
+                        notes=notes,
+                        case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
                     flash('PIN request ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -834,7 +849,8 @@ Shipping Method: Claw (Ship24)"""
                         return_tracking=inbound_tracking if inbound_tracking else None,
                         queue_id=queue_id,
                         notes=notes,
-                        return_description=user_return_description
+                        return_description=user_return_description,
+                        case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
 
                     print(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
@@ -950,7 +966,8 @@ Additional Notes:
                         requester_id=user_id,
                         category=TicketCategory.ASSET_INTAKE,
                         priority=priority,
-                        notes=notes
+                        notes=notes,
+                        case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
 
                     flash('Asset intake ticket created successfully')
@@ -974,12 +991,15 @@ Additional Notes:
                 if asset:
                     asset_id = asset.id
                 
+                # Determine case owner for custom category
+                custom_case_owner_id = int(case_owner_id) if case_owner_id else user_id
+                
                 # Create ticket object directly (bypassing ticket_store for custom categories)
                 new_ticket = Ticket(
                     subject=subject if subject else f"Custom ticket - {category}",
                     description=description if description else "Custom ticket created",
                     requester_id=user_id,
-                    assigned_to_id=user_id,  # Set requester as default assignee
+                    assigned_to_id=custom_case_owner_id,  # Use selected case owner or default to requester
                     priority=priority if isinstance(priority, TicketPriority) else TicketPriority.MEDIUM,
                     asset_id=asset_id,
                     country=request.form.get('country'),
@@ -1010,7 +1030,8 @@ Additional Notes:
                     priority=priority,
                     asset_id=asset_id,
                     country=request.form.get('country'),
-                    notes=notes
+                    notes=notes,
+                    case_owner_id=int(case_owner_id) if case_owner_id else None
                 )
 
             flash('Ticket created successfully')

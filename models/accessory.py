@@ -42,11 +42,25 @@ class Accessory(Base):
         """
         from models.accessory_history import AccessoryHistory
         
+        # Convert datetime objects to strings for JSON serialization
+        def serialize_for_json(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            return obj
+        
+        # Process the changes dictionary to handle datetime objects
+        serialized_changes = {}
+        for field, change_data in changes.items():
+            serialized_changes[field] = {
+                'old': serialize_for_json(change_data['old']),
+                'new': serialize_for_json(change_data['new'])
+            }
+        
         return AccessoryHistory(
             accessory_id=self.id,
             user_id=user_id,
             action=action,
-            changes=changes,
+            changes=serialized_changes,
             notes=notes
         )
 

@@ -2617,6 +2617,33 @@ def csv_import_preview_ticket():
         finally:
             queue_session.close()
         
+        # Get all users for case owner selection (admin and super admin only)
+        available_users = []
+        user_session = db_manager.get_session()
+        try:
+            from models.user import User
+            from models.enums import UserType
+            from flask_login import current_user
+            
+            # Check if user is admin or super admin
+            is_admin = current_user.is_admin or current_user.is_super_admin
+            
+            if is_admin:
+                all_users = user_session.query(User).all()
+                for user in all_users:
+                    available_users.append({
+                        'id': user.id,
+                        'name': user.username,
+                        'email': user.email,
+                        'is_current': user.id == current_user.id
+                    })
+        except Exception as e:
+            print(f"Error getting users for case owner selection: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            user_session.close()
+        
         # Create enhanced ticket preview
         if is_grouped:
             subject = f"Asset Checkout - Order {row['order_id']} ({row['item_count']} items)"
@@ -2681,6 +2708,7 @@ def csv_import_preview_ticket():
             'notes': order_notes,
             'available_queues': available_queues,
             'suggested_queue_id': next((q['id'] for q in available_queues if q['suggested']), None),
+            'available_users': available_users,
             'inventory_info': inventory_info,
             'shipping_info': {
                 'office_name': primary_item['office_name'],
@@ -2724,6 +2752,7 @@ def csv_import_import_ticket():
         is_grouped = data.get('is_grouped', False)
         file_id = data.get('file_id')
         selected_queue_id = data.get('queue_id')  # Get selected queue
+        selected_case_owner_id = data.get('case_owner_id')  # Get selected case owner
         selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
         selected_assets = data.get('selected_assets', [])  # Get selected assets
         
@@ -2952,12 +2981,18 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 - Shipped Date: {primary_item['shipped_date'] or 'Not specified'}
 - Delivery Date: {primary_item['delivery_date'] or 'Not specified'}
 - Carrier: {primary_item['carrier'] or 'Not specified'}
-- Tracking: {primary_item['tracking_link'] or 'Not provided'}
-
-Additional Info:
-{description}"""
+- Tracking: {primary_item['tracking_link'] or 'Not provided'}"""
             
             # 7. CREATE THE TICKET WITH PROPER DATA FLOW
+            # Determine case owner (assigned_to_id)
+            case_owner_id = current_user.id  # Default to current user
+            if selected_case_owner_id:
+                try:
+                    case_owner_id = int(selected_case_owner_id)
+                    print(f"[CSV DEBUG] Using selected case owner: {case_owner_id}")
+                except (ValueError, TypeError):
+                    print(f"[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
+            
             print(f"[CSV DEBUG] Creating ticket with subject: {subject}")
             ticket = Ticket(
                 subject=subject,
@@ -2967,6 +3002,7 @@ Additional Info:
                 priority=priority,
                 status=TicketStatus.NEW,
                 requester_id=current_user.id,
+                assigned_to_id=case_owner_id,  # Set case owner
                 queue_id=int(selected_queue_id) if selected_queue_id else None,  # Assign to selected queue
                 shipping_address=shipping_address,  # Shipping info goes to shipping_address field
                 notes=order_notes  # Order details go to Notes field

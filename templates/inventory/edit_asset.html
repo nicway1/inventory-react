@@ -274,6 +274,21 @@
                             </div>
 
                             <div>
+                                <label for="keyboard" class="block text-sm font-medium text-gray-700">Keyboard</label>
+                                <input type="text" 
+                                       id="keyboard" 
+                                       name="keyboard" 
+                                       value="{{ asset.keyboard or '' }}"
+                                       list="keyboard-list"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <datalist id="keyboard-list">
+                                    {% for keyboard in keyboards %}
+                                    <option value="{{ keyboard }}">{{ keyboard }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+
+                            <div>
                                 <label for="erased" class="block text-sm font-medium text-gray-700">Data Erased</label>
                                 <input type="text" 
                                        id="erased" 

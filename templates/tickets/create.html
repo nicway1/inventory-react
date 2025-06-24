@@ -186,6 +186,24 @@
                         </p>
                     </div>
 
+                    <!-- Case Owner Selection -->
+                    {% if users_for_assignment %}
+                    <div>
+                        <label for="pin_case_owner_id" class="block text-sm font-medium text-gray-700">Case Owner</label>
+                        <select id="pin_case_owner_id" 
+                                name="case_owner_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for user_option in users_for_assignment %}
+                            <option value="{{ user_option.id }}" 
+                                    {% if user_option.id == user.id %}selected{% endif %}>
+                                {{ user_option.username }}{% if user_option.company %} ({{ user_option.company }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Default: Current user ({{ user.username }})</p>
+                    </div>
+                    {% endif %}
+
                     <!-- Notes -->
                     <div>
                         <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
@@ -334,6 +352,24 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Case Owner Selection -->
+                    {% if users_for_assignment %}
+                    <div>
+                        <label for="case_owner_id" class="block text-sm font-medium text-gray-700">Case Owner</label>
+                        <select id="case_owner_id" 
+                                name="case_owner_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for user_option in users_for_assignment %}
+                            <option value="{{ user_option.id }}" 
+                                    {% if user_option.id == user.id %}selected{% endif %}>
+                                {{ user_option.username }}{% if user_option.company %} ({{ user_option.company }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Default: Current user ({{ user.username }})</p>
+                    </div>
+                    {% endif %}
 
                     <!-- Hidden field for asset checkout serial number -->
                     <input type="hidden" id="asset_checkout_serial" name="asset_checkout_serial" value="">
@@ -537,6 +573,24 @@
                             Select which support queue this asset checkout ticket should be assigned to.
                         </p>
                     </div>
+
+                    <!-- Case Owner Selection for Asset Checkout -->
+                    {% if users_for_assignment %}
+                    <div>
+                        <label for="checkout_case_owner_id" class="block text-sm font-medium text-gray-700">Case Owner</label>
+                        <select id="checkout_case_owner_id" 
+                                name="case_owner_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for user_option in users_for_assignment %}
+                            <option value="{{ user_option.id }}" 
+                                    {% if user_option.id == user.id %}selected{% endif %}>
+                                {{ user_option.username }}{% if user_option.company %} ({{ user_option.company }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Select who will be responsible for this case. Default: {{ user.username }}</p>
+                    </div>
+                    {% endif %}
                     
                     <!-- CSV Upload for Accessories -->
                     <div>

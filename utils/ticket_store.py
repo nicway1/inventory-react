@@ -100,7 +100,7 @@ class TicketStore:
     def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
                      asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
                      image_path=None, repair_status=None, customer_id=None, shipping_address=None,
-                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None, notes=None, return_description=None):
+                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None, notes=None, return_description=None, case_owner_id=None):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -122,11 +122,14 @@ class TicketStore:
                             print(f"Warning: Invalid priority '{priority}', using default MEDIUM")
                             priority = TicketPriority.MEDIUM
                 
+            # Determine case owner - use case_owner_id if provided, otherwise default to requester
+            assigned_to_id = case_owner_id if case_owner_id else requester_id
+            
             ticket = Ticket(
                 subject=subject,
                 description=description,
                 requester_id=requester_id,
-                assigned_to_id=requester_id,  # Set requester as default case owner
+                assigned_to_id=assigned_to_id,  # Use selected case owner or default to requester
                 category=category,
                 priority=priority,
                 asset_id=asset_id,

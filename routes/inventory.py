@@ -1894,6 +1894,15 @@ def edit_asset(asset_id):
         asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
         asset_types = sorted([t[0] for t in asset_types if t[0]])
         
+        conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        conditions = sorted([c[0] for c in conditions if c[0]])
+        
+        diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        diags = sorted([d[0] for d in diags if d[0]])
+        
+        keyboards = db_session.query(Asset.keyboard).distinct().filter(Asset.keyboard.isnot(None)).all()
+        keyboards = sorted([k[0] for k in keyboards if k[0]])
+        
         if request.method == 'POST':
             try:
                 print("Received POST request for asset edit")  # Debug log
@@ -1927,6 +1936,9 @@ def edit_asset(asset_id):
                     'po': asset.po,
                     'charger': asset.charger,
                     'erased': asset.erased,
+                    'condition': asset.condition,
+                    'diag': asset.diag,
+                    'keyboard': asset.keyboard,
                     'notes': asset.notes,
                     'tech_notes': asset.tech_notes
                 }
@@ -1984,9 +1996,12 @@ def edit_asset(asset_id):
                 asset.harddrive = request.form.get('harddrive')
                 asset.po = request.form.get('po')
                 asset.charger = request.form.get('charger')
+                asset.erased = request.form.get('erased')
+                asset.condition = request.form.get('condition')
+                asset.diag = request.form.get('diag')
+                asset.keyboard = request.form.get('keyboard')
                 asset.notes = request.form.get('notes')
                 asset.tech_notes = request.form.get('tech_notes')
-                asset.erased = request.form.get('erased')
                 
                 # Track changes
                 changes = {}
@@ -2027,6 +2042,9 @@ def edit_asset(asset_id):
                                      customers=customers,
                                      countries=countries,
                                      asset_types=asset_types,
+                                     conditions=conditions,
+                                     diags=diags,
+                                     keyboards=keyboards,
                                      statuses=AssetStatus)
         
         return render_template('inventory/edit_asset.html',
@@ -2036,6 +2054,9 @@ def edit_asset(asset_id):
                              customers=customers,
                              countries=countries,
                              asset_types=asset_types,
+                             conditions=conditions,
+                             diags=diags,
+                             keyboards=keyboards,
                              statuses=AssetStatus)
                              
     except Exception as e:

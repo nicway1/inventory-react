@@ -1467,9 +1467,9 @@ body.dark-theme [class*="bg-neutral"] {
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Phone</div>
                                         <div class="sf-field-value">
-                                            {% if ticket.customer.phone %}
-                                            <a href="tel:{{ ticket.customer.phone }}" class="text-blue-600 hover:text-blue-800">
-                                                {{ ticket.customer.phone }}
+                                            {% if ticket.customer.contact_number %}
+                                            <a href="tel:{{ ticket.customer.contact_number }}" class="text-blue-600 hover:text-blue-800">
+                                                {{ ticket.customer.contact_number }}
                                             </a>
                                             {% else %}
                                             <span class="text-gray-500">Not provided</span>
