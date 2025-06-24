@@ -56,4 +56,4 @@ jobs:
           app-name: 'inventorymanagment'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          startup-command: 'gunicorn --bind 0.0.0.0:$PORT azure_wsgi:application' 
+          startup-command: 'gunicorn --bind 0.0.0.0:$PORT minimal_wsgi:application' 
