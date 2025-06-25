@@ -909,6 +909,7 @@ Images Attached: {len(image_paths)} image(s)"""
                 description = request.form.get('intake_description') or request.form.get('description')  # Support both field names  
                 notes = request.form.get('intake_notes') or request.form.get('notes', '')  # Support both field names
                 priority = request.form.get('intake_priority') or request.form.get('priority')  # Support both field names
+                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
 
                 if not title or not description:
                     flash('Please provide both title and description', 'error')
@@ -980,6 +981,7 @@ Additional Notes:
 
             # Create the ticket for other categories (including custom categories)
             notes = request.form.get('notes', '')
+            case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
             
             # Handle custom categories
             if is_custom_category:
