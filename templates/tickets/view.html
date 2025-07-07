@@ -1948,9 +1948,19 @@ body.dark-theme [class*="bg-neutral"] {
                                                             </tr>
                                                         </thead>
                                                         <tbody id="trackingEvents-{{ package.package_number }}" class="bg-white divide-y divide-gray-200">
-                                                            <tr>
-                                                                <td colspan="3" class="px-4 py-2 text-sm text-gray-500 text-center">Loading tracking data...</td>
-                                                            </tr>
+                                                            {% if packages_tracking_data.get(package.package_number) %}
+                                                                {% for event in packages_tracking_data[package.package_number] %}
+                                                                <tr class="hover:bg-gray-50">
+                                                                    <td class="px-4 py-2 text-sm text-gray-900">{{ event.status or 'Status unavailable' }}</td>
+                                                                    <td class="px-4 py-2 text-sm text-gray-600">{{ event.location or 'Location unavailable' }}</td>
+                                                                    <td class="px-4 py-2 text-sm text-gray-600">{{ event.date }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <tr>
+                                                                    <td colspan="3" class="px-4 py-2 text-sm text-gray-500 text-center">Click refresh to load tracking data</td>
+                                                                </tr>
+                                                            {% endif %}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -7962,10 +7972,15 @@ function refreshPackageTracking(packageNumber) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log(`[Package ${packageNumber} Debug] API Response:`, data);
+        
         if (data.success && data.tracking_info && data.tracking_info.length > 0) {
+            console.log(`[Package ${packageNumber} Debug] Found ${data.tracking_info.length} tracking events`);
+            
             // Format tracking events as table rows
             let eventsHtml = '';
-            data.tracking_info.forEach(event => {
+            data.tracking_info.forEach((event, index) => {
+                console.log(`[Package ${packageNumber} Debug] Event ${index}:`, event);
                 const date = formatTrackingDate(event.date);
                 const status = event.status || 'Status unavailable';
                 const location = event.location || 'Location unavailable';
@@ -7977,13 +7992,15 @@ function refreshPackageTracking(packageNumber) {
                     </tr>
                 `;
             });
+            console.log(`[Package ${packageNumber} Debug] Generated HTML:`, eventsHtml);
             trackingEvents.innerHTML = eventsHtml;
         } else {
+            console.log(`[Package ${packageNumber} Debug] No tracking data found or API failed:`, data);
             trackingEvents.innerHTML = '<tr><td colspan="3" class="px-4 py-3 text-sm text-gray-500 text-center">No tracking information available at this time.</td></tr>';
         }
     })
     .catch(error => {
-        console.error('Error fetching package tracking:', error);
+        console.error(`[Package ${packageNumber} Debug] Error fetching package tracking:`, error);
         trackingEvents.innerHTML = '<tr><td colspan="3" class="px-4 py-3 text-sm text-red-500 text-center">Error fetching tracking data: ' + error.message + '</td></tr>';
     });
 }
