@@ -775,6 +775,7 @@ Additional Notes:
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
                 notes = request.form.get('notes', '')
                 queue_id = request.form.get('queue_id')  # Get selected queue
+                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
                 # Extract the return description from the form
                 user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
                 

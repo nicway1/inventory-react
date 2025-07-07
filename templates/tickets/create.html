@@ -787,6 +787,24 @@
                     <!-- Inbound Tracking Number - Hidden -->
                     <input type="hidden" id="inbound_tracking" name="return_tracking" value="">
                     
+                    <!-- Case Owner Selection -->
+                    {% if users_for_assignment %}
+                    <div>
+                        <label for="return_case_owner_id" class="block text-sm font-medium text-gray-700">Case Owner</label>
+                        <select id="return_case_owner_id" 
+                                name="case_owner_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for user_option in users_for_assignment %}
+                            <option value="{{ user_option.id }}" 
+                                    {% if user_option.id == user.id %}selected{% endif %}>
+                                {{ user_option.username }}{% if user_option.company %} ({{ user_option.company }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Default: Current user ({{ user.username }})</p>
+                    </div>
+                    {% endif %}
+
                     <!-- Queue Selection -->
                     <div>
                         <label for="queue_id" class="block text-sm font-medium text-gray-700">
@@ -1115,7 +1133,7 @@ function onCategoryChange() {
     const assetIntakeFields = document.getElementById('assetIntakeFields');
     const assetReturnFields = document.getElementById('assetReturnFields');
     const assetSelectionContainer = document.getElementById('assetSelectionContainer');
-    const mainSubmitButton = document.querySelector('button[type="submit"]');
+    const mainSubmitButton = document.getElementById('mainSubmitButton');
     
     // Get references to general fields that might be duplicated
     const generalPriorityField = document.getElementById('generalPriorityField');
@@ -1560,6 +1578,8 @@ $(document).ready(function() {
     $('#return_customer_id').on('change', function() {
         const selectedOption = $(this).find(':selected');
         if (selectedOption.val()) {
+            console.log('Return customer selected, processing address data...');
+            
             // Check if it's a Select2 selection with custom data
             const select2Data = $(this).select2('data')[0];
             let customerName = '';
@@ -1568,18 +1588,35 @@ $(document).ready(function() {
             if (select2Data) {
                 customerName = select2Data.name || select2Data.text;
                 address = select2Data.address;
+                console.log('Select2 data found:', { customerName, address });
             } else {
                 // Fallback to data attributes for pre-loaded options
                 customerName = selectedOption.text();
                 address = selectedOption.data('address');
+                console.log('Using data attributes:', { customerName, address });
             }
             
-            if (address) {
+            // Additional fallback: try getting address from the original option element
+            if (!address && selectedOption.length > 0) {
+                address = selectedOption.attr('data-address');
+                console.log('Using attr fallback:', address);
+            }
+            
+            if (address && address !== 'None' && address !== '') {
                 $('#return_shipping_address').val(address);
+                console.log('Return shipping address set to:', address);
+            } else {
+                console.warn('No valid address found for selected customer');
+                // Clear the address field if no valid address
+                $('#return_shipping_address').val('');
             }
             
             // Set the subject for asset return tickets
             $('#return_subject').val(`Asset Return (claw) - ${customerName}`);
+        } else {
+            // Clear address when no customer is selected
+            $('#return_shipping_address').val('');
+            $('#return_subject').val('');
         }
     });
 
