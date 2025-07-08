@@ -102,13 +102,46 @@ def track_outbound(ticket_id):
             print(f"Scraping URL: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                'formats': ['json'],
+                'formats': ['json', 'markdown'],
                 'jsonOptions': {
-                    'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                    For each event, extract: date, status, location.
-                    Also extract the current shipment status.
-                    Return as: {{"current_status": "Current status", "events": [{{"date": "Date", "status": "Status", "location": "Location"}}]}}"""
-                }
+                    'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+
+Look for tracking events and status information on the page. Each tracking event typically shows:
+- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
+- A status message (like "Package delivered", "In transit", "Out for delivery")
+- A location (like "Singapore Delivery Centre", "Regional Hub")
+
+Extract ALL tracking events found on the page, starting with the most recent.
+
+Also look for the current/latest status of the shipment.
+
+If no tracking events are found, check if there's an error message or if the tracking number is invalid.
+
+Return the data in this exact JSON format:
+{{
+    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
+    "events": [
+        {{
+            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
+            "status": "actual status text from the page (e.g., 'Package delivered')",
+            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
+        }},
+        {{
+            "date": "next event date",
+            "status": "next event status", 
+            "location": "next event location"
+        }}
+    ]
+}}
+
+IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
+{{
+    "current_status": "No tracking information found",
+    "events": []
+}}"""
+                },
+                'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
+                'timeout': 15000  # 15 second timeout
             })
             print(f"Firecrawl Raw Response: {scrape_result}")
 
@@ -285,13 +318,46 @@ def track_secondary_shipment(ticket_id):
             print(f"Scraping URL for secondary tracking: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                'formats': ['json'],
+                'formats': ['json', 'markdown'],
                 'jsonOptions': {
-                    'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                    For each event, extract: date, status, location.
-                    Also extract the current shipment status.
-                    Return as: {{"current_status": "Current status", "events": [{{"date": "Date", "status": "Status", "location": "Location"}}]}}"""
-                }
+                    'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+
+Look for tracking events and status information on the page. Each tracking event typically shows:
+- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
+- A status message (like "Package delivered", "In transit", "Out for delivery")
+- A location (like "Singapore Delivery Centre", "Regional Hub")
+
+Extract ALL tracking events found on the page, starting with the most recent.
+
+Also look for the current/latest status of the shipment.
+
+If no tracking events are found, check if there's an error message or if the tracking number is invalid.
+
+Return the data in this exact JSON format:
+{{
+    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
+    "events": [
+        {{
+            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
+            "status": "actual status text from the page (e.g., 'Package delivered')",
+            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
+        }},
+        {{
+            "date": "next event date",
+            "status": "next event status", 
+            "location": "next event location"
+        }}
+    ]
+}}
+
+IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
+{{
+    "current_status": "No tracking information found",
+    "events": []
+}}"""
+                },
+                'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
+                'timeout': 15000  # 15 second timeout
             })
             print(f"Firecrawl Raw Response for secondary tracking: {scrape_result}")
 

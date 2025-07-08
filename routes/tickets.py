@@ -3748,9 +3748,13 @@ def track_claw(ticket_id):
         
         # Check if Firecrawl is available
         if not firecrawl_client:
-            print("Error: Firecrawl API client not available. Returning simulated data.")
-            # Return simulated data as fallback
-            return generate_mock_tracking_data(tracking_number, ticket_id, db_session)
+            print("Error: Firecrawl API client not available.")
+            return jsonify({
+                'success': False,
+                'error': 'Firecrawl API client not available',
+                'tracking_info': [],
+                'debug_info': {'error': 'Firecrawl API client not configured'}
+            }), 500
     
         try:
             # Define Ship24 URL for the tracking number
@@ -3760,36 +3764,58 @@ def track_claw(ticket_id):
             try:
                 # Use Firecrawl to scrape the tracking page and extract structured data
                 scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                    'formats': ['json'],
+                    'formats': ['json', 'markdown'],
                     'jsonOptions': {
-                        'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                        For each event, extract:
-                        - date: The date and time of the event
-                        - status: The status description/message of the event
-                        - location: The location where the event occurred
-                        
-                        Also extract the current shipment status.
-                        Return as: 
-                        {{
-                            "current_status": "Current status of the shipment",
-                            "events": [
-                                {{
-                                    "date": "Date of event", 
-                                    "status": "Status description", 
-                                    "location": "Location"
-                                }}
-                            ]
-                        }}
-                        """
-                    }
+                        'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+
+Look for tracking events and status information on the page. Each tracking event typically shows:
+- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
+- A status message (like "Package delivered", "In transit", "Out for delivery")
+- A location (like "Singapore Delivery Centre", "Regional Hub")
+
+Extract ALL tracking events found on the page, starting with the most recent.
+
+Also look for the current/latest status of the shipment.
+
+If no tracking events are found, check if there's an error message or if the tracking number is invalid.
+
+Return the data in this exact JSON format:
+{{
+    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
+    "events": [
+        {{
+            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
+            "status": "actual status text from the page (e.g., 'Package delivered')",
+            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
+        }},
+        {{
+            "date": "next event date",
+            "status": "next event status", 
+            "location": "next event location"
+        }}
+    ]
+}}
+
+IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
+{{
+    "current_status": "No tracking information found",
+    "events": []
+}}"""
+                    },
+                    'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
+                    'timeout': 15000  # 15 second timeout
                 })
             except Exception as api_error:
                 # Check if this is a credit limit issue
                 error_msg = str(api_error).lower()
                 if "insufficient credits" in error_msg or "payment required" in error_msg:
                     print(f"API credit limitation encountered: {api_error}")
-                    # Return simulated data as fallback for credit limit issues
-                    return generate_mock_tracking_data(tracking_number, ticket_id, db_session)
+                    return jsonify({
+                        'success': False,
+                        'error': 'Firecrawl API credits exhausted',
+                        'tracking_info': [],
+                        'debug_info': {'error': str(api_error)}
+                    }), 429
                 else:
                     # Rethrow other API errors
                     raise
@@ -3872,7 +3898,12 @@ def track_claw(ticket_id):
             except Exception as parse_error:
                 print(f"Error parsing tracking data: {str(parse_error)}")
                 traceback.print_exc()  # Print detailed traceback to server logs
-                return generate_mock_tracking_data(tracking_number, ticket_id, db_session)
+                return jsonify({
+                    'success': False,
+                    'error': f'Error parsing tracking data: {str(parse_error)}',
+                    'tracking_info': [],
+                    'debug_info': {'error': str(parse_error)}
+                }), 500
             
             # Update ticket attributes in the same database session
             fresh_ticket = db_session.query(Ticket).get(ticket_id)
@@ -3941,7 +3972,14 @@ def track_claw(ticket_id):
 
 # Helper function to generate mock tracking data
 def generate_mock_tracking_data(tracking_number, ticket_id, db_session):
-    """Generate mock tracking data when real API data can't be obtained"""
+    """DISABLED: Mock data generation is disabled"""
+    print(f"[ERROR] Mock data generation disabled for {tracking_number}")
+    return jsonify({
+        'success': False,
+        'error': 'Mock data generation is disabled',
+        'tracking_info': [],
+        'debug_info': {'reason': 'Mock data generation disabled by user request'}
+    }), 501
     print(f"Generating mock tracking data for {tracking_number}")
     
     # Get the current time for timestamps
@@ -4122,13 +4160,46 @@ def track_return(ticket_id):
             print(f"Scraping URL for return tracking: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                'formats': ['json'],
+                'formats': ['json', 'markdown'],
                 'jsonOptions': {
-                    'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                    For each event, extract: date, status, location.
-                    Also extract the current shipment status.
-                    Return as: {{"current_status": "Current status", "events": [{{"date": "Date", "status": "Status", "location": "Location"}}]}}"""
-                }
+                    'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+
+Look for tracking events and status information on the page. Each tracking event typically shows:
+- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
+- A status message (like "Package delivered", "In transit", "Out for delivery")
+- A location (like "Singapore Delivery Centre", "Regional Hub")
+
+Extract ALL tracking events found on the page, starting with the most recent.
+
+Also look for the current/latest status of the shipment.
+
+If no tracking events are found, check if there's an error message or if the tracking number is invalid.
+
+Return the data in this exact JSON format:
+{{
+    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
+    "events": [
+        {{
+            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
+            "status": "actual status text from the page (e.g., 'Package delivered')",
+            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
+        }},
+        {{
+            "date": "next event date",
+            "status": "next event status", 
+            "location": "next event location"
+        }}
+    ]
+}}
+
+IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
+{{
+    "current_status": "No tracking information found",
+    "events": []
+}}"""
+                },
+                'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
+                'timeout': 15000  # 15 second timeout
             })
             print(f"Firecrawl Raw Response for return tracking: {scrape_result}")
 
@@ -4567,9 +4638,13 @@ def track_package(ticket_id, package_number):
         
         # Check if Firecrawl is available
         if not firecrawl_client:
-            print("Error: Firecrawl API client not available. Returning enhanced mock data.")
-            # Return enhanced mock data as fallback
-            return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+            print("Error: Firecrawl API client not available.")
+            return jsonify({
+                'success': False,
+                'error': 'Firecrawl API client not available',
+                'tracking_info': [],
+                'debug_info': {'error': 'Firecrawl API client not configured'}
+            }), 500
     
         try:
             # Define Ship24 URL for the tracking number
@@ -4579,36 +4654,58 @@ def track_package(ticket_id, package_number):
             try:
                 # Use Firecrawl to scrape the tracking page and extract structured data
                 scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                    'formats': ['json'],
+                    'formats': ['json', 'markdown'],
                     'jsonOptions': {
-                        'prompt': f"""Extract all tracking events from Ship24 for tracking number {tracking_number}.
-                        For each event, extract:
-                        - date: The date and time of the event
-                        - status: The status description/message of the event
-                        - location: The location where the event occurred
-                        
-                        Also extract the current shipment status.
-                        Return as: 
-                        {{
-                            "current_status": "Current status of the shipment",
-                            "events": [
-                                {{
-                                    "date": "Date of event", 
-                                    "status": "Status description", 
-                                    "location": "Location"
-                                }}
-                            ]
-                        }}
-                        """
-                    }
+                        'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+
+Look for tracking events and status information on the page. Each tracking event typically shows:
+- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
+- A status message (like "Package delivered", "In transit", "Out for delivery")
+- A location (like "Singapore Delivery Centre", "Regional Hub")
+
+Extract ALL tracking events found on the page, starting with the most recent.
+
+Also look for the current/latest status of the shipment.
+
+If no tracking events are found, check if there's an error message or if the tracking number is invalid.
+
+Return the data in this exact JSON format:
+{{
+    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
+    "events": [
+        {{
+            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
+            "status": "actual status text from the page (e.g., 'Package delivered')",
+            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
+        }},
+        {{
+            "date": "next event date",
+            "status": "next event status", 
+            "location": "next event location"
+        }}
+    ]
+}}
+
+IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
+{{
+    "current_status": "No tracking information found",
+    "events": []
+}}"""
+                    },
+                    'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
+                    'timeout': 15000  # 15 second timeout
                 })
             except Exception as api_error:
                 # Check if this is a credit limit issue
                 error_msg = str(api_error).lower()
                 if "insufficient credits" in error_msg or "payment required" in error_msg:
                     print(f"API credit limitation encountered for package {package_number}: {api_error}")
-                    # Return enhanced mock data as fallback for credit limit issues
-                    return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                    return jsonify({
+                        'success': False,
+                        'error': 'Firecrawl API credits exhausted',
+                        'tracking_info': [],
+                        'debug_info': {'error': str(api_error)}
+                    }), 429
                 else:
                     # Rethrow other API errors
                     raise
@@ -4621,7 +4718,7 @@ def track_package(ticket_id, package_number):
             latest_status = "Unknown"
             
             try:
-                # Check for the correct Firecrawl response structure
+                # PRIORITY 1: Check for the correct Firecrawl JSON response structure FIRST
                 if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
                     data = scrape_result['data']['json']
                     
@@ -4636,14 +4733,19 @@ def track_package(ticket_id, package_number):
                         'Date of event',
                         'Location',
                         'Date',
-                        'Status'
+                        'Status',
+                        'No tracking information found'
                     ]
                     
                     if latest_status in placeholder_indicators:
                         print(f"[DEBUG] Firecrawl returned placeholder data for package {package_number}. Status: '{latest_status}'")
                         print(f"[DEBUG] Full response: {data}")
-                        print(f"[DEBUG] Falling back to mock data generation")
-                        return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                        return jsonify({
+                            'success': False,
+                            'error': f'Firecrawl returned placeholder data: {latest_status}',
+                            'tracking_info': [],
+                            'debug_info': {'status': latest_status, 'response': data}
+                        }), 404
                     
                     # Extract tracking events
                     events = data.get('events', [])
@@ -4661,8 +4763,12 @@ def track_package(ticket_id, package_number):
                                 event_location in placeholder_indicators or 
                                 event_date in placeholder_indicators):
                                 print(f"[DEBUG] Found placeholder event data for package {package_number}: {event}")
-                                print(f"[DEBUG] Falling back to mock data generation")
-                                return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                                return jsonify({
+                                    'success': False,
+                                    'error': f'Firecrawl returned placeholder event data',
+                                    'tracking_info': [],
+                                    'debug_info': {'placeholder_event': event}
+                                }), 404
                             
                             tracking_info.append({
                                 'date': event_date,
@@ -4681,7 +4787,69 @@ def track_package(ticket_id, package_number):
                         
                     print(f"[DEBUG] Successfully extracted real status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
                 
-                # Fallback: try old structure for backwards compatibility
+                # PRIORITY 2: Check if only metadata exists (JSON extraction failed)
+                elif 'data' in scrape_result and 'metadata' in scrape_result['data']:
+                    print(f"[DEBUG] JSON extraction failed for package {package_number}, trying markdown fallback")
+                    
+                    # Check if we have markdown content as a fallback
+                    if 'markdown' in scrape_result['data'] and scrape_result['data']['markdown']:
+                        markdown_content = scrape_result['data']['markdown']
+                        print(f"[DEBUG] Attempting to parse markdown content for package {package_number}")
+                        
+                        # Look for tracking number in markdown to verify the page loaded correctly
+                        if tracking_number.lower() in markdown_content.lower():
+                            print(f"[DEBUG] Tracking number found in markdown, attempting manual extraction")
+                            # Try to extract basic status from markdown
+                            import re
+                            
+                            # Look for common tracking status patterns
+                            status_patterns = [
+                                r'(?:status|current|delivered|transit|delivery|shipped|pending)[:\s]+([^\n\r]+)',
+                                r'(?:out for delivery|in transit|delivered|pending|shipped)',
+                                r'tracking.*?(\w+(?:\s+\w+)*)',
+                            ]
+                            
+                            found_status = None
+                            for pattern in status_patterns:
+                                matches = re.findall(pattern, markdown_content, re.IGNORECASE)
+                                if matches:
+                                    found_status = matches[0].strip()
+                                    break
+                            
+                            if found_status:
+                                print(f"[DEBUG] Extracted status from markdown: {found_status}")
+                                tracking_info.append({
+                                    'date': datetime.datetime.now().isoformat(),
+                                    'status': found_status,
+                                    'location': 'Ship24 System'
+                                })
+                                latest_status = found_status
+                            else:
+                                print(f"[DEBUG] No recognizable status found in markdown for package {package_number}")
+                                return jsonify({
+                                    'success': False,
+                                    'error': 'No recognizable status found in markdown content',
+                                    'tracking_info': [],
+                                    'debug_info': {'tracking_number': tracking_number}
+                                }), 404
+                        else:
+                            print(f"[DEBUG] Tracking number not found in markdown content for package {package_number}")
+                            return jsonify({
+                                'success': False,
+                                'error': 'Tracking number not found in markdown content',
+                                'tracking_info': [],
+                                'debug_info': {'tracking_number': tracking_number}
+                            }), 404
+                    else:
+                        print(f"[DEBUG] No markdown content available for package {package_number}")
+                        return jsonify({
+                            'success': False,
+                            'error': 'No markdown content available from Ship24',
+                            'tracking_info': [],
+                            'debug_info': {'tracking_number': tracking_number}
+                        }), 404
+                
+                # PRIORITY 3: Fallback for old structure compatibility
                 elif 'json' in scrape_result and scrape_result['json']:
                     data = scrape_result['json']
                     
@@ -4701,8 +4869,12 @@ def track_package(ticket_id, package_number):
                     
                     if latest_status in placeholder_indicators:
                         print(f"[DEBUG] Fallback structure also returned placeholder data for package {package_number}. Status: '{latest_status}'")
-                        print(f"[DEBUG] Falling back to mock data generation")
-                        return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                        return jsonify({
+                            'success': False,
+                            'error': f'Fallback structure returned placeholder data: {latest_status}',
+                            'tracking_info': [],
+                            'debug_info': {'status': latest_status}
+                        }), 404
                     
                     # Extract tracking events
                     events = data.get('events', [])
@@ -4717,8 +4889,12 @@ def track_package(ticket_id, package_number):
                                 event_location in placeholder_indicators or 
                                 event_date in placeholder_indicators):
                                 print(f"[DEBUG] Found placeholder event data in fallback structure for package {package_number}: {event}")
-                                print(f"[DEBUG] Falling back to mock data generation")
-                                return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                                return jsonify({
+                                    'success': False,
+                                    'error': f'Fallback structure returned placeholder event data',
+                                    'tracking_info': [],
+                                    'debug_info': {'placeholder_event': event}
+                                }), 404
                             
                             tracking_info.append({
                                 'date': event_date,
@@ -4735,15 +4911,36 @@ def track_package(ticket_id, package_number):
                             'location': 'Ship24 System'
                         })
                 
-                # Fallback if no tracking info was extracted
+                # PRIORITY 4: Handle completely unrecognized response format
+                else:
+                    print(f"[DEBUG] Unrecognized Firecrawl response structure for package {package_number}")
+                    print(f"[DEBUG] Response keys: {list(scrape_result.keys())}")
+                    return jsonify({
+                        'success': False,
+                        'error': 'Unrecognized Firecrawl response structure',
+                        'tracking_info': [],
+                        'debug_info': {'response_keys': list(scrape_result.keys())}
+                    }), 500
+                
+                # Error if no tracking info was extracted
                 if not tracking_info:
-                    print(f"Warning: No tracking events extracted for package {package_number}. Using fallback data.")
-                    return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                    print(f"Warning: No tracking events extracted for package {package_number}.")
+                    return jsonify({
+                        'success': False,
+                        'error': 'No tracking events extracted from Ship24',
+                        'tracking_info': [],
+                        'debug_info': {'tracking_number': tracking_number}
+                    }), 404
                     
             except Exception as parse_error:
                 print(f"Error parsing tracking data for package {package_number}: {str(parse_error)}")
                 traceback.print_exc()
-                return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+                return jsonify({
+                    'success': False,
+                    'error': f'Error parsing tracking data: {str(parse_error)}',
+                    'tracking_info': [],
+                    'debug_info': {'error': str(parse_error)}
+                }), 500
             
             # Update ticket attributes in the same database session
             fresh_ticket = db_session.query(Ticket).get(ticket_id)
@@ -4792,7 +4989,12 @@ def track_package(ticket_id, package_number):
         except Exception as e:
             print(f"Error scraping ship24 for package {package_number} ({tracking_number}): {str(e)}")
             traceback.print_exc()
-            return generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session)
+            return jsonify({
+                'success': False,
+                'error': f'Error scraping Ship24: {str(e)}',
+                'tracking_info': [],
+                'debug_info': {'error': str(e)}
+            }), 500
             
     except Exception as e:
         print(f"General error in track_package: {str(e)}")
@@ -4811,9 +5013,17 @@ def track_package(ticket_id, package_number):
 
 
 def generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session):
-    """Generate enhanced mock tracking data for a specific package when real API data can't be obtained"""
-    print(f"[MOCK DATA] Generating enhanced mock tracking data for package {package_number}: {tracking_number}")
-    print(f"[MOCK DATA] Reason: Firecrawl API returned placeholder data or scraping failed")
+    """DISABLED: Mock data generation is disabled. This function should not be called."""
+    print(f"[ERROR] Mock data generation disabled for package {package_number}: {tracking_number}")
+    print(f"[ERROR] Mock data generation has been disabled by user request")
+    
+    # Return an error instead of mock data
+    return jsonify({
+        'success': False,
+        'error': 'Mock data generation is disabled',
+        'tracking_info': [],
+        'debug_info': {'reason': 'Mock data generation disabled by user request'}
+    }), 501
     
     # Get the current time for timestamps
     current_date = datetime.datetime.now()
