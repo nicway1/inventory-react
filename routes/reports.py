@@ -3,17 +3,16 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, extract, and_, or_, case
 from datetime import datetime, timedelta
 import json
+import logging
 from database import SessionLocal
 from models import (
-import logging
-
-# Set up logging for this module
-logger = logging.getLogger(__name__)
-
     Ticket, Asset, AssetTransaction, AccessoryTransaction,
     User, Company, CustomerUser, TicketStatus, TicketPriority,
     TicketCategory
 )
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
 from models.asset import AssetStatus
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
