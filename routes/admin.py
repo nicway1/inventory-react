@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import current_user
 from flask_wtf.csrf import CSRFProtect
 from utils.auth_decorators import admin_required, super_admin_required, login_required
+import logging
 from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from models.user import User, UserType, Country
@@ -45,6 +46,9 @@ snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
 csrf = CSRFProtect()
 
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 def cleanup_old_csv_files():
     """Clean up old CSV temporary files (older than 1 hour)"""
     try:
@@ -59,11 +63,11 @@ def cleanup_old_csv_files():
             if file_age > 3600:  # 1 hour
                 try:
                     os.remove(filepath)
-                    logger.info("DEBUG: Cleaned up old CSV file: {filepath}")
+                    logger.info(f"DEBUG: Cleaned up old CSV file: {filepath}")
                 except Exception as e:
-                    logger.info("DEBUG: Failed to cleanup {filepath}: {e}")
+                    logger.info(f"DEBUG: Failed to cleanup {filepath}: {e}")
     except Exception as e:
-        logger.info("DEBUG: CSV cleanup error: {e}")
+        logger.info(f"DEBUG: CSV cleanup error: {e}")
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -2492,7 +2496,7 @@ def csv_import_preview_ticket():
                 accessory_query = db_session.query(Accessory)
                 
                 # Debug logging for accessory matching
-                logger.info("CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
                 
                 # Search by exact product name in accessories
                 if product_title:
@@ -2500,7 +2504,7 @@ def csv_import_preview_ticket():
                         Accessory.name.ilike(f'%{product_title}%')
                     ).limit(3).all()
                     
-                    logger.info("CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
                     
                     for accessory in accessory_matches:
                         is_available = accessory.available_quantity > 0
