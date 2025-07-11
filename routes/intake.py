@@ -7,8 +7,13 @@ from models.asset import Asset
 from utils.auth_decorators import login_required
 from utils.store_instances import db_manager
 from flask_login import current_user
+import logging
 
-intake_bp = Blueprint('intake', __name__, url_prefix='/intake')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+intake_bp = Bluelogger.info('intake', __name__, url_prefix='/intake')
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads/intake'

@@ -1,5 +1,10 @@
 import sys
 import os
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database import SessionLocal
@@ -12,24 +17,24 @@ def check_accessories():
         accessories = session.query(Accessory).all()
         
         if not accessories:
-            print("No accessories found in the database!")
+            logger.info("No accessories found in the database!")
             return
         
-        print("\nAccessories in the database:")
-        print("-" * 80)
+        logger.info("\nAccessories in the database:")
+        logger.info("-" * 80)
         for accessory in accessories:
-            print(f"Name: {accessory.name}")
-            print(f"Category: {accessory.category}")
-            print(f"Manufacturer: {accessory.manufacturer}")
-            print(f"Model: {accessory.model_no}")
-            print(f"Total Quantity: {accessory.total_quantity}")
-            print(f"Available Quantity: {accessory.available_quantity}")
-            print(f"Status: {accessory.status}")
-            print(f"Notes: {accessory.notes}")
-            print("-" * 80)
+            logger.info("Name: {accessory.name}")
+            logger.info("Category: {accessory.category}")
+            logger.info("Manufacturer: {accessory.manufacturer}")
+            logger.info("Model: {accessory.model_no}")
+            logger.info("Total Quantity: {accessory.total_quantity}")
+            logger.info("Available Quantity: {accessory.available_quantity}")
+            logger.info("Status: {accessory.status}")
+            logger.info("Notes: {accessory.notes}")
+            logger.info("-" * 80)
             
     except Exception as e:
-        print(f"Error checking accessories: {str(e)}")
+        logger.info("Error checking accessories: {str(e)}")
     finally:
         session.close()
 

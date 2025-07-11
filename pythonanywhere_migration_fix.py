@@ -14,7 +14,7 @@ from pathlib import Path
 
 def find_database():
     """Find the correct database file on PythonAnywhere"""
-    print("🔍 Searching for database files...")
+    logger.info("🔍 Searching for database files...")
     
     # User specified path - highest priority
     user_specified_path = Path('/home/nicway2/inventory/inventory.db')
@@ -43,23 +43,23 @@ def find_database():
         if path.exists():
             size = path.stat().st_size
             found_databases.append((path, size))
-            print(f"✓ Found database: {path} ({size} bytes)")
+            logger.info("✓ Found database: {path} ({size} bytes)")
         else:
-            print(f"✗ Not found: {path}")
+            logger.info("✗ Not found: {path}")
     
     if not found_databases:
-        print("❌ No database files found!")
+        logger.info("❌ No database files found!")
         return None
     
     # Use the user specified path if it exists, otherwise use the largest database
     if user_specified_path.exists():
         selected_db = user_specified_path
-        print(f"🎯 Using user-specified database: {selected_db}")
+        logger.info("🎯 Using user-specified database: {selected_db}")
     else:
         # Sort by size and use the largest
         found_databases.sort(key=lambda x: x[1], reverse=True)
         selected_db = found_databases[0][0]
-        print(f"🎯 Using largest database: {selected_db}")
+        logger.info("🎯 Using largest database: {selected_db}")
     
     return selected_db
 
@@ -76,7 +76,7 @@ def check_column_exists(cursor, table_name, column_name):
 
 def create_permissions_table(cursor):
     """Create the complete permissions table with all columns"""
-    print("📋 Creating permissions table with all columns...")
+    logger.info("📋 Creating permissions table with all columns...")
     
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS permissions (
@@ -118,18 +118,18 @@ def create_permissions_table(cursor):
     """
     
     cursor.execute(create_table_sql)
-    print("✓ Permissions table created successfully!")
+    logger.info("✓ Permissions table created successfully!")
 
 def seed_permissions_data(cursor):
     """Seed the permissions table with default data"""
-    print("🌱 Seeding permissions table with default data...")
+    logger.info("🌱 Seeding permissions table with default data...")
     
     # Check if data already exists
     cursor.execute("SELECT COUNT(*) FROM permissions")
     count = cursor.fetchone()[0]
     
     if count > 0:
-        print(f"ℹ️  Permissions table already has {count} records, skipping seed data")
+        logger.info("ℹ️  Permissions table already has {count} records, skipping seed data")
         return
     
     # Default permissions for different user types
@@ -156,13 +156,13 @@ def seed_permissions_data(cursor):
     for perm in default_permissions:
         try:
             cursor.execute(insert_sql, perm)
-            print(f"✓ Added permissions for {perm[0]}")
+            logger.info("✓ Added permissions for {perm[0]}")
         except sqlite3.IntegrityError:
-            print(f"ℹ️  Permissions for {perm[0]} already exist")
+            logger.info("ℹ️  Permissions for {perm[0]} already exist")
 
 def add_missing_columns(cursor):
     """Add missing document permission columns to existing permissions table"""
-    print("🔧 Adding missing document permission columns...")
+    logger.info("🔧 Adding missing document permission columns...")
     
     columns_to_add = [
         ('can_access_documents', 'BOOLEAN DEFAULT 0'),
@@ -174,62 +174,62 @@ def add_missing_columns(cursor):
         if not check_column_exists(cursor, 'permissions', column_name):
             try:
                 cursor.execute(f"ALTER TABLE permissions ADD COLUMN {column_name} {column_def}")
-                print(f"✓ Added column: {column_name}")
+                logger.info("✓ Added column: {column_name}")
                 
                 # Set appropriate defaults for SUPER_ADMIN
                 cursor.execute(f"UPDATE permissions SET {column_name} = 1 WHERE user_type = 'SUPER_ADMIN'")
-                print(f"✓ Updated {column_name} = 1 for SUPER_ADMIN")
+                logger.info("✓ Updated {column_name} = 1 for SUPER_ADMIN")
                 
             except sqlite3.Error as e:
-                print(f"✗ Error adding column {column_name}: {e}")
+                logger.info("✗ Error adding column {column_name}: {e}")
         else:
-            print(f"ℹ️  Column {column_name} already exists")
+            logger.info("ℹ️  Column {column_name} already exists")
 
 def show_database_info(cursor):
     """Show detailed information about the database"""
-    print("\n📊 Database Analysis:")
-    print("=" * 50)
+    logger.info("\n📊 Database Analysis:")
+    logger.info("=" * 50)
     
     # Show all tables
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [row[0] for row in cursor.fetchall()]
-    print(f"📋 Tables in database: {', '.join(tables)}")
+    logger.info("📋 Tables in database: {', '.join(tables)}")
     
     # Show permissions table structure if it exists
     if 'permissions' in tables:
-        print("\n🔍 Permissions table structure:")
+        logger.info("\n🔍 Permissions table structure:")
         cursor.execute("PRAGMA table_info(permissions)")
         columns = cursor.fetchall()
         for col in columns:
-            print(f"   - {col[1]} ({col[2]})")
+            logger.info("   - {col[1]} ({col[2]})")
         
         # Show current permissions data
-        print("\n📝 Current permissions data:")
+        logger.info("\n📝 Current permissions data:")
         cursor.execute("SELECT user_type, can_access_documents, can_create_commercial_invoices, can_create_packing_lists FROM permissions")
         perms = cursor.fetchall()
         if perms:
             for perm in perms:
-                print(f"   - {perm[0]}: docs={perm[1]}, invoices={perm[2]}, packing={perm[3]}")
+                logger.info("   - {perm[0]}: docs={perm[1]}, invoices={perm[2]}, packing={perm[3]}")
         else:
-            print("   (No permissions data found)")
+            logger.info("   (No permissions data found)")
     
-    print("=" * 50)
+    logger.info("=" * 50)
 
 def main():
     """Main migration function"""
-    print("🚀 PythonAnywhere Database Migration Script")
-    print("🎯 Target: /home/nicway2/inventory/inventory.db")
-    print("=" * 60)
+    logger.info("🚀 PythonAnywhere Database Migration Script")
+    logger.info("🎯 Target: /home/nicway2/inventory/inventory.db")
+    logger.info("=" * 60)
     
     # Find the database
     db_path = find_database()
     if not db_path:
-        print("❌ Migration failed: No database found")
+        logger.info("❌ Migration failed: No database found")
         return False
     
     try:
         # Connect to database
-        print(f"\n🔌 Connecting to database: {db_path}")
+        logger.info("\n🔌 Connecting to database: {db_path}")
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
@@ -238,28 +238,28 @@ def main():
         
         # Check if permissions table exists
         if not check_table_exists(cursor, 'permissions'):
-            print("\n⚠️  Permissions table does not exist!")
+            logger.info("\n⚠️  Permissions table does not exist!")
             create_permissions_table(cursor)
             seed_permissions_data(cursor)
         else:
-            print("\n✓ Permissions table exists")
+            logger.info("\n✓ Permissions table exists")
             add_missing_columns(cursor)
         
         # Commit changes
         conn.commit()
         
         # Show final database info
-        print("\n🎉 Migration completed successfully!")
+        logger.info("\n🎉 Migration completed successfully!")
         show_database_info(cursor)
         
         conn.close()
         
-        print("\n✅ Database migration completed successfully!")
-        print("🔄 Please restart your PythonAnywhere web app to apply changes.")
+        logger.info("\n✅ Database migration completed successfully!")
+        logger.info("🔄 Please restart your PythonAnywhere web app to apply changes.")
         return True
         
     except Exception as e:
-        print(f"❌ Migration failed with error: {e}")
+        logger.info("❌ Migration failed with error: {e}")
         import traceback
         traceback.print_exc()
         return False

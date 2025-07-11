@@ -9,13 +9,13 @@ from datetime import datetime
 
 def update_database():
     """Update database schema"""
-    print("=" * 60)
-    print("🔄 DATABASE UPDATE SCRIPT")
-    print("=" * 60)
-    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 60)
+    logger.info("🔄 DATABASE UPDATE SCRIPT")
+    logger.info("=" * 60)
+    logger.info("Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     try:
-        print("\n🔄 Initializing database with new schema...")
+        logger.info("\n🔄 Initializing database with new schema...")
         
         # Import and run database initialization
         from app import app
@@ -23,34 +23,34 @@ def update_database():
         
         with app.app_context():
             init_db()
-            print("✅ Database schema updated successfully!")
+            logger.info("✅ Database schema updated successfully!")
             
-        print("\n" + "=" * 60)
-        print("✅ DATABASE UPDATE COMPLETED!")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("✅ DATABASE UPDATE COMPLETED!")
+        logger.info("=" * 60)
         
-        print("\n📋 FINAL STEP - Manual Action Required:")
-        print("   1. Go to your PythonAnywhere Web tab")
-        print("   2. Click the 'Reload' button for your web app")
-        print("   3. Wait for the green 'Running' status")
+        logger.info("\n📋 FINAL STEP - Manual Action Required:")
+        logger.info("   1. Go to your PythonAnywhere Web tab")
+        logger.info("   2. Click the 'Reload' button for your web app")
+        logger.info("   3. Wait for the green 'Running' status")
         
-        print("\n🎉 Your ticket category management is now ready!")
-        print("\n📝 What's updated:")
-        print("   ✅ New CategoryDisplayConfig table created")
-        print("   ✅ 15 predefined categories initialized")
-        print("   ✅ Categories can be enabled/disabled properly")
-        print("   ✅ Database is ready for the new features")
+        logger.info("\n🎉 Your ticket category management is now ready!")
+        logger.info("\n📝 What's updated:")
+        logger.info("   ✅ New CategoryDisplayConfig table created")
+        logger.info("   ✅ 15 predefined categories initialized")
+        logger.info("   ✅ Categories can be enabled/disabled properly")
+        logger.info("   ✅ Database is ready for the new features")
         
-        print(f"\nCompleted at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("\nCompleted at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         return True
         
     except Exception as e:
-        print(f"\n❌ DATABASE UPDATE FAILED!")
-        print(f"Error: {str(e)}")
-        print("\n🔧 Troubleshooting:")
-        print("   1. Make sure you're in the correct directory")
-        print("   2. Check if all Python dependencies are installed")
-        print("   3. Verify database permissions")
+        logger.info("\n❌ DATABASE UPDATE FAILED!")
+        logger.info("Error: {str(e)}")
+        logger.info("\n🔧 Troubleshooting:")
+        logger.info("   1. Make sure you're in the correct directory")
+        logger.info("   2. Check if all Python dependencies are installed")
+        logger.info("   3. Verify database permissions")
         return False
 
 if __name__ == "__main__":

@@ -1,6 +1,11 @@
 from alembic import command
 from alembic.config import Config
 from pathlib import Path
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def run_migration():
     # Get the directory containing this script
@@ -14,9 +19,9 @@ def run_migration():
     try:
         # Run the upgrade command
         command.upgrade(alembic_cfg, 'head')
-        print("Migration completed successfully!")
+        logger.info("Migration completed successfully!")
     except Exception as e:
-        print(f"Error during migration: {e}")
+        logger.info("Error during migration: {e}")
         raise
 
 if __name__ == '__main__':

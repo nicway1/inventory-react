@@ -8,16 +8,16 @@ import json
 from datetime import datetime
 
 def clean_history_entries():
-    print("Starting cleanup of None→None history entries...")
+    logger.info("Starting cleanup of None→None history entries...")
     
     # Add the project directory to Python path
     # Determine if we're running locally or on PythonAnywhere
     if os.path.exists('/home/nicway2/inventory'):
         sys.path.insert(0, '/home/nicway2/inventory')
-        print("Running on PythonAnywhere environment")
+        logger.info("Running on PythonAnywhere environment")
     else:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        print("Running on local environment")
+        logger.info("Running on local environment")
     
     try:
         # Import models and database
@@ -36,7 +36,7 @@ def clean_history_entries():
         
         # Process asset history
         asset_history_entries = db_session.query(AssetHistory).all()
-        print(f"Found {len(asset_history_entries)} asset history entries")
+        logger.info("Found {len(asset_history_entries)} asset history entries")
         total_entries += len(asset_history_entries)
         
         for entry in asset_history_entries:
@@ -68,7 +68,7 @@ def clean_history_entries():
         
         # Process accessory history (similar logic)
         accessory_history_entries = db_session.query(AccessoryHistory).all()
-        print(f"Found {len(accessory_history_entries)} accessory history entries")
+        logger.info("Found {len(accessory_history_entries)} accessory history entries")
         total_entries += len(accessory_history_entries)
         
         for entry in accessory_history_entries:
@@ -95,7 +95,7 @@ def clean_history_entries():
         
         # Apply changes
         if filtered_entries:
-            print(f"Removing {len(filtered_entries)} entries with only None→None changes")
+            logger.info("Removing {len(filtered_entries)} entries with only None→None changes")
             for entry_id in filtered_entries:
                 # Find entry in either table
                 asset_entry = db_session.query(AssetHistory).filter(AssetHistory.id == entry_id).first()
@@ -107,19 +107,19 @@ def clean_history_entries():
                         db_session.delete(accessory_entry)
         
         if modified_entries:
-            print(f"Updating {len(modified_entries)} entries to remove None→None changes")
+            logger.info("Updating {len(modified_entries)} entries to remove None→None changes")
         
         # Commit changes
         db_session.commit()
-        print(f"Successfully processed {total_entries} history entries")
-        print(f"  - Removed {len(filtered_entries)} entries with only None→None changes")
-        print(f"  - Updated {len(modified_entries)} entries to remove None→None fields")
+        logger.info("Successfully processed {total_entries} history entries")
+        logger.info("  - Removed {len(filtered_entries)} entries with only None→None changes")
+        logger.info("  - Updated {len(modified_entries)} entries to remove None→None fields")
         
     except ImportError as e:
-        print(f"Error importing required modules: {str(e)}")
+        logger.info("Error importing required modules: {str(e)}")
         return False
     except Exception as e:
-        print(f"Error during cleanup: {str(e)}")
+        logger.info("Error during cleanup: {str(e)}")
         if 'db_session' in locals():
             db_session.rollback()
         return False

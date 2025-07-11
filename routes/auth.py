@@ -9,7 +9,11 @@ from models.user import User
 from models.permission import Permission
 import logging
 
-auth_bp = Blueprint('auth', __name__)
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+auth_bp = Bluelogger.info('auth', __name__)
 user_store = UserStore()
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
@@ -52,7 +56,7 @@ def login():
                 flash('Invalid username or password')
         except Exception as e:
             flash('An error occurred during login')
-            print(f"Login error: {str(e)}")
+            logger.info("Login error: {str(e)}")
             logging.error(f"Login error: {str(e)}", exc_info=True)
     
     return render_template('auth/login.html')
@@ -72,11 +76,11 @@ def list_users():
 @auth_bp.route('/users/new', methods=['GET', 'POST'])
 @admin_required
 def create_user():
-    print("Accessing create_user route")  # Debug print
+    logger.info("Accessing create_user route")  # Debug print
     
     if request.method == 'POST':
-        print("POST request received")  # Debug print
-        print("Form data:", request.form)  # Debug print
+        logger.info("POST request received")  # Debug print
+        logger.info("Form data:", request.form)  # Debug print
         
         username = request.form.get('username')
         password = request.form.get('password')
@@ -84,7 +88,7 @@ def create_user():
         company = request.form.get('company')
         role = request.form.get('role')
         
-        print(f"Creating user: {username}, type: {user_type}, company: {company}, role: {role}")  # Debug print
+        logger.info("Creating user: {username}, type: {user_type}, company: {company}, role: {role}")  # Debug print
         
         user = user_store.create_user(
             username=username,
@@ -95,19 +99,19 @@ def create_user():
         )
         
         if user:
-            print(f"User created successfully: {user.id}")  # Debug print
+            logger.info("User created successfully: {user.id}")  # Debug print
             flash('User created successfully')
             return redirect(url_for('auth.list_users'))
         else:
-            print("User creation failed")  # Debug print
+            logger.info("User creation failed")  # Debug print
             flash('Failed to create user')
             return redirect(url_for('auth.create_user'))
     
     try:
         companies = snipe_client.get_companies()
-        print(f"Retrieved companies: {companies}")  # Debug print
+        logger.info("Retrieved companies: {companies}")  # Debug print
     except Exception as e:
-        print(f"Error fetching companies: {e}")  # Debug print
+        logger.info("Error fetching companies: {e}")  # Debug print
         companies = []
     
     return render_template(

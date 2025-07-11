@@ -9,44 +9,44 @@ import sys
 import subprocess
 
 def main():
-    print("🚀 Starting PythonAnywhere deployment...")
+    logger.info("🚀 Starting PythonAnywhere deployment...")
     
     # Set the correct database URL for PythonAnywhere
     os.environ['DATABASE_URL'] = 'sqlite:////home/nicway2/inventory/inventory.db'
-    print(f"📍 Set DATABASE_URL to: {os.environ['DATABASE_URL']}")
+    logger.info("📍 Set DATABASE_URL to: {os.environ['DATABASE_URL']}")
     
     # Set other environment variables if needed
     if not os.environ.get('SECRET_KEY'):
         os.environ['SECRET_KEY'] = 'pythonanywhere-production-key-change-this'
-        print("🔑 Set default SECRET_KEY (remember to change this in production)")
+        logger.info("🔑 Set default SECRET_KEY (remember to change this in production)")
     
     # Run the deployment fix script
-    print("🔧 Running deployment fix script...")
+    logger.info("🔧 Running deployment fix script...")
     try:
         result = subprocess.run([sys.executable, 'deploy_fix.py'], 
                               capture_output=True, text=True)
         
-        print("📝 Deploy fix output:")
-        print(result.stdout)
+        logger.info("📝 Deploy fix output:")
+        logger.info(result.stdout)
         
         if result.stderr:
-            print("⚠️  Deploy fix errors:")
-            print(result.stderr)
+            logger.info("⚠️  Deploy fix errors:")
+            logger.info(result.stderr)
         
         if result.returncode == 0:
-            print("✅ Deployment fix completed successfully!")
-            print("\n📋 Next steps:")
-            print("1. Reload your PythonAnywhere web app")
-            print("2. Check the error logs if issues persist")
-            print("3. Test the application functionality")
-            print("4. Update your environment variables in PythonAnywhere dashboard")
+            logger.info("✅ Deployment fix completed successfully!")
+            logger.info("\n📋 Next steps:")
+            logger.info("1. Reload your PythonAnywhere web app")
+            logger.info("2. Check the error logs if issues persist")
+            logger.info("3. Test the application functionality")
+            logger.info("4. Update your environment variables in PythonAnywhere dashboard")
             return 0
         else:
-            print("❌ Deployment fix failed!")
+            logger.info("❌ Deployment fix failed!")
             return 1
             
     except Exception as e:
-        print(f"❌ Error running deployment fix: {e}")
+        logger.info("❌ Error running deployment fix: {e}")
         return 1
 
 if __name__ == "__main__":

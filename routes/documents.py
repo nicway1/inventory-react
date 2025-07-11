@@ -5,8 +5,13 @@ from datetime import datetime
 import json
 from models.saved_invoice import SavedInvoice
 from database import SessionLocal
+import logging
 
-documents_bp = Blueprint('documents', __name__, url_prefix='/documents')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+documents_bp = Bluelogger.info('documents', __name__, url_prefix='/documents')
 
 @documents_bp.route('/commercial-invoice')
 @login_required
@@ -52,7 +57,7 @@ def generate_commercial_invoice():
         return redirect(url_for('main.index'))
     
     try:
-        print("DEBUG: Starting commercial invoice generation")
+        logger.info("DEBUG: Starting commercial invoice generation")
         # Get form data
         invoice_data = {
             'invoice_number': request.form.get('invoice_number'),
@@ -77,8 +82,8 @@ def generate_commercial_invoice():
         
         # Process items
         # Get all item indices from the form keys
-        print("DEBUG: Processing items from form")
-        print(f"DEBUG: All form keys: {list(request.form.keys())}")
+        logger.info("DEBUG: Processing items from form")
+        logger.info("DEBUG: All form keys: {list(request.form.keys())}")
         item_indices = set()
         for key in request.form.keys():
             if key.startswith('item_description_'):
@@ -87,10 +92,10 @@ def generate_commercial_invoice():
                     item_indices.add(int(index))
                 except ValueError:
                     continue
-        print(f"DEBUG: Found item indices: {item_indices}")
+        logger.info("DEBUG: Found item indices: {item_indices}")
         
         for i in item_indices:
-            print(f"DEBUG: Processing item {i}")
+            logger.info("DEBUG: Processing item {i}")
             item = {
                 'product_code': request.form.get(f'item_product_code_{i}'),
                 'description': request.form.get(f'item_description_{i}'),
@@ -100,22 +105,22 @@ def generate_commercial_invoice():
                 'unit_value': request.form.get(f'item_unit_value_{i}'),
                 'total_value': request.form.get(f'item_total_value_{i}')
             }
-            print(f"DEBUG: Item data: {item}")
+            logger.info("DEBUG: Item data: {item}")
             if item['description']:  # Only add if description is provided
                 invoice_data['items'].append(item)
         
         # Calculate totals
-        print(f"DEBUG: Items for calculation: {invoice_data['items']}")
+        logger.info("DEBUG: Items for calculation: {invoice_data['items']}")
         try:
-            print("DEBUG: Starting subtotal calculation")
+            logger.info("DEBUG: Starting subtotal calculation")
             subtotal = sum(float(item['total_value'] or 0) for item in invoice_data['items'] if item.get('total_value'))
-            print(f"DEBUG: Subtotal calculated: {subtotal}")
+            logger.info("DEBUG: Subtotal calculated: {subtotal}")
         except (ValueError, TypeError) as e:
-            print(f"DEBUG: Error in subtotal calculation: {e}")
+            logger.info("DEBUG: Error in subtotal calculation: {e}")
             subtotal = 0
             
         total = subtotal  # Total equals subtotal since freight is removed
-        print(f"DEBUG: Total calculated: {total}")
+        logger.info("DEBUG: Total calculated: {total}")
         
         invoice_data.update({
             'subtotal': subtotal,
@@ -123,13 +128,13 @@ def generate_commercial_invoice():
             'currency': request.form.get('currency', 'USD')
         })
         
-        print("DEBUG: About to render template")
-        print(f"DEBUG: Final invoice_data: {invoice_data}")
+        logger.info("DEBUG: About to render template")
+        logger.info("DEBUG: Final invoice_data: {invoice_data}")
         try:
             return render_template('documents/commercial_invoice_preview.html', data=invoice_data)
         except Exception as e:
-            print(f"DEBUG: Template rendering error: {str(e)}")
-            print(f"DEBUG: Error type: {type(e)}")
+            logger.info("DEBUG: Template rendering error: {str(e)}")
+            logger.info("DEBUG: Error type: {type(e)}")
             import traceback
             traceback.print_exc()
             raise e
@@ -235,7 +240,7 @@ def save_invoice():
         else:
             return jsonify({'success': False, 'error': 'Invalid request format'}), 400
         
-        print(f"DEBUG: Received invoice data: {invoice_data}")
+        logger.info("DEBUG: Received invoice data: {invoice_data}")
         
         # Parse date
         invoice_date = datetime.strptime(invoice_data['date'], '%Y-%m-%d') if invoice_data.get('date') else datetime.utcnow()
@@ -272,12 +277,12 @@ def save_invoice():
             items_json=json.dumps(items)
         )
         
-        print(f"DEBUG: About to save invoice: {saved_invoice.invoice_number}")
+        logger.info("DEBUG: About to save invoice: {saved_invoice.invoice_number}")
         
         db.add(saved_invoice)
         db.commit()
         
-        print(f"DEBUG: Invoice saved successfully: {saved_invoice.id}")
+        logger.info("DEBUG: Invoice saved successfully: {saved_invoice.id}")
         
         return jsonify({
             'success': True, 
@@ -286,7 +291,7 @@ def save_invoice():
         })
         
     except Exception as e:
-        print(f"DEBUG: Error saving invoice: {str(e)}")
+        logger.info("DEBUG: Error saving invoice: {str(e)}")
         import traceback
         traceback.print_exc()
         db.rollback()

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 def migrate_firecrawl_keys():
     """Add Firecrawl API keys table and migrate existing key"""
-    print("Creating Firecrawl API keys table...")
+    logger.info("Creating Firecrawl API keys table...")
     
     # Initialize database (this will create the table)
     init_db()
@@ -21,7 +21,7 @@ def migrate_firecrawl_keys():
         # Check if we already have keys
         existing_keys = session.query(FirecrawlKey).count()
         if existing_keys > 0:
-            print(f"Found {existing_keys} existing Firecrawl keys. Skipping migration.")
+            logger.info("Found {existing_keys} existing Firecrawl keys. Skipping migration.")
             return
         
         # Load environment variables
@@ -32,7 +32,7 @@ def migrate_firecrawl_keys():
         
         if existing_key and existing_key != 'fc-9e1ffc308a01434582ece2625a2a0da7':
             # Migrate existing key
-            print(f"Migrating existing Firecrawl API key...")
+            logger.info("Migrating existing Firecrawl API key...")
             
             firecrawl_key = FirecrawlKey(
                 name="Default Key",
@@ -46,19 +46,19 @@ def migrate_firecrawl_keys():
             
             session.add(firecrawl_key)
             session.commit()
-            print(f"Successfully migrated existing Firecrawl API key as 'Default Key'")
+            logger.info("Successfully migrated existing Firecrawl API key as 'Default Key'")
         else:
-            print("No existing Firecrawl API key found to migrate.")
-            print("You can add new keys through the system configuration page.")
+            logger.info("No existing Firecrawl API key found to migrate.")
+            logger.info("You can add new keys through the system configuration page.")
         
     except Exception as e:
         session.rollback()
-        print(f"Error during migration: {str(e)}")
+        logger.info("Error during migration: {str(e)}")
         raise
     finally:
         session.close()
     
-    print("Migration completed successfully!")
+    logger.info("Migration completed successfully!")
 
 if __name__ == "__main__":
     migrate_firecrawl_keys() 

@@ -11,22 +11,22 @@ from models.ticket import TicketCategory
 
 def test_asset_checkout_claw_category():
     """Test that Asset Checkout (Claw) category exists and is properly defined"""
-    print("🔍 Testing Asset Checkout (Claw) category...")
+    logger.info("🔍 Testing Asset Checkout (Claw) category...")
     
     # Check if ASSET_CHECKOUT_CLAW exists
     if hasattr(TicketCategory, 'ASSET_CHECKOUT_CLAW'):
-        print("✅ ASSET_CHECKOUT_CLAW category exists")
-        print(f"   Value: {TicketCategory.ASSET_CHECKOUT_CLAW.value}")
-        print(f"   Name: {TicketCategory.ASSET_CHECKOUT_CLAW.name}")
+        logger.info("✅ ASSET_CHECKOUT_CLAW category exists")
+        logger.info("   Value: {TicketCategory.ASSET_CHECKOUT_CLAW.value}")
+        logger.info("   Name: {TicketCategory.ASSET_CHECKOUT_CLAW.name}")
     else:
-        print("❌ ASSET_CHECKOUT_CLAW category not found")
+        logger.info("❌ ASSET_CHECKOUT_CLAW category not found")
         return False
     
     return True
 
 def test_template_conditions():
     """Test the template conditions for Asset Checkout (Claw)"""
-    print("\n🔍 Testing template conditions...")
+    logger.info("\n🔍 Testing template conditions...")
     
     # Simulate the template conditions
     test_categories = [
@@ -40,9 +40,9 @@ def test_template_conditions():
         'ASSET_CHECKOUT_AUTO'
     ]
     
-    print("✅ Categories that should show outbound tracking:")
+    logger.info("✅ Categories that should show outbound tracking:")
     for category in test_categories:
-        print(f"   - {category}")
+        logger.info("   - {category}")
     
     # Test the specific condition for ASSET_CHECKOUT_CLAW
     category_name = 'ASSET_CHECKOUT_CLAW'
@@ -58,31 +58,31 @@ def test_template_conditions():
     ]
     
     if should_show_tracking:
-        print(f"✅ {category_name} should show outbound tracking section")
+        logger.info("✅ {category_name} should show outbound tracking section")
     else:
-        print(f"❌ {category_name} will NOT show outbound tracking section")
+        logger.info("❌ {category_name} will NOT show outbound tracking section")
     
     return should_show_tracking
 
 def test_tracking_endpoint():
     """Test the tracking endpoint logic"""
-    print("\n🔍 Testing tracking endpoint logic...")
+    logger.info("\n🔍 Testing tracking endpoint logic...")
     
     category = 'ASSET_CHECKOUT_CLAW'
     
     if category == 'ASSET_CHECKOUT_CLAW':
         endpoint = f'/tickets/category/checkout_claw/TICKET_ID/track'
-        print(f"✅ ASSET_CHECKOUT_CLAW will use endpoint: {endpoint}")
+        logger.info("✅ ASSET_CHECKOUT_CLAW will use endpoint: {endpoint}")
     else:
         endpoint = f'/tickets/category/checkout_main/TICKET_ID/track'
-        print(f"✅ Other categories will use endpoint: {endpoint}")
+        logger.info("✅ Other categories will use endpoint: {endpoint}")
     
     return True
 
 def main():
     """Run all tests"""
-    print("🧪 Testing Asset Checkout (Claw) Tracking Functionality")
-    print("=" * 60)
+    logger.info("🧪 Testing Asset Checkout (Claw) Tracking Functionality")
+    logger.info("=" * 60)
     
     tests_passed = 0
     total_tests = 3
@@ -99,26 +99,26 @@ def main():
     if test_tracking_endpoint():
         tests_passed += 1
     
-    print("\n" + "=" * 60)
-    print(f"📊 Test Results: {tests_passed}/{total_tests} tests passed")
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 Test Results: {tests_passed}/{total_tests} tests passed")
     
     if tests_passed == total_tests:
-        print("🎉 All tests passed! Asset Checkout (Claw) tracking should now work.")
-        print("\n📋 What was fixed:")
-        print("   1. ✅ Added outbound tracking section for Asset Checkout categories")
-        print("   2. ✅ Added refreshOutboundTracking() JavaScript function")
-        print("   3. ✅ Added showAddShipmentModal() JavaScript function")
-        print("   4. ✅ Connected to correct tracking endpoint (/tickets/category/checkout_claw/ID/track)")
-        print("   5. ✅ Auto-loads tracking on page load for tickets with tracking numbers")
+        logger.info("🎉 All tests passed! Asset Checkout (Claw) tracking should now work.")
+        logger.info("\n📋 What was fixed:")
+        logger.info("   1. ✅ Added outbound tracking section for Asset Checkout categories")
+        logger.info("   2. ✅ Added refreshOutboundTracking() JavaScript function")
+        logger.info("   3. ✅ Added showAddShipmentModal() JavaScript function")
+        logger.info("   4. ✅ Connected to correct tracking endpoint (/tickets/category/checkout_claw/ID/track)")
+        logger.info("   5. ✅ Auto-loads tracking on page load for tickets with tracking numbers")
         
-        print("\n🔧 How to use:")
-        print("   1. Create or view an Asset Checkout (Claw) ticket")
-        print("   2. You should now see an 'Outbound Tracking' section")
-        print("   3. Click 'Add Tracking' to add a tracking number")
-        print("   4. Click 'Refresh' to update tracking information")
+        logger.info("\n🔧 How to use:")
+        logger.info("   1. Create or view an Asset Checkout (Claw) ticket")
+        logger.info("   2. You should now see an 'Outbound Tracking' section")
+        logger.info("   3. Click 'Add Tracking' to add a tracking number")
+        logger.info("   4. Click 'Refresh' to update tracking information")
         
     else:
-        print("❌ Some tests failed. Please check the implementation.")
+        logger.info("❌ Some tests failed. Please check the implementation.")
     
     return tests_passed == total_tests
 

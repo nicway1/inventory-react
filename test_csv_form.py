@@ -31,9 +31,9 @@ def test_csv_accessory_submission():
     # Convert to JSON string (as the frontend does)
     accessories_json = json.dumps(test_accessories)
     
-    print("Test CSV Accessory Data:")
-    print(f"JSON String: {accessories_json}")
-    print(f"Length: {len(accessories_json)}")
+    logger.info("Test CSV Accessory Data:")
+    logger.info("JSON String: {accessories_json}")
+    logger.info("Length: {len(accessories_json)}")
     print()
     
     # Simulate form data
@@ -49,19 +49,19 @@ def test_csv_accessory_submission():
         'csrf_token': 'test-token'  # Would need real token in actual test
     }
     
-    print("Form Data to be submitted:")
+    logger.info("Form Data to be submitted:")
     for key, value in form_data.items():
         if key == 'selected_accessories':
-            print(f"  {key}: {value[:100]}..." if len(value) > 100 else f"  {key}: {value}")
+            logger.info(f"  {key}: {value[:100]}..." if len(value) > 100 else f"  {key}: {value}")
         else:
-            print(f"  {key}: {value}")
+            logger.info("  {key}: {value}")
     
-    print("\nThis simulates what the frontend should send to the backend.")
-    print("The backend should receive 'selected_accessories' as a JSON string.")
-    print("If accessories are not being assigned, check:")
-    print("1. Is the hidden input field being populated?")
-    print("2. Is the form submission including the selected_accessories field?")
-    print("3. Is the backend receiving and parsing the JSON correctly?")
+    logger.info("\nThis simulates what the frontend should send to the backend.")
+    logger.info("The backend should receive 'selected_accessories' as a JSON string.")
+    logger.info("If accessories are not being assigned, check:")
+    logger.info("1. Is the hidden input field being populated?")
+    logger.info("2. Is the form submission including the selected_accessories field?")
+    logger.info("3. Is the backend receiving and parsing the JSON correctly?")
 
 if __name__ == '__main__':
     test_csv_accessory_submission() 

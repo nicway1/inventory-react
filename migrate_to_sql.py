@@ -3,6 +3,11 @@ from datetime import datetime
 from database import SessionLocal, init_db
 from models.asset import Asset
 from models.accessory import Accessory
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def migrate_data():
     # Initialize database
@@ -75,10 +80,10 @@ def migrate_data():
 
         # Commit changes
         db.commit()
-        print("Migration completed successfully!")
+        logger.info("Migration completed successfully!")
 
     except Exception as e:
-        print(f"Error during migration: {str(e)}")
+        logger.info("Error during migration: {str(e)}")
         db.rollback()
     finally:
         db.close()

@@ -51,7 +51,7 @@ class AssetBarcodeGenerator:
             return Image.open(buffer)
             
         except Exception as e:
-            print(f"Error generating barcode for {serial_number}: {str(e)}")
+            logger.info("Error generating barcode for {serial_number}: {str(e)}")
             return None
     
     def generate_asset_label(self, asset):
@@ -115,7 +115,7 @@ class AssetBarcodeGenerator:
             return label
             
         except Exception as e:
-            print(f"Error generating asset label: {str(e)}")
+            logger.info("Error generating asset label: {str(e)}")
             return None
     
     def generate_barcode_base64(self, serial_number):
@@ -142,7 +142,7 @@ class AssetBarcodeGenerator:
             return f"data:image/png;base64,{img_data}"
             
         except Exception as e:
-            print(f"Error generating base64 barcode: {str(e)}")
+            logger.info("Error generating base64 barcode: {str(e)}")
             return None
     
     def generate_label_base64(self, asset):
@@ -169,7 +169,7 @@ class AssetBarcodeGenerator:
             return f"data:image/png;base64,{img_data}"
             
         except Exception as e:
-            print(f"Error generating base64 label: {str(e)}")
+            logger.info("Error generating base64 label: {str(e)}")
             return None
     
     def save_label_to_file(self, asset, filepath):
@@ -195,7 +195,7 @@ class AssetBarcodeGenerator:
             return True
             
         except Exception as e:
-            print(f"Error saving label to file: {str(e)}")
+            logger.info("Error saving label to file: {str(e)}")
             return False
 
 # Global instance

@@ -5,13 +5,18 @@ from datetime import datetime, timedelta
 import json
 from database import SessionLocal
 from models import (
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
     Ticket, Asset, AssetTransaction, AccessoryTransaction,
     User, Company, CustomerUser, TicketStatus, TicketPriority,
     TicketCategory
 )
 from models.asset import AssetStatus
 
-reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+reports_bp = Bluelogger.info('reports', __name__, url_prefix='/reports')
 
 @reports_bp.route('/')
 @login_required

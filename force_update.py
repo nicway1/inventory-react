@@ -1,4 +1,9 @@
 import requests
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Ticket ID to update
 ticket_id = 3
@@ -11,14 +16,14 @@ try:
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
-        print("Successfully updated tracking information:")
-        print(f"Status: {data.get('shipping_status')}")
+        logger.info("Successfully updated tracking information:")
+        logger.info("Status: {data.get('shipping_status')}")
         if data.get('tracking_info'):
-            print("\nTracking events:")
+            logger.info("\nTracking events:")
             for event in data.get('tracking_info', []):
-                print(f"- {event.get('date')}: {event.get('status')} at {event.get('location')}")
+                logger.info("- {event.get('date')}: {event.get('status')} at {event.get('location')}")
     else:
-        print(f"Error: {response.status_code}")
-        print(response.text)
+        logger.info("Error: {response.status_code}")
+        logger.info(response.text)
 except Exception as e:
-    print(f"Error calling API: {str(e)}") 
+    logger.info("Error calling API: {str(e)}") 

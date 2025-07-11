@@ -22,8 +22,8 @@ import random
 
 def fix_missing_asset_transactions():
     """Find and fix missing asset transactions for Asset Checkout (claw) tickets"""
-    print("🔧 Starting Asset Checkout Transaction Fix...")
-    print("=" * 60)
+    logger.info("🔧 Starting Asset Checkout Transaction Fix...")
+    logger.info("=" * 60)
     
     db = SessionLocal()
     fixed_count = 0
@@ -31,18 +31,18 @@ def fix_missing_asset_transactions():
     
     try:
         # Find all Asset Checkout (claw) tickets
-        print("📋 Finding Asset Checkout (claw) tickets...")
+        logger.info("📋 Finding Asset Checkout (claw) tickets...")
         claw_tickets = db.query(Ticket).filter(
             Ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
         ).all()
         
-        print(f"Found {len(claw_tickets)} Asset Checkout (claw) tickets")
+        logger.info("Found {len(claw_tickets)} Asset Checkout (claw) tickets")
         
         if not claw_tickets:
-            print("ℹ️  No Asset Checkout (claw) tickets found. Nothing to fix.")
+            logger.info("ℹ️  No Asset Checkout (claw) tickets found. Nothing to fix.")
             return
         
-        print("\n🔍 Checking for missing asset transactions...")
+        logger.info("\n🔍 Checking for missing asset transactions...")
         
         for ticket in claw_tickets:
             try:
@@ -58,7 +58,7 @@ def fix_missing_asset_transactions():
                         ).first()
                         
                         if not existing_transaction:
-                            print(f"🔧 Creating transaction for Asset {asset.asset_tag} from Ticket #{ticket.id}")
+                            logger.info("🔧 Creating transaction for Asset {asset.asset_tag} from Ticket #{ticket.id}")
                             
                             # Create missing transaction with slight delay to avoid duplicates
                             time.sleep(0.01 + random.uniform(0, 0.02))
@@ -77,18 +77,18 @@ def fix_missing_asset_transactions():
                             fixed_count += 1
                             
                             if fixed_count % 5 == 0:
-                                print(f"   💾 Saving batch... ({fixed_count} transactions created so far)")
+                                logger.info("   💾 Saving batch... ({fixed_count} transactions created so far)")
                                 try:
                                     db.commit()
                                 except Exception as batch_error:
-                                    print(f"   ⚠️  Batch save error: {batch_error}")
+                                    logger.info("   ⚠️  Batch save error: {batch_error}")
                                     db.rollback()
                                     error_count += 1
                         else:
-                            print(f"✅ Transaction already exists for Asset {asset.asset_tag} from Ticket #{ticket.id}")
+                            logger.info("✅ Transaction already exists for Asset {asset.asset_tag} from Ticket #{ticket.id}")
                             
             except Exception as e:
-                print(f"❌ Error processing ticket #{ticket.id}: {e}")
+                logger.info("❌ Error processing ticket #{ticket.id}: {e}")
                 error_count += 1
                 continue
         
@@ -96,31 +96,31 @@ def fix_missing_asset_transactions():
         if fixed_count > 0:
             try:
                 db.commit()
-                print(f"\n💾 Final save completed!")
+                logger.info("\n💾 Final save completed!")
             except Exception as final_error:
-                print(f"❌ Final save error: {final_error}")
+                logger.info("❌ Final save error: {final_error}")
                 db.rollback()
                 error_count += 1
         
         # Summary
-        print("\n" + "=" * 60)
-        print(f"🎉 Asset Transaction Fix Complete!")
-        print(f"✅ Created {fixed_count} missing asset transactions")
+        logger.info("\n" + "=" * 60)
+        logger.info("🎉 Asset Transaction Fix Complete!")
+        logger.info("✅ Created {fixed_count} missing asset transactions")
         if error_count > 0:
-            print(f"⚠️  Encountered {error_count} errors")
+            logger.info("⚠️  Encountered {error_count} errors")
         else:
-            print(f"✨ No errors encountered!")
-        print("=" * 60)
+            logger.info("✨ No errors encountered!")
+        logger.info("=" * 60)
         
         # Verify the fix
-        print("\n🔍 Verifying fix...")
+        logger.info("\n🔍 Verifying fix...")
         total_transactions = db.query(AssetTransaction).count()
         recent_transactions = db.query(AssetTransaction).filter(
             AssetTransaction.transaction_date >= datetime.utcnow() - timedelta(days=30)
         ).count()
         
-        print(f"📊 Total asset transactions: {total_transactions}")
-        print(f"📊 Transactions in last 30 days: {recent_transactions}")
+        logger.info("📊 Total asset transactions: {total_transactions}")
+        logger.info("📊 Transactions in last 30 days: {recent_transactions}")
         
         return {
             'fixed_count': fixed_count,
@@ -130,16 +130,16 @@ def fix_missing_asset_transactions():
         }
         
     except Exception as e:
-        print(f"💥 Critical error: {e}")
+        logger.info("💥 Critical error: {e}")
         db.rollback()
         return None
     finally:
         db.close()
 
 if __name__ == "__main__":
-    print("🚀 Asset Checkout Transaction Fixer")
-    print("This script will create missing asset transactions for Asset Checkout (claw) tickets")
-    print("")
+    logger.info("🚀 Asset Checkout Transaction Fixer")
+    logger.info("This script will create missing asset transactions for Asset Checkout (claw) tickets")
+    logger.info("")
     
     # Import timedelta here to avoid circular import
     from datetime import timedelta
@@ -148,10 +148,10 @@ if __name__ == "__main__":
     results = fix_missing_asset_transactions()
     
     if results:
-        print(f"\n📈 Results:")
-        print(f"   Fixed: {results['fixed_count']} transactions")
-        print(f"   Errors: {results['error_count']} errors")
-        print(f"   Total transactions now: {results['total_transactions']}")
-        print(f"   Recent transactions: {results['recent_transactions']}")
+        logger.info("\n📈 Results:")
+        logger.info("   Fixed: {results['fixed_count']} transactions")
+        logger.info("   Errors: {results['error_count']} errors")
+        logger.info("   Total transactions now: {results['total_transactions']}")
+        logger.info("   Recent transactions: {results['recent_transactions']}")
     
-    print("\n✨ Script completed!") 
+    logger.info("\n✨ Script completed!") 

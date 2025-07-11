@@ -1,5 +1,10 @@
 import os
 import sys
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Add the project root directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +45,7 @@ def setup_database(db_url="sqlite:///inventory.db"):
     
     # Create all tables
     Base.metadata.create_all(engine)
-    print("Database tables created successfully!")
+    logger.info("Database tables created successfully!")
 
 if __name__ == "__main__":
     setup_database() 

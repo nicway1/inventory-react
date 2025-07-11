@@ -12,10 +12,10 @@ def migrate_database():
     db_path = "inventory.db"
     
     if not os.path.exists(db_path):
-        print("Database file not found. Skipping migration.")
+        logger.info("Database file not found. Skipping migration.")
         return
     
-    print("🔄 Starting theme preference migration...")
+    logger.info("🔄 Starting theme preference migration...")
     
     try:
         conn = sqlite3.connect(db_path)
@@ -26,7 +26,7 @@ def migrate_database():
         columns = [column[1] for column in cursor.fetchall()]
         
         if 'theme_preference' in columns:
-            print("✅ theme_preference column already exists. Migration skipped.")
+            logger.info("✅ theme_preference column already exists. Migration skipped.")
             return
         
         # Add the column
@@ -36,10 +36,10 @@ def migrate_database():
         cursor.execute("UPDATE users SET theme_preference = 'light' WHERE theme_preference IS NULL")
         
         conn.commit()
-        print("✅ Successfully added theme_preference column to users table")
+        logger.info("✅ Successfully added theme_preference column to users table")
         
     except Exception as e:
-        print(f"❌ Migration failed: {e}")
+        logger.info("❌ Migration failed: {e}")
         conn.rollback()
     finally:
         conn.close()

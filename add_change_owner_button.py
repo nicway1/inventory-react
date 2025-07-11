@@ -9,7 +9,7 @@ def add_change_owner_button():
     template_file = 'templates/tickets/view.html'
     
     if not os.path.exists(template_file):
-        print(f"Error: {template_file} not found!")
+        logger.info("Error: {template_file} not found!")
         return False
     
     with open(template_file, 'r') as f:
@@ -21,7 +21,7 @@ def add_change_owner_button():
     # Find the pattern
     match = re.search(pattern, content)
     if not match:
-        print("Could not find the Change Status button")
+        logger.info("Could not find the Change Status button")
         return False
     
     # Get the matched text and its position
@@ -44,15 +44,15 @@ def add_change_owner_button():
     with open(template_file, 'w') as f:
         f.write(updated_content)
     
-    print(f"Successfully added Change Case Owner button to {template_file}")
+    logger.info("Successfully added Change Case Owner button to {template_file}")
     return True
 
 if __name__ == "__main__":
-    print("==== Adding Change Case Owner button ====")
+    logger.info("==== Adding Change Case Owner button ====")
     
     if add_change_owner_button():
-        print("\nSuccessfully added the Change Case Owner button")
-        print("Please restart your web application for the changes to take effect")
+        logger.info("\nSuccessfully added the Change Case Owner button")
+        logger.info("Please restart your web application for the changes to take effect")
     else:
-        print("\nWARNING: Failed to add the Change Case Owner button!")
-        print("You may need to manually add the button to templates/tickets/view.html") 
+        logger.info("\nWARNING: Failed to add the Change Case Owner button!")
+        logger.info("You may need to manually add the button to templates/tickets/view.html") 

@@ -15,24 +15,24 @@ def create_ticket_assets_table():
     db_path = Path(__file__).parent / 'instance' / 'inventory.db'
     
     if not db_path.exists():
-        print(f"Database not found at {db_path}")
+        logger.info("Database not found at {db_path}")
         return False
     
     try:
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
-        print("🔍 Checking if ticket_assets table exists...")
+        logger.info("🔍 Checking if ticket_assets table exists...")
         
         # Check if table exists
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ticket_assets'")
         table_exists = cursor.fetchone() is not None
         
         if table_exists:
-            print("✅ ticket_assets table already exists")
+            logger.info("✅ ticket_assets table already exists")
             return True
         
-        print("🔧 Creating ticket_assets table...")
+        logger.info("🔧 Creating ticket_assets table...")
         
         # Create the ticket_assets table
         cursor.execute("""
@@ -50,42 +50,42 @@ def create_ticket_assets_table():
         cursor.execute("CREATE INDEX ix_ticket_assets_asset_id ON ticket_assets (asset_id)")
         
         conn.commit()
-        print("✅ Successfully created ticket_assets table with indexes")
+        logger.info("✅ Successfully created ticket_assets table with indexes")
         
         # Verify table creation
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ticket_assets'")
         if cursor.fetchone():
-            print("✅ Table creation verified")
+            logger.info("✅ Table creation verified")
         else:
-            print("❌ Table creation failed - table not found after creation")
+            logger.info("❌ Table creation failed - table not found after creation")
             return False
             
         return True
         
     except Exception as e:
-        print(f"❌ Error creating ticket_assets table: {str(e)}")
+        logger.info("❌ Error creating ticket_assets table: {str(e)}")
         return False
     finally:
         conn.close()
 
 def main():
     """Main function"""
-    print("🚀 Creating ticket_assets table migration...")
-    print("=" * 50)
+    logger.info("🚀 Creating ticket_assets table migration...")
+    logger.info("=" * 50)
     
     success = create_ticket_assets_table()
     
-    print("=" * 50)
+    logger.info("=" * 50)
     if success:
-        print("🎉 Migration completed successfully!")
-        print("")
-        print("Next steps:")
-        print("1. Restart your application")
-        print("2. Test asset assignment to tickets")
-        print("3. Verify assets show up in ticket view")
+        logger.info("🎉 Migration completed successfully!")
+        logger.info("")
+        logger.info("Next steps:")
+        logger.info("1. Restart your application")
+        logger.info("2. Test asset assignment to tickets")
+        logger.info("3. Verify assets show up in ticket view")
     else:
-        print("💥 Migration failed!")
-        print("Please check the error messages above and try again.")
+        logger.info("💥 Migration failed!")
+        logger.info("Please check the error messages above and try again.")
     
     return success
 

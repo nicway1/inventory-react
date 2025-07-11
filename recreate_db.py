@@ -16,20 +16,25 @@ from models.permission import Permission
 from werkzeug.security import generate_password_hash
 from utils.auth import safe_generate_password_hash
 from datetime import datetime
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def recreate_database():
-    print("Starting database recreation...")
+    logger.info("Starting database recreation...")
     
     # Create a new database
     db_path = 'inventory.db'
     if os.path.exists(db_path):
         os.remove(db_path)
-        print("Removed existing database")
+        logger.info("Removed existing database")
     
     # Create new database and tables
     engine = create_engine('sqlite:///inventory.db')
     Base.metadata.create_all(engine)  # Let SQLAlchemy handle the table creation order
-    print("Created new database with all tables")
+    logger.info("Created new database with all tables")
     
     # Create default company
     with engine.begin() as conn:
@@ -37,7 +42,7 @@ def recreate_database():
             text("INSERT INTO companies (name, address) VALUES (:name, :address)"),
             {"name": "LunaComputer", "address": "Default Address"}
         )
-        print("Created default company")
+        logger.info("Created default company")
         
         # Get the company id
         result = conn.execute(text("SELECT id FROM companies WHERE name = 'LunaComputer'"))
@@ -62,14 +67,14 @@ def recreate_database():
             """),
             admin_user
         )
-        print("Created admin user (username: admin, password: admin123)")
+        logger.info("Created admin user (username: admin, password: admin123)")
         
         # Create default queue
         conn.execute(
             text("INSERT INTO queues (name, description) VALUES (:name, :description)"),
             {"name": "General", "description": "Default queue for all tickets"}
         )
-        print("Created default queue")
+        logger.info("Created default queue")
             
         # Create default permissions for each user type
         for user_type in UserType:
@@ -102,12 +107,12 @@ def recreate_database():
                     **default_permissions
                 }
             )
-        print("Created default permissions for all user types")
+        logger.info("Created default permissions for all user types")
     
-    print("\nDatabase recreation completed successfully!")
-    print("You can now log in with:")
-    print("Username: admin")
-    print("Password: admin123")
+    logger.info("\nDatabase recreation completed successfully!")
+    logger.info("You can now log in with:")
+    logger.info("Username: admin")
+    logger.info("Password: admin123")
 
 if __name__ == "__main__":
     recreate_database() 

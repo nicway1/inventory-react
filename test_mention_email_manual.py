@@ -18,11 +18,11 @@ from models.company import Company
 from werkzeug.security import generate_password_hash
 
 def test_mention_email_manual():
-    print("=== MANUAL MENTION EMAIL TEST ===\n")
+    logger.info("=== MANUAL MENTION EMAIL TEST ===\n")
     
     with app.app_context():
         # Create test data
-        print("1. Creating test users and ticket...")
+        logger.info("1. Creating test users and ticket...")
         db_session = db_manager.get_session()
         try:
             # Get or create a company
@@ -71,19 +71,19 @@ def test_mention_email_manual():
             
             db_session.commit()
             
-            print(f"   ✅ Created admin user: {admin_user.username} (Email: {admin_user.email})")
-            print(f"   ✅ Created test user: {test_user.username} (Email: {test_user.email})")
-            print(f"   ✅ Created test ticket: {test_ticket.display_id} - {test_ticket.subject}")
+            logger.info("   ✅ Created admin user: {admin_user.username} (Email: {admin_user.email})")
+            logger.info("   ✅ Created test user: {test_user.username} (Email: {test_user.email})")
+            logger.info("   ✅ Created test ticket: {test_ticket.display_id} - {test_ticket.subject}")
             
         except Exception as e:
             db_session.rollback()
-            print(f"   ❌ Error creating test data: {e}")
+            logger.info("   ❌ Error creating test data: {e}")
             return
         finally:
             db_session.close()
         
         # Test mention email
-        print(f"\n2. Testing mention email by mentioning @{test_user.username}...")
+        logger.info("\n2. Testing mention email by mentioning @{test_user.username}...")
         
         try:
             comment = comment_store.add_comment(
@@ -92,28 +92,28 @@ def test_mention_email_manual():
                 content=f"Hey @{test_user.username}, please check this urgent issue! This is a test of our new Salesforce-style email notification system. The case needs immediate attention."
             )
             
-            print(f"   ✅ Comment created with ID: {comment.id}")
-            print(f"   📧 Email should have been sent to: {test_user.email}")
+            logger.info("   ✅ Comment created with ID: {comment.id}")
+            logger.info("   📧 Email should have been sent to: {test_user.email}")
             
             if comment.mentions:
-                print(f"   ✅ Detected mentions: {comment.mentions}")
+                logger.info("   ✅ Detected mentions: {comment.mentions}")
                 if test_user.username in comment.mentions:
-                    print(f"   ✅ User {test_user.username} was correctly detected in mentions")
+                    logger.info("   ✅ User {test_user.username} was correctly detected in mentions")
                 else:
-                    print(f"   ❌ User {test_user.username} was not found in mentions")
+                    logger.info("   ❌ User {test_user.username} was not found in mentions")
             else:
-                print("   ❌ No mentions detected")
+                logger.info("   ❌ No mentions detected")
                 
         except Exception as e:
-            print(f"   ❌ Error creating comment: {e}")
+            logger.info("   ❌ Error creating comment: {e}")
             import traceback
             traceback.print_exc()
         
-        print(f"\n📬 Check the email inbox for {test_user.email} to see the Salesforce-style notification!")
-        print("\n✨ The mention email notification system is now working!")
-        print("Every time someone uses @username in a comment, an email will be sent.")
+        logger.info("\n📬 Check the email inbox for {test_user.email} to see the Salesforce-style notification!")
+        logger.info("\n✨ The mention email notification system is now working!")
+        logger.info("Every time someone uses @username in a comment, an email will be sent.")
     
-    print("\n=== TEST COMPLETED ===")
+    logger.info("\n=== TEST COMPLETED ===")
 
 if __name__ == "__main__":
     test_mention_email_manual() 

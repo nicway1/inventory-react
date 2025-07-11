@@ -8,13 +8,13 @@ import re
 from datetime import datetime
 
 def fix_asset_edit_route():
-    print("Fixing asset change tracking logic...")
+    logger.info("Fixing asset change tracking logic...")
     
     # Path to the routes file - use current directory for local development
     routes_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'routes', 'inventory.py')
     
     if not os.path.exists(routes_path):
-        print(f"Error: Routes file not found at {routes_path}")
+        logger.info("Error: Routes file not found at {routes_path}")
         return False
     
     # Read current file content
@@ -26,7 +26,7 @@ def fix_asset_edit_route():
     
     match = pattern.search(content)
     if not match:
-        print("Could not locate the change tracking code in the edit_asset route.")
+        logger.info("Could not locate the change tracking code in the edit_asset route.")
         return False
     
     # Extract the matched section
@@ -48,7 +48,7 @@ def fix_asset_edit_route():
                             'new': new_value
                         }
                 
-                print(f"Changes detected: {changes}")  # Debug log
+                logger.info("Changes detected: {changes}")  # Debug log
                 
                 if changes:
                     history_entry = asset.track_change(
@@ -66,14 +66,14 @@ def fix_asset_edit_route():
     backup_path = f"{routes_path}.bak.{datetime.now().strftime('%Y%m%d%H%M%S')}"
     with open(backup_path, 'w') as f:
         f.write(content)
-    print(f"Created backup of original routes file at {backup_path}")
+    logger.info("Created backup of original routes file at {backup_path}")
     
     # Write the updated content
     with open(routes_path, 'w') as f:
         f.write(new_content)
     
-    print("Successfully fixed asset change tracking logic.")
-    print("Please restart your application for changes to take effect.")
+    logger.info("Successfully fixed asset change tracking logic.")
+    logger.info("Please restart your application for changes to take effect.")
     return True
 
 if __name__ == "__main__":

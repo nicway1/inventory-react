@@ -5,6 +5,11 @@ from models.ticket import Ticket, TicketPriority
 from models.shipment import Shipment
 from models.user import UserType
 from utils.db_manager import DatabaseManager
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class TicketStore:
     def __init__(self):
@@ -119,7 +124,7 @@ class TicketStore:
                             priority = TicketPriority(priority)
                         except ValueError:
                             # If both fail, use default
-                            print(f"Warning: Invalid priority '{priority}', using default MEDIUM")
+                            logger.info("Warning: Invalid priority '{priority}', using default MEDIUM")
                             priority = TicketPriority.MEDIUM
                 
             # Determine case owner - use case_owner_id if provided, otherwise default to requester
@@ -153,7 +158,7 @@ class TicketStore:
             # Temporarily disable automatic asset assignment to prevent duplicates
             # Asset assignment will be handled manually in the route
             if asset_id:
-                print(f"Skipping automatic asset assignment for asset {asset_id} - will be handled manually")
+                logger.info("Skipping automatic asset assignment for asset {asset_id} - will be handled manually")
             
             db_session.commit()
             return ticket.id  # Return the ID instead of the ticket object
@@ -258,11 +263,11 @@ class TicketStore:
                 if str(ticket.asset_id) == asset_id
             ]
             
-            print(f"Found {len(asset_tickets)} tickets for asset {asset_id}")  # Debug print
+            logger.info("Found {len(asset_tickets)} tickets for asset {asset_id}")  # Debug print
             return asset_tickets
             
         except Exception as e:
-            print(f"Error getting asset tickets: {str(e)}")
+            logger.info("Error getting asset tickets: {str(e)}")
             return [] 
 
     def update_ticket(self, ticket_id, **kwargs):
@@ -335,7 +340,7 @@ class TicketStore:
         try:
             # Check if asset is already assigned to this ticket
             if asset in ticket.assets:
-                print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+                logger.info("Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
                 return True
             
             # Check if the relationship already exists in the database
@@ -348,14 +353,14 @@ class TicketStore:
             count = result.scalar()
             
             if count > 0:
-                print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+                logger.info("Asset {asset.id} already linked to ticket {ticket.id} in database")
                 return True
             
             # Safe to assign - add the asset to the ticket
             ticket.assets.append(asset)
-            print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+            logger.info("Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
             return True
             
         except Exception as e:
-            print(f"Error assigning asset to ticket: {str(e)}")
+            logger.info("Error assigning asset to ticket: {str(e)}")
             return False 

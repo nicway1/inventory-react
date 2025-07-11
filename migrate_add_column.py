@@ -12,7 +12,7 @@ if DATABASE_URL.startswith('postgres://'):
 
 def migrate():
     """Add original_accessory_id column to ticket_accessories table"""
-    print(f"Starting migration using database: {DATABASE_URL}")
+    logger.info("Starting migration using database: {DATABASE_URL}")
     
     # Create engine
     engine = create_engine(DATABASE_URL)
@@ -24,14 +24,14 @@ def migrate():
         metadata.reflect(bind=engine)
         
         if 'ticket_accessories' not in metadata.tables:
-            print("Error: ticket_accessories table does not exist")
+            logger.info("Error: ticket_accessories table does not exist")
             return False
         
         table = metadata.tables['ticket_accessories']
         column_exists = 'original_accessory_id' in table.columns
         
         if column_exists:
-            print("Column 'original_accessory_id' already exists in ticket_accessories table")
+            logger.info("Column 'original_accessory_id' already exists in ticket_accessories table")
             return True
         
         # Execute the DDL statement to add the column
@@ -49,11 +49,11 @@ def migrate():
                 REFERENCES accessories(id)
                 """))
         
-        print("Successfully added 'original_accessory_id' column to ticket_accessories table")
+        logger.info("Successfully added 'original_accessory_id' column to ticket_accessories table")
         return True
         
     except Exception as e:
-        print(f"Error during migration: {str(e)}")
+        logger.info("Error during migration: {str(e)}")
         return False
     finally:
         conn.close()
@@ -62,8 +62,8 @@ def migrate():
 if __name__ == "__main__":
     success = migrate()
     if success:
-        print("Migration completed successfully")
+        logger.info("Migration completed successfully")
         sys.exit(0)
     else:
-        print("Migration failed")
+        logger.info("Migration failed")
         sys.exit(1) 

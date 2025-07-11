@@ -1,6 +1,11 @@
 import os
+import logging
 
-print("Creating a test script to test the return tracking endpoint...")
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+logger.info("Creating a test script to test the return tracking endpoint...")
 
 # Create a simple shell script to test the endpoint
 with open("test_return_tracking.sh", "w") as f:
@@ -34,5 +39,5 @@ echo "All tests completed"
 # Make the script executable
 os.chmod("test_return_tracking.sh", 0o755)
 
-print("Created test script. Run with: ./test_return_tracking.sh")
+logger.info("Created test script. Run with: ./test_return_tracking.sh")
  

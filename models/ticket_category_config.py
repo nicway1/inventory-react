@@ -2,6 +2,11 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from datetime import datetime
 from models.base import Base
 import json
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 
 class TicketCategoryConfig(Base):
@@ -186,7 +191,7 @@ class CategoryDisplayConfig(Base):
             db.commit()
         except Exception as e:
             db.rollback()
-            print(f"Error initializing predefined categories: {str(e)}")
+            logger.info("Error initializing predefined categories: {str(e)}")
         finally:
             db.close()
 

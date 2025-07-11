@@ -8,13 +8,13 @@ import re
 from datetime import datetime
 
 def update_model():
-    print("Updating Accessory model file...")
+    logger.info("Updating Accessory model file...")
     
     # Path to the model file - use current directory for local development
     model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'accessory.py')
     
     if not os.path.exists(model_path):
-        print(f"Error: Model file not found at {model_path}")
+        logger.info("Error: Model file not found at {model_path}")
         return False
     
     # Read current file content
@@ -23,7 +23,7 @@ def update_model():
     
     # Check if the method already exists
     if 'def track_change' in content:
-        print("The track_change method already exists in the model file.")
+        logger.info("The track_change method already exists in the model file.")
         return True
     
     # Find position to add the method - after all properties but before any other methods
@@ -32,7 +32,7 @@ def update_model():
     
     match = re.search(relationship_pattern, content)
     if not match:
-        print("Could not locate the right position in the file to add the method.")
+        logger.info("Could not locate the right position in the file to add the method.")
         return False
     
     # Get the position after the last relationship
@@ -71,14 +71,14 @@ def update_model():
     backup_path = f"{model_path}.bak.{datetime.now().strftime('%Y%m%d%H%M%S')}"
     with open(backup_path, 'w') as f:
         f.write(content)
-    print(f"Created backup of original file at {backup_path}")
+    logger.info("Created backup of original file at {backup_path}")
     
     # Write the updated content
     with open(model_path, 'w') as f:
         f.write(new_content)
     
-    print(f"Successfully added track_change method to {model_path}")
-    print("Please restart your application for changes to take effect.")
+    logger.info("Successfully added track_change method to {model_path}")
+    logger.info("Please restart your application for changes to take effect.")
     return True
 
 if __name__ == "__main__":

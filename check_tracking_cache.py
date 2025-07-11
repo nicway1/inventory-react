@@ -1,5 +1,10 @@
 from app import db_manager
 from utils.tracking_cache import TrackingCache
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 tracking_number = "XZD0002657586"
 ticket_id = 3
@@ -15,9 +20,9 @@ cached_data = TrackingCache.get_cached_tracking(
 )
 
 if cached_data:
-    print(f"Found cached tracking data for {tracking_number}:")
-    print(cached_data)
+    logger.info("Found cached tracking data for {tracking_number}:")
+    logger.info(cached_data)
 else:
-    print(f"No cached tracking data found for {tracking_number}")
+    logger.info("No cached tracking data found for {tracking_number}")
 
 session.close() 

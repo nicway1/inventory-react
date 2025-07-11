@@ -2,6 +2,11 @@ import os
 import sys
 from alembic import command
 from alembic.config import Config
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -22,10 +27,10 @@ def run_migrations():
         # Run the migration
         command.upgrade(alembic_cfg, "head")
         
-        print("Migration completed successfully!")
+        logger.info("Migration completed successfully!")
         
     except Exception as e:
-        print(f"Error during migration: {str(e)}")
+        logger.info("Error during migration: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

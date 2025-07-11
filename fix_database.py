@@ -1,5 +1,10 @@
 import sqlite3
 import os
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def fix_database():
     db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'inventory.db')
@@ -12,12 +17,12 @@ def fix_database():
         columns = [col[1] for col in cursor.fetchall()]
         
         if 'tech_notes' not in columns:
-            print("Adding tech_notes column to assets table...")
+            logger.info("Adding tech_notes column to assets table...")
             cursor.execute("ALTER TABLE assets ADD COLUMN tech_notes TEXT")
         
         # Check if erased column exists and its type
         if 'erased' in columns:
-            print("Converting erased column to TEXT type...")
+            logger.info("Converting erased column to TEXT type...")
             # Create new table with correct schema
             cursor.execute("""
                 CREATE TABLE assets_new (
@@ -81,14 +86,14 @@ def fix_database():
         user_columns = [col[1] for col in cursor.fetchall()]
         
         if 'role' not in user_columns:
-            print("Adding role column to users table...")
+            logger.info("Adding role column to users table...")
             cursor.execute("ALTER TABLE users ADD COLUMN role TEXT")
         
         conn.commit()
-        print("Database schema updated successfully!")
+        logger.info("Database schema updated successfully!")
         
     except Exception as e:
-        print(f"Error updating database: {str(e)}")
+        logger.info("Error updating database: {str(e)}")
         conn.rollback()
     finally:
         conn.close()

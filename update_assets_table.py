@@ -1,5 +1,10 @@
 import os
 import sqlite3
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def update_assets_table():
     """Add the intake_ticket_id column to the assets table if it doesn't exist"""
@@ -19,14 +24,14 @@ def update_assets_table():
             # Add the column
             cursor.execute("ALTER TABLE assets ADD COLUMN intake_ticket_id INTEGER")
             conn.commit()
-            print("Added intake_ticket_id column to assets table")
+            logger.info("Added intake_ticket_id column to assets table")
         else:
-            print("intake_ticket_id column already exists in assets table")
+            logger.info("intake_ticket_id column already exists in assets table")
             
         conn.close()
         return True
     except Exception as e:
-        print(f"Error updating assets table: {str(e)}")
+        logger.info("Error updating assets table: {str(e)}")
         return False
 
 if __name__ == "__main__":

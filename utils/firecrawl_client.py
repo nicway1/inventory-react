@@ -3,6 +3,11 @@ import os
 from config import FIRECRAWL_API_KEY
 from dotenv import load_dotenv
 from datetime import datetime
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class FirecrawlClient:
     def __init__(self, api_key=None):
@@ -15,7 +20,7 @@ class FirecrawlClient:
         if not self.api_key:
             raise ValueError("Firecrawl API key not configured")
         
-        print(f"FirecrawlClient initialized with API key: {self.api_key[:5]}...")
+        logger.info("FirecrawlClient initialized with API key: {self.api_key[:5]}...")
         self.base_url = "https://api.firecrawl.dev/v1"
         
     def _get_active_api_key(self):
@@ -29,19 +34,19 @@ class FirecrawlClient:
                 # Get the primary active key
                 active_key = session.query(FirecrawlKey).filter_by(is_primary=True, is_active=True).first()
                 if active_key:
-                    print(f"Using active database API key: {active_key.name}")
+                    logger.info("Using active database API key: {active_key.name}")
                     return active_key.api_key
                 
                 # If no primary, get any active key
                 active_key = session.query(FirecrawlKey).filter_by(is_active=True).first()
                 if active_key:
-                    print(f"Using fallback database API key: {active_key.name}")
+                    logger.info("Using fallback database API key: {active_key.name}")
                     return active_key.api_key
                     
             finally:
                 session.close()
         except Exception as e:
-            print(f"Error getting active API key from database: {str(e)}")
+            logger.info("Error getting active API key from database: {str(e)}")
         
         return None
     
@@ -50,7 +55,7 @@ class FirecrawlClient:
         # Refresh key from database if needed
         db_key = self._get_active_api_key()
         if db_key and db_key != self.api_key:
-            print(f"API key updated from database: {db_key[:5]}...")
+            logger.info("API key updated from database: {db_key[:5]}...")
             self.api_key = db_key
         return self.api_key
     
@@ -83,22 +88,22 @@ class FirecrawlClient:
             payload.update(options)
         
         try:
-            print(f"Making Firecrawl API request to: {endpoint}")
-            print(f"Payload: {payload}")
-            print(f"Using API key: {current_key[:10]}...")
+            logger.info("Making Firecrawl API request to: {endpoint}")
+            logger.info("Payload: {payload}")
+            logger.info("Using API key: {current_key[:10]}...")
             
             response = requests.post(endpoint, headers=headers, json=payload)
             response.raise_for_status()
             
             result = response.json()
-            print(f"Firecrawl API response status: {response.status_code}")
+            logger.info("Firecrawl API response status: {response.status_code}")
             return result
             
         except requests.exceptions.RequestException as e:
-            print(f"Error calling Firecrawl API: {str(e)}")
+            logger.info("Error calling Firecrawl API: {str(e)}")
             if hasattr(e, 'response') and e.response is not None:
-                print(f"Response status: {e.response.status_code}")
-                print(f"Response text: {e.response.text}")
+                logger.info("Response status: {e.response.status_code}")
+                logger.info("Response text: {e.response.text}")
             raise
     
     def scrape_ship24(self, tracking_number):
@@ -160,7 +165,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             }
             
             result = self.scrape_url(ship24_url, options)
-            print(f"[DEBUG] Raw Firecrawl result: {result}")
+            logger.info("[DEBUG] Raw Firecrawl result: {result}")
             
             # Process the result to match expected format
             if result and 'data' in result and result['data']:
@@ -169,7 +174,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 # Check if we have JSON extraction
                 if 'json' in data and data['json']:
                     json_data = data['json']
-                    print(f"[DEBUG] Extracted JSON data: {json_data}")
+                    logger.info("[DEBUG] Extracted JSON data: {json_data}")
                     
                     return {
                         "success": True,
@@ -181,7 +186,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 # Fallback to parsing markdown if no JSON
                 elif 'markdown' in data and data['markdown']:
                     markdown = data['markdown']
-                    print(f"[DEBUG] Received markdown content: {markdown[:500]}...")
+                    logger.info("[DEBUG] Received markdown content: {markdown[:500]}...")
                     
                     # Try to extract tracking info from markdown
                     tracking_events = self._parse_ship24_markdown(markdown, tracking_number)
@@ -194,11 +199,11 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                         }
             
             # If we get here, extraction failed
-            print(f"[DEBUG] No valid tracking data extracted from Firecrawl result")
+            logger.info("[DEBUG] No valid tracking data extracted from Firecrawl result")
             return self._generate_mock_tracking_data(tracking_number)
                 
         except Exception as e:
-            print(f"Error scraping Ship24 for {tracking_number}: {str(e)}")
+            logger.info("Error scraping Ship24 for {tracking_number}: {str(e)}")
             # Return mock data as fallback
             return self._generate_mock_tracking_data(tracking_number)
     
@@ -254,7 +259,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
     
     def _generate_mock_tracking_data(self, tracking_number):
         """DISABLED: Mock data generation is disabled"""
-        print(f"[ERROR] Mock data generation disabled for {tracking_number}")
+        logger.info("[ERROR] Mock data generation disabled for {tracking_number}")
         return {
             'success': False,
             'error': 'Mock data generation is disabled',
@@ -275,5 +280,5 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             ],
             "current_status": "API Unreachable - Using Mock Data"
         }
-        print(f"API unavailable, returning mock data for {tracking_number}")
+        logger.info("API unavailable, returning mock data for {tracking_number}")
         return mock_response 

@@ -8,9 +8,14 @@ from utils.auth_decorators import login_required
 from utils.store_instances import ticket_store, firecrawl_client
 from models.ticket import Ticket, TicketCategory, TicketStatus
 from utils.tracking_cache import TrackingCache
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Define Blueprint
-asset_checkout_claw_bp = Blueprint(
+asset_checkout_claw_bp = Bluelogger.info(
     'asset_checkout_claw', 
     __name__,
     url_prefix='/tickets/category/checkout_claw' # Example prefix
@@ -21,10 +26,10 @@ def _initialize_firecrawl():
     # Use the centralized FirecrawlClient that automatically gets the active key from database
     
     if firecrawl_client:
-        print(f"Using centralized Firecrawl client with active database key")
+        logger.info("Using centralized Firecrawl client with active database key")
         return firecrawl_client
     else:
-        print("Error: Centralized Firecrawl client not available")
+        logger.info("Error: Centralized Firecrawl client not available")
         return None
 
 # --- Route: Outbound Tracking --- 
@@ -55,13 +60,13 @@ def track_outbound(ticket_id):
             )
             
             if cached_data:
-                print(f"Using cached tracking data for {tracking_number}")
+                logger.info("Using cached tracking data for {tracking_number}")
                 return jsonify(cached_data)
         else:
-            print(f"Force refresh requested for {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for {tracking_number}, bypassing cache")
         
         # If we get here, need to fetch fresh data
-        print(f"Scraping ship24 for: {tracking_number}")
+        logger.info("Scraping ship24 for: {tracking_number}")
 
         # --- Initialize Firecrawl --- 
         firecrawl_client = _initialize_firecrawl()
@@ -99,7 +104,7 @@ def track_outbound(ticket_id):
         # --- Scrape Data --- 
         try:
             ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            print(f"Scraping URL: {ship24_url}")
+            logger.info("Scraping URL: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
                 'formats': ['json', 'markdown'],
@@ -143,7 +148,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
                 'timeout': 15000  # 15 second timeout
             })
-            print(f"Firecrawl Raw Response: {scrape_result}")
+            logger.info("Firecrawl Raw Response: {scrape_result}")
 
             # --- Process Result --- 
             tracking_info = []
@@ -154,7 +159,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 data = scrape_result['data']['json']
                 latest_status = data.get('current_status', 'Unknown')
                 events = data.get('events', [])
-                print(f"[DEBUG] Found {len(events)} tracking events")
+                logger.info("[DEBUG] Found {len(events)} tracking events")
                 if events:
                     for event in events:
                         tracking_info.append({
@@ -165,7 +170,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 if not tracking_info and latest_status != "Unknown":
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
                     
-                print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+                logger.info("[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
             
             # Fallback: try old structure for backwards compatibility
             elif 'json' in scrape_result and scrape_result['json']:
@@ -183,7 +188,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
             
             if not tracking_info:
-                print("Warning: No tracking events extracted. Using fallback data.")
+                logger.info("Warning: No tracking events extracted. Using fallback data.")
                 current_date = datetime.datetime.now()
                 tracking_info = [{"status": "Information Received", "location": "Ship24 System", "date": current_date.isoformat()}]
                 latest_status = "Information Received"
@@ -195,7 +200,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 if fresh_ticket:
                     fresh_ticket.shipping_status = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
-                    print(f"Updated ticket {ticket_id} with status: {latest_status}")
+                    logger.info("Updated ticket {ticket_id} with status: {latest_status}")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(
@@ -209,7 +214,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 )
                 
             except Exception as e:
-                print(f"Warning: Could not update ticket or cache in database: {str(e)}")
+                logger.info("Warning: Could not update ticket or cache in database: {str(e)}")
             
             return jsonify({
                 'success': True,
@@ -226,23 +231,23 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             })
                 
         except Exception as e:
-            print(f"Error scraping ship24 for {tracking_number}: {str(e)}")
+            logger.info("Error scraping ship24 for {tracking_number}: {str(e)}")
             traceback.print_exc()
             return jsonify({'success': False, 'error': f'Failed to scrape tracking data: {str(e)}'}), 500
     
     finally:
         # Always close the session
         try:
-            print(f"Closing database session in track_outbound for ticket {ticket_id}")
+            logger.info("Closing database session in track_outbound for ticket {ticket_id}")
             # Check if session is still active
             if db_session:
                 if db_session.is_active:
-                    print("Session is still active - committing any pending transactions")
+                    logger.info("Session is still active - committing any pending transactions")
                     db_session.commit()
                 db_session.close()
-                print("Database session closed successfully")
+                logger.info("Database session closed successfully")
         except Exception as e:
-            print(f"Error closing database session: {str(e)}")
+            logger.info("Error closing database session: {str(e)}")
 
 @asset_checkout_claw_bp.route('/<int:ticket_id>/track_secondary', methods=['GET'])
 @login_required
@@ -271,13 +276,13 @@ def track_secondary_shipment(ticket_id):
             )
             
             if cached_data:
-                print(f"Using cached secondary tracking data for {tracking_number}")
+                logger.info("Using cached secondary tracking data for {tracking_number}")
                 return jsonify(cached_data)
         else:
-            print(f"Force refresh requested for secondary tracking {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for secondary tracking {tracking_number}, bypassing cache")
         
         # If we get here, need to fetch fresh data
-        print(f"Scraping ship24 for secondary tracking: {tracking_number}")
+        logger.info("Scraping ship24 for secondary tracking: {tracking_number}")
 
         # --- Initialize Firecrawl --- 
         firecrawl_client = _initialize_firecrawl()
@@ -315,7 +320,7 @@ def track_secondary_shipment(ticket_id):
         # --- Scrape Data --- 
         try:
             ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            print(f"Scraping URL for secondary tracking: {ship24_url}")
+            logger.info("Scraping URL for secondary tracking: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
                 'formats': ['json', 'markdown'],
@@ -359,7 +364,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
                 'timeout': 15000  # 15 second timeout
             })
-            print(f"Firecrawl Raw Response for secondary tracking: {scrape_result}")
+            logger.info("Firecrawl Raw Response for secondary tracking: {scrape_result}")
 
             # --- Process Result --- 
             tracking_info = []
@@ -370,7 +375,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 data = scrape_result['data']['json']
                 latest_status = data.get('current_status', 'Unknown')
                 events = data.get('events', [])
-                print(f"[DEBUG] Found {len(events)} tracking events")
+                logger.info("[DEBUG] Found {len(events)} tracking events")
                 if events:
                     for event in events:
                         tracking_info.append({
@@ -381,7 +386,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 if not tracking_info and latest_status != "Unknown":
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
                     
-                print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+                logger.info("[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
             
             # Fallback: try old structure for backwards compatibility
             elif 'json' in scrape_result and scrape_result['json']:
@@ -399,7 +404,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
             
             if not tracking_info:
-                print("Warning: No tracking events extracted. Using fallback data.")
+                logger.info("Warning: No tracking events extracted. Using fallback data.")
                 current_date = datetime.datetime.now()
                 tracking_info = [{"status": "Information Received", "location": "Ship24 System", "date": current_date.isoformat()}]
                 latest_status = "Information Received"
@@ -411,7 +416,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 if fresh_ticket:
                     fresh_ticket.shipping_status_2 = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
-                    print(f"Updated ticket {ticket_id} with secondary status: {latest_status}")
+                    logger.info("Updated ticket {ticket_id} with secondary status: {latest_status}")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(
@@ -425,7 +430,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 )
                 
             except Exception as e:
-                print(f"Warning: Could not update ticket or cache in database: {str(e)}")
+                logger.info("Warning: Could not update ticket or cache in database: {str(e)}")
             
             return jsonify({
                 'success': True,
@@ -442,20 +447,20 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             })
                 
         except Exception as e:
-            print(f"Error scraping ship24 for secondary tracking {tracking_number}: {str(e)}")
+            logger.info("Error scraping ship24 for secondary tracking {tracking_number}: {str(e)}")
             traceback.print_exc()
             return jsonify({'success': False, 'error': f'Failed to scrape secondary tracking data: {str(e)}'}), 500
     
     finally:
         # Always close the session
         try:
-            print(f"Closing database session in track_secondary_shipment for ticket {ticket_id}")
+            logger.info("Closing database session in track_secondary_shipment for ticket {ticket_id}")
             # Check if session is still active
             if db_session:
                 if db_session.is_active:
-                    print("Session is still active - committing any pending transactions")
+                    logger.info("Session is still active - committing any pending transactions")
                     db_session.commit()
                 db_session.close()
-                print("Database session closed successfully")
+                logger.info("Database session closed successfully")
         except Exception as e:
-            print(f"Error closing database session: {str(e)}")
+            logger.info("Error closing database session: {str(e)}")

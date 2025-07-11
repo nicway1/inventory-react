@@ -3,6 +3,11 @@ from models.database import Company
 import json
 import os
 from datetime import datetime
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class UserStore:
     def __init__(self):
@@ -30,7 +35,7 @@ class UserStore:
             self.users[test_user.id] = test_user
 
         except Exception as e:
-            print(f"Error loading users: {str(e)}")
+            logger.info("Error loading users: {str(e)}")
 
     def get_user_by_id(self, user_id):
         return self.users.get(user_id)

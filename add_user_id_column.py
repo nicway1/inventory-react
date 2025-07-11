@@ -12,7 +12,7 @@ def add_user_id_column():
     
     # Check if database exists
     if not os.path.exists(db_path):
-        print(f"Error: Database not found at {db_path}")
+        logger.info("Error: Database not found at {db_path}")
         return False
     
     # Connect to database
@@ -26,29 +26,29 @@ def add_user_id_column():
         columns = [column[1] for column in cursor.fetchall()]
         
         if "user_id" in columns:
-            print("Column user_id already exists in asset_transactions table")
+            logger.info("Column user_id already exists in asset_transactions table")
             return True
         
         # Add the user_id column
-        print("Adding user_id column to asset_transactions table...")
+        logger.info("Adding user_id column to asset_transactions table...")
         cursor.execute("ALTER TABLE asset_transactions ADD COLUMN user_id INTEGER REFERENCES users(id)")
         
         conn.commit()
-        print("Successfully added user_id column")
+        logger.info("Successfully added user_id column")
         return True
         
     except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
+        logger.info("SQLite error: {e}")
         return False
     finally:
         if conn:
             conn.close()
 
 if __name__ == "__main__":
-    print("==== Adding user_id column to asset_transactions table ====")
+    logger.info("==== Adding user_id column to asset_transactions table ====")
     
     if add_user_id_column():
-        print("\nSuccessfully added user_id column to asset_transactions table")
-        print("Please restart your web application for the changes to take effect")
+        logger.info("\nSuccessfully added user_id column to asset_transactions table")
+        logger.info("Please restart your web application for the changes to take effect")
     else:
-        print("\nFailed to add user_id column. You may need to check the database connection or permissions.") 
+        logger.info("\nFailed to add user_id column. You may need to check the database connection or permissions.") 

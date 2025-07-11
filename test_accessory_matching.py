@@ -18,28 +18,28 @@ def test_accessory_matching():
     
     try:
         product_title = "USB-C Digital AV Multiport Adapter"
-        print(f"Testing accessory matching for: '{product_title}'")
-        print("=" * 60)
+        logger.info("Testing accessory matching for: '{product_title}'")
+        logger.info("=" * 60)
         
         # Test 1: Exact name matching
-        print("1. Testing exact name matching...")
+        logger.info("1. Testing exact name matching...")
         exact_matches = db_session.query(Accessory).filter(
             Accessory.name.ilike(f'%{product_title}%')
         ).all()
         
-        print(f"   Found {len(exact_matches)} exact matches:")
+        logger.info("   Found {len(exact_matches)} exact matches:")
         for acc in exact_matches:
-            print(f"   - ID: {acc.id}, Name: {acc.name}, Available: {acc.available_quantity}")
+            logger.info("   - ID: {acc.id}, Name: {acc.name}, Available: {acc.available_quantity}")
         
         # Test 2: Fuzzy matching by terms
-        print("\n2. Testing fuzzy matching...")
+        logger.info("\n2. Testing fuzzy matching...")
         search_terms = product_title.lower().split()
-        print(f"   Search terms: {search_terms}")
+        logger.info("   Search terms: {search_terms}")
         
         all_fuzzy_matches = []
         for term in search_terms:
             if len(term) > 3:
-                print(f"   Searching for term: '{term}'")
+                logger.info("   Searching for term: '{term}'")
                 fuzzy_matches = db_session.query(Accessory).filter(
                     or_(
                         Accessory.name.ilike(f'%{term}%'),
@@ -49,37 +49,37 @@ def test_accessory_matching():
                     )
                 ).all()
                 
-                print(f"     Found {len(fuzzy_matches)} matches for '{term}':")
+                logger.info("     Found {len(fuzzy_matches)} matches for '{term}':")
                 for acc in fuzzy_matches:
                     if acc not in all_fuzzy_matches:
                         all_fuzzy_matches.append(acc)
-                        print(f"     - ID: {acc.id}, Name: {acc.name}, Category: {acc.category}, Available: {acc.available_quantity}")
+                        logger.info("     - ID: {acc.id}, Name: {acc.name}, Category: {acc.category}, Available: {acc.available_quantity}")
         
         # Test 3: Check specific accessory
-        print("\n3. Checking specific Apple USB-C adapter...")
+        logger.info("\n3. Checking specific Apple USB-C adapter...")
         apple_adapter = db_session.query(Accessory).filter(
             Accessory.name.ilike('%Apple%USB-C%Digital%AV%Multiport%Adapter%')
         ).first()
         
         if apple_adapter:
-            print(f"   Found Apple adapter: ID {apple_adapter.id}, Name: {apple_adapter.name}")
-            print(f"   Available quantity: {apple_adapter.available_quantity}")
-            print(f"   Category: {apple_adapter.category}")
-            print(f"   Manufacturer: {apple_adapter.manufacturer}")
+            logger.info("   Found Apple adapter: ID {apple_adapter.id}, Name: {apple_adapter.name}")
+            logger.info("   Available quantity: {apple_adapter.available_quantity}")
+            logger.info("   Category: {apple_adapter.category}")
+            logger.info("   Manufacturer: {apple_adapter.manufacturer}")
         else:
-            print("   Apple USB-C adapter not found")
+            logger.info("   Apple USB-C adapter not found")
         
         # Test 4: List all accessories with "adapter" in name
-        print("\n4. All accessories with 'adapter' in name:")
+        logger.info("\n4. All accessories with 'adapter' in name:")
         adapter_accessories = db_session.query(Accessory).filter(
             Accessory.name.ilike('%adapter%')
         ).all()
         
         for acc in adapter_accessories:
-            print(f"   - ID: {acc.id}, Name: {acc.name}, Available: {acc.available_quantity}")
+            logger.info("   - ID: {acc.id}, Name: {acc.name}, Available: {acc.available_quantity}")
         
-        print("\n" + "=" * 60)
-        print("Test completed!")
+        logger.info("\n" + "=" * 60)
+        logger.info("Test completed!")
         
     finally:
         db_session.close()

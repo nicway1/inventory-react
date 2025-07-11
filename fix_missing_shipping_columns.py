@@ -2,6 +2,11 @@
 import sqlite3
 import os
 import sys
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def fix_all_shipping_tracking_columns():
     """
@@ -10,24 +15,24 @@ def fix_all_shipping_tracking_columns():
     """
     db_path = 'inventory.db'
     
-    print(f"Looking for database at: {db_path}")
+    logger.info("Looking for database at: {db_path}")
     if not os.path.exists(db_path):
-        print(f"Error: Database file {db_path} not found in {os.getcwd()}")
-        print("Available files:", os.listdir())
+        logger.info("Error: Database file {db_path} not found in {os.getcwd()}")
+        logger.info("Available files:", os.listdir())
         return False
     
     try:
-        print(f"Opening database connection to {db_path}...")
+        logger.info("Opening database connection to {db_path}...")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # Check table structure
-        print("Checking tickets table structure...")
+        logger.info("Checking tickets table structure...")
         cursor.execute("PRAGMA table_info(tickets)")
         columns = {column[1]: column for column in cursor.fetchall()}
         
         # Print current columns for diagnosis
-        print(f"\nFound {len(columns)} columns in tickets table")
+        logger.info("\nFound {len(columns)} columns in tickets table")
         
         # Check for missing columns - ALL shipping tracking columns 2-5
         missing_columns = []
@@ -55,46 +60,46 @@ def fix_all_shipping_tracking_columns():
                 missing_columns.append((column_name, column_definition))
         
         if not missing_columns:
-            print("\nAll required shipping tracking columns exist. No changes needed.")
+            logger.info("\nAll required shipping tracking columns exist. No changes needed.")
             return True
         
-        print(f"\nFound {len(missing_columns)} missing columns:")
+        logger.info("\nFound {len(missing_columns)} missing columns:")
         for column_name, column_definition in missing_columns:
-            print(f"  - {column_name}")
+            logger.info("  - {column_name}")
         
         # Add missing columns
-        print("\nAdding missing columns...")
+        logger.info("\nAdding missing columns...")
         for column_name, column_definition in missing_columns:
             sql = f"ALTER TABLE tickets ADD COLUMN {column_name} {column_definition}"
-            print(f"Executing: {sql}")
+            logger.info("Executing: {sql}")
             try:
                 cursor.execute(sql)
-                print(f"  ✓ Added {column_name} column")
+                logger.info("  ✓ Added {column_name} column")
             except Exception as e:
-                print(f"  ✗ Error adding {column_name}: {e}")
+                logger.info("  ✗ Error adding {column_name}: {e}")
         
         # Commit changes
         conn.commit()
-        print("\nDatabase updated successfully!")
+        logger.info("\nDatabase updated successfully!")
         
         # Verify the changes
-        print("\nVerifying updated structure...")
+        logger.info("\nVerifying updated structure...")
         cursor.execute("PRAGMA table_info(tickets)")
         updated_columns = {column[1]: column for column in cursor.fetchall()}
         
         all_added = True
         for column_name, _ in missing_columns:
             if column_name in updated_columns:
-                print(f"  ✓ Verified {column_name} was added")
+                logger.info("  ✓ Verified {column_name} was added")
             else:
-                print(f"  ✗ Failed to add {column_name}")
+                logger.info("  ✗ Failed to add {column_name}")
                 all_added = False
         
-        print(f"\nFinal tickets table has {len(updated_columns)} columns")
+        logger.info("\nFinal tickets table has {len(updated_columns)} columns")
         return all_added
     
     except Exception as e:
-        print(f"Error updating database: {e}")
+        logger.info("Error updating database: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -102,18 +107,18 @@ def fix_all_shipping_tracking_columns():
     finally:
         if 'conn' in locals() and conn:
             conn.close()
-            print("Database connection closed")
+            logger.info("Database connection closed")
 
 if __name__ == "__main__":
-    print("=== Fixing ALL Shipping Tracking Columns ===")
-    print(f"Current working directory: {os.getcwd()}")
+    logger.info("=== Fixing ALL Shipping Tracking Columns ===")
+    logger.info("Current working directory: {os.getcwd()}")
     
     success = fix_all_shipping_tracking_columns()
     
     if success:
-        print("\nFix completed successfully. The application should now work correctly.")
-        print("You can now restart your Flask application.")
+        logger.info("\nFix completed successfully. The application should now work correctly.")
+        logger.info("You can now restart your Flask application.")
         sys.exit(0)
     else:
-        print("\nFailed to fix all issues. Please check the error messages above.")
+        logger.info("\nFailed to fix all issues. Please check the error messages above.")
         sys.exit(1) 

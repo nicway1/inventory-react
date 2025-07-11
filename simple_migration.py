@@ -5,16 +5,21 @@ from models.asset import Asset
 from utils.db_manager import DatabaseManager
 from sqlalchemy import text
 import traceback
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 db_manager = DatabaseManager()
 db_session = db_manager.get_session()
 
 try:
-    print("Migrating ticket-asset relationships using direct SQL...")
+    logger.info("Migrating ticket-asset relationships using direct SQL...")
     
     # Get all tickets with asset_id set
     tickets = db_session.query(Ticket).filter(Ticket.asset_id.isnot(None)).all()
-    print(f"Found {len(tickets)} tickets with assets to migrate")
+    logger.info("Found {len(tickets)} tickets with assets to migrate")
     
     # For each ticket, execute a direct SQL insert
     migration_count = 0
@@ -29,19 +34,19 @@ try:
                     # Insert directly using SQL rather than the ORM relationship
                     insert_sql = text("INSERT INTO ticket_assets (ticket_id, asset_id) VALUES (:ticket_id, :asset_id)")
                     db_session.execute(insert_sql, {"ticket_id": ticket.id, "asset_id": ticket.asset_id})
-                    print(f"Created relationship for ticket {ticket.id} and asset {ticket.asset_id}")
+                    logger.info("Created relationship for ticket {ticket.id} and asset {ticket.asset_id}")
                     migration_count += 1
                 else:
-                    print(f"Relationship already exists for ticket {ticket.id} and asset {ticket.asset_id}")
+                    logger.info("Relationship already exists for ticket {ticket.id} and asset {ticket.asset_id}")
             except Exception as e:
-                print(f"Error processing ticket {ticket.id}: {str(e)}")
+                logger.info("Error processing ticket {ticket.id}: {str(e)}")
     
     db_session.commit()
-    print(f"Migration completed successfully. Migrated {migration_count} relationships.")
+    logger.info("Migration completed successfully. Migrated {migration_count} relationships.")
     
 except Exception as e:
     db_session.rollback()
-    print(f"Error migrating relationships: {str(e)}")
+    logger.info("Error migrating relationships: {str(e)}")
     traceback.print_exc()
 finally:
     db_session.close() 

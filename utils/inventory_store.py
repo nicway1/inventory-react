@@ -4,6 +4,11 @@ from models.accessory import Accessory
 import pandas as pd
 from datetime import datetime
 import os
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class InventoryStore:
     def __init__(self):
@@ -15,7 +20,7 @@ class InventoryStore:
             df = pd.read_csv(file_path)
             
             # Debug: Print column names
-            print("CSV columns:", df.columns.tolist())
+            logger.info("CSV columns:", df.columns.tolist())
             
             db_session = self.db_manager.get_session()
             try:
@@ -26,7 +31,7 @@ class InventoryStore:
                     if pd.isna(serial_num):
                         serial_num = ''
                     
-                    print(f"Found serial number: {serial_num}")
+                    logger.info("Found serial number: {serial_num}")
                     
                     # Convert date if it exists
                     receiving_date = None
@@ -95,7 +100,7 @@ class InventoryStore:
                 db_session.close()
                 
         except Exception as e:
-            print(f"Error importing CSV file: {str(e)}")
+            logger.info("Error importing CSV file: {str(e)}")
             import traceback
             traceback.print_exc()
             return False

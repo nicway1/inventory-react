@@ -32,11 +32,11 @@ def test_outlook_email():
     
     with app.app_context():
         try:
-            print("🔄 Testing Outlook email configuration...")
-            print(f"📧 SMTP Server: {app.config['MAIL_SERVER']}")
-            print(f"🔌 Port: {app.config['MAIL_PORT']}")
-            print(f"👤 Username: {app.config['MAIL_USERNAME']}")
-            print(f"🔐 Using TLS: {app.config['MAIL_USE_TLS']}")
+            logger.info("🔄 Testing Outlook email configuration...")
+            logger.info("📧 SMTP Server: {app.config['MAIL_SERVER']}")
+            logger.info("🔌 Port: {app.config['MAIL_PORT']}")
+            logger.info("👤 Username: {app.config['MAIL_USERNAME']}")
+            logger.info("🔐 Using TLS: {app.config['MAIL_USE_TLS']}")
             
             # Create a test message
             msg = Message(
@@ -48,25 +48,25 @@ def test_outlook_email():
             
             # Try to send the email
             mail.send(msg)
-            print("✅ Email sent successfully!")
-            print("💡 Check your inbox to confirm the email was received.")
+            logger.info("✅ Email sent successfully!")
+            logger.info("💡 Check your inbox to confirm the email was received.")
             return True
             
         except Exception as e:
-            print(f"❌ Email sending failed: {str(e)}")
-            print("\n🔧 Troubleshooting tips:")
-            print("1. Make sure you replaced the placeholder values with your actual email and App Password")
-            print("2. Verify your App Password is correct (regenerate if needed)")
-            print("3. Check that your company allows SMTP connections")
-            print("4. Ensure your email has proper permissions for sending")
+            logger.info("❌ Email sending failed: {str(e)}")
+            logger.info("\n🔧 Troubleshooting tips:")
+            logger.info("1. Make sure you replaced the placeholder values with your actual email and App Password")
+            logger.info("2. Verify your App Password is correct (regenerate if needed)")
+            logger.info("3. Check that your company allows SMTP connections")
+            logger.info("4. Ensure your email has proper permissions for sending")
             return False
 
 if __name__ == "__main__":
-    print("📬 Outlook Email Configuration Test")
-    print("=" * 40)
+    logger.info("📬 Outlook Email Configuration Test")
+    logger.info("=" * 40)
     
     if test_outlook_email():
-        print("\n🎉 Email configuration is working correctly!")
+        logger.info("\n🎉 Email configuration is working correctly!")
     else:
-        print("\n❗ Email configuration needs to be fixed.")
-        print("Please update the email settings in the script and try again.") 
+        logger.info("\n❗ Email configuration needs to be fixed.")
+        logger.info("Please update the email settings in the script and try again.") 

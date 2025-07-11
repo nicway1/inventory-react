@@ -13,10 +13,10 @@ def standardize_countries():
     db_path = "inventory.db"
     
     if not os.path.exists(db_path):
-        print("❌ Database file not found. Skipping standardization.")
+        logger.info("❌ Database file not found. Skipping standardization.")
         return
     
-    print("🔄 Starting country name standardization...")
+    logger.info("🔄 Starting country name standardization...")
     
     try:
         conn = sqlite3.connect(db_path)
@@ -26,9 +26,9 @@ def standardize_countries():
         cursor.execute("SELECT DISTINCT country FROM assets WHERE country IS NOT NULL")
         countries = cursor.fetchall()
         
-        print(f"📊 Found {len(countries)} unique country entries:")
+        logger.info("📊 Found {len(countries)} unique country entries:")
         for country in countries:
-            print(f"  - '{country[0]}'")
+            logger.info("  - '{country[0]}'")
         
         # Group countries by lowercase version to find duplicates
         country_groups = {}
@@ -68,10 +68,10 @@ def standardize_countries():
                     break
             
             if needs_update:
-                print(f"\n🔧 Standardizing '{lower_name}' variants:")
+                logger.info("\n🔧 Standardizing '{lower_name}' variants:")
                 for variant in variants:
                     if variant != proper_name:
-                        print(f"  '{variant}' → '{proper_name}'")
+                        logger.info("  '{variant}' → '{proper_name}'")
                         cursor.execute(
                             "UPDATE assets SET country = ? WHERE country = ?",
                             (proper_name, variant)
@@ -85,7 +85,7 @@ def standardize_countries():
                 cursor.execute("PRAGMA table_info(tickets)")
                 columns = [column[1] for column in cursor.fetchall()]
                 if 'country' in columns:
-                    print("\n🎫 Updating tickets table...")
+                    logger.info("\n🎫 Updating tickets table...")
                     for lower_name, variants in country_groups.items():
                         if len(variants) > 1:
                             proper_name = lower_name.title()
@@ -109,7 +109,7 @@ def standardize_countries():
                                     )
                                     updates_made += cursor.rowcount
         except Exception as e:
-            print(f"⚠️  Note: Could not update tickets table: {e}")
+            logger.info("⚠️  Note: Could not update tickets table: {e}")
         
         # Also update accessories table if it has country field
         try:
@@ -118,7 +118,7 @@ def standardize_countries():
                 cursor.execute("PRAGMA table_info(accessories)")
                 columns = [column[1] for column in cursor.fetchall()]
                 if 'country' in columns:
-                    print("\n📦 Updating accessories table...")
+                    logger.info("\n📦 Updating accessories table...")
                     for lower_name, variants in country_groups.items():
                         if len(variants) > 1:
                             proper_name = lower_name.title()
@@ -142,21 +142,21 @@ def standardize_countries():
                                     )
                                     updates_made += cursor.rowcount
         except Exception as e:
-            print(f"⚠️  Note: Could not update accessories table: {e}")
+            logger.info("⚠️  Note: Could not update accessories table: {e}")
         
         conn.commit()
-        print(f"\n✅ Successfully standardized country names!")
-        print(f"📊 Total updates made: {updates_made}")
+        logger.info("\n✅ Successfully standardized country names!")
+        logger.info("📊 Total updates made: {updates_made}")
         
         # Show final result
         cursor.execute("SELECT country, COUNT(*) as count FROM assets WHERE country IS NOT NULL GROUP BY country ORDER BY country")
         final_countries = cursor.fetchall()
-        print(f"\n📋 Final country list ({len(final_countries)} countries):")
+        logger.info("\n📋 Final country list ({len(final_countries)} countries):")
         for country, count in final_countries:
-            print(f"  - {country}: {count} assets")
+            logger.info("  - {country}: {count} assets")
         
     except Exception as e:
-        print(f"❌ Standardization failed: {e}")
+        logger.info("❌ Standardization failed: {e}")
         conn.rollback()
     finally:
         conn.close()

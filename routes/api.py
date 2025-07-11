@@ -7,8 +7,13 @@ from models.company import Company
 from models.user import User, UserType
 from sqlalchemy import or_
 from flask import current_app
+import logging
 
-api_bp = Blueprint('api', __name__, url_prefix='/api')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+api_bp = Bluelogger.info('api', __name__, url_prefix='/api')
 db_manager = DatabaseManager()
 
 @api_bp.route('/assets/details', methods=['GET'])

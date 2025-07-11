@@ -10,7 +10,7 @@ from models.asset import Asset
 
 def investigate_empty_subjects():
     """Investigate tickets with empty subjects or asset info"""
-    print("🔍 Investigating tickets with empty subjects and asset information...")
+    logger.info("🔍 Investigating tickets with empty subjects and asset information...")
     
     db_manager = DatabaseManager()
     db_session = db_manager.get_session()
@@ -18,7 +18,7 @@ def investigate_empty_subjects():
     try:
         # Get all tickets
         all_tickets = db_session.query(Ticket).all()
-        print(f"Found {len(all_tickets)} total tickets")
+        logger.info("Found {len(all_tickets)} total tickets")
         
         empty_subjects = []
         empty_assets = []
@@ -41,36 +41,36 @@ def investigate_empty_subjects():
                 if not ticket.subject or ticket.subject.strip() == '' or ticket.subject.strip() == '-':
                     problematic_tickets.append(ticket)
         
-        print("\n📋 RESULTS:")
-        print(f"Tickets with empty/missing subjects: {len(empty_subjects)}")
-        print(f"Assets with missing device_model or serial_number: {len(empty_assets)}")
-        print(f"Total problematic tickets: {len(problematic_tickets)}")
+        logger.info("\n📋 RESULTS:")
+        logger.info("Tickets with empty/missing subjects: {len(empty_subjects)}")
+        logger.info("Assets with missing device_model or serial_number: {len(empty_assets)}")
+        logger.info("Total problematic tickets: {len(problematic_tickets)}")
         
-        print("\n📝 EMPTY SUBJECTS:")
+        logger.info("\n📝 EMPTY SUBJECTS:")
         for ticket in empty_subjects[:10]:  # Show first 10
-            print(f"  - Ticket {ticket.display_id}: '{ticket.subject}' (Category: {ticket.category.value if ticket.category else 'None'})")
+            logger.info("  - Ticket {ticket.display_id}: '{ticket.subject}' (Category: {ticket.category.value if ticket.category else 'None'})")
             
-        print("\n🔧 ASSETS WITH MISSING INFO:")
+        logger.info("\n🔧 ASSETS WITH MISSING INFO:")
         for ticket, asset in empty_assets[:10]:  # Show first 10
             model = asset.model or 'MISSING'
             serial = asset.serial_num or 'MISSING'
-            print(f"  - Ticket {ticket.display_id}, Asset ID {asset.id}: '{model}' - '{serial}'")
+            logger.info("  - Ticket {ticket.display_id}, Asset ID {asset.id}: '{model}' - '{serial}'")
             
-        print("\n🚨 MOST PROBLEMATIC TICKETS (showing as '-'):")
+        logger.info("\n🚨 MOST PROBLEMATIC TICKETS (showing as '-'):")
         for ticket in problematic_tickets[:5]:
-            print(f"  - Ticket {ticket.display_id}")
-            print(f"    Subject: '{ticket.subject}'")
-            print(f"    Category: {ticket.category.value if ticket.category else 'None'}")
-            print(f"    Assets: {len(ticket.assets)} asset(s)")
+            logger.info("  - Ticket {ticket.display_id}")
+            logger.info("    Subject: '{ticket.subject}'")
+            logger.info("    Category: {ticket.category.value if ticket.category else 'None'}")
+            logger.info("    Assets: {len(ticket.assets)} asset(s)")
             if ticket.assets:
                 for asset in ticket.assets:
                     model = asset.model or 'MISSING'
                     serial = asset.serial_num or 'MISSING'
-                    print(f"      - Asset: '{model}' - '{serial}'")
+                    logger.info("      - Asset: '{model}' - '{serial}'")
             print()
             
     except Exception as e:
-        print(f"Error during investigation: {e}")
+        logger.info("Error during investigation: {e}")
     finally:
         db_session.close()
 

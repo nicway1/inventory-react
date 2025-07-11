@@ -1,5 +1,10 @@
 import sqlite3
 import os
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def add_missing_columns():
     """Add missing columns to the tickets table in SQLite database"""
@@ -9,12 +14,12 @@ def add_missing_columns():
         db_path = 'inventory.db'  # Use the correct path directly
         
         if os.path.exists(db_path):
-            print(f"Found database at: {db_path}")
+            logger.info("Found database at: {db_path}")
             conn = sqlite3.connect(db_path)
         else:
-            print(f"Error: Database file {db_path} does not exist.")
-            print("Current working directory:", os.getcwd())
-            print("Available files in current directory:", sorted(os.listdir()))
+            logger.info("Error: Database file {db_path} does not exist.")
+            logger.info("Current working directory:", os.getcwd())
+            logger.info("Available files in current directory:", sorted(os.listdir()))
             return
         
         cursor = conn.cursor()
@@ -25,52 +30,52 @@ def add_missing_columns():
         
         # Add shipping_tracking_2 column if it doesn't exist
         if 'shipping_tracking_2' not in columns:
-            print("Adding shipping_tracking_2 column...")
+            logger.info("Adding shipping_tracking_2 column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN shipping_tracking_2 TEXT")
         else:
-            print("Column shipping_tracking_2 already exists.")
+            logger.info("Column shipping_tracking_2 already exists.")
         
         # Add return_tracking column if it doesn't exist
         if 'return_tracking' not in columns:
-            print("Adding return_tracking column...")
+            logger.info("Adding return_tracking column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN return_tracking TEXT")
         else:
-            print("Column return_tracking already exists.")
+            logger.info("Column return_tracking already exists.")
         
         # Add shipping_carrier column if it doesn't exist
         if 'shipping_carrier' not in columns:
-            print("Adding shipping_carrier column...")
+            logger.info("Adding shipping_carrier column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN shipping_carrier TEXT")
         else:
-            print("Column shipping_carrier already exists.")
+            logger.info("Column shipping_carrier already exists.")
         
         # Add shipping_status column if it doesn't exist
         if 'shipping_status' not in columns:
-            print("Adding shipping_status column...")
+            logger.info("Adding shipping_status column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN shipping_status TEXT")
         else:
-            print("Column shipping_status already exists.")
+            logger.info("Column shipping_status already exists.")
         
         # Add secondary_tracking_carrier column if it doesn't exist
         if 'secondary_tracking_carrier' not in columns:
-            print("Adding secondary_tracking_carrier column...")
+            logger.info("Adding secondary_tracking_carrier column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN secondary_tracking_carrier TEXT")
         else:
-            print("Column secondary_tracking_carrier already exists.")
+            logger.info("Column secondary_tracking_carrier already exists.")
         
         # Add secondary_tracking_status column if it doesn't exist
         if 'secondary_tracking_status' not in columns:
-            print("Adding secondary_tracking_status column...")
+            logger.info("Adding secondary_tracking_status column...")
             cursor.execute("ALTER TABLE tickets ADD COLUMN secondary_tracking_status TEXT")
         else:
-            print("Column secondary_tracking_status already exists.")
+            logger.info("Column secondary_tracking_status already exists.")
         
         # Commit the changes
         conn.commit()
-        print("Database updated successfully!")
+        logger.info("Database updated successfully!")
         
     except Exception as e:
-        print(f"Error updating database: {e}")
+        logger.info("Error updating database: {e}")
     finally:
         if conn:
             conn.close()

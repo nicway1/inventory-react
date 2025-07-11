@@ -9,7 +9,7 @@ from models.ticket_attachment import TicketAttachment
 
 def fix_pdf_file_types():
     """Fix existing PDF attachments by setting correct file_type"""
-    print("🔧 Fixing PDF file types...")
+    logger.info("🔧 Fixing PDF file types...")
     
     db_manager = DatabaseManager()
     db_session = db_manager.get_session()
@@ -18,7 +18,7 @@ def fix_pdf_file_types():
         # Find all attachments
         all_attachments = db_session.query(TicketAttachment).all()
         
-        print(f"Found {len(all_attachments)} total attachments")
+        logger.info("Found {len(all_attachments)} total attachments")
         
         pdf_fixed = 0
         other_fixed = 0
@@ -37,25 +37,25 @@ def fix_pdf_file_types():
                 
                 if file_extension == 'pdf':
                     pdf_fixed += 1
-                    print(f"✓ Fixed PDF: {attachment.filename} (was: {old_file_type}, now: {file_extension})")
+                    logger.info("✓ Fixed PDF: {attachment.filename} (was: {old_file_type}, now: {file_extension})")
                 else:
                     other_fixed += 1
-                    print(f"✓ Fixed file: {attachment.filename} (was: {old_file_type}, now: {file_extension})")
+                    logger.info("✓ Fixed file: {attachment.filename} (was: {old_file_type}, now: {file_extension})")
         
         # Commit changes
         db_session.commit()
         
-        print(f"\n📊 Summary:")
-        print(f"✓ Fixed {pdf_fixed} PDF files")
-        print(f"✓ Fixed {other_fixed} other files")
-        print(f"✓ Total attachments processed: {len(all_attachments)}")
+        logger.info("\n📊 Summary:")
+        logger.info("✓ Fixed {pdf_fixed} PDF files")
+        logger.info("✓ Fixed {other_fixed} other files")
+        logger.info("✓ Total attachments processed: {len(all_attachments)}")
         
         if pdf_fixed > 0:
-            print(f"\n🎉 PDF files should now show preview buttons in the UI!")
+            logger.info("\n🎉 PDF files should now show preview buttons in the UI!")
         
     except Exception as e:
         db_session.rollback()
-        print(f"❌ Error fixing file types: {e}")
+        logger.info("❌ Error fixing file types: {e}")
         import traceback
         traceback.print_exc()
         

@@ -55,6 +55,6 @@ def update_database_schema():
 if __name__ == "__main__":
     success = update_database_schema()
     if success:
-        print("Schema update completed successfully")
+        logger.info("Schema update completed successfully")
     else:
-        print("Schema update failed") 
+        logger.info("Schema update failed") 

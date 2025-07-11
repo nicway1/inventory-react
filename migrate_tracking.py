@@ -16,7 +16,7 @@ def create_tracking_history_table():
     # Check if the table already exists
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tracking_history'")
     if cursor.fetchone():
-        print("Table 'tracking_history' already exists, skipping creation")
+        logger.info("Table 'tracking_history' already exists, skipping creation")
         conn.close()
         return
 
@@ -43,9 +43,9 @@ def create_tracking_history_table():
     
     # Commit changes and close connection
     conn.commit()
-    print("Successfully created 'tracking_history' table")
+    logger.info("Successfully created 'tracking_history' table")
     conn.close()
 
 if __name__ == "__main__":
     create_tracking_history_table()
-    print("Migration completed successfully") 
+    logger.info("Migration completed successfully") 

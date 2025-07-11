@@ -10,7 +10,7 @@ import uuid
 def run_migration():
     # Connect to the database - adjust the path if needed
     db_path = '/home/nicway2/inventory.db'  # Direct path to the database
-    print(f"Attempting to connect to database at: {db_path}")
+    logger.info("Attempting to connect to database at: {db_path}")
     
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -18,11 +18,11 @@ def run_migration():
     # Check if table already exists
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accessory_transactions'")
     if cursor.fetchone():
-        print("Table 'accessory_transactions' already exists, skipping creation.")
+        logger.info("Table 'accessory_transactions' already exists, skipping creation.")
         conn.close()
         return
     
-    print("Creating accessory_transactions table...")
+    logger.info("Creating accessory_transactions table...")
     
     # Create the accessory_transactions table with all required columns
     cursor.execute('''
@@ -52,7 +52,7 @@ def run_migration():
     conn.commit()
     conn.close()
     
-    print(f"Successfully created accessory_transactions table at {datetime.now()}")
+    logger.info("Successfully created accessory_transactions table at {datetime.now()}")
     return True
 
 if __name__ == "__main__":

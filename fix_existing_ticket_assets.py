@@ -10,7 +10,7 @@ from models.asset import Asset
 
 def fix_existing_ticket_assets():
     """Migrate existing ticket-asset relationships to the many-to-many relationship"""
-    print("🔧 Fixing existing ticket-asset relationships...")
+    logger.info("🔧 Fixing existing ticket-asset relationships...")
     
     db_manager = DatabaseManager()
     db_session = db_manager.get_session()
@@ -21,7 +21,7 @@ def fix_existing_ticket_assets():
             Ticket.asset_id != None
         ).all()
         
-        print(f"Found {len(tickets_with_asset_id)} tickets with asset_id set")
+        logger.info("Found {len(tickets_with_asset_id)} tickets with asset_id set")
         
         fixed_count = 0
         skipped_count = 0
@@ -32,7 +32,7 @@ def fix_existing_ticket_assets():
                 asset_already_linked = any(asset.id == ticket.asset_id for asset in ticket.assets)
                 
                 if asset_already_linked:
-                    print(f"Ticket {ticket.id}: Asset {ticket.asset_id} already in assets relationship - skipping")
+                    logger.info("Ticket {ticket.id}: Asset {ticket.asset_id} already in assets relationship - skipping")
                     skipped_count += 1
                     continue
                 
@@ -41,24 +41,24 @@ def fix_existing_ticket_assets():
                 if asset:
                     # Add to the many-to-many relationship
                     ticket.assets.append(asset)
-                    print(f"Ticket {ticket.id}: Added asset {ticket.asset_id} ({asset.name}) to assets relationship")
+                    logger.info("Ticket {ticket.id}: Added asset {ticket.asset_id} ({asset.name}) to assets relationship")
                     fixed_count += 1
                 else:
-                    print(f"Ticket {ticket.id}: Asset {ticket.asset_id} not found in database")
+                    logger.info("Ticket {ticket.id}: Asset {ticket.asset_id} not found in database")
                     
             except Exception as e:
-                print(f"Error processing ticket {ticket.id}: {str(e)}")
+                logger.info("Error processing ticket {ticket.id}: {str(e)}")
                 continue
         
         # Commit all changes
         db_session.commit()
-        print(f"\n✅ Migration completed!")
-        print(f"   Fixed: {fixed_count} tickets")
-        print(f"   Skipped: {skipped_count} tickets (already linked)")
-        print(f"   Total processed: {len(tickets_with_asset_id)} tickets")
+        logger.info("\n✅ Migration completed!")
+        logger.info("   Fixed: {fixed_count} tickets")
+        logger.info("   Skipped: {skipped_count} tickets (already linked)")
+        logger.info("   Total processed: {len(tickets_with_asset_id)} tickets")
         
     except Exception as e:
-        print(f"❌ Error during migration: {str(e)}")
+        logger.info("❌ Error during migration: {str(e)}")
         db_session.rollback()
     finally:
         db_session.close()

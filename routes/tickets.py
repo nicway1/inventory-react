@@ -45,27 +45,30 @@ from models.queue import Queue
 import time
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 # Initialize TrackingMore client
 try:
-    print("Initializing trackingmore v0.2")
+    logger.info("Initializing trackingmore v0.2")
     import trackingmore
     # Set API key for v0.2
     trackingmore.set_api_key(TRACKINGMORE_API_KEY)
-    print("Successfully initialized TrackingMore")
+    logger.info("Successfully initialized TrackingMore")
     trackingmore_client = None  # Not used with v0.2
 except ImportError as e:
-    print(f"WARNING: Could not import trackingmore module: {str(e)}")
+    logger.warning(f"Could not import trackingmore module: {str(e)}")
     trackingmore = None
     trackingmore_client = None
 except Exception as e:
-    print(f"WARNING: Error initializing TrackingMore: {str(e)}")
+    logger.warning(f"Error initializing TrackingMore: {str(e)}")
     trackingmore = None
     trackingmore_client = None
 
 # Define allowed file extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv'}
 
-tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
+tickets_bp = Bluelogger.info('tickets', __name__, url_prefix='/tickets')
 
 def get_filtered_customers(db_session, user):
     """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
@@ -132,7 +135,7 @@ def list_tickets():
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_ticket():
-    print("Entering create_ticket route")  # Debug log
+    logger.debug("Entering create_ticket route")
     db_session = db_manager.get_session()
     try:
         # Get current user
@@ -173,7 +176,7 @@ def create_ticket():
         # Extract and sort company names from assets only
         companies_list = [company[0] for company in company_names_from_assets if company[0]]
         companies_list = sorted(companies_list)
-        print(f"Found {len(companies_list)} tech asset companies for dropdown")
+        logger.debug(f"Found {len(companies_list)} tech asset companies for dropdown")
         
         # Get all enabled categories (both predefined and custom)
         from models.ticket_category_config import CategoryDisplayConfig
@@ -235,16 +238,16 @@ def create_ticket():
             }
         
         if request.method == 'GET':
-            print("Handling GET request")  # Debug log
+            logger.debug("Handling GET request")
             
             return render_template('tickets/create.html', **get_template_context())
 
         if request.method == 'POST':
-            print("Handling POST request")  # Debug log
+            logger.debug("Handling POST request")
             
             # Log all form fields to debug
             for key, value in request.form.items():
-                print(f"Form field: {key} = {value}")  # Debug log
+                logger.debug(f"Form field: {key} = {value}")
             
             # Get common form data
             category = request.form.get('category')
@@ -270,10 +273,10 @@ def create_ticket():
                category == 'ASSET_CHECKOUT_AUTO' or \
                category == 'ASSET_CHECKOUT_CLAW': # Added CLAW
                 serial_number = request.form.get('asset_checkout_serial')
-                print(f"Asset Checkout Serial Number: {serial_number}")  # Debug log
+                logger.info("Asset Checkout Serial Number: {serial_number}")  # Debug log
             else:
                 serial_number = request.form.get('serial_number')
-                print(f"Standard Serial Number: {serial_number}")  # Debug log
+                logger.info("Standard Serial Number: {serial_number}")  # Debug log
 
             # Check if this is a custom category
             is_custom_category = False
@@ -324,7 +327,7 @@ def create_ticket():
                     except ValueError:
                         queue_id = None
                 
-                print(f"Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
+                logger.info("Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
@@ -376,7 +379,7 @@ Shipping Method: {shipping_method}
 Additional Notes:
 {notes}"""
 
-                print(f"Creating ticket with description: {description}")  # Debug log
+                logger.info("Creating ticket with description: {description}")  # Debug log
 
                 try:
                     # Determine appropriate ticket category enum value based on shipping method
@@ -443,7 +446,7 @@ Additional Notes:
                         try:
                             import json
                             selected_accessories_data = json.loads(selected_accessories_json)
-                            print(f"Processing {len(selected_accessories_data)} selected accessories")  # Debug log
+                            logger.info("Processing {len(selected_accessories_data)} selected accessories")  # Debug log
                             
                             for acc_data in selected_accessories_data:
                                 inventory_id = acc_data.get('inventoryId')
@@ -480,7 +483,7 @@ Additional Notes:
                                     accessory_description_part += f"- {acc['name']} (x{acc['quantity']}) {source}\n"
                                 
                         except Exception as acc_error:
-                            print(f"Error processing accessories JSON: {str(acc_error)}")
+                            logger.info("Error processing accessories JSON: {str(acc_error)}")
                     
                     # Update description with accessory information
                     final_description = description + accessory_description_part
@@ -502,9 +505,9 @@ Additional Notes:
                             notes=notes,
                             case_owner_id=int(case_owner_id) if case_owner_id else None
                         )
-                        print(f"[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
+                        logger.info("[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
                     except Exception as ticket_creation_error:
-                        print(f"[TICKET CREATION ERROR] Failed to create ticket: {str(ticket_creation_error)}")
+                        logger.info("[TICKET CREATION ERROR] Failed to create ticket: {str(ticket_creation_error)}")
                         import traceback
                         traceback.print_exc()
                         
@@ -520,7 +523,7 @@ Additional Notes:
                     
                     if not ticket_id:
                         error_msg = "Ticket creation failed: No ticket ID returned"
-                        print(f"[TICKET CREATION ERROR] {error_msg}")
+                        logger.info("[TICKET CREATION ERROR] {error_msg}")
                         
                         # Check if this is an AJAX request
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -567,7 +570,7 @@ Additional Notes:
                                         created_ticket.shipping_carrier_5 = carrier or 'claw'
                                         created_ticket.shipping_status_5 = 'Pending'
                                     
-                                    print(f"[PACKAGE DEBUG] Added Package {package_num}: {tracking_number} ({carrier})")
+                                    logger.info("[PACKAGE DEBUG] Added Package {package_num}: {tracking_number} ({carrier})")
                             
                             # Update the ticket's updated_at timestamp
                             from datetime import datetime
@@ -575,14 +578,14 @@ Additional Notes:
                             
                             # Commit the package changes
                             db_session.commit()
-                            print(f"[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
+                            logger.info("[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
 
                     # Get the created ticket for asset assignment
                     from models.ticket import Ticket  # Ensure import is available in this scope
                     created_ticket = db_session.query(Ticket).get(ticket_id)
                     if created_ticket and asset:
-                        print(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
-                        print(f"[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
+                        logger.info("[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
+                        logger.info("[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
                         
                         # Create proper ticket-asset relationship using direct SQL
                         # Check if relationship already exists
@@ -593,7 +596,7 @@ Additional Notes:
                         """)
                         existing_count = db_session.execute(existing_check, {"ticket_id": ticket_id, "asset_id": asset.id}).scalar()
                         
-                        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {existing_count}")
+                        logger.info("[ASSET ASSIGN DEBUG] Existing relationship count: {existing_count}")
                         
                         if existing_count == 0:
                             # Create the ticket-asset relationship using direct SQL
@@ -604,9 +607,9 @@ Additional Notes:
                                 """)
                                 db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset.id})
                                 db_session.flush()
-                                print(f"[ASSET ASSIGN DEBUG] Created ticket-asset relationship via direct SQL")
+                                logger.info("[ASSET ASSIGN DEBUG] Created ticket-asset relationship via direct SQL")
                             except Exception as e:
-                                print(f"[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
+                                logger.info("[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
                                 # If it's a constraint violation, that's OK - relationship already exists
                                 if "UNIQUE constraint failed" not in str(e):
                                     raise
@@ -614,7 +617,7 @@ Additional Notes:
                         # Update asset status and assign to customer
                         asset.customer_id = customer_id
                         asset.status = AssetStatus.DEPLOYED
-                        print(f"[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
+                        logger.info("[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
                         
                         # Create asset transaction record for the checkout
                         from models.asset_transaction import AssetTransaction
@@ -629,9 +632,9 @@ Additional Notes:
                         # Set user_id manually since it's not in the constructor
                         transaction.user_id = user_id
                         db_session.add(transaction)
-                        print(f"[ASSET ASSIGN DEBUG] Created asset transaction record for checkout")
+                        logger.info("[ASSET ASSIGN DEBUG] Created asset transaction record for checkout")
                     else:
-                        print(f"[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
+                        logger.info("[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
                     
                     # Now assign accessories to the created ticket
                     if assigned_accessories:
@@ -674,7 +677,7 @@ Additional Notes:
                                             reference_id=ticket.id
                                         )
                                         db_session.add(activity)
-                                        print(f"Created TicketAccessory for {accessory.name}")  # Debug log
+                                        logger.info("Created TicketAccessory for {accessory.name}")  # Debug log
                                 else:
                                     # Create ticket accessory from CSV data (no inventory match)
                                     ticket_accessory = TicketAccessory(
@@ -688,12 +691,12 @@ Additional Notes:
                                     )
                                     db_session.add(ticket_accessory)
                                     actual_assigned.append(f"{acc_data['name']} (x{acc_data['quantity']}) - from CSV")
-                                    print(f"Created TicketAccessory for CSV item {acc_data['name']}")  # Debug log
+                                    logger.info("Created TicketAccessory for CSV item {acc_data['name']}")  # Debug log
                             
                             assigned_accessories = actual_assigned
                                 
                         except Exception as acc_error:
-                            print(f"Error creating ticket accessories: {str(acc_error)}")
+                            logger.info("Error creating ticket accessories: {str(acc_error)}")
                             import traceback
                             traceback.print_exc()
                     
@@ -702,9 +705,9 @@ Additional Notes:
                     # Refresh the ticket to ensure relationships are loaded
                     if created_ticket:
                         db_session.refresh(created_ticket)
-                        print(f"[ASSET ASSIGN DEBUG] Refreshed ticket - now has {len(created_ticket.assets)} assets")
+                        logger.info("[ASSET ASSIGN DEBUG] Refreshed ticket - now has {len(created_ticket.assets)} assets")
 
-                    print(f"Ticket created successfully with ID: {ticket_id}")  # Debug log
+                    logger.info("Ticket created successfully with ID: {ticket_id}")  # Debug log
                     
                     # Check if this is an AJAX request (for popup functionality)
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -724,7 +727,7 @@ Additional Notes:
                             flash('Asset checkout ticket created successfully')
                         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    logger.info("Error creating ticket: {str(e)}")  # Debug log
                     import traceback
                     traceback.print_exc()  # Print full stack trace
                     db_session.rollback()
@@ -762,7 +765,7 @@ Additional Notes:
                     flash('PIN request ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    logger.info("Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
@@ -779,9 +782,9 @@ Additional Notes:
                 # Extract the return description from the form
                 user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
                 
-                print(f"DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
-                print(f"DEBUG - Form description: {request.form.get('description')}")  # Debug log
-                print(f"DEBUG - Final user_return_description: {user_return_description}")  # Debug log
+                logger.info("DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
+                logger.info("DEBUG - Form description: {request.form.get('description')}")  # Debug log
+                logger.info("DEBUG - Final user_return_description: {user_return_description}")  # Debug log
                 
                 # Convert queue_id to int if provided
                 if queue_id:
@@ -790,7 +793,7 @@ Additional Notes:
                     except ValueError:
                         queue_id = None
                 
-                print(f"Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
+                logger.info("Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
@@ -817,7 +820,7 @@ Additional Notes:
                     try:
                         company_name = customer.company.name
                     except Exception as e:
-                        print(f"Error accessing company name: {str(e)}")
+                        logger.info("Error accessing company name: {str(e)}")
                         company_name = 'N/A'
                 
                 # Prepare system description (separate from user return description)
@@ -854,11 +857,11 @@ Shipping Method: Claw (Ship24)"""
                         case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
 
-                    print(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
+                    logger.info("Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
                     flash('Asset return ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    logger.info("Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
@@ -975,7 +978,7 @@ Additional Notes:
                     flash('Asset intake ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    print(f"Error creating ticket: {str(e)}")  # Debug log
+                    logger.info("Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
@@ -1054,7 +1057,7 @@ def view_ticket(ticket_id):
         db_session.expire_all()
         
         # Load ticket with all relationships
-        print("Loading ticket with relationships...")
+        logger.info("Loading ticket with relationships...")
         ticket = db_session.query(Ticket).options(
             joinedload(Ticket.requester),
             joinedload(Ticket.assigned_to),
@@ -1067,9 +1070,9 @@ def view_ticket(ticket_id):
         
         # Debug: Check how many assets are loaded
         if ticket:
-            print(f"[TICKET VIEW DEBUG] Ticket {ticket_id} loaded with {len(ticket.assets)} assets")
+            logger.info("[TICKET VIEW DEBUG] Ticket {ticket_id} loaded with {len(ticket.assets)} assets")
             for asset in ticket.assets:
-                print(f"[TICKET VIEW DEBUG] - Asset: {asset.name} (ID: {asset.id})")
+                logger.info("[TICKET VIEW DEBUG] - Asset: {asset.name} (ID: {asset.id})")
             
             # Also check ticket_assets table directly
             from models.asset_transaction import AssetTransaction
@@ -1077,20 +1080,20 @@ def view_ticket(ticket_id):
                 text("SELECT ticket_id, asset_id FROM ticket_assets WHERE ticket_id = :ticket_id"),
                 {"ticket_id": ticket_id}
             ).fetchall()
-            print(f"[TICKET VIEW DEBUG] Direct query found {len(direct_assets)} ticket-asset relationships")
+            logger.info("[TICKET VIEW DEBUG] Direct query found {len(direct_assets)} ticket-asset relationships")
             for row in direct_assets:
-                print(f"[TICKET VIEW DEBUG] - Ticket-Asset: Ticket {row[0]} -> Asset {row[1]}")
+                logger.info("[TICKET VIEW DEBUG] - Ticket-Asset: Ticket {row[0]} -> Asset {row[1]}")
         else:
-            print(f"[TICKET VIEW DEBUG] Ticket {ticket_id} not found")
+            logger.info("[TICKET VIEW DEBUG] Ticket {ticket_id} not found")
 
         if not ticket:
-            print(f"Ticket {ticket_id} not found")
+            logger.info("Ticket {ticket_id} not found")
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
 
 
-        print("Loading additional data...")
+        logger.info("Loading additional data...")
         # Load additional data needed for the template
         all_users = db_session.query(User).order_by(User.username).all()
         owner = ticket.assigned_to
@@ -1148,11 +1151,11 @@ def view_ticket(ticket_id):
         
         # Get comments from comment_store (JSON file storage)
         comments_from_store = comment_store.get_ticket_comments(ticket_id)
-        print(f"[DEBUG] Found {len(comments_from_store)} comments from comment_store for ticket {ticket_id}")
+        logger.info("[DEBUG] Found {len(comments_from_store)} comments from comment_store for ticket {ticket_id}")
         
         # Get database comments from the relationship
         db_comments = ticket.comments if ticket.comments else []
-        print(f"[DEBUG] Found {len(db_comments)} comments from database for ticket {ticket_id}")
+        logger.info("[DEBUG] Found {len(db_comments)} comments from database for ticket {ticket_id}")
         
         # Use comment_store comments as primary source (since add_comment uses it)
         comments = comments_from_store
@@ -1206,8 +1209,8 @@ def view_ticket(ticket_id):
         )
         
     except Exception as e:
-        print(f"[TICKET VIEW DEBUG] Error loading ticket {ticket_id}: {str(e)}")
-        print("[TICKET VIEW DEBUG] Error traceback:")
+        logger.info("[TICKET VIEW DEBUG] Error loading ticket {ticket_id}: {str(e)}")
+        logger.info("[TICKET VIEW DEBUG] Error traceback:")
         traceback.print_exc()
         
         # Try to provide more specific error information
@@ -1358,93 +1361,93 @@ def update_ticket(ticket_id):
         subject = request.form.get('subject')
         if subject and subject.strip():
             ticket.subject = subject.strip()
-            print(f"DEBUG - Updated subject to: {ticket.subject}")
+            logger.info("DEBUG - Updated subject to: {ticket.subject}")
         
         description = request.form.get('description')
         if description and description.strip():
             ticket.description = description.strip()
-            print(f"DEBUG - Updated description")
+            logger.info("DEBUG - Updated description")
         
         # Update return description for Asset Return tickets
         return_description = request.form.get('return_description')
         if return_description is not None:  # Allow empty string to clear field
             ticket.return_description = return_description.strip() if return_description else None
-            print(f"DEBUG - Updated return_description")
+            logger.info("DEBUG - Updated return_description")
         
         # Update notes
         notes = request.form.get('notes')
         if notes is not None:  # Allow empty string to clear field
             ticket.notes = notes.strip() if notes else None
-            print(f"DEBUG - Updated notes")
+            logger.info("DEBUG - Updated notes")
         
         # Update shipping address
         shipping_address = request.form.get('shipping_address')
         if shipping_address is not None:  # Allow empty string to clear field
             ticket.shipping_address = shipping_address.strip() if shipping_address else None
-            print(f"DEBUG - Updated shipping_address")
+            logger.info("DEBUG - Updated shipping_address")
         
         # Update tracking numbers for Asset Return tickets
         shipping_tracking = request.form.get('shipping_tracking')
         if shipping_tracking is not None:  # Allow empty string to clear field
             ticket.shipping_tracking = shipping_tracking.strip() if shipping_tracking else None
-            print(f"DEBUG - Updated shipping_tracking")
+            logger.info("DEBUG - Updated shipping_tracking")
         
         return_tracking = request.form.get('return_tracking')
         if return_tracking is not None:  # Allow empty string to clear field
             ticket.return_tracking = return_tracking.strip() if return_tracking else None
-            print(f"DEBUG - Updated return_tracking")
+            logger.info("DEBUG - Updated return_tracking")
         
         # Debug current status
-        print(f"DEBUG - Current ticket status before update: {ticket.status}")
+        logger.info("DEBUG - Current ticket status before update: {ticket.status}")
         if ticket.status:
-            print(f"DEBUG - Current ticket status value: {ticket.status.value}")
+            logger.info("DEBUG - Current ticket status value: {ticket.status.value}")
         
         # Update status
         status_value = request.form.get('status')
-        print(f"DEBUG - Form status value: {status_value}")
+        logger.info("DEBUG - Form status value: {status_value}")
         
         if status_value:
             try:
                 # Try to get enum by name
                 new_status = TicketStatus[status_value]
-                print(f"DEBUG - Setting status to {new_status}")
+                logger.info("DEBUG - Setting status to {new_status}")
                 ticket.status = new_status
             except KeyError:
-                print(f"DEBUG - KeyError: {status_value} is not a valid TicketStatus name")
+                logger.info("DEBUG - KeyError: {status_value} is not a valid TicketStatus name")
         
         # Update priority
         priority_value = request.form.get('priority')
-        print(f"DEBUG - Form priority value: {priority_value}")
+        logger.info("DEBUG - Form priority value: {priority_value}")
         
         if priority_value:
             # Handle empty string priority by skipping the update
             if priority_value.strip() == "":
-                print("DEBUG - Empty priority value, skipping priority update")
+                logger.info("DEBUG - Empty priority value, skipping priority update")
             else:
                 try:
                     # Try to get enum by name
                     new_priority = TicketPriority[priority_value]
-                    print(f"DEBUG - Setting priority to {new_priority}")
+                    logger.info("DEBUG - Setting priority to {new_priority}")
                     ticket.priority = new_priority
                 except KeyError:
                     try:
                         # Try to get enum by value
                         new_priority = TicketPriority(priority_value)
-                        print(f"DEBUG - Setting priority to {new_priority}")
+                        logger.info("DEBUG - Setting priority to {new_priority}")
                         ticket.priority = new_priority
                     except ValueError:
-                        print(f"DEBUG - ValueError: {priority_value} is not a valid TicketPriority, skipping update")
+                        logger.info("DEBUG - ValueError: {priority_value} is not a valid TicketPriority, skipping update")
         
         # Update assigned_to_id if admin
         if session['user_type'] == 'admin' or session['user_type'] == 'SUPER_ADMIN':
             assigned_to_id = request.form.get('assigned_to_id')
-            print(f"DEBUG - Form assigned_to_id: {assigned_to_id}")
+            logger.info("DEBUG - Form assigned_to_id: {assigned_to_id}")
             if assigned_to_id and assigned_to_id.strip():
                 new_assigned_to_id = int(assigned_to_id)
                 
                 # Check if assignment is changing
                 old_assigned_to_id = ticket.assigned_to_id
-                print(f"DEBUG - Old assigned_to_id: {old_assigned_to_id}, New assigned_to_id: {new_assigned_to_id}")
+                logger.info("DEBUG - Old assigned_to_id: {old_assigned_to_id}, New assigned_to_id: {new_assigned_to_id}")
                 if old_assigned_to_id != new_assigned_to_id:
                     # Get the previous assignee for notification
                     previous_assignee = None
@@ -1453,17 +1456,17 @@ def update_ticket(ticket_id):
                     
                     # Update the assignment
                     ticket.assigned_to_id = new_assigned_to_id
-                    print(f"DEBUG - Set assigned_to_id to {assigned_to_id}")
+                    logger.info("DEBUG - Set assigned_to_id to {assigned_to_id}")
                     
                     # Send email notification to new assignee
                     try:
-                        print(f"DEBUG - Assignment changed, attempting to send email notification")
+                        logger.info("DEBUG - Assignment changed, attempting to send email notification")
                         new_assignee = db_session.query(User).get(new_assigned_to_id)
-                        print(f"DEBUG - New assignee: {new_assignee.username if new_assignee else 'None'} ({new_assignee.email if new_assignee else 'No email'})")
+                        logger.info("DEBUG - New assignee: {new_assignee.username if new_assignee else 'None'} ({new_assignee.email if new_assignee else 'No email'})")
                         if new_assignee and new_assignee.email:
                             from utils.email_sender import send_ticket_assignment_notification
                             
-                            print(f"DEBUG - Calling send_ticket_assignment_notification")
+                            logger.info("DEBUG - Calling send_ticket_assignment_notification")
                             # Send notification email
                             email_sent = send_ticket_assignment_notification(
                                 assigned_user=new_assignee,
@@ -1473,13 +1476,13 @@ def update_ticket(ticket_id):
                             )
                             
                             if email_sent:
-                                print(f"DEBUG - Assignment notification email sent to {new_assignee.email}")
+                                logger.info("DEBUG - Assignment notification email sent to {new_assignee.email}")
                             else:
-                                print(f"DEBUG - Failed to send assignment notification email to {new_assignee.email}")
+                                logger.info("DEBUG - Failed to send assignment notification email to {new_assignee.email}")
                         else:
-                            print(f"DEBUG - New assignee not found or has no email address")
+                            logger.info("DEBUG - New assignee not found or has no email address")
                     except Exception as e:
-                        print(f"DEBUG - Error sending assignment notification: {str(e)}")
+                        logger.info("DEBUG - Error sending assignment notification: {str(e)}")
                         import traceback
                         traceback.print_exc()
                         # Don't fail the ticket update if email fails
@@ -1487,16 +1490,16 @@ def update_ticket(ticket_id):
         
         # Commit the changes directly to database
         db_session.commit()
-        print(f"DEBUG - Committed changes to database")
-        print(f"DEBUG - Status after commit: {ticket.status}")
+        logger.info("DEBUG - Committed changes to database")
+        logger.info("DEBUG - Status after commit: {ticket.status}")
         if ticket.status:
-            print(f"DEBUG - Status value after commit: {ticket.status.value}")
+            logger.info("DEBUG - Status value after commit: {ticket.status.value}")
         
         flash('Ticket updated successfully')
         
     except Exception as e:
         db_session.rollback()
-        print(f"ERROR - Failed to update ticket: {str(e)}")
+        logger.info("ERROR - Failed to update ticket: {str(e)}")
         flash(f'Error updating ticket: {str(e)}')
     finally:
         db_session.close()
@@ -1617,22 +1620,22 @@ def assign_existing_asset(ticket_id):
                     
                     # Add asset to the specified package
                     ticket.add_package_item(package_number, asset_id=asset.id)
-                    print(f"[ASSIGN ASSET] Added asset {asset.asset_tag} to package {package_number}")
+                    logger.info("[ASSIGN ASSET] Added asset {asset.asset_tag} to package {package_number}")
                     
                 except Exception as pkg_error:
-                    print(f"[ASSIGN ASSET] Error adding to package: {str(pkg_error)}")
+                    logger.info("[ASSIGN ASSET] Error adding to package: {str(pkg_error)}")
                     # Continue with asset assignment even if package assignment fails
             
             # Update asset status if it's for asset checkout
             if ticket.category and 'ASSET_CHECKOUT' in ticket.category.name:
                 if asset.status != AssetStatus.DEPLOYED:
                     asset.status = AssetStatus.DEPLOYED
-                    print(f"[ASSIGN ASSET] Updated asset {asset.asset_tag} status to DEPLOYED")
+                    logger.info("[ASSIGN ASSET] Updated asset {asset.asset_tag} status to DEPLOYED")
                 
                 # Assign to customer if there's a customer on the ticket
                 if ticket.customer_id and not asset.customer_id:
                     asset.customer_id = ticket.customer_id
-                    print(f"[ASSIGN ASSET] Assigned asset {asset.asset_tag} to customer {ticket.customer_id}")
+                    logger.info("[ASSIGN ASSET] Assigned asset {asset.asset_tag} to customer {ticket.customer_id}")
             
             # Commit the changes
             db_session.commit()
@@ -1641,7 +1644,7 @@ def assign_existing_asset(ticket_id):
             if package_number:
                 success_message += f' to Package {package_number}'
             
-            print(f"[ASSIGN ASSET] Successfully assigned asset {asset.asset_tag} to ticket {ticket_id}")
+            logger.info("[ASSIGN ASSET] Successfully assigned asset {asset.asset_tag} to ticket {ticket_id}")
             
             return jsonify({
                 'success': True,
@@ -1650,13 +1653,13 @@ def assign_existing_asset(ticket_id):
             
         except Exception as e:
             db_session.rollback()
-            print(f"[ASSIGN ASSET] Error: {str(e)}")
+            logger.info("[ASSIGN ASSET] Error: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
         finally:
             db_session.close()
             
     except Exception as e:
-        print(f"[ASSIGN ASSET] Request error: {str(e)}")
+        logger.info("[ASSIGN ASSET] Request error: {str(e)}")
         return jsonify({'success': False, 'error': 'Invalid request format'}), 400
 
 @tickets_bp.route('/<int:ticket_id>/accessory', methods=['POST'])
@@ -1865,7 +1868,7 @@ def update_tracking_status(ticket_id, tracking_type):
         return jsonify({'success': True})
         
     except Exception as e:
-        print(f"Error updating tracking: {str(e)}")
+        logger.info("Error updating tracking: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @tickets_bp.route('/clear-all', methods=['POST'])
@@ -1946,16 +1949,16 @@ def upload_attachment(ticket_id):
     db_session = db_manager.get_session()
     try:
         # Debug logging
-        print("Received upload request for ticket:", ticket_id)
-        print("Files in request:", request.files)
-        print("Form data:", request.form)
+        logger.info("Received upload request for ticket:", ticket_id)
+        logger.info("Files in request:", request.files)
+        logger.info("Form data:", request.form)
         
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
             return jsonify({'success': False, 'error': 'Ticket not found'}), 404
 
         if 'attachments' not in request.files:
-            print("No attachments found in request.files")
+            logger.info("No attachments found in request.files")
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, 'error': 'No files uploaded'}), 400
             else:
@@ -1964,7 +1967,7 @@ def upload_attachment(ticket_id):
 
         files = request.files.getlist('attachments')
         if not files or all(not f.filename for f in files):
-            print("No valid files found in request")
+            logger.info("No valid files found in request")
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, 'error': 'No files selected'}), 400
             else:
@@ -1974,14 +1977,14 @@ def upload_attachment(ticket_id):
         uploaded_files = []
         base_upload_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads', 'tickets')
         os.makedirs(base_upload_path, exist_ok=True)
-        print(f"Upload path: {base_upload_path}")
+        logger.info("Upload path: {base_upload_path}")
 
         for file in files:
             if not file or not file.filename:
                 continue
 
             if not allowed_file(file.filename):
-                print(f"Invalid file type: {file.filename}")
+                logger.info("Invalid file type: {file.filename}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({
                         'success': False, 
@@ -1997,7 +2000,7 @@ def upload_attachment(ticket_id):
                 unique_filename = f"{ticket_id}_{timestamp}_{filename}"
                 file_path = os.path.join(base_upload_path, unique_filename)
                 
-                print(f"Saving file to: {file_path}")
+                logger.info("Saving file to: {file_path}")
                 file.save(file_path)
                 
                 # Get file size after saving
@@ -2016,10 +2019,10 @@ def upload_attachment(ticket_id):
                 )
                 db_session.add(attachment)
                 uploaded_files.append(filename)
-                print(f"Successfully saved file: {filename}")
+                logger.info("Successfully saved file: {filename}")
                 
             except Exception as e:
-                print(f"Error uploading {filename}: {str(e)}")
+                logger.info("Error uploading {filename}: {str(e)}")
                 continue
         
         if not uploaded_files:
@@ -2044,7 +2047,7 @@ def upload_attachment(ticket_id):
 
     except Exception as e:
         db_session.rollback()
-        print(f"Upload error: {str(e)}")
+        logger.info("Upload error: {str(e)}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': str(e)}), 500
         else:
@@ -2218,7 +2221,7 @@ def track_debug(ticket_id):
 @login_required
 def track_singpost(ticket_id):
     """Track Singapore Post package and return tracking data"""
-    print(f"==== TRACKING SINGPOST - TICKET {ticket_id} ====")
+    logger.info("==== TRACKING SINGPOST - TICKET {ticket_id} ====")
     
     db_session = None # Initialize db_session
     try:
@@ -2226,15 +2229,15 @@ def track_singpost(ticket_id):
         ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within this session
         
         if not ticket:
-            print("Error: Invalid ticket ID")
+            logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
         
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
-            print("Error: No tracking number for this ticket")
+            logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
             
-        print(f"Tracking SingPost number: {tracking_number}")
+        logger.info("Tracking SingPost number: {tracking_number}")
 
         # Determine carrier codes based on tracking number format
         if tracking_number.startswith('XZD'):
@@ -2246,12 +2249,12 @@ def track_singpost(ticket_id):
 
         # Check if trackingmore is available
         if not trackingmore:
-            print("Error: No TrackingMore module found! Falling back to mock data.")
+            logger.info("Error: No TrackingMore module found! Falling back to mock data.")
             try:
                 response = generate_mock_singpost_data(ticket, db_session)
                 return response
             except Exception as mock_err:
-                 print(f"Error during mock data generation fallback: {mock_err}")
+                 logger.info("Error during mock data generation fallback: {mock_err}")
                  return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
             
         tracking_success = False
@@ -2263,14 +2266,14 @@ def track_singpost(ticket_id):
 
         for carrier_code in carrier_codes:
             try:
-                print(f"Attempting tracking with carrier: {carrier_code}")
+                logger.info("Attempting tracking with carrier: {carrier_code}")
                 
                 # Try to create tracking (optional, ignore errors mainly)
                 try: 
                     create_params = {'tracking_number': tracking_number, 'carrier_code': carrier_code}
                     trackingmore.create_tracking_item(create_params)
                 except Exception as create_e: 
-                    print(f"Info: Create tracking ({carrier_code}): {create_e}")
+                    logger.info("Info: Create tracking ({carrier_code}): {create_e}")
                 
                 # Get tracking data
                 realtime_params = {
@@ -2278,7 +2281,7 @@ def track_singpost(ticket_id):
                     'carrier_code': carrier_code
                 }
                 result = trackingmore.realtime_tracking(realtime_params)
-                print(f"Realtime tracking result ({carrier_code}): {result}")
+                logger.info("Realtime tracking result ({carrier_code}): {result}")
 
                 # Process tracking data
                 if result and 'items' in result and result['items']:
@@ -2291,7 +2294,7 @@ def track_singpost(ticket_id):
                     tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
                     
                     if not tracking_events or status == 'notfound':
-                        print(f"No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
+                        logger.info("No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
                         current_date = datetime.datetime.now()
                         if substatus == 'notfound001': status_desc = "Pending - Waiting for Carrier Scan"
                         elif substatus == 'notfound002': status_desc = "Pending - Tracking Number Registered"
@@ -2314,7 +2317,7 @@ def track_singpost(ticket_id):
                         final_debug_info = {'carrier_code': carrier_code, 'status': status, 'substatus': substatus, 'no_events': True}
                         is_real_data = True # API responded
                         tracking_success = True # Mark as success
-                        print(f"Using custom status: {status_desc}")
+                        logger.info("Using custom status: {status_desc}")
                         break # Exit loop, we got a definitive status
                         
                     elif tracking_events:
@@ -2338,21 +2341,21 @@ def track_singpost(ticket_id):
                             final_debug_info = {'carrier_code': carrier_code, 'has_events': True, 'event_count': len(tracking_events)}
                             is_real_data = True
                             tracking_success = True # Mark as success
-                            print(f"Real tracking info retrieved. Latest status: {latest_event['status']}")
+                            logger.info("Real tracking info retrieved. Latest status: {latest_event['status']}")
                             break # Exit loop, successful tracking
                         else:
-                             print("Warning: Tracking events found but couldn't parse latest event.")
+                             logger.info("Warning: Tracking events found but couldn't parse latest event.")
                 else:
-                     print(f"No valid tracking data received from API for {carrier_code}.")
+                     logger.info("No valid tracking data received from API for {carrier_code}.")
             
             except Exception as e:
-                print(f"Error during tracking attempt with carrier {carrier_code}: {str(e)}")
+                logger.info("Error during tracking attempt with carrier {carrier_code}: {str(e)}")
                 last_error = str(e)
                 # Continue to the next carrier code
 
         # After Loop
         if tracking_success:
-            print("Tracking successful, committing changes to database.")
+            logger.info("Tracking successful, committing changes to database.")
             db_session.commit()
             return jsonify({
                 'success': True,
@@ -2362,23 +2365,23 @@ def track_singpost(ticket_id):
                 'debug_info': final_debug_info
             })
         else:
-            print(f"All tracking attempts failed, falling back to mock data. Last error: {last_error}")
+            logger.info("All tracking attempts failed, falling back to mock data. Last error: {last_error}")
             try:
                 response = generate_mock_singpost_data(ticket, db_session)
                 return response
             except Exception as mock_err:
-                 print(f"Error during mock data generation fallback: {mock_err}")
+                 logger.info("Error during mock data generation fallback: {mock_err}")
                  return jsonify({'error': 'Tracking failed and mock data generation also failed.'}), 500
 
     except Exception as e:
-        print(f"General error in track_singpost: {str(e)}")
+        logger.info("General error in track_singpost: {str(e)}")
         if db_session and db_session.is_active:
-             print("Rolling back database session due to error.")
+             logger.info("Rolling back database session due to error.")
              db_session.rollback()
         return jsonify({'error': f'An internal error occurred during tracking: {str(e)}'}), 500
     finally:
         if db_session:
-            print("Closing database session.")
+            logger.info("Closing database session.")
             db_session.close()
 
 def generate_mock_singpost_data(ticket, db_session):
@@ -2386,7 +2389,7 @@ def generate_mock_singpost_data(ticket, db_session):
     try:
         tracking_number = ticket.shipping_tracking
         base_date = ticket.created_at or datetime.datetime.now()
-        print(f"Generating mock SingPost tracking data for {tracking_number}")
+        logger.info("Generating mock SingPost tracking data for {tracking_number}")
         
         days_since_creation = (datetime.datetime.now() - base_date).days
         tracking_info = []
@@ -2404,10 +2407,10 @@ def generate_mock_singpost_data(ticket, db_session):
         ticket.updated_at = datetime.datetime.now()
         
         # Commit using the passed session
-        print(f"Committing mock data update for ticket {ticket.id}")
+        logger.info("Committing mock data update for ticket {ticket.id}")
         db_session.commit() 
         
-        print(f"Mock SingPost tracking info generated. Status: {ticket.shipping_status}")
+        logger.info("Mock SingPost tracking info generated. Status: {ticket.shipping_status}")
         
         return jsonify({
             'success': True,
@@ -2417,10 +2420,10 @@ def generate_mock_singpost_data(ticket, db_session):
         })
         
     except Exception as e:
-        print(f"Error generating mock SingPost tracking: {str(e)}")
+        logger.info("Error generating mock SingPost tracking: {str(e)}")
         # Rollback the session as the commit might have failed or error occurred before commit
         if db_session and db_session.is_active:
-             print("Rolling back session due to mock data generation error.")
+             logger.info("Rolling back session due to mock data generation error.")
              db_session.rollback()
         # Re-raise the exception to be caught by the caller or return error
         raise # Re-raise the exception to indicate failure
@@ -2429,7 +2432,7 @@ def generate_mock_singpost_data(ticket, db_session):
 @login_required
 def track_dhl(ticket_id):
     """Track DHL package and return tracking data"""
-    print(f"==== TRACKING DHL - TICKET {ticket_id} ====")
+    logger.info("==== TRACKING DHL - TICKET {ticket_id} ====")
     
     db_session = None # Initialize
     try:
@@ -2437,31 +2440,31 @@ def track_dhl(ticket_id):
         ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within session
         
         if not ticket:
-            print("Error: Invalid ticket ID")
+            logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
             
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
-            print("Error: No tracking number for this ticket")
+            logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
         
-        print(f"Tracking DHL number: {tracking_number}")
+        logger.info("Tracking DHL number: {tracking_number}")
         
         # Determine which TrackingMore SDK version is available
         sdk_version = None
         if trackingmore_client:
             sdk_version = '0.1.4'
-            print("Using trackingmore 0.1.4 SDK")
+            logger.info("Using trackingmore 0.1.4 SDK")
         elif trackingmore:
             sdk_version = '0.2'
-            print("Using trackingmore 0.2 API")
+            logger.info("Using trackingmore 0.2 API")
         else:
-            print("Error: No TrackingMore SDK found! Falling back to mock data.")
+            logger.info("Error: No TrackingMore SDK found! Falling back to mock data.")
             try:
                 response = generate_mock_dhl_data(ticket, db_session)
                 return response
             except Exception as mock_err:
-                 print(f"Error during mock data generation fallback: {mock_err}")
+                 logger.info("Error during mock data generation fallback: {mock_err}")
                  return jsonify({'error': 'Tracking SDK not found and mock data generation failed.'}), 500
         
         potential_carriers = [
@@ -2479,7 +2482,7 @@ def track_dhl(ticket_id):
         
         for carrier_code in potential_carriers:
             try:
-                print(f"Attempting tracking with carrier: {carrier_code}")
+                logger.info("Attempting tracking with carrier: {carrier_code}")
                 
                 tracking_data = None
                 # --- SDK Version Specific API Calls --- 
@@ -2487,17 +2490,17 @@ def track_dhl(ticket_id):
                     try: 
                         trackingmore_client.create_tracking({'tracking_number': tracking_number, 'carrier_code': carrier_code})
                     except Exception as create_e: 
-                        print(f"Info: Create tracking ({carrier_code}): {create_e}")
+                        logger.info("Info: Create tracking ({carrier_code}): {create_e}")
                     tracking_data = trackingmore_client.single_tracking(carrier_code, tracking_number)
-                    print(f"Single tracking result ({carrier_code}): {tracking_data}")
+                    logger.info("Single tracking result ({carrier_code}): {tracking_data}")
 
                 elif sdk_version == '0.2':
                     try: 
                         trackingmore.create_tracking_item({'tracking_number': tracking_number, 'carrier_code': carrier_code})
                     except Exception as create_e: 
-                        print(f"Info: Create tracking item ({carrier_code}): {create_e}")
+                        logger.info("Info: Create tracking item ({carrier_code}): {create_e}")
                     realtime_result = trackingmore.realtime_tracking({'tracking_number': tracking_number, 'carrier_code': carrier_code})
-                    print(f"Realtime tracking result ({carrier_code}): {realtime_result}")
+                    logger.info("Realtime tracking result ({carrier_code}): {realtime_result}")
                     if realtime_result and 'items' in realtime_result and realtime_result['items']:
                         tracking_data = realtime_result['items'][0]
                     else:
@@ -2511,7 +2514,7 @@ def track_dhl(ticket_id):
                     substatus = tracking_data.get('substatus', '')
                     
                     if not tracking_events or status == 'notfound':
-                        print(f"No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
+                        logger.info("No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
                         current_date = datetime.datetime.now()
                         if substatus == 'notfound001': status_desc = "Pending - Waiting for Carrier Scan"
                         elif substatus == 'notfound002': status_desc = "Pending - Tracking Number Registered"
@@ -2535,7 +2538,7 @@ def track_dhl(ticket_id):
                         is_real_data = True # API responded
                         tracking_success = True
                         selected_carrier_code = carrier_code
-                        print(f"Using custom status: {status_desc}")
+                        logger.info("Using custom status: {status_desc}")
                         break # Exit loop
                         
                     elif tracking_events:
@@ -2559,20 +2562,20 @@ def track_dhl(ticket_id):
                             is_real_data = True
                             tracking_success = True
                             selected_carrier_code = carrier_code
-                            print(f"Real tracking info retrieved. Latest status: {latest_event['status']}")
+                            logger.info("Real tracking info retrieved. Latest status: {latest_event['status']}")
                             break # Exit loop
                         else:
-                             print("Warning: Tracking events found but couldn't parse latest event.")
+                             logger.info("Warning: Tracking events found but couldn't parse latest event.")
                 else:
-                     print(f"No valid tracking data received from API for {carrier_code}.")
+                     logger.info("No valid tracking data received from API for {carrier_code}.")
             
             except Exception as e:
-                print(f"Error during tracking attempt with carrier {carrier_code}: {str(e)}")
+                logger.info("Error during tracking attempt with carrier {carrier_code}: {str(e)}")
                 last_error = str(e)
 
         # --- After Loop --- 
         if tracking_success:
-            print(f"Tracking successful with carrier {selected_carrier_code}, committing changes.")
+            logger.info("Tracking successful with carrier {selected_carrier_code}, committing changes.")
             db_session.commit()
             return jsonify({
                 'success': True,
@@ -2582,23 +2585,23 @@ def track_dhl(ticket_id):
                 'debug_info': final_debug_info
             })
         else:
-            print(f"All tracking attempts failed, falling back to mock data. Last error: {last_error}")
+            logger.info("All tracking attempts failed, falling back to mock data. Last error: {last_error}")
             try:
                 response = generate_mock_dhl_data(ticket, db_session)
                 return response
             except Exception as mock_err:
-                 print(f"Error during mock data generation fallback: {mock_err}")
+                 logger.info("Error during mock data generation fallback: {mock_err}")
                  return jsonify({'error': 'Tracking failed and mock data generation also failed.'}), 500
 
     except Exception as e:
-        print(f"General error in track_dhl: {str(e)}")
+        logger.info("General error in track_dhl: {str(e)}")
         if db_session and db_session.is_active:
-             print("Rolling back DB session due to error.")
+             logger.info("Rolling back DB session due to error.")
              db_session.rollback()
         return jsonify({'error': f'An internal error occurred during DHL tracking: {str(e)}'}), 500
     finally:
         if db_session:
-            print("Closing DB session.")
+            logger.info("Closing DB session.")
             db_session.close()
 
 def generate_mock_dhl_data(ticket, db_session):
@@ -2606,7 +2609,7 @@ def generate_mock_dhl_data(ticket, db_session):
     try:
         tracking_number = ticket.shipping_tracking
         base_date = ticket.created_at or datetime.datetime.now()
-        print(f"Generating mock DHL tracking data for {tracking_number}")
+        logger.info("Generating mock DHL tracking data for {tracking_number}")
         
         days_since_creation = (datetime.datetime.now() - base_date).days
         tracking_info = []
@@ -2635,10 +2638,10 @@ def generate_mock_dhl_data(ticket, db_session):
         ticket.updated_at = datetime.datetime.now()
         
         # Commit using the passed session
-        print(f"Committing mock data update for ticket {ticket.id}")
+        logger.info("Committing mock data update for ticket {ticket.id}")
         db_session.commit()
         
-        print(f"Mock DHL tracking info generated. Status: {ticket.shipping_status}")
+        logger.info("Mock DHL tracking info generated. Status: {ticket.shipping_status}")
         
         return jsonify({
             'success': True,
@@ -2649,9 +2652,9 @@ def generate_mock_dhl_data(ticket, db_session):
         })
         
     except Exception as e:
-        print(f"Error generating mock DHL tracking: {str(e)}")
+        logger.info("Error generating mock DHL tracking: {str(e)}")
         if db_session and db_session.is_active:
-             print("Rolling back session due to mock data generation error.")
+             logger.info("Rolling back session due to mock data generation error.")
              db_session.rollback()
         raise # Re-raise exception
 
@@ -2659,7 +2662,7 @@ def generate_mock_dhl_data(ticket, db_session):
 @login_required
 def track_ups(ticket_id):
     """Track UPS package and return tracking data"""
-    print(f"==== TRACKING UPS - TICKET {ticket_id} ====")
+    logger.info("==== TRACKING UPS - TICKET {ticket_id} ====")
     
     db_session = None # Initialize db_session
     try:
@@ -2667,24 +2670,24 @@ def track_ups(ticket_id):
         ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within this session
         
         if not ticket:
-            print("Error: Invalid ticket ID")
+            logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
         
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
-            print("Error: No tracking number for this ticket")
+            logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
             
-        print(f"Tracking UPS number: {tracking_number}")
+        logger.info("Tracking UPS number: {tracking_number}")
         
         # Check if trackingmore is available
         if not trackingmore:
-            print("Error: No TrackingMore module found! Falling back to mock data.")
+            logger.info("Error: No TrackingMore module found! Falling back to mock data.")
             try:
                 response = generate_mock_ups_data(ticket)
                 return response
             except Exception as mock_err:
-                print(f"Error during mock data generation fallback: {mock_err}")
+                logger.info("Error during mock data generation fallback: {mock_err}")
                 return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
 
         tracking_success = False
@@ -2697,9 +2700,9 @@ def track_ups(ticket_id):
         try: 
             create_params = {'tracking_number': tracking_number, 'carrier_code': 'ups'}
             create_result = trackingmore.create_tracking_item(create_params)
-            print(f"Created tracking: {create_result}")
+            logger.info("Created tracking: {create_result}")
         except Exception as create_e: 
-            print(f"Info: Create tracking: {create_e}")
+            logger.info("Info: Create tracking: {create_e}")
         
         # Get tracking data
         try:
@@ -2708,7 +2711,7 @@ def track_ups(ticket_id):
                 'carrier_code': 'ups'
             }
             result = trackingmore.realtime_tracking(realtime_params)
-            print(f"Realtime tracking result: {result}")
+            logger.info("Realtime tracking result: {result}")
 
             # Process tracking data
             if result and 'items' in result and result['items']:
@@ -2747,26 +2750,26 @@ def track_ups(ticket_id):
                         'is_real_data': True,
                     })
                 else:
-                    print("No tracking events in response")
+                    logger.info("No tracking events in response")
             else:
-                print("No valid tracking data in response")
+                logger.info("No valid tracking data in response")
         except Exception as e:
-            print(f"Error getting UPS tracking: {str(e)}")
+            logger.info("Error getting UPS tracking: {str(e)}")
             last_error = str(e)
         
         # If we get here, use fallback mock data
-        print(f"Falling back to mock UPS data. Last error: {last_error}")
+        logger.info("Falling back to mock UPS data. Last error: {last_error}")
         return generate_mock_ups_data(ticket)
         
     except Exception as e:
-        print(f"General error in track_ups: {str(e)}")
+        logger.info("General error in track_ups: {str(e)}")
         if db_session and db_session.is_active:
-            print("Rolling back database session due to error.")
+            logger.info("Rolling back database session due to error.")
             db_session.rollback()
         return jsonify({'error': f'An error occurred during tracking: {str(e)}'}), 500
     finally:
         if db_session:
-            print("Closing database session.")
+            logger.info("Closing database session.")
             db_session.close()
 
 def generate_mock_ups_data(ticket):
@@ -2775,11 +2778,11 @@ def generate_mock_ups_data(ticket):
         base_date = ticket.created_at or datetime.datetime.now()
         tracking_number = ticket.shipping_tracking
         
-        print(f"Generating mock UPS tracking data for {tracking_number}")
+        logger.info("Generating mock UPS tracking data for {tracking_number}")
         
         # Determine how many days since ticket creation
         days_since_creation = (datetime.datetime.now() - base_date).days
-        print(f"Days since ticket creation: {days_since_creation}")
+        logger.info("Days since ticket creation: {days_since_creation}")
         
         # Generate mock tracking events
         tracking_info = []
@@ -2854,8 +2857,8 @@ def generate_mock_ups_data(ticket):
             finally:
                 db_session.close() # Close session
         
-        print(f"Mock UPS tracking info generated for {tracking_number}: {tracking_info}")
-        print(f"Updated shipping status to: {ticket.shipping_status}")
+        logger.info("Mock UPS tracking info generated for {tracking_number}: {tracking_info}")
+        logger.info("Updated shipping status to: {ticket.shipping_status}")
         
         return jsonify({
             'success': True,
@@ -2870,7 +2873,7 @@ def generate_mock_ups_data(ticket):
         })
         
     except Exception as e:
-        print(f"Error generating mock UPS tracking: {str(e)}")
+        logger.info("Error generating mock UPS tracking: {str(e)}")
         return jsonify({'error': f"Internal server error: {str(e)}"}), 500
 
 @tickets_bp.route('/<int:ticket_id>/debug_tracking', methods=['GET'])
@@ -3042,7 +3045,7 @@ def update_shipping_carrier(ticket_id):
         return jsonify({'success': True, 'message': 'Carrier updated successfully'})
         
     except Exception as e:
-        print(f"Error updating carrier: {str(e)}")
+        logger.info("Error updating carrier: {str(e)}")
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
@@ -3096,7 +3099,7 @@ def set_carrier(ticket_id, carrier):
 @login_required
 def track_bluedart(ticket_id):
     """Track BlueDart packages using TrackingMore API"""
-    print(f"BlueDart tracking requested for ticket ID: {ticket_id}")
+    logger.info("BlueDart tracking requested for ticket ID: {ticket_id}")
     
     try:
         # Get the ticket
@@ -3106,7 +3109,7 @@ def track_bluedart(ticket_id):
             
             # Check if ticket exists
             if not ticket:
-                print(f"Error: Ticket not found for ID {ticket_id}")
+                logger.info("Error: Ticket not found for ID {ticket_id}")
                 return jsonify({
                     'success': False,
                     'error': 'Ticket not found',
@@ -3117,7 +3120,7 @@ def track_bluedart(ticket_id):
             # Check if tracking number exists
             tracking_number = ticket.shipping_tracking
             if not tracking_number:
-                print(f"Error: No tracking number for ticket ID {ticket_id}")
+                logger.info("Error: No tracking number for ticket ID {ticket_id}")
                 return jsonify({
                     'success': False,
                     'error': 'No tracking number available',
@@ -3125,16 +3128,16 @@ def track_bluedart(ticket_id):
                     'debug_info': {'error_type': 'no_tracking_number'}
                 }), 400
             
-            print(f"Tracking BlueDart number: {tracking_number}")
+            logger.info("Tracking BlueDart number: {tracking_number}")
             
             # Check if trackingmore is available
             if not trackingmore:
-                print("Error: No TrackingMore module found! Falling back to mock data.")
+                logger.info("Error: No TrackingMore module found! Falling back to mock data.")
                 try:
                     response = generate_mock_bluedart_data_v2(ticket_data)
                     return response
                 except Exception as mock_err:
-                    print(f"Error during mock data generation fallback: {mock_err}")
+                    logger.info("Error during mock data generation fallback: {mock_err}")
                     return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
                 
             # Create tracking if needed
@@ -3144,15 +3147,15 @@ def track_bluedart(ticket_id):
                     'carrier_code': 'bluedart'
                 }
                 create_result = trackingmore.create_tracking_item(create_params)
-                print(f"Created tracking for BlueDart: {create_result}")
+                logger.info("Created tracking for BlueDart: {create_result}")
             except Exception as e:
                 if "already exists" not in str(e):
-                    print(f"Warning: Create tracking exception: {str(e)}")
+                    logger.info("Warning: Create tracking exception: {str(e)}")
                 
             # Get tracking data
             try:
                 result = trackingmore_client.single_tracking('bluedart', tracking_number)
-                print(f"BlueDart tracking result: {result}")
+                logger.info("BlueDart tracking result: {result}")
                 
                 # Extract tracking events
                 tracking_events = []
@@ -3180,7 +3183,7 @@ def track_bluedart(ticket_id):
                     ticket.updated_at = datetime.datetime.now()
                     db_session.commit()
                     
-                    print(f"Updated ticket with {len(tracking_events)} BlueDart tracking events")
+                    logger.info("Updated ticket with {len(tracking_events)} BlueDart tracking events")
                     
                     return jsonify({
                         'success': True,
@@ -3193,12 +3196,12 @@ def track_bluedart(ticket_id):
                         }
                     })
                 else:
-                    print("No tracking events found in API response")
+                    logger.info("No tracking events found in API response")
             except Exception as e:
-                print(f"Error getting BlueDart tracking: {str(e)}")
+                logger.info("Error getting BlueDart tracking: {str(e)}")
             
             # If we get here, use fallback mock data
-            print("Using mock BlueDart data as fallback")
+            logger.info("Using mock BlueDart data as fallback")
             
             # Get data for mock generation
             ticket_data = {
@@ -3214,8 +3217,8 @@ def track_bluedart(ticket_id):
         return generate_mock_bluedart_data_v2(ticket_data)
         
     except Exception as e:
-        print(f"Error tracking BlueDart: {str(e)}")
-        print(traceback.format_exc())
+        logger.info("Error tracking BlueDart: {str(e)}")
+        logger.info(traceback.format_exc())
         
         return jsonify({
             'success': False,
@@ -3231,11 +3234,11 @@ def generate_mock_bluedart_data_v2(ticket_data):
         base_date = ticket_data['created_at'] or datetime.datetime.now()
         tracking_number = ticket_data['shipping_tracking']
         
-        print(f"Generating mock BlueDart tracking data for {tracking_number}")
+        logger.info("Generating mock BlueDart tracking data for {tracking_number}")
         
         # Determine how many days since ticket creation
         days_since_creation = (datetime.datetime.now() - base_date).days
-        print(f"Days since ticket creation: {days_since_creation}")
+        logger.info("Days since ticket creation: {days_since_creation}")
         
         # Generate mock tracking events
         tracking_info = []
@@ -3318,13 +3321,13 @@ def generate_mock_bluedart_data_v2(ticket_data):
                 fresh_ticket.shipping_history = tracking_info
                 fresh_ticket.updated_at = datetime.datetime.now()
                 db_session.commit()
-                print(f"Updated ticket {ticket_id} with status: {latest_status}")
+                logger.info("Updated ticket {ticket_id} with status: {latest_status}")
             db_session.close()
         except Exception as e:
-            print(f"Warning: Could not update ticket in database: {str(e)}")
+            logger.info("Warning: Could not update ticket in database: {str(e)}")
             # Continue even if update fails - we'll still return the tracking info
         
-        print(f"Mock BlueDart tracking info generated for {tracking_number}: {tracking_info}")
+        logger.info("Mock BlueDart tracking info generated for {tracking_number}: {tracking_info}")
         
         return jsonify({
             'success': True,
@@ -3339,14 +3342,14 @@ def generate_mock_bluedart_data_v2(ticket_data):
         })
         
     except Exception as e:
-        print(f"Error generating mock BlueDart tracking: {str(e)}")
+        logger.info("Error generating mock BlueDart tracking: {str(e)}")
         return jsonify({'error': f"Internal server error: {str(e)}"}), 500
 
 @tickets_bp.route('/<int:ticket_id>/track_dtdc', methods=['GET'])
 @login_required
 def track_dtdc(ticket_id):
     """Track DTDC packages using TrackingMore API"""
-    print(f"DTDC tracking requested for ticket ID: {ticket_id}")
+    logger.info("DTDC tracking requested for ticket ID: {ticket_id}")
     
     try:
         # Get the ticket
@@ -3356,7 +3359,7 @@ def track_dtdc(ticket_id):
             
             # Check if ticket exists
             if not ticket:
-                print(f"Error: Ticket not found for ID {ticket_id}")
+                logger.info("Error: Ticket not found for ID {ticket_id}")
                 return jsonify({
                     'success': False,
                     'error': 'Ticket not found',
@@ -3367,7 +3370,7 @@ def track_dtdc(ticket_id):
             # Check if tracking number exists
             tracking_number = ticket.shipping_tracking
             if not tracking_number:
-                print(f"Error: No tracking number for ticket ID {ticket_id}")
+                logger.info("Error: No tracking number for ticket ID {ticket_id}")
                 return jsonify({
                     'success': False,
                     'error': 'No tracking number available',
@@ -3375,16 +3378,16 @@ def track_dtdc(ticket_id):
                     'debug_info': {'error_type': 'no_tracking_number'}
                 }), 400
             
-            print(f"Tracking DTDC number: {tracking_number}")
+            logger.info("Tracking DTDC number: {tracking_number}")
             
             # Check if trackingmore is available
             if not trackingmore:
-                print("Error: No TrackingMore module found! Falling back to mock data.")
+                logger.info("Error: No TrackingMore module found! Falling back to mock data.")
                 try:
                     response = generate_mock_dtdc_data(ticket_data)
                     return response
                 except Exception as mock_err:
-                    print(f"Error during mock data generation fallback: {mock_err}")
+                    logger.info("Error during mock data generation fallback: {mock_err}")
                     return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
                 
             # Create tracking if needed
@@ -3394,10 +3397,10 @@ def track_dtdc(ticket_id):
                     'carrier_code': 'dtdc'
                 }
                 create_result = trackingmore.create_tracking_item(create_params)
-                print(f"Created tracking for DTDC: {create_result}")
+                logger.info("Created tracking for DTDC: {create_result}")
             except Exception as e:
                 if "already exists" not in str(e):
-                    print(f"Warning: Create tracking exception: {str(e)}")
+                    logger.info("Warning: Create tracking exception: {str(e)}")
                 
             # Get tracking data
             try:
@@ -3406,7 +3409,7 @@ def track_dtdc(ticket_id):
                     'carrier_code': 'dtdc'
                 }
                 result = trackingmore.realtime_tracking(realtime_params)
-                print(f"DTDC tracking result: {result}")
+                logger.info("DTDC tracking result: {result}")
                 
                 # Extract tracking events
                 tracking_events = []
@@ -3436,7 +3439,7 @@ def track_dtdc(ticket_id):
                     ticket.updated_at = datetime.datetime.now()
                     db_session.commit()
                     
-                    print(f"Updated ticket with {len(tracking_events)} DTDC tracking events")
+                    logger.info("Updated ticket with {len(tracking_events)} DTDC tracking events")
                     
                     return jsonify({
                         'success': True,
@@ -3449,12 +3452,12 @@ def track_dtdc(ticket_id):
                         }
                     })
                 else:
-                    print("No tracking events found in API response")
+                    logger.info("No tracking events found in API response")
             except Exception as e:
-                print(f"Error getting DTDC tracking: {str(e)}")
+                logger.info("Error getting DTDC tracking: {str(e)}")
             
             # If we get here, use fallback mock data
-            print("Using mock DTDC data as fallback")
+            logger.info("Using mock DTDC data as fallback")
             
             # Get data for mock generation
             ticket_data = {
@@ -3470,8 +3473,8 @@ def track_dtdc(ticket_id):
         return generate_mock_dtdc_data(ticket_data)
         
     except Exception as e:
-        print(f"Error tracking DTDC: {str(e)}")
-        print(traceback.format_exc())
+        logger.info("Error tracking DTDC: {str(e)}")
+        logger.info(traceback.format_exc())
         
         return jsonify({
             'success': False,
@@ -3487,11 +3490,11 @@ def generate_mock_dtdc_data(ticket_data):
         base_date = ticket_data['created_at'] or datetime.datetime.now()
         tracking_number = ticket_data['shipping_tracking']
         
-        print(f"Generating mock DTDC tracking data for {tracking_number}")
+        logger.info("Generating mock DTDC tracking data for {tracking_number}")
         
         # Determine how many days since ticket creation
         days_since_creation = (datetime.datetime.now() - base_date).days
-        print(f"Days since ticket creation: {days_since_creation}")
+        logger.info("Days since ticket creation: {days_since_creation}")
         
         # Generate mock tracking events
         tracking_info = []
@@ -3578,7 +3581,7 @@ def generate_mock_dtdc_data(ticket_data):
         })
         
     except Exception as e:
-        print(f"Error generating mock DTDC data: {str(e)}")
+        logger.info("Error generating mock DTDC data: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Error generating tracking data: {str(e)}',
@@ -3632,7 +3635,7 @@ def download_intake_document(ticket_id, doc_type):
 @login_required
 def track_auto(ticket_id):
     """Auto-detect carrier based on tracking number format and fetch tracking info"""
-    print(f"==== TRACK_AUTO - TICKET {ticket_id} ====")
+    logger.info("==== TRACK_AUTO - TICKET {ticket_id} ====")
     
     db_session = None
     try:
@@ -3646,40 +3649,40 @@ def track_auto(ticket_id):
         if not tracking_number:
             return jsonify({'error': 'No tracking number for this ticket'}), 404
         
-        print(f"Auto-detecting carrier for tracking number: {tracking_number}")
+        logger.info("Auto-detecting carrier for tracking number: {tracking_number}")
         
         # Auto-detect carrier based on tracking number format
         if tracking_number.startswith('1Z'):
-            print("Detected UPS format")
+            logger.info("Detected UPS format")
             tracking_carrier = 'ups'
             return redirect(url_for('tickets.track_ups', ticket_id=ticket_id))
         elif tracking_number.startswith(('XZD', 'XZB')):
-            print("Detected SingPost format")
+            logger.info("Detected SingPost format")
             tracking_carrier = 'singpost'
             return redirect(url_for('tickets.track_singpost', ticket_id=ticket_id))
         elif tracking_number.startswith(('JD', 'YD')):
-            print("Detected DHL format")
+            logger.info("Detected DHL format")
             tracking_carrier = 'dhl'
             return redirect(url_for('tickets.track_dhl', ticket_id=ticket_id))
         elif tracking_number.startswith('DW'):
-            print("Detected BlueDart format")
+            logger.info("Detected BlueDart format")
             tracking_carrier = 'bluedart'
             return redirect(url_for('tickets.track_bluedart', ticket_id=ticket_id))
         elif len(tracking_number) == 10 and tracking_number.isdigit():
-            print("Detected DTDC format based on 10-digit number")
+            logger.info("Detected DTDC format based on 10-digit number")
             tracking_carrier = 'dtdc'
             return redirect(url_for('tickets.track_dtdc', ticket_id=ticket_id))
         elif tracking_number.startswith('D'):
-            print("Detected D-prefix format, using Claw tracking")
+            logger.info("Detected D-prefix format, using Claw tracking")
             tracking_carrier = 'claw'
             return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
         else:
-            print("Unknown format, defaulting to Claw tracking for best coverage")
+            logger.info("Unknown format, defaulting to Claw tracking for best coverage")
             tracking_carrier = 'claw'
             return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
     
     except Exception as e:
-        print(f"Error in track_auto: {str(e)}")
+        logger.info("Error in track_auto: {str(e)}")
         import traceback
         traceback.print_exc()
         
@@ -3725,10 +3728,10 @@ def track_claw(ticket_id):
             )
             
             if cached_data:
-                print(f"Using cached tracking data for {tracking_number}")
+                logger.info("Using cached tracking data for {tracking_number}")
                 return jsonify(cached_data)
         else:
-            print(f"Force refresh requested for {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for {tracking_number}, bypassing cache")
             # Check for cached data but use force=True to bypass it
             from utils.tracking_cache import TrackingCache
             cached_data = TrackingCache.get_cached_tracking(
@@ -3741,14 +3744,14 @@ def track_claw(ticket_id):
             )
         
         # If we get here, need to fetch fresh data
-        print(f"Scraping ship24 for: {tracking_number}")
+        logger.info("Scraping ship24 for: {tracking_number}")
         
         # Use the centralized FirecrawlClient that automatically gets the active key from database
         from utils.store_instances import firecrawl_client
         
         # Check if Firecrawl is available
         if not firecrawl_client:
-            print("Error: Firecrawl API client not available.")
+            logger.info("Error: Firecrawl API client not available.")
             return jsonify({
                 'success': False,
                 'error': 'Firecrawl API client not available',
@@ -3759,7 +3762,7 @@ def track_claw(ticket_id):
         try:
             # Define Ship24 URL for the tracking number
             ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            print(f"Scraping URL: {ship24_url}")
+            logger.info("Scraping URL: {ship24_url}")
             
             try:
                 # Use Firecrawl to scrape the tracking page and extract structured data
@@ -3809,7 +3812,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 # Check if this is a credit limit issue
                 error_msg = str(api_error).lower()
                 if "insufficient credits" in error_msg or "payment required" in error_msg:
-                    print(f"API credit limitation encountered: {api_error}")
+                    logger.info("API credit limitation encountered: {api_error}")
                     return jsonify({
                         'success': False,
                         'error': 'Firecrawl API credits exhausted',
@@ -3821,7 +3824,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     raise
             
             # Log the raw response for debugging
-            print(f"Firecrawl Raw Response: {scrape_result}")
+            logger.info("Firecrawl Raw Response: {scrape_result}")
             
             # Process the extracted data
             tracking_info = []
@@ -3838,7 +3841,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     # Extract tracking events
                     events = data.get('events', [])
                     if events:
-                        print(f"[DEBUG] Found {len(events)} tracking events")
+                        logger.info("[DEBUG] Found {len(events)} tracking events")
                         for event in events:
                             tracking_info.append({
                                 'date': event.get('date', ''),
@@ -3855,7 +3858,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                             'location': 'Ship24 System'
                         })
                         
-                    print(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+                    logger.info("[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
                 
                 # Fallback: try old structure for backwards compatibility
                 elif 'json' in scrape_result and scrape_result['json']:
@@ -3885,7 +3888,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 
                 # Fallback if no tracking info was extracted
                 if not tracking_info:
-                    print("Warning: No tracking events extracted. Using fallback data.")
+                    logger.info("Warning: No tracking events extracted. Using fallback data.")
                     current_date = datetime.datetime.now()
                     tracking_info = [
                         {
@@ -3896,7 +3899,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     ]
                     latest_status = "Information Received"
             except Exception as parse_error:
-                print(f"Error parsing tracking data: {str(parse_error)}")
+                logger.info("Error parsing tracking data: {str(parse_error)}")
                 traceback.print_exc()  # Print detailed traceback to server logs
                 return jsonify({
                     'success': False,
@@ -3912,9 +3915,9 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 fresh_ticket.shipping_history = tracking_info
                 fresh_ticket.updated_at = datetime.datetime.now()
                 db_session.commit()
-                print(f"Updated ticket {ticket_id} with shipping status: {latest_status}")
+                logger.info("Updated ticket {ticket_id} with shipping status: {latest_status}")
             else:
-                print(f"Warning: Could not find ticket {ticket_id} in database session")
+                logger.info("Warning: Could not find ticket {ticket_id} in database session")
             
             # Save to cache for future requests
             try:
@@ -3928,9 +3931,9 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     tracking_type='primary',
                     carrier="mock"
                 )
-                print("Mock data saved to cache")
+                logger.info("Mock data saved to cache")
             except Exception as cache_error:
-                print(f"Warning: Could not save mock data to cache: {str(cache_error)}")
+                logger.info("Warning: Could not save mock data to cache: {str(cache_error)}")
             
             return jsonify({
                 'success': True,
@@ -3947,40 +3950,40 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             })
         
         except Exception as e:
-            print(f"Error scraping ship24 for {tracking_number}: {str(e)}")
+            logger.info("Error scraping ship24 for {tracking_number}: {str(e)}")
             traceback.print_exc()  # Print detailed traceback to server logs
             return jsonify({'success': False, 'error': f'Failed to scrape tracking data: {str(e)}'}), 500
             
     except Exception as e:
-        print(f"General error in track_claw: {str(e)}")
+        logger.info("General error in track_claw: {str(e)}")
         traceback.print_exc()  # Print detailed traceback to server logs
         return jsonify({'success': False, 'error': f'Failed to scrape tracking data: {str(e)}'}), 500
             
     finally:
         # Always close the session
         try:
-            print(f"Closing database session in track_claw for ticket {ticket_id}")
+            logger.info("Closing database session in track_claw for ticket {ticket_id}")
             # Check if session is still active
             if db_session:
                 if db_session.is_active:
-                    print("Session is still active - committing any pending transactions")
+                    logger.info("Session is still active - committing any pending transactions")
                     db_session.commit()
                 db_session.close()
-                print("Database session closed successfully")
+                logger.info("Database session closed successfully")
         except Exception as e:
-            print(f"Error closing database session: {str(e)}")
+            logger.info("Error closing database session: {str(e)}")
 
 # Helper function to generate mock tracking data
 def generate_mock_tracking_data(tracking_number, ticket_id, db_session):
     """DISABLED: Mock data generation is disabled"""
-    print(f"[ERROR] Mock data generation disabled for {tracking_number}")
+    logger.info("[ERROR] Mock data generation disabled for {tracking_number}")
     return jsonify({
         'success': False,
         'error': 'Mock data generation is disabled',
         'tracking_info': [],
         'debug_info': {'reason': 'Mock data generation disabled by user request'}
     }), 501
-    print(f"Generating mock tracking data for {tracking_number}")
+    logger.info("Generating mock tracking data for {tracking_number}")
     
     # Get the current time for timestamps
     current_date = datetime.datetime.now()
@@ -4015,7 +4018,7 @@ def generate_mock_tracking_data(tracking_number, ticket_id, db_session):
             ticket.shipping_history = tracking_info
             ticket.updated_at = datetime.datetime.now()
             db_session.commit()
-            print(f"Updated ticket {ticket_id} with mock status: {latest_status}")
+            logger.info("Updated ticket {ticket_id} with mock status: {latest_status}")
         
         # Save to cache for future requests
         try:
@@ -4029,12 +4032,12 @@ def generate_mock_tracking_data(tracking_number, ticket_id, db_session):
                 tracking_type='primary',
                 carrier="mock"
             )
-            print("Mock data saved to cache")
+            logger.info("Mock data saved to cache")
         except Exception as cache_error:
-            print(f"Warning: Could not save mock data to cache: {str(cache_error)}")
+            logger.info("Warning: Could not save mock data to cache: {str(cache_error)}")
     
     except Exception as db_error:
-        print(f"Warning: Could not update ticket with mock data: {str(db_error)}")
+        logger.info("Warning: Could not update ticket with mock data: {str(db_error)}")
     
     # Return a successful response with mock data
     return jsonify({
@@ -4097,7 +4100,7 @@ def update_tracking_numbers(ticket_id):
 def track_return(ticket_id):
     """Track return package using Ship24"""
     import traceback  # Import traceback at the beginning of the function
-    print(f"==== TRACKING RETURN PACKAGE - TICKET {ticket_id} ====")
+    logger.info("==== TRACKING RETURN PACKAGE - TICKET {ticket_id} ====")
     
     db_session = None
     try:
@@ -4105,15 +4108,15 @@ def track_return(ticket_id):
         ticket = db_session.query(Ticket).get(ticket_id)
         
         if not ticket:
-            print("Error: Invalid ticket ID")
+            logger.info("Error: Invalid ticket ID")
             return jsonify({'success': False, 'error': 'Invalid ticket'}), 404
         
         if not ticket.return_tracking:
-            print("Error: No return tracking number for this ticket")
+            logger.info("Error: No return tracking number for this ticket")
             return jsonify({'success': False, 'error': 'No return tracking number for this ticket'}), 404
             
         tracking_number = ticket.return_tracking  # Return tracking is stored as a string
-        print(f"Tracking return number: {tracking_number}")
+        logger.info("Tracking return number: {tracking_number}")
 
         # CHECK FOR CACHED DATA FIRST (like working outbound tracking)
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
@@ -4130,14 +4133,14 @@ def track_return(ticket_id):
             )
             
             if cached_data:
-                print(f"Using cached return tracking data for {tracking_number}")
+                logger.info("Using cached return tracking data for {tracking_number}")
                 return jsonify(cached_data)
         else:
-            print(f"Force refresh requested for return tracking {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for return tracking {tracking_number}, bypassing cache")
 
         # Make sure firecrawl_client is available
         if not firecrawl_client:
-            print("Warning: firecrawl_client not available. Using mock data.")
+            logger.info("Warning: firecrawl_client not available. Using mock data.")
             # Return a simple mock response
             return jsonify({
                 'success': True,
@@ -4157,7 +4160,7 @@ def track_return(ticket_id):
         # Use Ship24 tracking via Firecrawl - COPY FROM WORKING OUTBOUND TRACKING
         try:
             ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            print(f"Scraping URL for return tracking: {ship24_url}")
+            logger.info("Scraping URL for return tracking: {ship24_url}")
             
             scrape_result = firecrawl_client.scrape_url(ship24_url, {
                 'formats': ['json', 'markdown'],
@@ -4201,7 +4204,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
                 'timeout': 15000  # 15 second timeout
             })
-            print(f"Firecrawl Raw Response for return tracking: {scrape_result}")
+            logger.info("Firecrawl Raw Response for return tracking: {scrape_result}")
 
             # --- Process Result (FIXED JSON STRUCTURE) --- 
             tracking_info = []
@@ -4212,7 +4215,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 data = scrape_result['data']['json']
                 latest_status = data.get('current_status', 'Unknown')
                 events = data.get('events', [])
-                print(f"[DEBUG] Extracted {len(events)} events with status: {latest_status}")
+                logger.info("[DEBUG] Extracted {len(events)} events with status: {latest_status}")
                 
                 if events:
                     for event in events:
@@ -4226,7 +4229,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
             
             if not tracking_info:
-                print("Warning: No return tracking events extracted. Using fallback data.")
+                logger.info("Warning: No return tracking events extracted. Using fallback data.")
                 current_date = datetime.datetime.now()
                 tracking_info = [{"status": "Information Received", "location": "Ship24 System", "date": current_date.isoformat()}]
                 latest_status = "Information Received"
@@ -4239,7 +4242,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 ticket.return_history = tracking_info
                 ticket.updated_at = datetime.datetime.now()
                 db_session.commit()
-                print(f"Updated ticket {ticket_id} with return status: {latest_status}")
+                logger.info("Updated ticket {ticket_id} with return status: {latest_status}")
                 
                 # SAVE TO CACHE FOR FUTURE REQUESTS (like working outbound tracking)
                 from utils.tracking_cache import TrackingCache
@@ -4251,10 +4254,10 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     ticket_id=ticket_id,
                     tracking_type='return'
                 )
-                print(f"Saved return tracking data to cache for {tracking_number}")
+                logger.info("Saved return tracking data to cache for {tracking_number}")
                 
             except Exception as e:
-                print(f"Warning: Could not update ticket or cache in database: {str(e)}")
+                logger.info("Warning: Could not update ticket or cache in database: {str(e)}")
             
             return jsonify({
                 'success': True,
@@ -4271,14 +4274,14 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             })
                 
         except Exception as e:
-            print(f"Error scraping Ship24 for return tracking {tracking_number}: {str(e)}")
+            logger.info("Error scraping Ship24 for return tracking {tracking_number}: {str(e)}")
             traceback.print_exc()
             return jsonify({'success': False, 'error': f'Failed to scrape return tracking data: {str(e)}'}), 500
 
     except Exception as e:
-        print(f"General error in track_return: {str(e)}")
+        logger.info("General error in track_return: {str(e)}")
         if db_session and db_session.is_active:
-            print("Rolling back database session due to error.")
+            logger.info("Rolling back database session due to error.")
             db_session.rollback()
         return jsonify({
             'error': f'An error occurred during return tracking: {str(e)}',
@@ -4286,7 +4289,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
         }), 500
     finally:
         if db_session:
-            print("Closing database session.")
+            logger.info("Closing database session.")
             db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/add_secondary_shipment', methods=['POST'])
@@ -4346,7 +4349,7 @@ def add_secondary_shipment(ticket_id):
         })
 
     except Exception as e:
-        print(f"Error adding secondary shipment: {str(e)}")
+        logger.info("Error adding secondary shipment: {str(e)}")
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
@@ -4398,7 +4401,7 @@ def add_return_tracking(ticket_id):
         })
 
     except Exception as e:
-        print(f"Error adding return tracking: {str(e)}")
+        logger.info("Error adding return tracking: {str(e)}")
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
@@ -4472,7 +4475,7 @@ def add_package(ticket_id):
         if 'db_session' in locals():
             db_session.rollback()
             db_session.close()
-        print(f"Error adding package: {str(e)}")
+        logger.info("Error adding package: {str(e)}")
         return jsonify({'success': False, 'message': f'Error adding package: {str(e)}'}), 500
 
 @tickets_bp.route('/<int:ticket_id>/remove_package', methods=['POST'])
@@ -4549,7 +4552,7 @@ def remove_package(ticket_id):
         if 'db_session' in locals():
             db_session.rollback()
             db_session.close()
-        print(f"Error removing package: {str(e)}")
+        logger.info("Error removing package: {str(e)}")
         return jsonify({'success': False, 'message': f'Error removing package: {str(e)}'}), 500
 
 @tickets_bp.route('/<int:ticket_id>/track_package/<int:package_number>', methods=['GET'])
@@ -4620,7 +4623,7 @@ def track_package(ticket_id, package_number):
             )
             
             if cached_data:
-                print(f"Using cached tracking data for package {package_number}: {tracking_number}")
+                logger.info("Using cached tracking data for package {package_number}: {tracking_number}")
                 # Add package number to cached response
                 cached_data['package_number'] = package_number
                 cached_data['tracking_number'] = tracking_number
@@ -4628,17 +4631,17 @@ def track_package(ticket_id, package_number):
                 db_session.close()
                 return jsonify(cached_data)
         else:
-            print(f"Force refresh requested for package {package_number}: {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for package {package_number}: {tracking_number}, bypassing cache")
         
         # If we get here, need to fetch fresh data
-        print(f"Fetching fresh tracking data for package {package_number}: {tracking_number}")
+        logger.info("Fetching fresh tracking data for package {package_number}: {tracking_number}")
         
         # Use the centralized FirecrawlClient that automatically gets the active key from database
         from utils.store_instances import firecrawl_client
         
         # Check if Firecrawl is available
         if not firecrawl_client:
-            print("Error: Firecrawl API client not available.")
+            logger.info("Error: Firecrawl API client not available.")
             return jsonify({
                 'success': False,
                 'error': 'Firecrawl API client not available',
@@ -4649,7 +4652,7 @@ def track_package(ticket_id, package_number):
         try:
             # Define Ship24 URL for the tracking number
             ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            print(f"Scraping URL for package {package_number}: {ship24_url}")
+            logger.info("Scraping URL for package {package_number}: {ship24_url}")
             
             try:
                 # Use Firecrawl to scrape the tracking page and extract structured data
@@ -4699,7 +4702,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 # Check if this is a credit limit issue
                 error_msg = str(api_error).lower()
                 if "insufficient credits" in error_msg or "payment required" in error_msg:
-                    print(f"API credit limitation encountered for package {package_number}: {api_error}")
+                    logger.info("API credit limitation encountered for package {package_number}: {api_error}")
                     return jsonify({
                         'success': False,
                         'error': 'Firecrawl API credits exhausted',
@@ -4711,7 +4714,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     raise
             
             # Log the raw response for debugging
-            print(f"Firecrawl Raw Response for package {package_number}: {scrape_result}")
+            logger.info("Firecrawl Raw Response for package {package_number}: {scrape_result}")
             
             # Process the extracted data
             tracking_info = []
@@ -4738,8 +4741,8 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     ]
                     
                     if latest_status in placeholder_indicators:
-                        print(f"[DEBUG] Firecrawl returned placeholder data for package {package_number}. Status: '{latest_status}'")
-                        print(f"[DEBUG] Full response: {data}")
+                        logger.info("[DEBUG] Firecrawl returned placeholder data for package {package_number}. Status: '{latest_status}'")
+                        logger.info("[DEBUG] Full response: {data}")
                         return jsonify({
                             'success': False,
                             'error': f'Firecrawl returned placeholder data: {latest_status}',
@@ -4750,7 +4753,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     # Extract tracking events
                     events = data.get('events', [])
                     if events:
-                        print(f"[DEBUG] Found {len(events)} tracking events for package {package_number}")
+                        logger.info("[DEBUG] Found {len(events)} tracking events for package {package_number}")
                         
                         # Check if events contain placeholder data
                         for event in events:
@@ -4762,7 +4765,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                             if (event_status in placeholder_indicators or 
                                 event_location in placeholder_indicators or 
                                 event_date in placeholder_indicators):
-                                print(f"[DEBUG] Found placeholder event data for package {package_number}: {event}")
+                                logger.info("[DEBUG] Found placeholder event data for package {package_number}: {event}")
                                 return jsonify({
                                     'success': False,
                                     'error': f'Firecrawl returned placeholder event data',
@@ -4785,20 +4788,20 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                             'location': 'Ship24 System'
                         })
                         
-                    print(f"[DEBUG] Successfully extracted real status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
+                    logger.info("[DEBUG] Successfully extracted real status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
                 
                 # PRIORITY 2: Check if only metadata exists (JSON extraction failed)
                 elif 'data' in scrape_result and 'metadata' in scrape_result['data']:
-                    print(f"[DEBUG] JSON extraction failed for package {package_number}, trying markdown fallback")
+                    logger.info("[DEBUG] JSON extraction failed for package {package_number}, trying markdown fallback")
                     
                     # Check if we have markdown content as a fallback
                     if 'markdown' in scrape_result['data'] and scrape_result['data']['markdown']:
                         markdown_content = scrape_result['data']['markdown']
-                        print(f"[DEBUG] Attempting to parse markdown content for package {package_number}")
+                        logger.info("[DEBUG] Attempting to parse markdown content for package {package_number}")
                         
                         # Look for tracking number in markdown to verify the page loaded correctly
                         if tracking_number.lower() in markdown_content.lower():
-                            print(f"[DEBUG] Tracking number found in markdown, attempting manual extraction")
+                            logger.info("[DEBUG] Tracking number found in markdown, attempting manual extraction")
                             # Try to extract basic status from markdown
                             import re
                             
@@ -4817,7 +4820,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                                     break
                             
                             if found_status:
-                                print(f"[DEBUG] Extracted status from markdown: {found_status}")
+                                logger.info("[DEBUG] Extracted status from markdown: {found_status}")
                                 tracking_info.append({
                                     'date': datetime.datetime.now().isoformat(),
                                     'status': found_status,
@@ -4825,7 +4828,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                                 })
                                 latest_status = found_status
                             else:
-                                print(f"[DEBUG] No recognizable status found in markdown for package {package_number}")
+                                logger.info("[DEBUG] No recognizable status found in markdown for package {package_number}")
                                 return jsonify({
                                     'success': False,
                                     'error': 'No recognizable status found in markdown content',
@@ -4833,7 +4836,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                                     'debug_info': {'tracking_number': tracking_number}
                                 }), 404
                         else:
-                            print(f"[DEBUG] Tracking number not found in markdown content for package {package_number}")
+                            logger.info("[DEBUG] Tracking number not found in markdown content for package {package_number}")
                             return jsonify({
                                 'success': False,
                                 'error': 'Tracking number not found in markdown content',
@@ -4841,7 +4844,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                                 'debug_info': {'tracking_number': tracking_number}
                             }), 404
                     else:
-                        print(f"[DEBUG] No markdown content available for package {package_number}")
+                        logger.info("[DEBUG] No markdown content available for package {package_number}")
                         return jsonify({
                             'success': False,
                             'error': 'No markdown content available from Ship24',
@@ -4868,7 +4871,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     ]
                     
                     if latest_status in placeholder_indicators:
-                        print(f"[DEBUG] Fallback structure also returned placeholder data for package {package_number}. Status: '{latest_status}'")
+                        logger.info("[DEBUG] Fallback structure also returned placeholder data for package {package_number}. Status: '{latest_status}'")
                         return jsonify({
                             'success': False,
                             'error': f'Fallback structure returned placeholder data: {latest_status}',
@@ -4888,7 +4891,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                             if (event_status in placeholder_indicators or 
                                 event_location in placeholder_indicators or 
                                 event_date in placeholder_indicators):
-                                print(f"[DEBUG] Found placeholder event data in fallback structure for package {package_number}: {event}")
+                                logger.info("[DEBUG] Found placeholder event data in fallback structure for package {package_number}: {event}")
                                 return jsonify({
                                     'success': False,
                                     'error': f'Fallback structure returned placeholder event data',
@@ -4913,8 +4916,8 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 
                 # PRIORITY 4: Handle completely unrecognized response format
                 else:
-                    print(f"[DEBUG] Unrecognized Firecrawl response structure for package {package_number}")
-                    print(f"[DEBUG] Response keys: {list(scrape_result.keys())}")
+                    logger.info("[DEBUG] Unrecognized Firecrawl response structure for package {package_number}")
+                    logger.info("[DEBUG] Response keys: {list(scrape_result.keys())}")
                     return jsonify({
                         'success': False,
                         'error': 'Unrecognized Firecrawl response structure',
@@ -4924,7 +4927,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 
                 # Error if no tracking info was extracted
                 if not tracking_info:
-                    print(f"Warning: No tracking events extracted for package {package_number}.")
+                    logger.info("Warning: No tracking events extracted for package {package_number}.")
                     return jsonify({
                         'success': False,
                         'error': 'No tracking events extracted from Ship24',
@@ -4933,7 +4936,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     }), 404
                     
             except Exception as parse_error:
-                print(f"Error parsing tracking data for package {package_number}: {str(parse_error)}")
+                logger.info("Error parsing tracking data for package {package_number}: {str(parse_error)}")
                 traceback.print_exc()
                 return jsonify({
                     'success': False,
@@ -4949,9 +4952,9 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 setattr(fresh_ticket, status_field, latest_status)
                 fresh_ticket.updated_at = datetime.datetime.now()
                 db_session.commit()
-                print(f"Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
+                logger.info("Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
             else:
-                print(f"Warning: Could not find ticket {ticket_id} in database session")
+                logger.info("Warning: Could not find ticket {ticket_id} in database session")
             
             # Save to cache for future requests
             try:
@@ -4965,9 +4968,9 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     tracking_type=f'package_{package_number}',
                     carrier=carrier or "auto"
                 )
-                print(f"Real tracking data saved to cache for package {package_number}")
+                logger.info("Real tracking data saved to cache for package {package_number}")
             except Exception as cache_error:
-                print(f"Warning: Could not save tracking data to cache for package {package_number}: {str(cache_error)}")
+                logger.info("Warning: Could not save tracking data to cache for package {package_number}: {str(cache_error)}")
             
             return jsonify({
                 'success': True,
@@ -4987,7 +4990,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             })
         
         except Exception as e:
-            print(f"Error scraping ship24 for package {package_number} ({tracking_number}): {str(e)}")
+            logger.info("Error scraping ship24 for package {package_number} ({tracking_number}): {str(e)}")
             traceback.print_exc()
             return jsonify({
                 'success': False,
@@ -4997,7 +5000,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
             }), 500
             
     except Exception as e:
-        print(f"General error in track_package: {str(e)}")
+        logger.info("General error in track_package: {str(e)}")
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error tracking package: {str(e)}'}), 500
             
@@ -5009,13 +5012,13 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     db_session.commit()
                 db_session.close()
         except Exception as e:
-            print(f"Error closing database session in track_package: {str(e)}")
+            logger.info("Error closing database session in track_package: {str(e)}")
 
 
 def generate_package_mock_tracking_data(tracking_number, ticket_id, package_number, carrier, status_field, db_session):
     """DISABLED: Mock data generation is disabled. This function should not be called."""
-    print(f"[ERROR] Mock data generation disabled for package {package_number}: {tracking_number}")
-    print(f"[ERROR] Mock data generation has been disabled by user request")
+    logger.info("[ERROR] Mock data generation disabled for package {package_number}: {tracking_number}")
+    logger.info("[ERROR] Mock data generation has been disabled by user request")
     
     # Return an error instead of mock data
     return jsonify({
@@ -5071,7 +5074,7 @@ def generate_package_mock_tracking_data(tracking_number, ticket_id, package_numb
             setattr(ticket, status_field, latest_status)
             ticket.updated_at = datetime.datetime.now()
             db_session.commit()
-            print(f"Updated ticket {ticket_id} package {package_number} with mock status: {latest_status}")
+            logger.info("Updated ticket {ticket_id} package {package_number} with mock status: {latest_status}")
         
         # Save to cache for future requests
         try:
@@ -5085,12 +5088,12 @@ def generate_package_mock_tracking_data(tracking_number, ticket_id, package_numb
                 tracking_type=f'package_{package_number}',
                 carrier=carrier or "mock"
             )
-            print(f"Mock data saved to cache for package {package_number}")
+            logger.info("Mock data saved to cache for package {package_number}")
         except Exception as cache_error:
-            print(f"Warning: Could not save mock data to cache for package {package_number}: {str(cache_error)}")
+            logger.info("Warning: Could not save mock data to cache for package {package_number}: {str(cache_error)}")
     
     except Exception as db_error:
-        print(f"Warning: Could not update ticket with mock data for package {package_number}: {str(db_error)}")
+        logger.info("Warning: Could not update ticket with mock data for package {package_number}: {str(db_error)}")
     
     # Return a successful response with mock data
     return jsonify({
@@ -5187,7 +5190,7 @@ def add_package_item(ticket_id, package_number):
         })
 
     except Exception as e:
-        print(f"Error adding package item: {str(e)}")
+        logger.info("Error adding package item: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error adding item to package: {str(e)}'}), 500
@@ -5242,7 +5245,7 @@ def remove_package_item(ticket_id, package_item_id):
             return jsonify({'success': False, 'message': 'Failed to remove item from package'}), 500
 
     except Exception as e:
-        print(f"Error removing package item: {str(e)}")
+        logger.info("Error removing package item: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error removing item from package: {str(e)}'}), 500
@@ -5273,7 +5276,7 @@ def get_package_items(ticket_id, package_number):
         })
 
     except Exception as e:
-        print(f"Error getting package items: {str(e)}")
+        logger.info("Error getting package items: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error getting package items: {str(e)}'}), 500
@@ -5307,7 +5310,7 @@ def get_assets_for_packages():
         })
     
     except Exception as e:
-        print(f"Error getting assets: {str(e)}")
+        logger.info("Error getting assets: {str(e)}")
         return jsonify({'success': False, 'message': f'Error getting assets: {str(e)}'}), 500
 
 @tickets_bp.route('/api/accessories_for_packages', methods=['GET'])
@@ -5338,7 +5341,7 @@ def get_accessories_for_packages():
         })
     
     except Exception as e:
-        print(f"Error getting accessories: {str(e)}")
+        logger.info("Error getting accessories: {str(e)}")
         return jsonify({'success': False, 'message': f'Error getting accessories: {str(e)}'}), 500
 
 @tickets_bp.route('/api/customers')
@@ -5402,7 +5405,7 @@ def add_outbound_tracking(ticket_id):
         })
     except Exception as e:
         db_session.rollback()
-        print(f"Error adding outbound tracking: {str(e)}")
+        logger.info("Error adding outbound tracking: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -5412,7 +5415,7 @@ def add_outbound_tracking(ticket_id):
 def mark_outbound_received(ticket_id):
     db_session = db_manager.get_session()
     try:
-        print(f"Starting mark_outbound_received for ticket {ticket_id} (updating return_status as requested)")
+        logger.info("Starting mark_outbound_received for ticket {ticket_id} (updating return_status as requested)")
         
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
@@ -5425,17 +5428,17 @@ def mark_outbound_received(ticket_id):
         # Update return_status as requested by user, even though it's the outbound button
         old_status = ticket.return_status
         ticket.return_status = f"Item was received on {singapore_time_str}"
-        print(f"Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}' (via outbound button)")
+        logger.info("Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}' (via outbound button)")
         
         db_session.commit()
-        print(f"Database commit successful for ticket {ticket_id}")
+        logger.info("Database commit successful for ticket {ticket_id}")
         
         flash('Return status marked as received (via Outbound button)')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 
     except Exception as e:
         db_session.rollback()
-        print(f"Error marking outbound as received (updating return_status): {str(e)}")
+        logger.info("Error marking outbound as received (updating return_status): {str(e)}")
         import traceback
         traceback.print_exc()
         flash(f'Error updating return status (via Outbound button): {str(e)}', 'error')
@@ -5448,7 +5451,7 @@ def mark_outbound_received(ticket_id):
 def mark_return_received(ticket_id):
     db_session = db_manager.get_session()
     try:
-        print(f"Starting mark_return_received for ticket {ticket_id}")
+        logger.info("Starting mark_return_received for ticket {ticket_id}")
         
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
@@ -5460,22 +5463,22 @@ def mark_return_received(ticket_id):
         
         old_status = ticket.return_status
         ticket.return_status = f"Item was received on {singapore_time_str}"
-        print(f"Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}'")
+        logger.info("Updating ticket {ticket_id} return_status from '{old_status}' to '{ticket.return_status}'")
         
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
             old_shipping_status = ticket.shipping_status
             ticket.shipping_status = f"Item was received on {singapore_time_str}"
-            print(f"Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
+            logger.info("Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
         
         db_session.commit()
-        print(f"Database commit successful for ticket {ticket_id}")
+        logger.info("Database commit successful for ticket {ticket_id}")
         
         flash('Return shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 
     except Exception as e:
         db_session.rollback()
-        print(f"Error marking return as received: {str(e)}")
+        logger.info("Error marking return as received: {str(e)}")
         import traceback
         traceback.print_exc()
         flash(f'Error marking return as received: {str(e)}', 'error')
@@ -5490,7 +5493,7 @@ def mark_replacement_received(ticket_id):
     """Mark the replacement shipment as received."""
     db_session = db_manager.get_session()
     try:
-        print(f"Starting mark_replacement_received for ticket {ticket_id}")
+        logger.info("Starting mark_replacement_received for ticket {ticket_id}")
         
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
@@ -5502,17 +5505,17 @@ def mark_replacement_received(ticket_id):
         
         old_status = ticket.replacement_status
         ticket.replacement_status = f"Item was received on {singapore_time_str}"
-        print(f"Updating ticket {ticket_id} replacement_status from '{old_status}' to '{ticket.replacement_status}'")
+        logger.info("Updating ticket {ticket_id} replacement_status from '{old_status}' to '{ticket.replacement_status}'")
         
         db_session.commit()
-        print(f"Database commit successful for ticket {ticket_id}")
+        logger.info("Database commit successful for ticket {ticket_id}")
         
         flash('Replacement shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 
     except Exception as e:
         db_session.rollback()
-        print(f"Error marking replacement as received: {str(e)}")
+        logger.info("Error marking replacement as received: {str(e)}")
         import traceback
         traceback.print_exc()
         flash(f'Error marking replacement as received: {str(e)}', 'error')
@@ -5561,7 +5564,7 @@ def clear_tracking_cache(ticket_id):
             
         except Exception as e:
             db_session.rollback()
-            print(f"Error clearing tracking cache: {str(e)}")
+            logger.info("Error clearing tracking cache: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({"success": False, "error": str(e)}), 500
@@ -5569,7 +5572,7 @@ def clear_tracking_cache(ticket_id):
             db_session.close()
             
     except Exception as e:
-        print(f"Database error: {str(e)}")
+        logger.info("Database error: {str(e)}")
         return jsonify({"success": False, "error": "Database error"}), 500
 
 @tickets_bp.route('/<int:ticket_id>/delete', methods=['POST'])
@@ -5606,7 +5609,7 @@ def delete_ticket(ticket_id):
             }), 403
         
         # Log the deletion
-        print(f"User {session.get('username')} (ID: {session.get('user_id')}) is deleting ticket {ticket_id}")
+        logger.info("User {session.get('username')} (ID: {session.get('user_id')}) is deleting ticket {ticket_id}")
         
         # Get ticket details for logging
         ticket_display_id = ticket.display_id
@@ -5618,7 +5621,7 @@ def delete_ticket(ticket_id):
         
         # JSON file comments - use the comment_store
         json_comments_deleted = comment_store.delete_ticket_comments(ticket_id)
-        print(f"[DEBUG] Deleted {json_comments_deleted} JSON file comments for ticket {ticket_id}")
+        logger.info("[DEBUG] Deleted {json_comments_deleted} JSON file comments for ticket {ticket_id}")
         
         # Activities related to this ticket
         db_session.query(Activity).filter_by(reference_id=ticket_id).delete()
@@ -5638,7 +5641,7 @@ def delete_ticket(ticket_id):
                 try:
                     os.remove(attachment.file_path)
                 except Exception as e:
-                    print(f"Error deleting file {attachment.file_path}: {str(e)}")
+                    logger.info("Error deleting file {attachment.file_path}: {str(e)}")
             # Delete the attachment record
             db_session.delete(attachment)
         
@@ -5647,7 +5650,7 @@ def delete_ticket(ticket_id):
         db_session.commit()
         
         # Log the successful deletion
-        print(f"Successfully deleted ticket {ticket_display_id}: {ticket_subject}")
+        logger.info("Successfully deleted ticket {ticket_display_id}: {ticket_subject}")
         
         return jsonify({
             'success': True, 
@@ -5656,7 +5659,7 @@ def delete_ticket(ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error deleting ticket {ticket_id}: {str(e)}")
+        logger.info("Error deleting ticket {ticket_id}: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
@@ -5715,7 +5718,7 @@ def update_shipping_status(ticket_id):
             db_session.close()
 
     except Exception as e:
-        print(f"Error updating shipping status: {str(e)}")
+        logger.info("Error updating shipping status: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
@@ -5769,7 +5772,7 @@ def update_return_status(ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error updating return status: {str(e)}", file=sys.stderr)
+        logger.info("Error updating return status: {str(e")}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -5811,7 +5814,7 @@ def transfer_ticket(ticket_id):
         
         # Send email notification to new assignee
         try:
-            print(f"DEBUG - Transfer: sending email notification to {target_user.username} ({target_user.email})")
+            logger.info("DEBUG - Transfer: sending email notification to {target_user.username} ({target_user.email})")
             if target_user.email:
                 from utils.email_sender import send_ticket_assignment_notification
                 
@@ -5829,13 +5832,13 @@ def transfer_ticket(ticket_id):
                 )
                 
                 if email_sent:
-                    print(f"DEBUG - Transfer notification email sent to {target_user.email}")
+                    logger.info("DEBUG - Transfer notification email sent to {target_user.email}")
                 else:
-                    print(f"DEBUG - Failed to send transfer notification email to {target_user.email}")
+                    logger.info("DEBUG - Failed to send transfer notification email to {target_user.email}")
             else:
-                print(f"DEBUG - Target user {target_user.username} has no email address")
+                logger.info("DEBUG - Target user {target_user.username} has no email address")
         except Exception as e:
-            print(f"DEBUG - Error sending transfer notification: {str(e)}")
+            logger.info("DEBUG - Error sending transfer notification: {str(e)}")
             import traceback
             traceback.print_exc()
             # Don't fail the transfer if email fails
@@ -5868,7 +5871,7 @@ def transfer_ticket(ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error transferring ticket: {str(e)}", file=sys.stderr)
+        logger.info("Error transferring ticket: {str(e")}", file=sys.stderr)
         traceback.print_exc()
         flash(f'Error transferring ticket: {str(e)}', 'error')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -5971,7 +5974,7 @@ def debug_documents(ticket_id):
                               user=user)
                               
     except Exception as e:
-        print(f"Error in debug_documents: {str(e)}")
+        logger.info("Error in debug_documents: {str(e)}")
         traceback.print_exc()
         flash(f'Error loading ticket data: {str(e)}', 'error')
         return redirect(url_for('tickets.list_tickets'))
@@ -6038,7 +6041,7 @@ def get_attachment(ticket_id, attachment_id):
             )
         
     except Exception as e:
-        print(f"Error getting attachment: {str(e)}")
+        logger.info("Error getting attachment: {str(e)}")
         traceback.print_exc()
         flash(f'Error accessing attachment: {str(e)}', 'error')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -6061,7 +6064,7 @@ def cleanup_orphaned_comments():
         })
         
     except Exception as e:
-        print(f"[ERROR] Error cleaning up orphaned comments: {e}")
+        logger.info("[ERROR] Error cleaning up orphaned comments: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -6108,10 +6111,10 @@ def add_accessory(ticket_id):
                 db_session.add(ticket_accessory)
 
                 # Update inventory based on ticket category
-                print(f"=== INVENTORY UPDATE START ===")
-                print(f"TICKET CATEGORY: {ticket.category}")
-                print(f"PROCESSING ACCESSORY: {accessory.name}")
-                print(f"Previous available quantity: {accessory.available_quantity}")
+                logger.info("=== INVENTORY UPDATE START ===")
+                logger.info("TICKET CATEGORY: {ticket.category}")
+                logger.info("PROCESSING ACCESSORY: {accessory.name}")
+                logger.info("Previous available quantity: {accessory.available_quantity}")
                 
                 # For Asset Checkout categories, deduct from inventory (checkout)
                 # For Asset Return and Asset Intake categories, add to inventory (return/intake)
@@ -6120,14 +6123,14 @@ def add_accessory(ticket_id):
                     if accessory.available_quantity < quantity:
                         return jsonify({'success': False, 'message': f'Not enough quantity available. Only {accessory.available_quantity} units available.'}), 400
                     accessory.available_quantity -= quantity
-                    print(f"CHECKOUT: Decreasing inventory by {quantity}")
+                    logger.info("CHECKOUT: Decreasing inventory by {quantity}")
                 else:
                     # Return/Intake: add to inventory
                     accessory.available_quantity += quantity
-                    print(f"RETURN/INTAKE: Increasing inventory by {quantity}")
+                    logger.info("RETURN/INTAKE: Increasing inventory by {quantity}")
                 
-                print(f"New available quantity: {accessory.available_quantity}")
-                print(f"=== INVENTORY UPDATE END ===")
+                logger.info("New available quantity: {accessory.available_quantity}")
+                logger.info("=== INVENTORY UPDATE END ===")
 
                 # Create transaction record
                 if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
@@ -6274,12 +6277,12 @@ def add_accessory(ticket_id):
             db_session.flush()  # Get the ID of the new accessory
             
             # Update inventory based on ticket category
-            print(f"=== INVENTORY UPDATE START ===")
-            print(f"CREATING NEW ACCESSORY: {name}")
-            print(f"TICKET CATEGORY: {ticket.category}")
-            print(f"Total quantity: {total_quantity}")
-            print(f"Assigning quantity: {quantity}")
-            print(f"Initial available quantity: {new_accessory.available_quantity}")
+            logger.info("=== INVENTORY UPDATE START ===")
+            logger.info("CREATING NEW ACCESSORY: {name}")
+            logger.info("TICKET CATEGORY: {ticket.category}")
+            logger.info("Total quantity: {total_quantity}")
+            logger.info("Assigning quantity: {quantity}")
+            logger.info("Initial available quantity: {new_accessory.available_quantity}")
             
             # For Asset Checkout categories, deduct from inventory (checkout)
             # For Asset Return and Asset Intake categories, add to inventory (return/intake)
@@ -6288,14 +6291,14 @@ def add_accessory(ticket_id):
                 if new_accessory.available_quantity < quantity:
                     return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
                 new_accessory.available_quantity -= quantity
-                print(f"CHECKOUT: Decreasing inventory by {quantity}")
+                logger.info("CHECKOUT: Decreasing inventory by {quantity}")
             else:
                 # Return/Intake: For NEW accessories, available_quantity is already set correctly to total_quantity
                 # No need to add to inventory since we're creating new inventory
-                print(f"RETURN/INTAKE: New accessory created with available quantity: {new_accessory.available_quantity}")
+                logger.info("RETURN/INTAKE: New accessory created with available quantity: {new_accessory.available_quantity}")
                 
-            print(f"Available quantity after assignment: {new_accessory.available_quantity}")
-            print(f"=== INVENTORY UPDATE END ===")
+            logger.info("Available quantity after assignment: {new_accessory.available_quantity}")
+            logger.info("=== INVENTORY UPDATE END ===")
             
             # Create ticket accessory record
             ticket_accessory = TicketAccessory(
@@ -6346,7 +6349,7 @@ def add_accessory(ticket_id):
 
     except Exception as e:
         db_session.rollback()
-        print(f"Error adding accessory: {str(e)}")
+        logger.info("Error adding accessory: {str(e)}")
         if request.is_json:
             return jsonify({'success': False, 'message': f'Error processing accessory data: {str(e)}'}), 500
         flash(f'Error adding accessory: {str(e)}', 'error')
@@ -6383,7 +6386,7 @@ def get_accessory(accessory_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error getting accessory: {str(e)}")
+        logger.info("Error getting accessory: {str(e)}")
         return jsonify({'success': False, 'message': f'Error getting accessory: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -6439,17 +6442,17 @@ def update_accessory(ticket_id, accessory_id):
             ).with_for_update().first()
             
             if original_accessory:
-                print(f"=== INVENTORY UPDATE START ===")
-                print(f"UPDATING ACCESSORY: {name}")
-                print(f"Ticket category: {ticket.category.name if ticket.category else 'None'}")
-                print(f"Old ticket quantity: {old_quantity}, New ticket quantity: {new_quantity}")
-                print(f"Quantity difference: {quantity_difference}")
-                print(f"Previous inventory available_quantity: {original_accessory.available_quantity}")
+                logger.info("=== INVENTORY UPDATE START ===")
+                logger.info("UPDATING ACCESSORY: {name}")
+                logger.info("Ticket category: {ticket.category.name if ticket.category else 'None'}")
+                logger.info("Old ticket quantity: {old_quantity}, New ticket quantity: {new_quantity}")
+                logger.info("Quantity difference: {quantity_difference}")
+                logger.info("Previous inventory available_quantity: {original_accessory.available_quantity}")
                 
                 # For Asset Intake tickets, when quantity increases, we add to inventory
                 # When quantity decreases, we subtract from inventory
                 is_asset_intake = ticket.category and ticket.category.name in ['ASSET_INTAKE_CLAW', 'ASSET_INTAKE_MAIN', 'ASSET_INTAKE_SINGPOST', 'ASSET_INTAKE_DHL', 'ASSET_INTAKE_UPS', 'ASSET_INTAKE_BLUEDART', 'ASSET_INTAKE_DTDC', 'ASSET_INTAKE_AUTO']
-                print(f"Is Asset Intake ticket: {is_asset_intake}")
+                logger.info("Is Asset Intake ticket: {is_asset_intake}")
                 
                 # Check if this is a return/received accessories ticket
                 is_return_ticket = ticket.category and (
@@ -6463,16 +6466,16 @@ def update_accessory(ticket_id, accessory_id):
                     # Asset Intake/Return: more quantity in ticket = more inventory available
                     original_accessory.available_quantity += quantity_difference
                     operation = "increased" if quantity_difference > 0 else "decreased"
-                    print(f"ASSET INTAKE/RETURN: Adding {quantity_difference} to inventory")
+                    logger.info("ASSET INTAKE/RETURN: Adding {quantity_difference} to inventory")
                 else:
                     # Asset Checkout: more quantity in ticket = less inventory available
                     original_accessory.available_quantity -= quantity_difference
                     operation = "decreased" if quantity_difference > 0 else "increased"
-                    print(f"ASSET CHECKOUT: Subtracting {quantity_difference} from inventory")
+                    logger.info("ASSET CHECKOUT: Subtracting {quantity_difference} from inventory")
                 
-                print(f"New inventory available_quantity: {original_accessory.available_quantity}")
-                print(f"Inventory {operation} by {abs(quantity_difference)}")
-                print(f"=== INVENTORY UPDATE END ===")
+                logger.info("New inventory available_quantity: {original_accessory.available_quantity}")
+                logger.info("Inventory {operation} by {abs(quantity_difference)}")
+                logger.info("=== INVENTORY UPDATE END ===")
                 
                 # Create a transaction record
                 try:
@@ -6486,7 +6489,7 @@ def update_accessory(ticket_id, accessory_id):
                     )
                     db_session.add(transaction)
                 except Exception as tx_error:
-                    print(f"Error creating transaction: {str(tx_error)}")
+                    logger.info("Error creating transaction: {str(tx_error)}")
                     # Don't fail the whole operation for transaction error
         
         # Add a comment to the ticket
@@ -6520,7 +6523,7 @@ def update_accessory(ticket_id, accessory_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error updating accessory: {str(e)}")
+        logger.info("Error updating accessory: {str(e)}")
         return jsonify({'success': False, 'message': f'Error updating accessory: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -6557,14 +6560,14 @@ def remove_accessory(ticket_id, accessory_id):
             
             if original_accessory:
                 # Decrease inventory quantity when removing from ticket
-                print(f"=== INVENTORY UPDATE START ===")
-                print(f"REMOVING ACCESSORY: {quantity} {accessory_name}")
-                print(f"Previous inventory quantity: {original_accessory.available_quantity}")
+                logger.info("=== INVENTORY UPDATE START ===")
+                logger.info("REMOVING ACCESSORY: {quantity} {accessory_name}")
+                logger.info("Previous inventory quantity: {original_accessory.available_quantity}")
                 
                 # Decrease the available quantity to reduce inventory
                 original_accessory.available_quantity -= quantity
-                print(f"New inventory quantity: {original_accessory.available_quantity}")
-                print(f"=== INVENTORY UPDATE END ===")
+                logger.info("New inventory quantity: {original_accessory.available_quantity}")
+                logger.info("=== INVENTORY UPDATE END ===")
                 
                 # Create a transaction record
                 try:
@@ -6578,7 +6581,7 @@ def remove_accessory(ticket_id, accessory_id):
                     )
                     db_session.add(transaction)
                 except Exception as tx_error:
-                    print(f"Error creating transaction: {str(tx_error)}")
+                    logger.info("Error creating transaction: {str(tx_error)}")
                     raise tx_error
         
         # Create a comment about the removal
@@ -6602,7 +6605,7 @@ def remove_accessory(ticket_id, accessory_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error removing accessory: {str(e)}")
+        logger.info("Error removing accessory: {str(e)}")
         return jsonify({'success': False, 'message': f'Error removing accessory: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -6637,7 +6640,7 @@ def get_available_accessories():
         })
         
     except Exception as e:
-        print(f"Error getting available accessories: {str(e)}")
+        logger.info("Error getting available accessories: {str(e)}")
         return jsonify({'success': False, 'message': f'Error getting available accessories: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -6712,7 +6715,7 @@ def fix_accessory_inventory(accessory_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error fixing accessory inventory: {str(e)}")
+        logger.info("Error fixing accessory inventory: {str(e)}")
         db_session.rollback()
         return jsonify({'success': False, 'message': f'Error fixing accessory inventory: {str(e)}'}), 500
 
@@ -6720,19 +6723,19 @@ def fix_accessory_inventory(accessory_id):
 @login_required
 def get_accessories():
     """Get all accessories for dropdown"""
-    print("API endpoint /api/accessories called")
+    logger.info("API endpoint /api/accessories called")
     db_session = None
     try:
         db_session = db_manager.get_session()
         result = []
         
         # Get all accessories with available quantity > 0
-        print("Querying accessories with available_quantity > 0")
+        logger.info("Querying accessories with available_quantity > 0")
         accessories = db_session.query(Accessory).filter(
             Accessory.available_quantity > 0
         ).all()
         
-        print(f"Found {len(accessories)} accessories with available quantity")
+        logger.info("Found {len(accessories)} accessories with available quantity")
         
         # Convert to list of dicts
         for acc in accessories:
@@ -6745,11 +6748,11 @@ def get_accessories():
                 'model_no': acc.model_no
             })
         
-        print(f"Returning {len(result)} accessories in JSON response")
+        logger.info("Returning {len(result)} accessories in JSON response")
         return jsonify({'success': True, 'accessories': result})
         
     except Exception as e:
-        print(f"Error in get_accessories: {str(e)}")
+        logger.info("Error in get_accessories: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error retrieving accessories: {str(e)}'}), 500
@@ -6761,20 +6764,20 @@ def get_accessories():
 @login_required
 def debug_accessories():
     """Debug endpoint to check all accessories in database"""
-    print("API endpoint /api/accessories/debug called")
+    logger.info("API endpoint /api/accessories/debug called")
     db_session = None
     try:
         db_session = db_manager.get_session()
         
         # Get ALL accessories regardless of quantity
         all_accessories = db_session.query(Accessory).all()
-        print(f"Total accessories in database: {len(all_accessories)}")
+        logger.info("Total accessories in database: {len(all_accessories)}")
         
         # Get accessories with available quantity > 0
         available_accessories = db_session.query(Accessory).filter(
             Accessory.available_quantity > 0
         ).all()
-        print(f"Accessories with available_quantity > 0: {len(available_accessories)}")
+        logger.info("Accessories with available_quantity > 0: {len(available_accessories)}")
         
         # Prepare detailed response
         result = {
@@ -6809,7 +6812,7 @@ def debug_accessories():
         return jsonify({'success': True, 'debug_info': result})
         
     except Exception as e:
-        print(f"Error in debug_accessories: {str(e)}")
+        logger.info("Error in debug_accessories: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error debugging accessories: {str(e)}'}), 500
@@ -6882,7 +6885,7 @@ def view_accessory_transactions(ticket_id):
         })
         
     except Exception as e:
-        print(f"Error retrieving accessory transactions: {str(e)}")
+        logger.info("Error retrieving accessory transactions: {str(e)}")
         return jsonify({'success': False, 'message': f'Error retrieving transactions: {str(e)}'}), 500
     finally:
             db_session.close()
@@ -6920,7 +6923,7 @@ def get_ticket_accessory(ticket_id, accessory_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error getting accessory: {str(e)}")
+        logger.info("Error getting accessory: {str(e)}")
         return jsonify({'success': False, 'message': f'Error getting accessory: {str(e)}'}), 500
     finally:
         db_session.close()
@@ -6930,27 +6933,27 @@ def get_ticket_accessory(ticket_id, accessory_id):
 def debug_form_data():
     """Debug endpoint to check what form data is being received"""
     try:
-        print("=== FORM DEBUG ENDPOINT ===")
-        print("Form keys:", list(request.form.keys()))
-        print("Form data:")
+        logger.info("=== FORM DEBUG ENDPOINT ===")
+        logger.info("Form keys:", list(request.form.keys()))
+        logger.info("Form data:")
         for key, value in request.form.items():
             if key == 'selected_accessories':
-                print(f"  {key}: {value[:200]}..." if len(value) > 200 else f"  {key}: {value}")
+                logger.info(f"  {key}: {value[:200]}..." if len(value) > 200 else f"  {key}: {value}")
             else:
-                print(f"  {key}: {value}")
+                logger.info("  {key}: {value}")
         
         selected_accessories = request.form.get('selected_accessories', '')
         if selected_accessories:
             try:
                 import json
                 parsed = json.loads(selected_accessories)
-                print(f"Parsed accessories: {len(parsed)} items")
+                logger.info("Parsed accessories: {len(parsed)} items")
                 for i, acc in enumerate(parsed):
-                    print(f"  {i}: {acc}")
+                    logger.info("  {i}: {acc}")
             except Exception as e:
-                print(f"Error parsing accessories JSON: {e}")
+                logger.info("Error parsing accessories JSON: {e}")
         else:
-            print("No selected_accessories field found")
+            logger.info("No selected_accessories field found")
         
         return jsonify({
             'status': 'success',
@@ -6959,7 +6962,7 @@ def debug_form_data():
             'selected_accessories_length': len(request.form.get('selected_accessories', ''))
         })
     except Exception as e:
-        print(f"Debug endpoint error: {e}")
+        logger.info("Debug endpoint error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @tickets_bp.route('/api/accessories/search', methods=['POST'])
@@ -7089,7 +7092,7 @@ def search_accessories_for_csv():
         })
         
     except Exception as e:
-        print(f"Error searching accessories: {str(e)}")
+        logger.info("Error searching accessories: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -7170,12 +7173,12 @@ def get_ticket_items(ticket_id):
             })
             
         except Exception as e:
-            print(f"Error fetching {item_type}s for ticket {ticket_id}: {str(e)}")
+            logger.info("Error fetching {item_type}s for ticket {ticket_id}: {str(e)}")
             return jsonify({'success': False, 'message': f'Database error: {str(e)}'})
         
         finally:
             db_session.close()
     
     except Exception as e:
-        print(f"Error in get_ticket_items: {str(e)}")
+        logger.info("Error in get_ticket_items: {str(e)}")
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'})

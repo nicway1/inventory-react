@@ -9,7 +9,7 @@ from datetime import datetime
 import importlib
 
 def add_track_change_to_models():
-    print("Adding missing track_change methods to models...")
+    logger.info("Adding missing track_change methods to models...")
     
     # Add the project directory to Python path
     sys.path.insert(0, '/home/nicway2/inventory')
@@ -23,7 +23,7 @@ def add_track_change_to_models():
         
         # Check if Asset has track_change method
         if not hasattr(Asset, 'track_change') or not callable(getattr(Asset, 'track_change')):
-            print("Adding track_change method to Asset class...")
+            logger.info("Adding track_change method to Asset class...")
             
             def asset_track_change(self, user_id, action, changes, notes=None):
                 """Create a history entry for asset changes
@@ -47,13 +47,13 @@ def add_track_change_to_models():
             
             # Add the method to the class
             Asset.track_change = asset_track_change
-            print("✓ Successfully added track_change method to Asset class")
+            logger.info("✓ Successfully added track_change method to Asset class")
         else:
-            print("✓ Asset class already has track_change method")
+            logger.info("✓ Asset class already has track_change method")
         
         # Check if Accessory has track_change method
         if not hasattr(Accessory, 'track_change') or not callable(getattr(Accessory, 'track_change')):
-            print("Adding track_change method to Accessory class...")
+            logger.info("Adding track_change method to Accessory class...")
             
             def accessory_track_change(self, user_id, action, changes, notes=None):
                 """Create a history entry for accessory changes
@@ -77,16 +77,16 @@ def add_track_change_to_models():
             
             # Add the method to the class
             Accessory.track_change = accessory_track_change
-            print("✓ Successfully added track_change method to Accessory class")
+            logger.info("✓ Successfully added track_change method to Accessory class")
         else:
-            print("✓ Accessory class already has track_change method")
+            logger.info("✓ Accessory class already has track_change method")
             
-        print("\nMethods added successfully. Please restart your application for changes to take effect.")
+        logger.info("\nMethods added successfully. Please restart your application for changes to take effect.")
         
     except ImportError as e:
-        print(f"Error importing models: {str(e)}")
+        logger.info("Error importing models: {str(e)}")
     except Exception as e:
-        print(f"Error adding methods: {str(e)}")
+        logger.info("Error adding methods: {str(e)}")
 
 if __name__ == "__main__":
     add_track_change_to_models() 

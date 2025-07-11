@@ -7,7 +7,7 @@ from models.base import Base
 
 def create_ticket_assets_table():
     """Create the ticket_assets association table if it doesn't exist"""
-    print("Creating ticket_assets association table...")
+    logger.info("Creating ticket_assets association table...")
     
     # Get database connection
     db_manager = DatabaseManager()
@@ -30,12 +30,12 @@ def create_ticket_assets_table():
             
             # Create the table in the database
             Base.metadata.create_all(engine, tables=[ticket_assets])
-            print("ticket_assets table created successfully.")
+            logger.info("ticket_assets table created successfully.")
         else:
-            print("ticket_assets table already exists.")
+            logger.info("ticket_assets table already exists.")
             
     except Exception as e:
-        print(f"Error creating ticket_assets table: {str(e)}")
+        logger.info("Error creating ticket_assets table: {str(e)}")
     finally:
         db_session.close()
 

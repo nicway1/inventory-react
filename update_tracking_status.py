@@ -1,5 +1,10 @@
 from app import db_manager
 from models.ticket import Ticket
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Get the database session
 session = db_manager.get_session()
@@ -10,7 +15,7 @@ ticket = session.query(Ticket).get(ticket_id)
 
 if ticket:
     # Update status
-    print(f"Current status: {ticket.shipping_status}")
+    logger.info("Current status: {ticket.shipping_status}")
     ticket.shipping_status = "Delivered"
     
     # Update any other related fields
@@ -19,9 +24,9 @@ if ticket:
     
     # Commit changes
     session.commit()
-    print(f"Updated status to: {ticket.shipping_status}")
+    logger.info("Updated status to: {ticket.shipping_status}")
 else:
-    print(f"Ticket {ticket_id} not found")
+    logger.info("Ticket {ticket_id} not found")
 
 # Close the session
 session.close() 

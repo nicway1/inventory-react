@@ -9,7 +9,7 @@ def fix_transfer_ticket_route():
     routes_file = 'routes/tickets.py'
     
     if not os.path.exists(routes_file):
-        print(f"Error: {routes_file} not found!")
+        logger.info("Error: {routes_file} not found!")
         return False
     
     with open(routes_file, 'r') as f:
@@ -30,18 +30,18 @@ def fix_transfer_ticket_route():
         with open(routes_file, 'w') as f:
             f.write(updated_content)
         
-        print(f"Successfully updated transfer_ticket route in {routes_file}")
+        logger.info("Successfully updated transfer_ticket route in {routes_file}")
         return True
     else:
-        print(f"Could not find transfer_ticket route in {routes_file}")
+        logger.info("Could not find transfer_ticket route in {routes_file}")
         return False
 
 if __name__ == "__main__":
-    print("==== Fixing transfer_ticket route ====")
+    logger.info("==== Fixing transfer_ticket route ====")
     
     if fix_transfer_ticket_route():
-        print("\nSuccessfully fixed the transfer_ticket route")
-        print("Please restart your web application for the changes to take effect")
+        logger.info("\nSuccessfully fixed the transfer_ticket route")
+        logger.info("Please restart your web application for the changes to take effect")
     else:
-        print("\nWARNING: Failed to fix the transfer_ticket route!")
-        print("You may need to manually update the route in routes/tickets.py to include 'endpoint='transfer_ticket''") 
+        logger.info("\nWARNING: Failed to fix the transfer_ticket route!")
+        logger.info("You may need to manually update the route in routes/tickets.py to include 'endpoint='transfer_ticket''") 

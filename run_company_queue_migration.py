@@ -1,6 +1,11 @@
 from alembic import command
 from alembic.config import Config
 from pathlib import Path
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def run_migration():
     # Get the directory containing this script
@@ -13,16 +18,16 @@ def run_migration():
     
     try:
         # First, try to get the current heads
-        print("Checking database revision status...")
+        logger.info("Checking database revision status...")
         command.current(alembic_cfg)
         
         # Run the specific migration for company queue permissions
-        print("Applying company queue permissions migration...")
+        logger.info("Applying company queue permissions migration...")
         target_revision = "675ed76a9bca"  # The revision ID of our company queue permissions migration
         command.upgrade(alembic_cfg, target_revision)
-        print("Company Queue Permissions migration completed successfully!")
+        logger.info("Company Queue Permissions migration completed successfully!")
     except Exception as e:
-        print(f"Error during migration: {e}")
+        logger.info("Error during migration: {e}")
         raise
 
 if __name__ == '__main__':

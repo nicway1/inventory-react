@@ -9,27 +9,27 @@ from datetime import datetime
 
 def update_asset_model():
     """Add track_change method to Asset model"""
-    print("Starting update of Asset model...")
+    logger.info("Starting update of Asset model...")
     
     # Determine if we're running locally or on PythonAnywhere
     if os.path.exists('/home/nicway2/inventory'):
         model_file_path = '/home/nicway2/inventory/models/asset.py'
-        print("Running on PythonAnywhere environment")
+        logger.info("Running on PythonAnywhere environment")
     else:
         model_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'asset.py')
-        print(f"Running on local environment, path: {model_file_path}")
+        logger.info("Running on local environment, path: {model_file_path}")
     
     if not os.path.exists(model_file_path):
-        print(f"Error: Asset model file not found at {model_file_path}")
+        logger.info("Error: Asset model file not found at {model_file_path}")
         return False
     
     # Create a backup of the original file
     backup_path = f"{model_file_path}.bak.{datetime.now().strftime('%Y%m%d%H%M%S')}"
     try:
         shutil.copy2(model_file_path, backup_path)
-        print(f"Backup created at {backup_path}")
+        logger.info("Backup created at {backup_path}")
     except Exception as e:
-        print(f"Warning: Could not create backup: {str(e)}")
+        logger.info("Warning: Could not create backup: {str(e)}")
     
     # Read the current model file
     with open(model_file_path, 'r') as f:
@@ -37,7 +37,7 @@ def update_asset_model():
     
     # Check if track_change method already exists
     if 'def track_change' in content:
-        print("track_change method already exists in the model. No changes needed.")
+        logger.info("track_change method already exists in the model. No changes needed.")
         return True
     
     # Find the position to insert the track_change method - after the class attributes and relationships
@@ -57,7 +57,7 @@ def update_asset_model():
                 pos = pattern_end + 1
     
     if pos == -1:
-        print("Could not find a suitable position to insert the track_change method.")
+        logger.info("Could not find a suitable position to insert the track_change method.")
         return False
     
     # Find the next line after the position
@@ -96,16 +96,16 @@ def update_asset_model():
     try:
         with open(model_file_path, 'w') as f:
             f.write(new_content)
-        print(f"Successfully added track_change method to Asset model at {model_file_path}")
+        logger.info("Successfully added track_change method to Asset model at {model_file_path}")
         return True
     except Exception as e:
-        print(f"Error writing to file: {str(e)}")
+        logger.info("Error writing to file: {str(e)}")
         return False
 
 if __name__ == "__main__":
     success = update_asset_model()
     if success:
-        print("Asset model successfully updated.")
+        logger.info("Asset model successfully updated.")
     else:
-        print("Failed to update Asset model.")
+        logger.info("Failed to update Asset model.")
         sys.exit(1) 

@@ -19,26 +19,26 @@ from datetime import datetime
 
 def check_file_exists_and_size(db_path):
     """Check if database file exists and get its size"""
-    print(f"🔍 Checking database file: {db_path}")
+    logger.info("🔍 Checking database file: {db_path}")
     
     if not os.path.exists(db_path):
-        print(f"❌ Database file does not exist: {db_path}")
+        logger.info("❌ Database file does not exist: {db_path}")
         return False, 0
     
     file_size = os.path.getsize(db_path)
-    print(f"📁 File exists, size: {file_size} bytes")
+    logger.info("📁 File exists, size: {file_size} bytes")
     
     if file_size == 0:
-        print("⚠️  WARNING: Database file is empty (0 bytes)")
+        logger.info("⚠️  WARNING: Database file is empty (0 bytes)")
         return True, 0
     elif file_size < 1024:
-        print("⚠️  WARNING: Database file is very small (< 1KB)")
+        logger.info("⚠️  WARNING: Database file is very small (< 1KB)")
     
     return True, file_size
 
 def test_database_integrity(db_path):
     """Test if the database file can be opened and is valid"""
-    print(f"🔍 Testing database integrity...")
+    logger.info("🔍 Testing database integrity...")
     
     try:
         conn = sqlite3.connect(db_path)
@@ -48,25 +48,25 @@ def test_database_integrity(db_path):
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = cursor.fetchall()
         
-        print(f"✅ Database is readable, found {len(tables)} tables")
+        logger.info("✅ Database is readable, found {len(tables)} tables")
         for table in tables[:5]:  # Show first 5 tables
-            print(f"   - {table[0]}")
+            logger.info("   - {table[0]}")
         if len(tables) > 5:
-            print(f"   ... and {len(tables) - 5} more tables")
+            logger.info("   ... and {len(tables) - 5} more tables")
         
         conn.close()
         return True, len(tables)
         
     except sqlite3.DatabaseError as e:
-        print(f"❌ Database corruption detected: {e}")
+        logger.info("❌ Database corruption detected: {e}")
         return False, 0
     except Exception as e:
-        print(f"❌ Unexpected error reading database: {e}")
+        logger.info("❌ Unexpected error reading database: {e}")
         return False, 0
 
 def find_backup_files():
     """Find available backup files"""
-    print(f"🔍 Looking for backup files...")
+    logger.info("🔍 Looking for backup files...")
     
     backup_patterns = [
         '/home/nicway2/inventory/backups/',
@@ -78,13 +78,13 @@ def find_backup_files():
     
     for backup_dir in backup_patterns:
         if os.path.exists(backup_dir):
-            print(f"   Checking: {backup_dir}")
+            logger.info("   Checking: {backup_dir}")
             for file in os.listdir(backup_dir):
                 if 'backup' in file.lower() and file.endswith('.db'):
                     full_path = os.path.join(backup_dir, file)
                     file_size = os.path.getsize(full_path)
                     backup_files.append((full_path, file_size))
-                    print(f"   Found backup: {file} ({file_size} bytes)")
+                    logger.info("   Found backup: {file} ({file_size} bytes)")
     
     # Sort by file size (larger is probably better)
     backup_files.sort(key=lambda x: x[1], reverse=True)
@@ -93,52 +93,52 @@ def find_backup_files():
 
 def restore_from_backup(backup_path, target_path):
     """Restore database from backup file"""
-    print(f"🔄 Restoring database from backup...")
-    print(f"   Source: {backup_path}")
-    print(f"   Target: {target_path}")
+    logger.info("🔄 Restoring database from backup...")
+    logger.info("   Source: {backup_path}")
+    logger.info("   Target: {target_path}")
     
     try:
         # Test the backup file first
         is_valid, table_count = test_database_integrity(backup_path)
         if not is_valid:
-            print(f"❌ Backup file is also corrupted: {backup_path}")
+            logger.info("❌ Backup file is also corrupted: {backup_path}")
             return False
         
-        print(f"✅ Backup file is valid ({table_count} tables)")
+        logger.info("✅ Backup file is valid ({table_count} tables)")
         
         # Create backup of corrupted file
         corrupted_backup = f"{target_path}.corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         if os.path.exists(target_path):
             shutil.move(target_path, corrupted_backup)
-            print(f"📦 Moved corrupted file to: {corrupted_backup}")
+            logger.info("📦 Moved corrupted file to: {corrupted_backup}")
         
         # Copy backup to target location
         shutil.copy2(backup_path, target_path)
-        print(f"✅ Restored database from backup")
+        logger.info("✅ Restored database from backup")
         
         # Verify the restored database
         is_valid, table_count = test_database_integrity(target_path)
         if is_valid:
-            print(f"✅ Restored database is working ({table_count} tables)")
+            logger.info("✅ Restored database is working ({table_count} tables)")
             return True
         else:
-            print(f"❌ Restored database is still corrupted")
+            logger.info("❌ Restored database is still corrupted")
             return False
             
     except Exception as e:
-        print(f"❌ Error during backup restoration: {e}")
+        logger.info("❌ Error during backup restoration: {e}")
         return False
 
 def create_minimal_database(db_path):
     """Create a minimal database with basic structure"""
-    print(f"🔧 Creating minimal database structure...")
+    logger.info("🔧 Creating minimal database structure...")
     
     try:
         # Remove corrupted file
         if os.path.exists(db_path):
             corrupted_backup = f"{db_path}.corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             shutil.move(db_path, corrupted_backup)
-            print(f"📦 Moved corrupted file to: {corrupted_backup}")
+            logger.info("📦 Moved corrupted file to: {corrupted_backup}")
         
         # Create new database with basic tables
         conn = sqlite3.connect(db_path)
@@ -229,7 +229,7 @@ def create_minimal_database(db_path):
         
         for table_sql in essential_tables:
             cursor.execute(table_sql)
-            print(f"   ✅ Created table")
+            logger.info("   ✅ Created table")
         
         # Create admin user
         cursor.execute("""
@@ -240,11 +240,11 @@ def create_minimal_database(db_path):
         conn.commit()
         conn.close()
         
-        print(f"✅ Created minimal database with essential tables")
+        logger.info("✅ Created minimal database with essential tables")
         return True
         
     except Exception as e:
-        print(f"❌ Error creating minimal database: {e}")
+        logger.info("❌ Error creating minimal database: {e}")
         return False
 
 def repair_database():
@@ -252,60 +252,60 @@ def repair_database():
     # PythonAnywhere database path
     db_path = '/home/nicway2/inventory/inventory.db'
     
-    print("=" * 70)
-    print("🚀 PythonAnywhere Database Repair Tool")
-    print("   Fixes: 'file is not a database' corruption errors")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("🚀 PythonAnywhere Database Repair Tool")
+    logger.info("   Fixes: 'file is not a database' corruption errors")
+    logger.info("=" * 70)
     
     # Step 1: Check file existence and size
     file_exists, file_size = check_file_exists_and_size(db_path)
     
     if not file_exists:
-        print("\n🔧 Database file missing, will create new one...")
+        logger.info("\n🔧 Database file missing, will create new one...")
         return create_minimal_database(db_path)
     
     # Step 2: Test database integrity
     is_valid, table_count = test_database_integrity(db_path)
     
     if is_valid:
-        print("\n✅ Database is actually working fine!")
-        print("   The error might be intermittent or already resolved.")
+        logger.info("\n✅ Database is actually working fine!")
+        logger.info("   The error might be intermittent or already resolved.")
         return True
     
     # Step 3: Database is corrupted, try to find backups
-    print(f"\n💥 Database is corrupted, looking for backups...")
+    logger.info("\n💥 Database is corrupted, looking for backups...")
     backup_files = find_backup_files()
     
     if backup_files:
-        print(f"\n🔄 Found {len(backup_files)} backup files, trying restoration...")
+        logger.info("\n🔄 Found {len(backup_files)} backup files, trying restoration...")
         for backup_path, backup_size in backup_files:
-            print(f"\n   Trying backup: {os.path.basename(backup_path)} ({backup_size} bytes)")
+            logger.info("\n   Trying backup: {os.path.basename(backup_path)} ({backup_size} bytes)")
             if restore_from_backup(backup_path, db_path):
-                print(f"✅ Successfully restored from backup!")
+                logger.info("✅ Successfully restored from backup!")
                 return True
             else:
-                print(f"❌ This backup didn't work, trying next...")
+                logger.info("❌ This backup didn't work, trying next...")
     
     # Step 4: No good backups, create minimal database
-    print(f"\n⚠️  No usable backups found, creating minimal database...")
+    logger.info("\n⚠️  No usable backups found, creating minimal database...")
     return create_minimal_database(db_path)
 
 if __name__ == "__main__":
     success = repair_database()
     
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)
     if success:
-        print("🎉 SUCCESS! Database has been repaired.")
-        print("\n📝 Next steps:")
-        print("   1. Restart your PythonAnywhere web app")
-        print("   2. Test the application")
-        print("   3. You may need to recreate some data if restored from old backup")
-        print("   4. Consider setting up automated backups")
+        logger.info("🎉 SUCCESS! Database has been repaired.")
+        logger.info("\n📝 Next steps:")
+        logger.info("   1. Restart your PythonAnywhere web app")
+        logger.info("   2. Test the application")
+        logger.info("   3. You may need to recreate some data if restored from old backup")
+        logger.info("   4. Consider setting up automated backups")
         sys.exit(0)
     else:
-        print("💥 FAILED! Could not repair the database.")
-        print("\n📝 Manual intervention required:")
-        print("   1. Check PythonAnywhere disk space")
-        print("   2. Contact PythonAnywhere support if needed")
-        print("   3. Consider uploading a working database from local development")
+        logger.info("💥 FAILED! Could not repair the database.")
+        logger.info("\n📝 Manual intervention required:")
+        logger.info("   1. Check PythonAnywhere disk space")
+        logger.info("   2. Contact PythonAnywhere support if needed")
+        logger.info("   3. Consider uploading a working database from local development")
         sys.exit(1) 

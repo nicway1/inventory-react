@@ -2,6 +2,11 @@ from utils.db_manager import DatabaseManager
 from models.asset import Asset, AssetStatus
 from models.user import User
 from datetime import datetime
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def seed_assets():
     db = DatabaseManager()
@@ -11,7 +16,7 @@ def seed_assets():
         # Get the first user's company_id
         user = session.query(User).first()
         if not user or not user.company_id:
-            print("No user or company found. Please create a user and company first.")
+            logger.info("No user or company found. Please create a user and company first.")
             return
             
         company_id = user.company_id
@@ -74,11 +79,11 @@ def seed_assets():
             session.add(asset)
         
         session.commit()
-        print("Sample assets added successfully!")
+        logger.info("Sample assets added successfully!")
         
     except Exception as e:
         session.rollback()
-        print(f"Error adding sample assets: {str(e)}")
+        logger.info("Error adding sample assets: {str(e)}")
     finally:
         session.close()
 

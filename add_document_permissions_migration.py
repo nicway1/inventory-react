@@ -25,7 +25,7 @@ def check_column_exists(cursor, table_name, column_name):
 
 def create_permissions_table(cursor):
     """Create the permissions table with all necessary columns"""
-    print("Creating permissions table...")
+    logger.info("Creating permissions table...")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS permissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +75,7 @@ def create_permissions_table(cursor):
         ('USER', FALSE, FALSE, FALSE),
         ('VIEWER', FALSE, FALSE, FALSE)
     """)
-    print("✓ Permissions table created successfully!")
+    logger.info("✓ Permissions table created successfully!")
 
 def add_document_permissions():
     """Add document permissions columns to the permissions table"""
@@ -96,28 +96,28 @@ def add_document_permissions():
             break
     
     if not db_path:
-        print(f"Database not found. Checked paths:")
+        logger.info("Database not found. Checked paths:")
         for path in possible_paths:
-            print(f"  - {path}")
-        print("Creating new database at default location...")
+            logger.info("  - {path}")
+        logger.info("Creating new database at default location...")
         db_path = Path(__file__).parent / 'instance' / 'inventory.db'
         # Create instance directory if it doesn't exist
         db_path.parent.mkdir(exist_ok=True)
     
-    print(f"Using database: {db_path}")
+    logger.info("Using database: {db_path}")
     
     try:
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
-        print("Checking database structure...")
+        logger.info("Checking database structure...")
         
         # Check if permissions table exists
         if not check_table_exists(cursor, 'permissions'):
-            print("Permissions table not found. Creating it...")
+            logger.info("Permissions table not found. Creating it...")
             create_permissions_table(cursor)
         else:
-            print("✓ Permissions table exists")
+            logger.info("✓ Permissions table exists")
             
             # Check and add missing columns
             columns_to_add = [
@@ -128,18 +128,18 @@ def add_document_permissions():
             
             for column_name, default_value in columns_to_add:
                 if not check_column_exists(cursor, 'permissions', column_name):
-                    print(f"Adding missing column: {column_name}")
+                    logger.info("Adding missing column: {column_name}")
                     try:
                         cursor.execute(f"ALTER TABLE permissions ADD COLUMN {column_name} BOOLEAN DEFAULT {default_value}")
-                        print(f"✓ Added column {column_name}")
+                        logger.info("✓ Added column {column_name}")
                     except Exception as e:
-                        print(f"✗ Error adding column {column_name}: {e}")
+                        logger.info("✗ Error adding column {column_name}: {e}")
                         return False
                 else:
-                    print(f"✓ Column {column_name} already exists")
+                    logger.info("✓ Column {column_name} already exists")
             
             # Update SUPER_ADMIN and ADMIN permissions to have document access
-            print("Updating admin permissions for document access...")
+            logger.info("Updating admin permissions for document access...")
             cursor.execute("""
                 UPDATE permissions 
                 SET can_access_documents = TRUE, 
@@ -149,35 +149,35 @@ def add_document_permissions():
             """)
         
         # Show current permissions structure
-        print("\nCurrent permissions table structure:")
+        logger.info("\nCurrent permissions table structure:")
         cursor.execute("PRAGMA table_info(permissions)")
         columns = cursor.fetchall()
         for column in columns:
-            print(f"  - {column[1]} ({column[2]})")
+            logger.info("  - {column[1]} ({column[2]})")
         
         conn.commit()
-        print("✓ Database migration completed successfully!")
+        logger.info("✓ Database migration completed successfully!")
         return True
         
     except Exception as e:
-        print(f"✗ Error during migration: {e}")
+        logger.info("✗ Error during migration: {e}")
         return False
     finally:
         if 'conn' in locals():
             conn.close()
 
 if __name__ == "__main__":
-    print("🚀 Starting enhanced database migration...")
-    print("This script will add missing document permission columns to the permissions table.")
+    logger.info("🚀 Starting enhanced database migration...")
+    logger.info("This script will add missing document permission columns to the permissions table.")
     
     success = add_document_permissions()
     
     if success:
-        print("🎉 Migration completed successfully!")
-        print("\n📋 Next steps:")
-        print("1. Restart your PythonAnywhere web app")
-        print("2. Test login functionality")
-        print("3. Check that document permissions work correctly")
+        logger.info("🎉 Migration completed successfully!")
+        logger.info("\n📋 Next steps:")
+        logger.info("1. Restart your PythonAnywhere web app")
+        logger.info("2. Test login functionality")
+        logger.info("3. Check that document permissions work correctly")
     else:
-        print("❌ Migration failed!")
+        logger.info("❌ Migration failed!")
         sys.exit(1) 

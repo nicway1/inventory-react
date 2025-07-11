@@ -19,16 +19,16 @@ def backup_corrupted_db():
         backup_path = f"inventory_corrupted_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
         try:
             os.rename(db_path, backup_path)
-            print(f"📦 Corrupted database backed up as: {backup_path}")
+            logger.info("📦 Corrupted database backed up as: {backup_path}")
             return True
         except Exception as e:
-            print(f"❌ Failed to backup corrupted database: {e}")
+            logger.info("❌ Failed to backup corrupted database: {e}")
             return False
     return True
 
 def recreate_database():
     """Recreate database from scratch using the app's initialization"""
-    print("🔄 Recreating database from scratch...")
+    logger.info("🔄 Recreating database from scratch...")
     
     try:
         # Remove any existing database files
@@ -36,19 +36,19 @@ def recreate_database():
         for db_file in db_files:
             if os.path.exists(db_file):
                 os.remove(db_file)
-                print(f"🗑️  Removed: {db_file}")
+                logger.info("🗑️  Removed: {db_file}")
         
         # Import and initialize the app
         from app import create_app
         from utils.db_setup import init_db
         
-        print("🏗️  Creating new database...")
+        logger.info("🏗️  Creating new database...")
         app = create_app()
         
         with app.app_context():
             # Initialize database
             init_db()
-            print("✅ Database schema created successfully!")
+            logger.info("✅ Database schema created successfully!")
             
             # Create default admin user
             from models.user import User, UserType
@@ -59,7 +59,7 @@ def recreate_database():
             # Check if admin user exists
             admin_user = db_session.query(User).filter_by(username='admin').first()
             if not admin_user:
-                print("👤 Creating default admin user...")
+                logger.info("👤 Creating default admin user...")
                 admin_user = User(
                     username='admin',
                     email='admin@lunacomputer.com',
@@ -71,22 +71,22 @@ def recreate_database():
                 )
                 db_session.add(admin_user)
                 db_session.commit()
-                print("✅ Default admin user created (username: admin, password: admin)")
+                logger.info("✅ Default admin user created (username: admin, password: admin)")
             
             db_session.close()
             
-        print("✅ Database recreation completed successfully!")
+        logger.info("✅ Database recreation completed successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Database recreation failed: {e}")
+        logger.info("❌ Database recreation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 def verify_new_database():
     """Verify the new database works"""
-    print("🔍 Verifying new database...")
+    logger.info("🔍 Verifying new database...")
     
     try:
         conn = sqlite3.connect("inventory.db")
@@ -103,25 +103,25 @@ def verify_new_database():
             if table in table_names:
                 cursor.execute(f"SELECT COUNT(*) FROM {table}")
                 count = cursor.fetchone()[0]
-                print(f"✅ {table} table: {count} records")
+                logger.info("✅ {table} table: {count} records")
             else:
-                print(f"⚠️  {table} table: missing")
+                logger.info("⚠️  {table} table: missing")
         
         conn.close()
-        print("✅ Database verification completed!")
+        logger.info("✅ Database verification completed!")
         return True
         
     except Exception as e:
-        print(f"❌ Database verification failed: {e}")
+        logger.info("❌ Database verification failed: {e}")
         return False
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("🔄 Database Recreation Tool")
-    print("=" * 50)
-    print("⚠️  WARNING: This will delete all existing data!")
-    print("Only use this if database repair failed.")
-    print("=" * 50)
+    logger.info("=" * 50)
+    logger.info("🔄 Database Recreation Tool")
+    logger.info("=" * 50)
+    logger.info("⚠️  WARNING: This will delete all existing data!")
+    logger.info("Only use this if database repair failed.")
+    logger.info("=" * 50)
     
     # Backup corrupted database
     if backup_corrupted_db():
@@ -129,14 +129,14 @@ if __name__ == "__main__":
         if recreate_database():
             # Verify new database
             if verify_new_database():
-                print("\n🎉 Database recreation completed successfully!")
-                print("📋 Next steps:")
-                print("1. Restart your PythonAnywhere web app")
-                print("2. Login with username: admin, password: admin")
-                print("3. Create new users and import your data")
+                logger.info("\n🎉 Database recreation completed successfully!")
+                logger.info("📋 Next steps:")
+                logger.info("1. Restart your PythonAnywhere web app")
+                logger.info("2. Login with username: admin, password: admin")
+                logger.info("3. Create new users and import your data")
             else:
-                print("\n❌ Database verification failed.")
+                logger.info("\n❌ Database verification failed.")
         else:
-            print("\n❌ Database recreation failed.")
+            logger.info("\n❌ Database recreation failed.")
     else:
-        print("\n❌ Failed to backup corrupted database.") 
+        logger.info("\n❌ Failed to backup corrupted database.") 

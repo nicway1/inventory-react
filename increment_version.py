@@ -39,7 +39,7 @@ def increment_version(increment_type='build'):
     build_match = re.search(r'VERSION_BUILD = (\d+)', content)
     
     if not all([major_match, minor_match, patch_match, build_match]):
-        print("Error: Could not parse version numbers from version.py")
+        logger.info("Error: Could not parse version numbers from version.py")
         return False
     
     major = int(major_match.group(1))
@@ -66,8 +66,8 @@ def increment_version(increment_type='build'):
     elif increment_type == 'build':
         build += 1
     else:
-        print(f"Error: Unknown increment type '{increment_type}'")
-        print("Valid types: major, minor, patch, build")
+        logger.info("Error: Unknown increment type '{increment_type}'")
+        logger.info("Valid types: major, minor, patch, build")
         return False
     
     # Update version numbers in content
@@ -90,8 +90,8 @@ def increment_version(increment_type='build'):
     write_version_file(content)
     
     new_version = f"{major}.{minor}.{patch}.{build}"
-    print(f"Version updated: {old_version} -> {new_version}")
-    print(f"Build timestamp: {build_date} {build_time}")
+    logger.info("Version updated: {old_version} -> {new_version}")
+    logger.info("Build timestamp: {build_date} {build_time}")
     
     return True
 
@@ -103,13 +103,13 @@ def main():
         increment_type = 'build'  # Default to build increment
     
     if increment_version(increment_type):
-        print("Version increment successful!")
-        print("\nNext steps:")
-        print("1. Review the changes in version.py")
-        print("2. Update the changelog if needed")
-        print("3. Commit and deploy")
+        logger.info("Version increment successful!")
+        logger.info("\nNext steps:")
+        logger.info("1. Review the changes in version.py")
+        logger.info("2. Update the changelog if needed")
+        logger.info("3. Commit and deploy")
     else:
-        print("Version increment failed!")
+        logger.info("Version increment failed!")
         sys.exit(1)
 
 if __name__ == "__main__":

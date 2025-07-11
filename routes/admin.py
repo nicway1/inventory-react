@@ -40,7 +40,7 @@ from sqlalchemy import text
 from models.accessory import Accessory
 from models.company_customer_permission import CompanyCustomerPermission
 
-admin_bp = Blueprint('admin', __name__)
+admin_bp = Bluelogger.info('admin', __name__)
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
 csrf = CSRFProtect()
@@ -59,11 +59,11 @@ def cleanup_old_csv_files():
             if file_age > 3600:  # 1 hour
                 try:
                     os.remove(filepath)
-                    print(f"DEBUG: Cleaned up old CSV file: {filepath}")
+                    logger.info("DEBUG: Cleaned up old CSV file: {filepath}")
                 except Exception as e:
-                    print(f"DEBUG: Failed to cleanup {filepath}: {e}")
+                    logger.info("DEBUG: Failed to cleanup {filepath}: {e}")
     except Exception as e:
-        print(f"DEBUG: CSV cleanup error: {e}")
+        logger.info("DEBUG: CSV cleanup error: {e}")
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -223,31 +223,31 @@ def edit_company(company_id):
 @admin_required
 def delete_company(company_id):
     """Delete a company"""
-    print(f"DEBUG: Delete company request received for company_id={company_id}")
+    logger.info("DEBUG: Delete company request received for company_id={company_id}")
     
     db_session = db_manager.get_session()
     try:
         # Check if company exists
         company = db_session.query(Company).get(company_id)
         if not company:
-            print(f"DEBUG: Company with ID {company_id} not found")
+            logger.info("DEBUG: Company with ID {company_id} not found")
             flash('Company not found', 'error')
             return redirect(url_for('admin.manage_companies'))
         
         # Check if company has associated users
         users_count = db_session.query(User).filter_by(company_id=company_id).count()
         if users_count > 0:
-            print(f"DEBUG: Cannot delete company - it has {users_count} associated users")
+            logger.info("DEBUG: Cannot delete company - it has {users_count} associated users")
             flash(f'Cannot delete company: It has {users_count} associated users. Please reassign or delete the users first.', 'error')
             return redirect(url_for('admin.manage_companies'))
         
         # First delete all related company queue permissions
-        print(f"DEBUG: Deleting queue permissions for company_id={company_id}")
+        logger.info("DEBUG: Deleting queue permissions for company_id={company_id}")
         deleted_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=company_id).delete()
-        print(f"DEBUG: Deleted {deleted_permissions} queue permissions")
+        logger.info("DEBUG: Deleted {deleted_permissions} queue permissions")
         
         # Then delete the company
-        print(f"DEBUG: Deleting company: {company.name} (ID: {company.id})")
+        logger.info("DEBUG: Deleting company: {company.name} (ID: {company.id})")
         db_session.delete(company)
         db_session.commit()
         flash('Company deleted successfully', 'success')
@@ -255,8 +255,8 @@ def delete_company(company_id):
     
     except Exception as e:
         db_session.rollback()
-        print(f"DEBUG: Error deleting company: {str(e)}")
-        print(f"DEBUG: {traceback.format_exc()}")
+        logger.info("DEBUG: Error deleting company: {str(e)}")
+        logger.info("DEBUG: {traceback.format_exc()}")
         flash(f'Error deleting company: {str(e)}', 'error')
         return redirect(url_for('admin.manage_companies'))
     
@@ -344,17 +344,17 @@ def create_user():
 @admin_required
 def edit_user(user_id):
     """Edit an existing user"""
-    print(f"DEBUG: Entering edit_user route for user_id={user_id}")
+    logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
     db_session = db_manager.get_session()
     user = db_session.query(User).get(user_id)
     if not user:
-        print("DEBUG: User not found")
+        logger.info("DEBUG: User not found")
         flash('User not found', 'error')
         return redirect(url_for('admin.manage_users'))
 
-    print(f"DEBUG: User found: {user.username}, type={user.user_type}")
+    logger.info("DEBUG: User found: {user.username}, type={user.user_type}")
     companies = db_session.query(Company).all()
-    print(f"DEBUG: Found {len(companies)} companies")
+    logger.info("DEBUG: Found {len(companies)} companies")
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -364,7 +364,7 @@ def edit_user(user_id):
         password = request.form.get('password')
         assigned_country = request.form.get('assigned_country')
 
-        print(f"DEBUG: Form submission - company_id={company_id}, user_type={user_type}")
+        logger.info("DEBUG: Form submission - company_id={company_id}, user_type={user_type}")
 
         try:
             # Update basic user information
@@ -377,7 +377,7 @@ def edit_user(user_id):
             
             # Company is required for CLIENT users
             if user_type == 'CLIENT' and not company_id:
-                print("DEBUG: CLIENT type but no company selected")
+                logger.info("DEBUG: CLIENT type but no company selected")
                 flash('Company selection is required for Client users', 'error')
                 return render_template('admin/edit_user.html', user=user, companies=companies)
 
@@ -399,12 +399,12 @@ def edit_user(user_id):
             return redirect(url_for('admin.manage_users'))
         except Exception as e:
             db_session.rollback()
-            print(f"DEBUG: Error updating user: {str(e)}")
+            logger.info("DEBUG: Error updating user: {str(e)}")
             flash(f'Error updating user: {str(e)}', 'error')
         finally:
             db_session.close()
 
-    print("DEBUG: Rendering edit_user template")
+    logger.info("DEBUG: Rendering edit_user template")
     return render_template('admin/edit_user.html', user=user, companies=companies)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
@@ -455,10 +455,10 @@ def update_permissions():
     db_session = db_manager.get_session()
     try:
         # Log the form data
-        print("Form data received:", request.form)
+        logger.info("Form data received:", request.form)
         
         user_type = request.form.get('user_type')
-        print("User type:", user_type)
+        logger.info("User type:", user_type)
         
         if not user_type:
             flash('User type is required', 'error')
@@ -466,23 +466,23 @@ def update_permissions():
 
         try:
             user_type_enum = UserType[user_type]
-            print("User type enum:", user_type_enum)
+            logger.info("User type enum:", user_type_enum)
         except KeyError:
             flash('Invalid user type', 'error')
             return redirect(url_for('admin.permission_management'))
 
         # Get existing permission record
         permission = db_session.query(Permission).filter_by(user_type=user_type_enum).first()
-        print("Existing permission:", permission)
+        logger.info("Existing permission:", permission)
         
         if not permission:
             permission = Permission(user_type=user_type_enum)
             db_session.add(permission)
-            print("Created new permission record")
+            logger.info("Created new permission record")
 
         # Get all permission fields
         fields = Permission.permission_fields()
-        print("Permission fields:", fields)
+        logger.info("Permission fields:", fields)
 
         # Update permissions from form data
         for field in fields:
@@ -490,16 +490,16 @@ def update_permissions():
             # Check if the field exists in form and its value is 'true'
             new_value = request.form.get(field) == 'true'
             setattr(permission, field, new_value)
-            print(f"Updating {field}: {old_value} -> {new_value}")
+            logger.info("Updating {field}: {old_value} -> {new_value}")
 
         db_session.commit()
-        print("Changes committed successfully")
+        logger.info("Changes committed successfully")
         
         flash('Permissions updated successfully', 'success')
         return redirect(url_for('admin.permission_management'))
     except Exception as e:
         db_session.rollback()
-        print("Error updating permissions:", str(e))
+        logger.error("Error updating permissions:", str(e))
         flash(f'Error updating permissions: {str(e)}', 'error')
         return redirect(url_for('admin.permission_management'))
     finally:
@@ -679,8 +679,8 @@ def update_queue_permissions():
     """Update queue permissions for companies"""
     try:
         # Debug incoming request data
-        print("Form data received:", request.form)
-        print("JSON data received:", request.get_json(silent=True))
+        logger.info("Form data received:", request.form)
+        logger.info("JSON data received:", request.get_json(silent=True))
         
         # Try multiple ways to get the data
         if request.form:
@@ -697,8 +697,8 @@ def update_queue_permissions():
             can_view = data.get('can_view', False)
             can_create = data.get('can_create', False)
         
-        print(f"Raw company_id: {company_id}, type: {type(company_id)}")
-        print(f"Raw queue_id: {queue_id}, type: {type(queue_id)}")
+        logger.info("Raw company_id: {company_id}, type: {type(company_id)}")
+        logger.info("Raw queue_id: {queue_id}, type: {type(queue_id)}")
         
         # Convert to integers with safer handling
         try:
@@ -707,15 +707,15 @@ def update_queue_permissions():
             if queue_id:
                 queue_id = int(queue_id)
         except (ValueError, TypeError) as e:
-            print(f"Error converting IDs to integers: {str(e)}")
+            logger.info("Error converting IDs to integers: {str(e)}")
             flash(f"Invalid ID format: {str(e)}", 'error')
             return redirect(url_for('admin.manage_queue_permissions'))
         
-        print(f"Converted company_id: {company_id}, queue_id: {queue_id}")
-        print(f"Permission values - has_permission: {has_permission}, can_view: {can_view}, can_create: {can_create}")
+        logger.info("Converted company_id: {company_id}, queue_id: {queue_id}")
+        logger.info("Permission values - has_permission: {has_permission}, can_view: {can_view}, can_create: {can_create}")
         
         if not company_id or not queue_id:
-            print("INVALID: Missing company_id or queue_id")
+            logger.info("INVALID: Missing company_id or queue_id")
             flash('Invalid company or queue ID', 'error')
             return redirect(url_for('admin.manage_queue_permissions'))
         
@@ -726,12 +726,12 @@ def update_queue_permissions():
             queue = db_session.query(Queue).get(queue_id)
             
             if not company:
-                print(f"Company with ID {company_id} not found")
+                logger.info("Company with ID {company_id} not found")
                 flash(f"Company with ID {company_id} not found", 'error')
                 return redirect(url_for('admin.manage_queue_permissions'))
                 
             if not queue:
-                print(f"Queue with ID {queue_id} not found")
+                logger.info("Queue with ID {queue_id} not found")
                 flash(f"Queue with ID {queue_id} not found", 'error')
                 return redirect(url_for('admin.manage_queue_permissions'))
             
@@ -739,7 +739,7 @@ def update_queue_permissions():
             permission = db_session.query(CompanyQueuePermission).filter_by(
                 company_id=company_id, queue_id=queue_id).first()
             
-            print(f"Existing permission found: {permission is not None}")
+            logger.info("Existing permission found: {permission is not None}")
             
             if not has_permission:
                 # If no permission should be granted, delete existing permission if it exists
@@ -747,13 +747,13 @@ def update_queue_permissions():
                     db_session.delete(permission)
                     db_session.commit()
                     flash('Permission removed successfully', 'success')
-                    print("Permission removed")
+                    logger.info("Permission removed")
             else:
                 if permission:
                     # Update existing permission
                     permission.can_view = can_view
                     permission.can_create = can_create
-                    print(f"Updated permission - can_view: {can_view}, can_create: {can_create}")
+                    logger.info("Updated permission - can_view: {can_view}, can_create: {can_create}")
                 else:
                     # Create new permission
                     permission = CompanyQueuePermission(
@@ -763,26 +763,26 @@ def update_queue_permissions():
                         can_create=can_create
                     )
                     db_session.add(permission)
-                    print(f"Created new permission - can_view: {can_view}, can_create: {can_create}")
+                    logger.info("Created new permission - can_view: {can_view}, can_create: {can_create}")
             
                 db_session.commit()
                 flash('Queue permissions updated successfully', 'success')
-                print("Permission saved successfully")
+                logger.info("Permission saved successfully")
             
             return jsonify({"status": "success", "message": "Permission updated successfully"})
             
         except Exception as e:
             db_session.rollback()
-            print(f"ERROR: {str(e)}")
-            print(f"Stack trace: {traceback.format_exc()}")
+            logger.info("ERROR: {str(e)}")
+            logger.info("Stack trace: {traceback.format_exc()}")
             flash(f'Error updating queue permissions: {str(e)}', 'error')
             return jsonify({"status": "error", "message": str(e)}), 500
         finally:
             db_session.close()
     
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        print(f"Stack trace: {traceback.format_exc()}")
+        logger.info("Unexpected error: {str(e)}")
+        logger.info("Stack trace: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}"}), 500
         
     return redirect(url_for('admin.manage_queue_permissions'))
@@ -837,7 +837,7 @@ def system_config():
         except Exception as e:
             # If there's an error (like table doesn't exist), just ignore it
             # and use the API key from config
-            print(f"Error fetching Firecrawl keys: {str(e)}")
+            logger.info("Error fetching Firecrawl keys: {str(e)}")
         
         # Add Microsoft 365 OAuth2 configuration to config for template
         import os
@@ -1286,7 +1286,7 @@ def update_firecrawl_key():
                 
                 db_session.commit()
         except Exception as e:
-            print(f"Error updating key in database (continuing anyway): {str(e)}")
+            logger.info("Error updating key in database (continuing anyway): {str(e)}")
             # Don't stop execution - we've already updated the config
         
         flash('Firecrawl API key updated successfully', 'success')
@@ -2165,7 +2165,7 @@ def csv_import_upload():
         })
         
     except Exception as e:
-        print(f"Error in CSV upload: {str(e)}")
+        logger.info("Error in CSV upload: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to process CSV: {str(e)}'})
@@ -2185,11 +2185,11 @@ def cleanup_old_csv_files():
                 if current_time - file_time > 3600:
                     try:
                         os.remove(file_path)
-                        print(f"Cleaned up old CSV file: {filename}")
+                        logger.info("Cleaned up old CSV file: {filename}")
                     except Exception as e:
-                        print(f"Failed to clean up file {filename}: {e}")
+                        logger.info("Failed to clean up file {filename}: {e}")
     except Exception as e:
-        print(f"Error in cleanup: {e}")
+        logger.info("Error in cleanup: {e}")
 
 def clean_csv_row(row):
     """Clean and validate a CSV row"""
@@ -2212,7 +2212,7 @@ def clean_csv_row(row):
         # Check if required fields are present and non-empty
         for field in required_fields:
             if not cleaned.get(field):
-                print(f"Skipping row due to missing {field}: {cleaned}")
+                logger.info("Skipping row due to missing {field}: {cleaned}")
                 return None
         
         # Set default values for missing fields
@@ -2251,7 +2251,7 @@ def clean_csv_row(row):
         return cleaned
         
     except Exception as e:
-        print(f"Error cleaning row: {e}")
+        logger.info("Error cleaning row: {e}")
         return None
 
 def group_orders_by_id(data):
@@ -2310,7 +2310,7 @@ def group_orders_by_id(data):
         return grouped_orders, individual_items
         
     except Exception as e:
-        print(f"Error grouping orders: {e}")
+        logger.info("Error grouping orders: {e}")
         return [], data
 
 @admin_bp.route('/csv-import/preview-ticket', methods=['POST'])
@@ -2492,7 +2492,7 @@ def csv_import_preview_ticket():
                 accessory_query = db_session.query(Accessory)
                 
                 # Debug logging for accessory matching
-                print(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                logger.info("CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
                 
                 # Search by exact product name in accessories
                 if product_title:
@@ -2500,7 +2500,7 @@ def csv_import_preview_ticket():
                         Accessory.name.ilike(f'%{product_title}%')
                     ).limit(3).all()
                     
-                    print(f"CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
+                    logger.info("CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
                     
                     for accessory in accessory_matches:
                         is_available = accessory.available_quantity > 0
@@ -2521,11 +2521,11 @@ def csv_import_preview_ticket():
                 if len(matches) < 5:
                     # Create search terms for fuzzy matching
                     search_terms = product_title.lower().split() if product_title else []
-                    print(f"CSV_ACCESSORY_DEBUG: Fuzzy search terms: {search_terms}")
+                    logger.info("CSV_ACCESSORY_DEBUG: Fuzzy search terms: {search_terms}")
                     
                     for term in search_terms:
                         if len(term) > 3:  # Only search terms longer than 3 characters
-                            print(f"CSV_ACCESSORY_DEBUG: Searching fuzzy matches for term: '{term}'")
+                            logger.info("CSV_ACCESSORY_DEBUG: Searching fuzzy matches for term: '{term}'")
                             fuzzy_matches = accessory_query.filter(
                                 or_(
                                     Accessory.name.ilike(f'%{term}%'),
@@ -2638,7 +2638,7 @@ def csv_import_preview_ticket():
                         'is_current': user.id == current_user.id
                     })
         except Exception as e:
-            print(f"Error getting users for case owner selection: {str(e)}")
+            logger.info("Error getting users for case owner selection: {str(e)}")
             import traceback
             traceback.print_exc()
         finally:
@@ -2737,7 +2737,7 @@ def csv_import_preview_ticket():
         return jsonify({'success': True, 'preview': ticket_preview})
         
     except Exception as e:
-        print(f"Error in preview: {str(e)}")
+        logger.info("Error in preview: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to generate preview: {str(e)}'})
@@ -2761,8 +2761,8 @@ def csv_import_import_ticket():
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        print(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        print(f"[CSV IMPORT] Selected assets data: {selected_assets}")
+        logger.info("[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
+        logger.info("[CSV IMPORT] Selected assets data: {selected_assets}")
         
         if file_id is None or row_index is None:
             return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
@@ -2989,11 +2989,11 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             if selected_case_owner_id:
                 try:
                     case_owner_id = int(selected_case_owner_id)
-                    print(f"[CSV DEBUG] Using selected case owner: {case_owner_id}")
+                    logger.info("[CSV DEBUG] Using selected case owner: {case_owner_id}")
                 except (ValueError, TypeError):
-                    print(f"[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
+                    logger.info("[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
             
-            print(f"[CSV DEBUG] Creating ticket with subject: {subject}")
+            logger.info("[CSV DEBUG] Creating ticket with subject: {subject}")
             ticket = Ticket(
                 subject=subject,
                 description=description,
@@ -3010,62 +3010,62 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             
             db_session.add(ticket)
             db_session.commit()
-            print(f"[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
+            logger.info("[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
             
             # 8. ASSIGN SELECTED ASSETS AND ACCESSORIES TO TICKET
             assigned_accessories = []
             assigned_assets = []
             
             # Assign selected assets
-            print(f"[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
-            print(f"[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
+            logger.info("[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
+            logger.info("[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
             
             # Check for duplicate asset IDs in the selection
             asset_ids = [asset_data.get('assetId') for asset_data in selected_assets if asset_data.get('assetId')]
             unique_asset_ids = list(set(asset_ids))
-            print(f"[CSV DEBUG] Asset IDs: {asset_ids}")
-            print(f"[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
+            logger.info("[CSV DEBUG] Asset IDs: {asset_ids}")
+            logger.info("[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
             if len(asset_ids) != len(unique_asset_ids):
-                print(f"[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
+                logger.info("[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
             
             if selected_assets:
                 from models.asset import Asset
-                print(f"[CSV DEBUG] Processing {len(selected_assets)} selected assets")
+                logger.info("[CSV DEBUG] Processing {len(selected_assets)} selected assets")
                 
                 # Deduplicate assets by ID to prevent constraint violations
                 processed_asset_ids = set()
                 
                 for asset_data in selected_assets:
                     asset_id = asset_data.get('assetId')
-                    print(f"[CSV DEBUG] Processing asset ID: {asset_id}")
+                    logger.info("[CSV DEBUG] Processing asset ID: {asset_id}")
                     if asset_id and asset_id not in processed_asset_ids:
                         processed_asset_ids.add(asset_id)
                         # Get the asset from database
                         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
                         if asset:
-                            print(f"[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
+                            logger.info("[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
                             if asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
                                 # Use the existing function to safely assign asset
                                 try:
-                                    print(f"[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
+                                    logger.info("[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
                                     success = safely_assign_asset_to_ticket(ticket, asset, db_session)
                                     if success:
                                         assigned_assets.append(asset.name)
-                                        print(f"[CSV DEBUG] Successfully assigned asset {asset.name}")
+                                        logger.info("[CSV DEBUG] Successfully assigned asset {asset.name}")
                                         
                                         # Also assign the asset to the customer and update status
                                         if ticket.customer_id:
                                             asset.customer_id = ticket.customer_id
-                                            print(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
                                         
                                         if ticket.assigned_to_id:
                                             asset.assigned_to_id = ticket.assigned_to_id
-                                            print(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
                                         
                                         # Update asset status to DEPLOYED
                                         from models.asset import AssetStatus
                                         asset.status = AssetStatus.DEPLOYED
-                                        print(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                                        logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
                                         
                                         # Create activity log for asset assignment
                                         from models.activity import Activity
@@ -3081,21 +3081,21 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                                         )
                                         db_session.add(activity)
                                     else:
-                                        print(f"[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
+                                        logger.info("[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
                                 except Exception as e:
-                                    print(f"[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
+                                    logger.info("[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
                                     import traceback
                                     traceback.print_exc()
                             else:
-                                print(f"[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
+                                logger.info("[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
                         else:
-                            print(f"[CSV DEBUG] Asset {asset_id} not found in database")
+                            logger.info("[CSV DEBUG] Asset {asset_id} not found in database")
                     elif asset_id in processed_asset_ids:
-                        print(f"[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
+                        logger.info("[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
             
             # Commit asset assignments
             if assigned_assets:
-                print(f"[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
+                logger.info("[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
                 db_session.commit()
             
             # Assign selected accessories
@@ -3162,7 +3162,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             db_session.close()
             
     except Exception as e:
-        print(f"Error importing ticket: {str(e)}")
+        logger.info("Error importing ticket: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
@@ -3437,16 +3437,16 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                             # Also assign the asset to the customer and update status
                             if ticket.customer_id:
                                 asset.customer_id = ticket.customer_id
-                                print(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
                             
                             if ticket.assigned_to_id:
                                 asset.assigned_to_id = ticket.assigned_to_id
-                                print(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
                             
                             # Update asset status to DEPLOYED
                             from models.asset import AssetStatus
                             asset.status = AssetStatus.DEPLOYED
-                            print(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                            logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
                             
                             # Create activity log for asset assignment
                             from models.activity import Activity
@@ -3458,7 +3458,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                             )
                             db_session.add(activity)
                         except Exception as e:
-                            print(f"Error assigning asset {asset_id}: {str(e)}")
+                            logger.info("Error assigning asset {asset_id}: {str(e)}")
         
         # Assign selected accessories
         if selected_accessories:
@@ -3532,17 +3532,17 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         bool: True if assignment was successful or already exists, False otherwise
     """
     try:
-        print(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket.id}, Asset: {asset}")
+        logger.info("[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket.id}, Asset: {asset}")
         
         # If asset is an ID, get the asset object
         if isinstance(asset, int):
             asset_id = asset
             asset = db_session.query(Asset).get(asset_id)
             if not asset:
-                print(f"[ASSET ASSIGN DEBUG] Asset with ID {asset_id} not found")
+                logger.info("[ASSET ASSIGN DEBUG] Asset with ID {asset_id} not found")
                 return False
         
-        print(f"[ASSET ASSIGN DEBUG] Asset object: {asset.name} (ID: {asset.id})")
+        logger.info("[ASSET ASSIGN DEBUG] Asset object: {asset.name} (ID: {asset.id})")
         
         # Check if the relationship already exists in the database first
         from sqlalchemy import text
@@ -3553,19 +3553,19 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
         result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
         count = result.scalar()
         
-        print(f"[ASSET ASSIGN DEBUG] Existing relationship count: {count}")
+        logger.info("[ASSET ASSIGN DEBUG] Existing relationship count: {count}")
         
         if count > 0:
-            print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
+            logger.info("[ASSET ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
         
         # Check if asset is already assigned to this ticket in memory
         if asset in ticket.assets:
-            print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id} in memory")
+            logger.info("[ASSET ASSIGN DEBUG] Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id} in memory")
             return True
         
         # Safe to assign - insert directly into ticket_assets table
-        print(f"[ASSET ASSIGN DEBUG] Inserting directly into ticket_assets table")
+        logger.info("[ASSET ASSIGN DEBUG] Inserting directly into ticket_assets table")
         try:
             from sqlalchemy import text
             insert_stmt = text("""
@@ -3574,20 +3574,20 @@ def safely_assign_asset_to_ticket(ticket, asset, db_session):
             """)
             db_session.execute(insert_stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
             db_session.flush()
-            print(f"[ASSET ASSIGN DEBUG] Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+            logger.info("[ASSET ASSIGN DEBUG] Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
             return True
         except Exception as insert_error:
-            print(f"[ASSET ASSIGN DEBUG] Error during direct insert: {str(insert_error)}")
+            logger.info("[ASSET ASSIGN DEBUG] Error during direct insert: {str(insert_error)}")
             # Check if it's a constraint violation (asset already assigned)
             if "UNIQUE constraint failed" in str(insert_error):
-                print(f"[ASSET ASSIGN DEBUG] Asset {asset.id} already assigned to ticket {ticket.id}")
+                logger.info("[ASSET ASSIGN DEBUG] Asset {asset.id} already assigned to ticket {ticket.id}")
                 return True  # Consider this a success since the asset is already assigned
             else:
-                print(f"[ASSET ASSIGN DEBUG] Unexpected error during insert")
+                logger.info("[ASSET ASSIGN DEBUG] Unexpected error during insert")
                 return False
         
     except Exception as e:
-        print(f"[ASSET ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
+        logger.info("[ASSET ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
         import traceback
         traceback.print_exc()
         return False

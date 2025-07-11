@@ -2,8 +2,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from utils.shipment_store import ShipmentStore
 from utils.shipment_tracker import ShipmentTracker
 from utils.auth_decorators import login_required, admin_required
+import logging
 
-shipments_bp = Blueprint('shipments', __name__, url_prefix='/shipments')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+shipments_bp = Bluelogger.info('shipments', __name__, url_prefix='/shipments')
 shipment_store = ShipmentStore()
 shipment_tracker = ShipmentTracker()
 

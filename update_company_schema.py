@@ -3,9 +3,14 @@ from database import engine
 from models.company import Company
 from models.user_company_permission import UserCompanyPermission
 from models.base import Base
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def update_company_schema():
-    print("Starting company schema update...")
+    logger.info("Starting company schema update...")
     
     # Create new tables
     Base.metadata.create_all(engine, tables=[
@@ -17,11 +22,11 @@ def update_company_schema():
     with engine.connect() as connection:
         try:
             connection.execute('ALTER TABLE assets ADD COLUMN company_id INTEGER REFERENCES companies(id)')
-            print("Added company_id column to assets table")
+            logger.info("Added company_id column to assets table")
         except Exception as e:
-            print(f"company_id column might already exist: {e}")
+            logger.info("company_id column might already exist: {e}")
     
-    print("Company schema update completed")
+    logger.info("Company schema update completed")
 
 if __name__ == '__main__':
     update_company_schema() 

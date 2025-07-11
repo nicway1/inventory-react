@@ -137,7 +137,7 @@ def fix_duplicate_permissions():
         session.close()
 
 if __name__ == "__main__":
-    print("Starting permission database cleanup...")
+    logger.info("Starting permission database cleanup...")
     fix_duplicate_permissions()
-    print("Done! If no errors occurred, your database has been fixed.")
-    print("Please restart your application now.") 
+    logger.info("Done! If no errors occurred, your database has been fixed.")
+    logger.info("Please restart your application now.") 

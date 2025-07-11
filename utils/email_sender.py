@@ -4,6 +4,10 @@ import logging
 import os
 from .microsoft_email import get_microsoft_email_client
 
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
 mail = Mail()
 
 def _send_email_via_method(to_emails, subject, html_body, text_body=None, attachments=None):
@@ -163,7 +167,7 @@ TrueLog Support Team"""
         return result
     except Exception as e:
         logging.error(f"Error sending email to {user_email}: {str(e)}")
-        print(f"Error sending email: {str(e)}")
+        logger.info("Error sending email: {str(e)}")
         return False 
 
 
@@ -365,7 +369,7 @@ https://www.truelog.site
         
     except Exception as e:
         logging.error(f"Error sending ticket assignment notification to {assigned_user.email}: {str(e)}")
-        print(f"Error sending assignment notification: {str(e)}")
+        logger.info("Error sending assignment notification: {str(e)}")
         return False
 
 
@@ -531,7 +535,7 @@ This notification was sent because you were mentioned in a case comment."""
         
     except Exception as e:
         logging.error(f"Error sending mention notification email to {mentioned_user.email if mentioned_user else 'unknown'}: {str(e)}")
-        print(f"Error sending mention notification email: {str(e)}")
+        logger.info("Error sending mention notification email: {str(e)}")
         import traceback
         traceback.print_exc()
         return False 

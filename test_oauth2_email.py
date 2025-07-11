@@ -12,7 +12,7 @@ from utils.oauth2_email_sender import OAuth2Mail
 def test_oauth2_email():
     """Test OAuth2 email configuration"""
     
-    print("🔄 Testing OAuth2 email configuration...")
+    logger.info("🔄 Testing OAuth2 email configuration...")
     
     # Create a minimal Flask app for testing
     app = Flask(__name__)
@@ -31,27 +31,27 @@ def test_oauth2_email():
     
     with app.app_context():
         try:
-            print(f"🏢 Tenant ID: {app.config['OAUTH2_TENANT_ID']}")
-            print(f"📱 Client ID: {app.config['OAUTH2_CLIENT_ID']}")
-            print(f"👤 Default Sender: {app.config['OAUTH2_DEFAULT_SENDER']}")
+            logger.info("🏢 Tenant ID: {app.config['OAUTH2_TENANT_ID']}")
+            logger.info("📱 Client ID: {app.config['OAUTH2_CLIENT_ID']}")
+            logger.info("👤 Default Sender: {app.config['OAUTH2_DEFAULT_SENDER']}")
             print()
             
             # Test connection first
-            print("🔗 Testing OAuth2 connection...")
+            logger.info("🔗 Testing OAuth2 connection...")
             if not oauth2_mail.test_connection():
-                print("❌ OAuth2 connection failed!")
-                print("\n🔧 Troubleshooting tips:")
-                print("1. Verify your Client ID, Client Secret, and Tenant ID are correct")
-                print("2. Make sure you've granted admin consent for the API permissions")
-                print("3. Check that your app registration has 'Mail.Send' application permission")
-                print("4. Ensure your client secret hasn't expired")
+                logger.info("❌ OAuth2 connection failed!")
+                logger.info("\n🔧 Troubleshooting tips:")
+                logger.info("1. Verify your Client ID, Client Secret, and Tenant ID are correct")
+                logger.info("2. Make sure you've granted admin consent for the API permissions")
+                logger.info("3. Check that your app registration has 'Mail.Send' application permission")
+                logger.info("4. Ensure your client secret hasn't expired")
                 return False
             
-            print("✅ OAuth2 connection successful!")
+            logger.info("✅ OAuth2 connection successful!")
             print()
             
             # Test sending email
-            print("📧 Sending test email...")
+            logger.info("📧 Sending test email...")
             success = oauth2_mail.send(
                 to_emails=[app.config['OAUTH2_DEFAULT_SENDER']],  # Send to yourself
                 subject='OAuth2 Test Email from Inventory System',
@@ -69,57 +69,57 @@ This is more secure than using SMTP with app passwords.''',
             )
             
             if success:
-                print("✅ Email sent successfully using OAuth2!")
-                print("💡 Check your inbox to confirm the email was received.")
+                logger.info("✅ Email sent successfully using OAuth2!")
+                logger.info("💡 Check your inbox to confirm the email was received.")
                 return True
             else:
-                print("❌ Email sending failed!")
+                logger.info("❌ Email sending failed!")
                 return False
                 
         except Exception as e:
-            print(f"❌ Test failed with error: {str(e)}")
-            print("\n🔧 Common issues:")
-            print("1. Missing or incorrect Azure AD configuration")
-            print("2. Insufficient API permissions")
-            print("3. Network connectivity issues")
-            print("4. Invalid email address format")
+            logger.info("❌ Test failed with error: {str(e)}")
+            logger.info("\n🔧 Common issues:")
+            logger.info("1. Missing or incorrect Azure AD configuration")
+            logger.info("2. Insufficient API permissions")
+            logger.info("3. Network connectivity issues")
+            logger.info("4. Invalid email address format")
             return False
 
 def show_setup_instructions():
     """Show setup instructions for Azure AD"""
-    print("\n📋 OAuth2 Setup Instructions:")
-    print("=" * 50)
+    logger.info("\n📋 OAuth2 Setup Instructions:")
+    logger.info("=" * 50)
     print()
-    print("1. 🌐 Register App in Azure AD:")
-    print("   - Go to: https://portal.azure.com")
-    print("   - Search for 'App registrations'")
-    print("   - Click 'New registration'")
-    print("   - Name: 'Inventory System Email'")
-    print("   - Account types: 'Single tenant'")
+    logger.info("1. 🌐 Register App in Azure AD:")
+    logger.info("   - Go to: https://portal.azure.com")
+    logger.info("   - Search for 'App registrations'")
+    logger.info("   - Click 'New registration'")
+    logger.info("   - Name: 'Inventory System Email'")
+    logger.info("   - Account types: 'Single tenant'")
     print()
-    print("2. 🔑 Configure API Permissions:")
-    print("   - Go to 'API permissions'")
-    print("   - Add 'Microsoft Graph' -> 'Application permissions'")
-    print("   - Add 'Mail.Send' permission")
-    print("   - Click 'Grant admin consent'")
+    logger.info("2. 🔑 Configure API Permissions:")
+    logger.info("   - Go to 'API permissions'")
+    logger.info("   - Add 'Microsoft Graph' -> 'Application permissions'")
+    logger.info("   - Add 'Mail.Send' permission")
+    logger.info("   - Click 'Grant admin consent'")
     print()
-    print("3. 🔐 Create Client Secret:")
-    print("   - Go to 'Certificates & secrets'")
-    print("   - Create new client secret")
-    print("   - Copy the secret value immediately!")
+    logger.info("3. 🔐 Create Client Secret:")
+    logger.info("   - Go to 'Certificates & secrets'")
+    logger.info("   - Create new client secret")
+    logger.info("   - Copy the secret value immediately!")
     print()
-    print("4. 📝 Get Required Values:")
-    print("   - Application (client) ID")
-    print("   - Directory (tenant) ID")
-    print("   - Client secret value")
+    logger.info("4. 📝 Get Required Values:")
+    logger.info("   - Application (client) ID")
+    logger.info("   - Directory (tenant) ID")
+    logger.info("   - Client secret value")
     print()
-    print("5. ✏️  Update Configuration:")
-    print("   - Replace values in this test script")
-    print("   - Update app.py and wsgi.py with the same values")
+    logger.info("5. ✏️  Update Configuration:")
+    logger.info("   - Replace values in this test script")
+    logger.info("   - Update app.py and wsgi.py with the same values")
 
 if __name__ == "__main__":
-    print("🔐 OAuth2 Email Configuration Test")
-    print("=" * 40)
+    logger.info("🔐 OAuth2 Email Configuration Test")
+    logger.info("=" * 40)
     
     # Check if configuration looks like defaults
     test_app = Flask(__name__)
@@ -133,13 +133,13 @@ if __name__ == "__main__":
         test_app.config['OAUTH2_CLIENT_SECRET'] == 'your-azure-client-secret' or
         test_app.config['OAUTH2_TENANT_ID'] == 'your-azure-tenant-id'):
         
-        print("⚠️  Configuration contains placeholder values!")
-        print("Please update the values in this script first.")
+        logger.info("⚠️  Configuration contains placeholder values!")
+        logger.info("Please update the values in this script first.")
         show_setup_instructions()
     else:
         if test_oauth2_email():
-            print("\n🎉 OAuth2 email configuration is working correctly!")
-            print("You can now use OAuth2 for sending emails in your inventory system.")
+            logger.info("\n🎉 OAuth2 email configuration is working correctly!")
+            logger.info("You can now use OAuth2 for sending emails in your inventory system.")
         else:
-            print("\n❗ OAuth2 email configuration needs to be fixed.")
+            logger.info("\n❗ OAuth2 email configuration needs to be fixed.")
             show_setup_instructions() 

@@ -16,7 +16,7 @@ import sys
 
 def create_package_items_table(cursor):
     """Create the package_items table if it doesn't exist"""
-    print("🔧 Creating package_items table...")
+    logger.info("🔧 Creating package_items table...")
     
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS package_items (
@@ -37,15 +37,15 @@ def create_package_items_table(cursor):
     
     try:
         cursor.execute(create_table_sql)
-        print("   ✓ Successfully created package_items table")
+        logger.info("   ✓ Successfully created package_items table")
         return True
     except Exception as e:
-        print(f"   ✗ Error creating package_items table: {e}")
+        logger.info("   ✗ Error creating package_items table: {e}")
         return False
 
 def add_shipping_tracking_columns(cursor):
     """Add missing shipping tracking columns to tickets table"""
-    print("🔧 Adding shipping tracking columns...")
+    logger.info("🔧 Adding shipping tracking columns...")
     
     # Define all shipping tracking columns that should exist
     required_columns = [
@@ -78,33 +78,33 @@ def add_shipping_tracking_columns(cursor):
             missing_columns.append((column_name, column_definition))
     
     if not missing_columns:
-        print("   ✓ All shipping tracking columns already exist")
+        logger.info("   ✓ All shipping tracking columns already exist")
         return True
     
-    print(f"   Found {len(missing_columns)} missing columns")
+    logger.info("   Found {len(missing_columns)} missing columns")
     
     # Add missing columns
     successful_additions = 0
     for column_name, column_definition in missing_columns:
         sql = f"ALTER TABLE tickets ADD COLUMN {column_name} {column_definition}"
-        print(f"   Adding: {column_name}...")
+        logger.info("   Adding: {column_name}...")
         
         try:
             cursor.execute(sql)
-            print(f"   ✓ Successfully added {column_name}")
+            logger.info("   ✓ Successfully added {column_name}")
             successful_additions += 1
         except sqlite3.OperationalError as e:
             if "duplicate column name" in str(e).lower():
-                print(f"   ⚠️  Column {column_name} already exists (skipping)")
+                logger.info("   ⚠️  Column {column_name} already exists (skipping)")
                 successful_additions += 1
             else:
-                print(f"   ✗ Error adding {column_name}: {e}")
+                logger.info("   ✗ Error adding {column_name}: {e}")
     
     return successful_additions == len(missing_columns)
 
 def verify_tables_and_columns(cursor):
     """Verify that all required tables and columns exist"""
-    print("🔍 Verifying database schema...")
+    logger.info("🔍 Verifying database schema...")
     
     issues = []
     
@@ -113,7 +113,7 @@ def verify_tables_and_columns(cursor):
     if not cursor.fetchone():
         issues.append("package_items table missing")
     else:
-        print("   ✓ package_items table exists")
+        logger.info("   ✓ package_items table exists")
     
     # Check shipping tracking columns in tickets table
     cursor.execute("PRAGMA table_info(tickets)")
@@ -124,7 +124,7 @@ def verify_tables_and_columns(cursor):
         if col not in columns:
             issues.append(f"tickets.{col} column missing")
         else:
-            print(f"   ✓ tickets.{col} exists")
+            logger.info("   ✓ tickets.{col} exists")
     
     return issues
 
@@ -133,30 +133,30 @@ def fix_pythonanywhere_database():
     # PythonAnywhere database path
     db_path = '/home/nicway2/inventory/inventory.db'
     
-    print(f"🎯 PythonAnywhere Complete Database Migration")
-    print(f"Database path: {db_path}")
+    logger.info("🎯 PythonAnywhere Complete Database Migration")
+    logger.info("Database path: {db_path}")
     
     if not os.path.exists(db_path):
-        print(f"❌ Error: Database file {db_path} not found")
-        print(f"Current directory: {os.getcwd()}")
+        logger.info("❌ Error: Database file {db_path} not found")
+        logger.info("Current directory: {os.getcwd()}")
         return False
     
     try:
-        print(f"🔌 Opening database connection...")
+        logger.info("🔌 Opening database connection...")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # Check current issues
         issues = verify_tables_and_columns(cursor)
         if not issues:
-            print("✅ Database schema is already up to date!")
+            logger.info("✅ Database schema is already up to date!")
             return True
         
-        print(f"⚠️  Found {len(issues)} schema issues:")
+        logger.info("⚠️  Found {len(issues)} schema issues:")
         for issue in issues:
-            print(f"   - {issue}")
+            logger.info("   - {issue}")
         
-        print(f"\n🛠️  Starting migration...")
+        logger.info("\n🛠️  Starting migration...")
         
         migration_success = True
         
@@ -171,28 +171,28 @@ def fix_pythonanywhere_database():
                 migration_success = False
         
         if not migration_success:
-            print("❌ Some migrations failed")
+            logger.info("❌ Some migrations failed")
             return False
         
         # Commit all changes
         conn.commit()
-        print("💾 All changes committed successfully!")
+        logger.info("💾 All changes committed successfully!")
         
         # Final verification
-        print(f"\n🔍 Final verification...")
+        logger.info("\n🔍 Final verification...")
         final_issues = verify_tables_and_columns(cursor)
         
         if not final_issues:
-            print("🎉 All database schema issues have been resolved!")
+            logger.info("🎉 All database schema issues have been resolved!")
             return True
         else:
-            print(f"⚠️  Still have {len(final_issues)} unresolved issues:")
+            logger.info("⚠️  Still have {len(final_issues)} unresolved issues:")
             for issue in final_issues:
-                print(f"   - {issue}")
+                logger.info("   - {issue}")
             return False
     
     except Exception as e:
-        print(f"❌ Migration error: {e}")
+        logger.info("❌ Migration error: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -200,28 +200,28 @@ def fix_pythonanywhere_database():
     finally:
         if 'conn' in locals() and conn:
             conn.close()
-            print("🔌 Database connection closed")
+            logger.info("🔌 Database connection closed")
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("🚀 PythonAnywhere Complete Database Migration")
-    print("   Fixes: package_items table + shipping_tracking columns")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("🚀 PythonAnywhere Complete Database Migration")
+    logger.info("   Fixes: package_items table + shipping_tracking columns")
+    logger.info("=" * 70)
     
     success = fix_pythonanywhere_database()
     
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)
     if success:
-        print("🎉 SUCCESS! All database migrations completed.")
-        print("   • package_items table created")
-        print("   • shipping_tracking_3, 4, 5 columns added")
-        print("   • Database schema is now up to date")
-        print("\n📝 Next steps:")
-        print("   1. Restart your PythonAnywhere web app")
-        print("   2. Test opening tickets - errors should be resolved")
+        logger.info("🎉 SUCCESS! All database migrations completed.")
+        logger.info("   • package_items table created")
+        logger.info("   • shipping_tracking_3, 4, 5 columns added")
+        logger.info("   • Database schema is now up to date")
+        logger.info("\n📝 Next steps:")
+        logger.info("   1. Restart your PythonAnywhere web app")
+        logger.info("   2. Test opening tickets - errors should be resolved")
         sys.exit(0)
     else:
-        print("💥 FAILED! Migration could not be completed.")
-        print("   Please check the error messages above.")
-        print("   You may need to manually fix remaining issues.")
+        logger.info("💥 FAILED! Migration could not be completed.")
+        logger.info("   Please check the error messages above.")
+        logger.info("   You may need to manually fix remaining issues.")
         sys.exit(1) 

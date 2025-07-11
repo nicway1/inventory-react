@@ -1,6 +1,11 @@
 import json
 from datetime import datetime, timedelta
 from models.tracking_history import TrackingHistory
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class TrackingCache:
     """Utility class for managing tracking data caching"""
@@ -23,7 +28,7 @@ class TrackingCache:
         """
         # If force is True, bypass cache completely
         if force:
-            print(f"Force refresh requested for {tracking_number}, bypassing cache")
+            logger.info("Force refresh requested for {tracking_number}, bypassing cache")
             return None
             
         try:
@@ -44,7 +49,7 @@ class TrackingCache:
             
             # If tracking history exists and is not stale, return it
             if tracking_history and not tracking_history.is_stale(max_age_hours):
-                print(f"Using cached tracking data for {tracking_number} (type: {tracking_type})")
+                logger.info("Using cached tracking data for {tracking_number} (type: {tracking_type})")
                 
                 # If data is stored as JSON string, parse it
                 if tracking_history.tracking_data:
@@ -58,13 +63,13 @@ class TrackingCache:
                             'is_real_data': True
                         }
                     except json.JSONDecodeError:
-                        print(f"Error decoding cached tracking data for {tracking_number}")
+                        logger.info("Error decoding cached tracking data for {tracking_number}")
             
             # If we got here, no valid cache was found
             return None
             
         except Exception as e:
-            print(f"Error getting cached tracking for {tracking_number}: {str(e)}")
+            logger.info("Error getting cached tracking for {tracking_number}: {str(e)}")
             return None
     
     @staticmethod
@@ -86,10 +91,10 @@ class TrackingCache:
             True if successful, False otherwise
         """
         try:
-            print(f"Saving tracking data for {tracking_number} (type: {tracking_type})")
-            print(f"- Ticket ID: {ticket_id}")
-            print(f"- Status: {status}")
-            print(f"- Events count: {len(tracking_info) if tracking_info else 0}")
+            logger.info("Saving tracking data for {tracking_number} (type: {tracking_type})")
+            logger.info("- Ticket ID: {ticket_id}")
+            logger.info("- Status: {status}")
+            logger.info("- Events count: {len(tracking_info) if tracking_info else 0}")
             
             # Try to find existing tracking history for this tracking number
             if ticket_id:
@@ -99,19 +104,19 @@ class TrackingCache:
                     TrackingHistory.ticket_id == ticket_id,
                     TrackingHistory.tracking_type == tracking_type
                 ).first()
-                print(f"- Lookup by tracking number and ticket ID: {'Found' if tracking_history else 'Not found'}")
+                logger.info("- Lookup by tracking number and ticket ID: {'Found' if tracking_history else 'Not found'}")
             else:
                 # Fall back to just tracking number (first match)
                 tracking_history = db_session.query(TrackingHistory).filter(
                     TrackingHistory.tracking_number == tracking_number,
                     TrackingHistory.tracking_type == tracking_type
                 ).first()
-                print(f"- Lookup by tracking number only: {'Found' if tracking_history else 'Not found'}")
+                logger.info("- Lookup by tracking number only: {'Found' if tracking_history else 'Not found'}")
             
             # If tracking history exists, update it
             if tracking_history:
                 tracking_history.update(tracking_info, status, carrier)
-                print(f"Updated tracking cache for {tracking_number} (type: {tracking_type})")
+                logger.info("Updated tracking cache for {tracking_number} (type: {tracking_type})")
             else:
                 # Create a new tracking history
                 tracking_history = TrackingHistory(
@@ -123,19 +128,19 @@ class TrackingCache:
                     tracking_type=tracking_type
                 )
                 db_session.add(tracking_history)
-                print(f"Created new tracking cache for {tracking_number} (type: {tracking_type})")
+                logger.info("Created new tracking cache for {tracking_number} (type: {tracking_type})")
             
             # Make sure changes are flushed before commit
             db_session.flush()
             
             # Commit the changes
             db_session.commit()
-            print(f"Successfully committed tracking data for {tracking_number}")
+            logger.info("Successfully committed tracking data for {tracking_number}")
             return True
             
         except Exception as e:
             db_session.rollback()
-            print(f"Error saving tracking cache for {tracking_number}: {str(e)}")
+            logger.info("Error saving tracking cache for {tracking_number}: {str(e)}")
             import traceback
             traceback.print_exc()
             return False
@@ -168,16 +173,16 @@ class TrackingCache:
                 
             # If no filters provided, don't delete anything (safety measure)
             if not tracking_number and not ticket_id and not tracking_type:
-                print("Warning: No filters provided for clear_cache. For safety, refusing to clear all cache entries.")
+                logger.info("Warning: No filters provided for clear_cache. For safety, refusing to clear all cache entries.")
                 return 0
                 
             # Delete matching entries
             count = query.delete()
             db_session.commit()
-            print(f"Cleared {count} tracking cache entries")
+            logger.info("Cleared {count} tracking cache entries")
             return count
             
         except Exception as e:
             db_session.rollback()
-            print(f"Error clearing tracking cache: {str(e)}")
+            logger.info("Error clearing tracking cache: {str(e)}")
             return 0 

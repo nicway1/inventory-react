@@ -6,9 +6,14 @@ from models.ticket import Ticket
 from models.ticket_attachment import TicketAttachment
 from sqlalchemy.orm import joinedload
 from utils.store_instances import db_manager
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Create a new blueprint for debug routes
-debug_bp = Blueprint('debug', __name__, url_prefix='/debug')
+debug_bp = Bluelogger.debug('debug', __name__, url_prefix='/debug')
 
 @debug_bp.route('/documents/<int:ticket_id>')
 @login_required
@@ -33,7 +38,7 @@ def view_documents(ticket_id):
                               ticket=ticket)
                               
     except Exception as e:
-        print(f"Error in debug view_documents: {str(e)}")
+        logger.info("Error in debug view_documents: {str(e)}")
         traceback.print_exc()
         flash(f'Error loading ticket data: {str(e)}', 'error')
         return redirect(url_for('tickets.list_tickets'))
@@ -70,7 +75,7 @@ def get_attachment(ticket_id, attachment_id):
         )
         
     except Exception as e:
-        print(f"Error getting attachment: {str(e)}")
+        logger.info("Error getting attachment: {str(e)}")
         traceback.print_exc()
         flash(f'Error accessing attachment: {str(e)}', 'error')
         return redirect(url_for('debug.view_documents', ticket_id=ticket_id))

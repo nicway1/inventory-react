@@ -1,5 +1,10 @@
 import sys
 import os
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal
@@ -48,10 +53,10 @@ def add_test_accessories():
         
         # Commit the changes
         session.commit()
-        print("Test accessories added successfully!")
+        logger.info("Test accessories added successfully!")
         
     except Exception as e:
-        print(f"Error adding test accessories: {str(e)}")
+        logger.info("Error adding test accessories: {str(e)}")
         session.rollback()
     finally:
         session.close()

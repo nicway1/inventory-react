@@ -3,6 +3,11 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from models.base import Base
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 class TrackingHistory(Base):
     """Model to store tracking history/cache to avoid repeated scraping"""
@@ -60,11 +65,11 @@ class TrackingHistory(Base):
         time_diff = current_time - self.last_updated
         
         # Debug logging
-        print(f"Checking staleness for tracking {self.tracking_number}:")
-        print(f"- Current time: {current_time}")
-        print(f"- Last updated: {self.last_updated}")
-        print(f"- Time diff (hours): {time_diff.total_seconds() / 3600}")
-        print(f"- TTL hours: {ttl_hours}")
-        print(f"- Is stale: {time_diff.total_seconds() > (ttl_hours * 3600)}")
+        logger.info("Checking staleness for tracking {self.tracking_number}:")
+        logger.info("- Current time: {current_time}")
+        logger.info("- Last updated: {self.last_updated}")
+        logger.info("- Time diff (hours): {time_diff.total_seconds() / 3600}")
+        logger.info("- TTL hours: {ttl_hours}")
+        logger.info("- Is stale: {time_diff.total_seconds() > (ttl_hours * 3600)}")
         
         return time_diff.total_seconds() > (ttl_hours * 3600) 

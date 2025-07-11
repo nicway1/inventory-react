@@ -32,7 +32,11 @@ import logging
 import random
 import traceback
 
-inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+inventory_bp = Bluelogger.info('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
 
 def get_filtered_customers(db_session, user):
@@ -79,7 +83,7 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
     try:
         # Check if asset is already assigned to this ticket
         if asset in ticket.assets:
-            print(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+            logger.info("Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
             return True
         
         # Check if the relationship already exists in the database
@@ -91,16 +95,16 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         count = result.scalar()
         
         if count > 0:
-            print(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
+            logger.info("Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
         
         # Safe to assign - add the asset to the ticket
         ticket.assets.append(asset)
-        print(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        logger.info("Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
         return True
         
     except Exception as e:
-        print(f"Error assigning asset to ticket: {str(e)}")
+        logger.info("Error assigning asset to ticket: {str(e)}")
         return False
 
 # Configure upload settings
@@ -122,7 +126,7 @@ def view_inventory():
         user = db_manager.get_user(session['user_id'])
         
         # Debug info
-        print(f"DEBUG: User accessing inventory: ID={user.id}, Username={user.username}, Type={user.user_type}, Supervisor={user.user_type == UserType.SUPERVISOR}")
+        logger.info("DEBUG: User accessing inventory: ID={user.id}, Username={user.username}, Type={user.user_type}, Supervisor={user.user_type == UserType.SUPERVISOR}")
         
         # Base query for tech assets
         tech_assets_query = db_session.query(Asset)
@@ -140,7 +144,7 @@ def view_inventory():
                     Asset.customer == user.company.name
                 )
             )
-            print(f"DEBUG: Filtering assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+            logger.info("DEBUG: Filtering assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Get counts
         tech_assets_count = tech_assets_query.count()
@@ -216,7 +220,7 @@ def view_inventory():
         # Debug template data
         is_supervisor = user.user_type == UserType.SUPERVISOR
         is_client = user.user_type == UserType.CLIENT
-        print(f"DEBUG: Template vars - is_admin={user.is_admin}, is_country_admin={user.is_country_admin}, is_supervisor={is_supervisor}, is_client={is_client}")
+        logger.info("DEBUG: Template vars - is_admin={user.is_admin}, is_country_admin={user.is_country_admin}, is_supervisor={is_supervisor}, is_client={is_client}")
         
         return render_template(
             'inventory/view.html',
@@ -263,12 +267,12 @@ def view_tech_assets():
                 )
             )
             # Log more detailed information for debugging client view
-            print(f"DEBUG: Filtering assets for client user. User ID: {user.id}, Company ID: {user.company_id}, Company Name: {user.company.name}")
+            logger.info("DEBUG: Filtering assets for client user. User ID: {user.id}, Company ID: {user.company_id}, Company Name: {user.company.name}")
             
             # Get counts for individual filters to help debug
             company_id_count = db_session.query(Asset).filter(Asset.company_id == user.company_id).count()
             customer_name_count = db_session.query(Asset).filter(Asset.customer == user.company.name).count()
-            print(f"DEBUG: Assets count by company_id: {company_id_count}, by customer name: {customer_name_count}")
+            logger.info("DEBUG: Assets count by company_id: {company_id_count}, by customer name: {customer_name_count}")
         
         # Execute query
         assets = assets_query.all()
@@ -277,7 +281,7 @@ def view_tech_assets():
         total_count = len(assets)
         
         # Log for debugging
-        print(f"User type: {user.user_type}, Assets returned: {total_count}")
+        logger.info("User type: {user.user_type}, Assets returned: {total_count}")
         
         # Format response
         return jsonify({
@@ -325,7 +329,7 @@ def view_accessories():
         accessories = accessories_query.all()
         
         # Log for debugging
-        print(f"User type: {user.user_type}, Accessories returned: {len(accessories)}")
+        logger.info("User type: {user.user_type}, Accessories returned: {len(accessories)}")
         
         # Get customers for checkout (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
@@ -455,7 +459,7 @@ def filter_inventory():
                     Asset.customer == user.company.name
                 )
             )
-            print(f"DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+            logger.info("DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Country filter for Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
@@ -494,7 +498,7 @@ def filter_inventory():
         
         # Log query information for debugging
         if user.user_type == UserType.CLIENT:
-            print(f"CLIENT user search results count: {query.count()}")
+            logger.info("CLIENT user search results count: {query.count()}")
         
         # Execute query
         assets = query.all()
@@ -793,7 +797,7 @@ def import_inventory():
                                 break
                             except Exception as e:
                                 last_error = str(e)
-                                print(f"Failed to read CSV with encoding {encoding}: {last_error}")
+                                logger.info("Failed to read CSV with encoding {encoding}: {last_error}")
                                 continue
 
                         if df is None:
@@ -881,7 +885,7 @@ def import_inventory():
 
                     except Exception as e:
                         db_session.rollback()
-                        print(f"Error processing file: {str(e)}")
+                        logger.info("Error processing file: {str(e)}")
                         if os.path.exists(filepath):
                             os.remove(filepath)
                         if os.path.exists(preview_filepath):
@@ -1024,9 +1028,9 @@ def confirm_import():
                                     _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
                                 
                                 db_session.commit()
-                                print(f"Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
+                                logger.info("Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
                         except Exception as e:
-                            print(f"Error linking asset to ticket: {str(e)}")
+                            logger.info("Error linking asset to ticket: {str(e)}")
                             # Don't fail the import if ticket linking fails
                     
                     successful += 1
@@ -1079,7 +1083,7 @@ def confirm_import():
                     db_session.commit()
             except Exception as e:
                 error_msg = f"Row {index}: {str(e)}"
-                print(error_msg)
+                logger.error(error_msg)
                 errors.append(error_msg)
                 failed += 1
                 db_session.rollback()  # Rollback on error for this row
@@ -1259,7 +1263,7 @@ def update_asset_status(asset_id):
                     'new': new_value
                 }
         
-        print(f"Changes detected: {changes}")  # Debug log
+        logger.info("Changes detected: {changes}")  # Debug log
         
         if changes:
             history_entry = asset.track_change(
@@ -1905,13 +1909,13 @@ def edit_asset(asset_id):
         
         if request.method == 'POST':
             try:
-                print("Received POST request for asset edit")  # Debug log
+                logger.info("Received POST request for asset edit")  # Debug log
                 
                 # Validate required fields
                 required_fields = ['asset_tag', 'serial_num', 'model', 'asset_type']
                 for field in required_fields:
                     value = request.form.get(field)
-                    print(f"Checking required field {field}: {value}")  # Debug log
+                    logger.info("Checking required field {field}: {value}")  # Debug log
                     if not value:
                         flash(f'{field.replace("_", " ").title()} is required', 'error')
                         raise ValueError(f'Missing required field: {field}')
@@ -1943,7 +1947,7 @@ def edit_asset(asset_id):
                     'tech_notes': asset.tech_notes
                 }
                 
-                print("Old values stored")  # Debug log
+                logger.info("Old values stored")  # Debug log
                 
                 # Update asset with new values
                 asset.asset_tag = request.form.get('asset_tag')
@@ -1952,16 +1956,16 @@ def edit_asset(asset_id):
                 asset.model = request.form.get('model')
                 asset.asset_type = request.form.get('asset_type')
                 
-                print("Basic fields updated")  # Debug log
+                logger.info("Basic fields updated")  # Debug log
                 
                 # Handle receiving date
                 receiving_date = request.form.get('receiving_date')
                 if receiving_date:
                     try:
                         asset.receiving_date = datetime.strptime(receiving_date, '%Y-%m-%d')
-                        print(f"Receiving date set to: {asset.receiving_date}")  # Debug log
+                        logger.info("Receiving date set to: {asset.receiving_date}")  # Debug log
                     except ValueError as e:
-                        print(f"Error parsing receiving date: {str(e)}")  # Debug log
+                        logger.info("Error parsing receiving date: {str(e)}")  # Debug log
                         flash('Invalid receiving date format. Please use YYYY-MM-DD', 'error')
                         raise
                 else:
@@ -1969,19 +1973,19 @@ def edit_asset(asset_id):
                 
                 # Handle status
                 status = request.form.get('status')
-                print(f"Status from form: {status}")  # Debug log
+                logger.info("Status from form: {status}")  # Debug log
                 if status:
                     try:
                         status_value = status.upper().replace(' ', '_')
-                        print(f"Converted status value: {status_value}")  # Debug log
+                        logger.info("Converted status value: {status_value}")  # Debug log
                         if not hasattr(AssetStatus, status_value):
-                            print(f"Invalid status value: {status_value}")  # Debug log
+                            logger.info("Invalid status value: {status_value}")  # Debug log
                             flash(f'Invalid status value: {status}', 'error')
                             raise ValueError(f'Invalid status value: {status}')
                         asset.status = AssetStatus[status_value]
-                        print(f"Status set to: {asset.status}")  # Debug log
+                        logger.info("Status set to: {asset.status}")  # Debug log
                     except (KeyError, ValueError) as e:
-                        print(f"Error setting status: {str(e)}")  # Debug log
+                        logger.info("Error setting status: {str(e)}")  # Debug log
                         flash(f'Error setting status: {str(e)}', 'error')
                         raise
                 
@@ -2015,7 +2019,7 @@ def edit_asset(asset_id):
                             'new': new_value
                         }
                 
-                print(f"Changes detected: {changes}")  # Debug log
+                logger.info("Changes detected: {changes}")  # Debug log
                 
                 if changes:
                     history_entry = asset.track_change(
@@ -2027,13 +2031,13 @@ def edit_asset(asset_id):
                     db_session.add(history_entry)
                 
                 db_session.commit()
-                print("Changes committed to database")  # Debug log
+                logger.info("Changes committed to database")  # Debug log
                 flash('Asset updated successfully', 'success')
                 return redirect(url_for('inventory.view_asset', asset_id=asset.id))
                 
             except Exception as e:
                 db_session.rollback()
-                print(f"Error in edit_asset: {str(e)}")  # Debug log
+                logger.info("Error in edit_asset: {str(e)}")  # Debug log
                 flash(f'Error updating asset: {str(e)}', 'error')
                 return render_template('inventory/edit_asset.html',
                                      asset=asset,
@@ -2061,7 +2065,7 @@ def edit_asset(asset_id):
                              
     except Exception as e:
         db_session.rollback()
-        print(f"Error in edit_asset outer block: {str(e)}")  # Debug log
+        logger.info("Error in edit_asset outer block: {str(e)}")  # Debug log
         flash(f'Error updating asset: {str(e)}', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
     finally:
@@ -2160,11 +2164,11 @@ def list_customer_users():
         
         # Debug print
         for customer in customers:
-            print(f"Customer {customer.name}:")
-            print(f"Company: {customer.company.name if customer.company else 'N/A'}")
-            print(f"Country: {customer.country.value if customer.country else 'N/A'}")
-            print(f"Assets: {len(customer.assigned_assets)}")
-            print(f"Accessories: {len(customer.assigned_accessories)}")
+            logger.info("Customer {customer.name}:")
+            logger.info("Company: {customer.company.name if customer.company else 'N/A'}")
+            logger.info("Country: {customer.country.value if customer.country else 'N/A'}")
+            logger.info("Assets: {len(customer.assigned_assets)}")
+            logger.info("Accessories: {len(customer.assigned_accessories)}")
             
         return render_template('inventory/customer_users.html', 
                              customers=customers, 
@@ -2226,7 +2230,7 @@ def add_customer_user():
                 return redirect(url_for('inventory.list_customer_users'))
             except Exception as e:
                 db_session.rollback()
-                print(f"Error creating customer: {str(e)}")
+                logger.info("Error creating customer: {str(e)}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'success': False, 'error': str(e)}), 500
                 flash(f'Error creating customer: {str(e)}', 'error')
@@ -2410,7 +2414,7 @@ def search():
                     Asset.customer == user.company.name
                 )
             )
-            print(f"DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+            logger.info("DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
 
         # Filter by country for country admins
         if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
@@ -3115,12 +3119,12 @@ def get_all_transactions():
 @login_required
 def get_assets_api():
     """Get all assets for asset selection modal"""
-    print(f"[ASSETS API] Starting assets API request for user_id: {session.get('user_id')}")
+    logger.info("[ASSETS API] Starting assets API request for user_id: {session.get('user_id')}")
     db_session = db_manager.get_session()
     try:
         # Get current user for filtering
         user = db_manager.get_user(session['user_id'])
-        print(f"[ASSETS API] User {user.username} (Type: {user.user_type}) requesting assets")
+        logger.info("[ASSETS API] User {user.username} (Type: {user.user_type}) requesting assets")
         
         # Build query with permissions filtering
         assets_query = db_session.query(Asset)
@@ -3155,7 +3159,7 @@ def get_assets_api():
                     if asset.customer_user:
                         customer_name = asset.customer_user.name
                 except Exception as customer_err:
-                    print(f"[ASSETS API] Error getting customer for asset {asset.id}: {customer_err}")
+                    logger.info("[ASSETS API] Error getting customer for asset {asset.id}: {customer_err}")
                     customer_name = None
                 
                 assets_data.append({
@@ -3170,17 +3174,17 @@ def get_assets_api():
                     'country': asset.country
                 })
             except Exception as asset_err:
-                print(f"[ASSETS API] Error processing asset {asset.id}: {asset_err}")
+                logger.info("[ASSETS API] Error processing asset {asset.id}: {asset_err}")
                 continue
         
-        print(f"[ASSETS API] Returning {len(assets_data)} assets")
+        logger.info("[ASSETS API] Returning {len(assets_data)} assets")
         return jsonify({
             'success': True,
             'assets': assets_data
         })
     except Exception as e:
         import traceback
-        print(f"[ASSETS API ERROR] Full traceback: {traceback.format_exc()}")
+        logger.info("[ASSETS API ERROR] Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -3545,7 +3549,7 @@ def delete_accessory_transaction():
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error deleting transaction: {str(e)}")
+        logger.info("Error deleting transaction: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
@@ -3612,7 +3616,7 @@ def delete_asset_transaction():
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error deleting transaction: {str(e)}")
+        logger.info("Error deleting transaction: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
@@ -3648,7 +3652,7 @@ def get_maintenance_assets():
                     Asset.customer == user.company.name
                 )
             )
-            print(f"DEBUG: Filtering maintenance assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
+            logger.info("DEBUG: Filtering maintenance assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Filter by country if user is Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:

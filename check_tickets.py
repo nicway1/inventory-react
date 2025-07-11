@@ -1,17 +1,22 @@
 from app import db_manager
 from models.ticket import Ticket
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 session = db_manager.get_session()
 tickets = session.query(Ticket).all()
 
-print("\nTicket Tracking Information:")
-print("-" * 80)
+logger.info("\nTicket Tracking Information:")
+logger.info("-" * 80)
 for t in tickets:
-    print(f'Ticket {t.id}: status={t.status}, shipping_status={t.shipping_status}')
+    logger.info(f\'Ticket {t.id}: status={t.status}, shipping_status={t.shipping_status}\')
     if t.shipping_tracking:
-        print(f'   Tracking: {t.shipping_tracking}')
+        logger.info(f\'   Tracking: {t.shipping_tracking}\')
     if hasattr(t, 'shipping_history') and t.shipping_history:
-        print(f'   History: {t.shipping_history}')
-    print("-" * 40)
+        logger.info(f\'   History: {t.shipping_history}\')
+    logger.info("-" * 40)
 
 session.close() 

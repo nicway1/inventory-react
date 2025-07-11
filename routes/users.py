@@ -7,8 +7,13 @@ from forms.user_form import UserCreateForm
 from models.user import UserType, Country
 from werkzeug.security import generate_password_hash
 from utils.auth import safe_generate_password_hash
+import logging
 
-users_bp = Blueprint('users', __name__, url_prefix='/users')
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
+users_bp = Bluelogger.info('users', __name__, url_prefix='/users')
 user_store = UserStore()
 ticket_store = TicketStore()
 
@@ -58,19 +63,19 @@ def view_profile(user_id):
 @users_bp.route('/profile')
 @login_required
 def my_profile():
-    print("Accessing my_profile route")  # Debug print
+    logger.info("Accessing my_profile route")  # Debug print
     if 'user_id' not in session:
-        print("No user_id in session")  # Debug print
+        logger.info("No user_id in session")  # Debug print
         flash('Please log in first')
         return redirect(url_for('auth.login'))
     
     user_id = session.get('user_id')
-    print(f"User ID from session: {user_id}")  # Debug print
+    logger.info("User ID from session: {user_id}")  # Debug print
     user = user_store.get_user_by_id(user_id)
-    print(f"User found: {user}")  # Debug print
+    logger.info("User found: {user}")  # Debug print
     
     if not user:
-        print("User not found in store")  # Debug print
+        logger.info("User not found in store")  # Debug print
         flash('User profile not found')
         return redirect(url_for('index'))
 

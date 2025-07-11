@@ -4,6 +4,11 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from models.base import Base
 import models  # Import all models
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,9 +35,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
-        print("Database initialized successfully")
+        logger.info("Database initialized successfully")
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        logger.info("Failed to initialize database: {str(e)}")
         raise
 
 def get_db():

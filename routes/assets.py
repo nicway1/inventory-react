@@ -12,9 +12,14 @@ from database import SessionLocal
 import io
 from sqlalchemy import text
 from datetime import datetime
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 # Create Blueprint
-assets_bp = Blueprint('assets', __name__, url_prefix='/assets')
+assets_bp = Bluelogger.info('assets', __name__, url_prefix='/assets')
 db_manager = DatabaseManager()
 
 def _is_asset_checkout_ticket(ticket_category):
@@ -56,28 +61,28 @@ def _auto_checkout_asset_to_customer(ticket, asset, db_session):
         bool: True if checkout was successful, False otherwise
     """
     try:
-        print(f"[AUTO_CHECKOUT DEBUG] Starting auto-checkout for asset {asset.id} to customer")
+        logger.info("[AUTO_CHECKOUT DEBUG] Starting auto-checkout for asset {asset.id} to customer")
         
         # Check if ticket has a customer
         if not ticket.customer_id:
-            print(f"[AUTO_CHECKOUT DEBUG] Ticket {ticket.id} has no customer assigned")
+            logger.info("[AUTO_CHECKOUT DEBUG] Ticket {ticket.id} has no customer assigned")
             return False
             
         # Get the customer
         from models.customer_user import CustomerUser
         customer = db_session.query(CustomerUser).get(ticket.customer_id)
         if not customer:
-            print(f"[AUTO_CHECKOUT DEBUG] Customer {ticket.customer_id} not found")
+            logger.info("[AUTO_CHECKOUT DEBUG] Customer {ticket.customer_id} not found")
             return False
             
-        print(f"[AUTO_CHECKOUT DEBUG] Found customer: {customer.name} (ID: {customer.id})")
+        logger.info("[AUTO_CHECKOUT DEBUG] Found customer: {customer.name} (ID: {customer.id})")
         
         # Update asset status and assign to customer
         from models.asset import AssetStatus
         asset.status = AssetStatus.DEPLOYED
         asset.customer_id = customer.id
         
-        print(f"[AUTO_CHECKOUT DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer.id}")
+        logger.info("[AUTO_CHECKOUT DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer.id}")
         
         # Create asset transaction record
         from models.asset_transaction import AssetTransaction
@@ -105,11 +110,11 @@ def _auto_checkout_asset_to_customer(ticket, asset, db_session):
         )
         db_session.add(checkout_activity)
         
-        print(f"[AUTO_CHECKOUT DEBUG] Created transaction and activity records")
+        logger.info("[AUTO_CHECKOUT DEBUG] Created transaction and activity records")
         return True
         
     except Exception as e:
-        print(f"[AUTO_CHECKOUT DEBUG] Error during auto-checkout: {str(e)}")
+        logger.info("[AUTO_CHECKOUT DEBUG] Error during auto-checkout: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
@@ -128,7 +133,7 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         bool: True if assignment was successful or already exists, False otherwise
     """
     try:
-        print(f"[SAFELY_ASSIGN DEBUG] Checking assignment for asset {asset.id} to ticket {ticket.id}")
+        logger.info("[SAFELY_ASSIGN DEBUG] Checking assignment for asset {asset.id} to ticket {ticket.id}")
         
         # Check if the relationship already exists in the database FIRST
         stmt = text("""
@@ -139,11 +144,11 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         count = result.scalar()
         
         if count > 0:
-            print(f"[SAFELY_ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
+            logger.info("[SAFELY_ASSIGN DEBUG] Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
         
         # Use direct SQL insertion to avoid SQLAlchemy relationship issues
-        print(f"[SAFELY_ASSIGN DEBUG] Inserting relationship via direct SQL")
+        logger.info("[SAFELY_ASSIGN DEBUG] Inserting relationship via direct SQL")
         insert_stmt = text("""
             INSERT INTO ticket_assets (ticket_id, asset_id) 
             VALUES (:ticket_id, :asset_id)
@@ -151,19 +156,19 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
         
         try:
             db_session.execute(insert_stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
-            print(f"[SAFELY_ASSIGN DEBUG] Successfully inserted asset {asset.id} to ticket {ticket.id} via SQL")
+            logger.info("[SAFELY_ASSIGN DEBUG] Successfully inserted asset {asset.id} to ticket {ticket.id} via SQL")
             return True
         except Exception as sql_error:
             # Check for duplicate key error (safe to ignore)
             if "UNIQUE constraint failed" in str(sql_error):
-                print(f"[SAFELY_ASSIGN DEBUG] Relationship already exists (UNIQUE constraint), this is OK")
+                logger.info("[SAFELY_ASSIGN DEBUG] Relationship already exists (UNIQUE constraint), this is OK")
                 return True
             else:
-                print(f"[SAFELY_ASSIGN DEBUG] SQL insertion failed: {str(sql_error)}")
+                logger.info("[SAFELY_ASSIGN DEBUG] SQL insertion failed: {str(sql_error)}")
                 return False
         
     except Exception as e:
-        print(f"[SAFELY_ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
+        logger.info("[SAFELY_ASSIGN DEBUG] Error assigning asset to ticket: {str(e)}")
         return False
 
 @assets_bp.route('/add', methods=['POST'])
@@ -173,7 +178,7 @@ def add_asset():
     db_session = db_manager.get_session()
     try:
         data = request.get_json()
-        print(f"[ASSETS DEBUG] Received data: {data}")
+        logger.info("[ASSETS DEBUG] Received data: {data}")
         
         # Get form data
         asset_tag = data.get('asset_tag')
@@ -205,7 +210,7 @@ def add_asset():
         charger = data.get('charger')
         diag = data.get('diag')
 
-        print(f"[ASSETS DEBUG] Parsed fields: asset_tag={asset_tag}, serial_number={serial_number}, name={name}, ticket_id={ticket_id}")
+        logger.info("[ASSETS DEBUG] Parsed fields: asset_tag={asset_tag}, serial_number={serial_number}, name={name}, ticket_id={ticket_id}")
 
         # Input validation
         if not all([asset_tag, serial_number, name]):
@@ -213,7 +218,7 @@ def add_asset():
             if not asset_tag: missing.append('asset_tag')
             if not serial_number: missing.append('serial_number') 
             if not name: missing.append('name')
-            print(f"[ASSETS DEBUG] Missing required fields: {missing}")
+            logger.info("[ASSETS DEBUG] Missing required fields: {missing}")
             return jsonify({'success': False, 'error': '[ASSETS_ROUTE] Asset tag, serial number, and name are required'}), 400
 
         # Check if asset tag or serial number already exists
@@ -234,10 +239,10 @@ def add_asset():
                 from datetime import datetime
                 receiving_date_obj = datetime.strptime(receiving_date, '%Y-%m-%d')
             except ValueError:
-                print(f"[ASSETS DEBUG] Invalid receiving_date format: {receiving_date}")
+                logger.info("[ASSETS DEBUG] Invalid receiving_date format: {receiving_date}")
 
         # Create new asset with all fields
-        print(f"[ASSETS DEBUG] Creating new asset with: asset_tag={asset_tag}, serial_num={serial_number}, name={name}, model={model}")
+        logger.info("[ASSETS DEBUG] Creating new asset with: asset_tag={asset_tag}, serial_num={serial_number}, name={name}, model={model}")
         new_asset = Asset(
             asset_tag=asset_tag,
             serial_num=serial_number,
@@ -267,7 +272,7 @@ def add_asset():
         
         db_session.add(new_asset)
         db_session.flush()  # Get the ID without committing
-        print(f"[ASSETS DEBUG] Asset created successfully with ID: {new_asset.id}")
+        logger.info("[ASSETS DEBUG] Asset created successfully with ID: {new_asset.id}")
         
         # Create activity log for asset creation
         activity = Activity(
@@ -280,17 +285,17 @@ def add_asset():
 
         # If ticket_id is provided, try to link the asset to the ticket
         if ticket_id:
-            print(f"[ASSETS DEBUG] Attempting to link asset {new_asset.id} to ticket {ticket_id}")
+            logger.info("[ASSETS DEBUG] Attempting to link asset {new_asset.id} to ticket {ticket_id}")
             try:
                 ticket = db_session.query(Ticket).get(int(ticket_id))
                 if ticket:
-                    print(f"[ASSETS DEBUG] Found ticket {ticket.id}")
-                    print(f"[ASSETS DEBUG] Current ticket.assets before linking: {[a.id for a in ticket.assets]}")
+                    logger.info("[ASSETS DEBUG] Found ticket {ticket.id}")
+                    logger.info("[ASSETS DEBUG] Current ticket.assets before linking: {[a.id for a in ticket.assets]}")
                     
                     # Safely link asset to ticket
                     if _safely_assign_asset_to_ticket(ticket, new_asset, db_session):
-                        print(f"[ASSETS DEBUG] Successfully linked asset to ticket")
-                        print(f"[ASSETS DEBUG] Current ticket.assets after linking: {[a.id for a in ticket.assets]}")
+                        logger.info("[ASSETS DEBUG] Successfully linked asset to ticket")
+                        logger.info("[ASSETS DEBUG] Current ticket.assets after linking: {[a.id for a in ticket.assets]}")
                         
                         # Add activity for linking
                         linking_activity = Activity(
@@ -300,42 +305,42 @@ def add_asset():
                             reference_id=new_asset.id
                         )
                         db_session.add(linking_activity)
-                        print(f"[ASSETS DEBUG] Added linking activity")
+                        logger.info("[ASSETS DEBUG] Added linking activity")
                         
                         # Auto-checkout asset for Asset Checkout tickets
-                        print(f"[ASSETS DEBUG] Checking if ticket should auto-checkout asset")
-                        print(f"[ASSETS DEBUG] Ticket category: {ticket.category}")
-                        print(f"[ASSETS DEBUG] Ticket customer_id: {ticket.customer_id}")
+                        logger.info("[ASSETS DEBUG] Checking if ticket should auto-checkout asset")
+                        logger.info("[ASSETS DEBUG] Ticket category: {ticket.category}")
+                        logger.info("[ASSETS DEBUG] Ticket customer_id: {ticket.customer_id}")
                         
                         if ticket.category and _is_asset_checkout_ticket(ticket.category):
-                            print(f"[ASSETS DEBUG] This is an Asset Checkout ticket ({ticket.category.value}), auto-checking out asset")
+                            logger.info("[ASSETS DEBUG] This is an Asset Checkout ticket ({ticket.category.value}), auto-checking out asset")
                             if _auto_checkout_asset_to_customer(ticket, new_asset, db_session):
-                                print(f"[ASSETS DEBUG] Successfully auto-checked out asset to customer")
-                                print(f"[ASSETS DEBUG] Asset status after checkout: {new_asset.status}")
-                                print(f"[ASSETS DEBUG] Asset customer_id after checkout: {new_asset.customer_id}")
+                                logger.info("[ASSETS DEBUG] Successfully auto-checked out asset to customer")
+                                logger.info("[ASSETS DEBUG] Asset status after checkout: {new_asset.status}")
+                                logger.info("[ASSETS DEBUG] Asset customer_id after checkout: {new_asset.customer_id}")
                             else:
-                                print(f"[ASSETS DEBUG] Failed to auto-checkout asset to customer")
+                                logger.info("[ASSETS DEBUG] Failed to auto-checkout asset to customer")
                         else:
                             if not ticket.category:
-                                print(f"[ASSETS DEBUG] Ticket has no category - skipping auto-checkout")
+                                logger.info("[ASSETS DEBUG] Ticket has no category - skipping auto-checkout")
                             else:
-                                print(f"[ASSETS DEBUG] Ticket category {ticket.category.value} is not an Asset Checkout type - skipping auto-checkout")
+                                logger.info("[ASSETS DEBUG] Ticket category {ticket.category.value} is not an Asset Checkout type - skipping auto-checkout")
                     else:
-                        print(f"[ASSETS DEBUG] Failed to link asset to ticket")
+                        logger.info("[ASSETS DEBUG] Failed to link asset to ticket")
                 else:
-                    print(f"[ASSETS DEBUG] Ticket {ticket_id} not found")
+                    logger.info("[ASSETS DEBUG] Ticket {ticket_id} not found")
             except Exception as e:
-                print(f"[ASSETS DEBUG] Exception during linking: {str(e)}")
+                logger.info("[ASSETS DEBUG] Exception during linking: {str(e)}")
                 import traceback
                 traceback.print_exc()
         
         # Single commit for everything
-        print(f"[ASSETS DEBUG] About to commit all operations")
+        logger.info("[ASSETS DEBUG] About to commit all operations")
         try:
             db_session.commit()
-            print(f"[ASSETS DEBUG] All operations committed successfully")
+            logger.info("[ASSETS DEBUG] All operations committed successfully")
         except Exception as e:
-            print(f"[ASSETS DEBUG] Error during commit: {str(e)}")
+            logger.info("[ASSETS DEBUG] Error during commit: {str(e)}")
             import traceback
             traceback.print_exc()
             raise
@@ -363,7 +368,7 @@ def add_asset():
         
     except Exception as e:
         db_session.rollback()
-        print(f"[ASSETS DEBUG] Exception in add_asset: {str(e)}")
+        logger.info("[ASSETS DEBUG] Exception in add_asset: {str(e)}")
         return jsonify({'success': False, 'error': f'[ASSETS_ROUTE] {str(e)}'}), 500
     finally:
         db_session.close()
@@ -413,7 +418,7 @@ def unlink_asset(asset_id, ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error unlinking asset: {str(e)}")
+        logger.info("Error unlinking asset: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()

@@ -1,6 +1,11 @@
 from database import Base, engine
 from models.accessory import Accessory
 from sqlalchemy.orm import Session
+import logging
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
 
 def add_test_accessories():
     # Create a session
@@ -48,11 +53,11 @@ def add_test_accessories():
         
         # Commit the changes
         session.commit()
-        print("Test accessories added successfully!")
+        logger.info("Test accessories added successfully!")
         
     except Exception as e:
         session.rollback()
-        print(f"Error adding test accessories: {str(e)}")
+        logger.info("Error adding test accessories: {str(e)}")
     finally:
         session.close()
 

@@ -1,6 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
 from utils.auth_decorators import login_required, admin_required
 from utils.store_instances import (
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
     user_store, activity_store, ticket_store, 
     inventory_store, queue_store
 )
@@ -21,7 +25,7 @@ from sqlalchemy.orm import Session
 from flask_login import current_user
 import logging
 
-main_bp = Blueprint('main', __name__)
+main_bp = Bluelogger.info('main', __name__)
 db_manager = DatabaseManager()
 
 # Configure upload settings for dashboard

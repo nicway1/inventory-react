@@ -3,6 +3,10 @@ from flask_cors import CORS
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
 
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+
+
 # Load environment variables from .env file
 load_dotenv()
 from routes.inventory import inventory_bp
@@ -157,22 +161,22 @@ def create_app():
             return None
 
     # Register blueprints with proper URL prefixes
-    app.register_blueprint(main_bp, url_prefix='/')
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(inventory_bp, url_prefix='/inventory')
-    app.register_blueprint(tickets_bp, url_prefix='/tickets')
-    app.register_blueprint(shipments_bp, url_prefix='/shipments')
-    app.register_blueprint(users_bp, url_prefix='/users')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(api_bp)
-    app.register_blueprint(intake_bp)
-    app.register_blueprint(assets_bp)
-    app.register_blueprint(documents_bp)
-    app.register_blueprint(debug_bp)
-    app.register_blueprint(reports_bp)
+    app.register_bluelogger.info(main_bp, url_prefix='/')
+    app.register_bluelogger.info(auth_bp, url_prefix='/auth')
+    app.register_bluelogger.info(inventory_bp, url_prefix='/inventory')
+    app.register_bluelogger.info(tickets_bp, url_prefix='/tickets')
+    app.register_bluelogger.info(shipments_bp, url_prefix='/shipments')
+    app.register_bluelogger.info(users_bp, url_prefix='/users')
+    app.register_bluelogger.info(admin_bp, url_prefix='/admin')
+    app.register_bluelogger.info(api_bp)
+    app.register_bluelogger.info(intake_bp)
+    app.register_bluelogger.info(assets_bp)
+    app.register_bluelogger.info(documents_bp)
+    app.register_bluelogger.debug(debug_bp)
+    app.register_bluelogger.info(reports_bp)
     # Register category blueprints
-    app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
-    app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
+    app.register_bluelogger.info(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
+    app.register_bluelogger.info(asset_return_claw_bp)   # Prefix is defined in the blueprint file
 
     @app.context_processor
     def utility_processor():
@@ -203,11 +207,11 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    print("Starting application...")
+    logger.info("Starting application...")
     
     # Initialize database and create tables
     with app.app_context():
-        print("Initializing database...")
+        logger.info("Initializing database...")
         init_db()
         
         # Create default company if it doesn't exist
@@ -215,20 +219,20 @@ if __name__ == '__main__':
         try:
             default_company = db.query(Company).filter_by(name="LunaComputer").first()
             if not default_company:
-                print("\nCreating default company...")
+                logger.info("\nCreating default company...")
                 default_company = Company(
                     name="LunaComputer",
                     address="Default Address"
                 )
                 db.add(default_company)
                 db.commit()
-                print("Default company created")
+                logger.info("Default company created")
             
             # Create default admin user if it doesn't exist
-            print("\nChecking for admin user...")
+            logger.info("\nChecking for admin user...")
             admin_user = db.query(User).filter_by(username='admin').first()
             if not admin_user:
-                print("Creating admin user...")
+                logger.info("Creating admin user...")
                 admin_user = User(
                     username='admin',
                     password_hash=safe_generate_password_hash('admin123'),
@@ -238,18 +242,18 @@ if __name__ == '__main__':
                 )
                 db.add(admin_user)
                 db.commit()
-                print(f"Admin user created successfully: {admin_user.username}")
+                logger.info("Admin user created successfully: {admin_user.username}")
             else:
-                print(f"Admin user already exists: {admin_user.username}")
+                logger.info("Admin user already exists: {admin_user.username}")
         finally:
             db.close()
 
     # Try different ports if 5001 is in use
-    port = 5001
+    port = 5003
     while port < 5010:  # Try ports 5001-5009
         try:
             app.run(debug=True, host='127.0.0.1', port=port)
             break
         except OSError:
-            print(f"Port {port} is in use, trying {port + 1}")
+            logger.info("Port {port} is in use, trying {port + 1}")
             port += 1
