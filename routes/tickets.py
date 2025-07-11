@@ -1,6 +1,7 @@
 import datetime
 import os
 import json
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response, make_response
 from utils.auth_decorators import login_required, admin_required
 from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus, TicketAccessory
