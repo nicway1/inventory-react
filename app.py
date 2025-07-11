@@ -2,10 +2,10 @@ from flask import Flask, redirect, url_for, render_template, session, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
+import logging
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
-
 
 # Load environment variables from .env file
 load_dotenv()
@@ -38,7 +38,6 @@ from utils.db_manager import DatabaseManager
 from utils.email_sender import mail
 # from utils.oauth2_email_sender import oauth2_mail
 import os
-import logging
 from routes.main import main_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
@@ -161,22 +160,22 @@ def create_app():
             return None
 
     # Register blueprints with proper URL prefixes
-    app.register_bluelogger.info(main_bp, url_prefix='/')
-    app.register_bluelogger.info(auth_bp, url_prefix='/auth')
-    app.register_bluelogger.info(inventory_bp, url_prefix='/inventory')
-    app.register_bluelogger.info(tickets_bp, url_prefix='/tickets')
-    app.register_bluelogger.info(shipments_bp, url_prefix='/shipments')
-    app.register_bluelogger.info(users_bp, url_prefix='/users')
-    app.register_bluelogger.info(admin_bp, url_prefix='/admin')
-    app.register_bluelogger.info(api_bp)
-    app.register_bluelogger.info(intake_bp)
-    app.register_bluelogger.info(assets_bp)
-    app.register_bluelogger.info(documents_bp)
-    app.register_bluelogger.debug(debug_bp)
-    app.register_bluelogger.info(reports_bp)
+    app.register_blueprint(main_bp, url_prefix='/')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(tickets_bp, url_prefix='/tickets')
+    app.register_blueprint(shipments_bp, url_prefix='/shipments')
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(api_bp)
+    app.register_blueprint(intake_bp)
+    app.register_blueprint(assets_bp)
+    app.register_blueprint(documents_bp)
+    app.register_blueprint(debug_bp)
+    app.register_blueprint(reports_bp)
     # Register category blueprints
-    app.register_bluelogger.info(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
-    app.register_bluelogger.info(asset_return_claw_bp)   # Prefix is defined in the blueprint file
+    app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
+    app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
 
     @app.context_processor
     def utility_processor():

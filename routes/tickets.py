@@ -415,11 +415,8 @@ Additional Notes:
                     assigned_accessories = []
                     accessory_description_part = ""
                     
-                    # Debug logging - write to file to ensure it's captured
-                    import logging
+                    # Debug logging - use existing logger
                     from datetime import datetime
-                    logging.basicConfig(level=logging.DEBUG)
-                    logger = logging.getLogger(__name__)
                     
                     logger.error(f"CSV_DEBUG: selected_accessories_json = '{selected_accessories_json}'")
                     logger.error(f"CSV_DEBUG: Form keys: {list(request.form.keys())}")
@@ -5772,7 +5769,7 @@ def update_return_status(ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        logger.info("Error updating return status: {str(e")}", file=sys.stderr)
+        logger.error(f"Error updating return status: {str(e)}")
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -5871,7 +5868,7 @@ def transfer_ticket(ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        logger.info("Error transferring ticket: {str(e")}", file=sys.stderr)
+        logger.error(f"Error transferring ticket: {str(e)}")
         traceback.print_exc()
         flash(f'Error transferring ticket: {str(e)}', 'error')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
