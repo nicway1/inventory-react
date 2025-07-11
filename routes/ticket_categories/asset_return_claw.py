@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # Define Blueprint
-asset_return_claw_bp = Bluelogger.info(
+asset_return_claw_bp = Blueprint(
     'asset_return_claw',
     __name__,
     url_prefix='/tickets/category/return_claw' # Example prefix

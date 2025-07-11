@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-shipments_bp = Bluelogger.info('shipments', __name__, url_prefix='/shipments')
+shipments_bp = Blueprint('shipments', __name__, url_prefix='/shipments')
 shipment_store = ShipmentStore()
 shipment_tracker = ShipmentTracker()
 

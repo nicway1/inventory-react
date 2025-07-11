@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # Create Blueprint
-assets_bp = Bluelogger.info('assets', __name__, url_prefix='/assets')
+assets_bp = Blueprint('assets', __name__, url_prefix='/assets')
 db_manager = DatabaseManager()
 
 def _is_asset_checkout_ticket(ticket_category):

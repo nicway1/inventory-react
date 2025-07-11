@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-users_bp = Bluelogger.info('users', __name__, url_prefix='/users')
+users_bp = Blueprint('users', __name__, url_prefix='/users')
 user_store = UserStore()
 ticket_store = TicketStore()
 

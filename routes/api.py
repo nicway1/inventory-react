@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-api_bp = Bluelogger.info('api', __name__, url_prefix='/api')
+api_bp = Blueprint('api', __name__, url_prefix='/api')
 db_manager = DatabaseManager()
 
 @api_bp.route('/assets/details', methods=['GET'])

@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-auth_bp = Bluelogger.info('auth', __name__)
+auth_bp = Blueprint('auth', __name__)
 user_store = UserStore()
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()

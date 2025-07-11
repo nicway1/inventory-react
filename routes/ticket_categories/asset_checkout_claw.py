@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # Define Blueprint
-asset_checkout_claw_bp = Bluelogger.info(
+asset_checkout_claw_bp = Blueprint(
     'asset_checkout_claw', 
     __name__,
     url_prefix='/tickets/category/checkout_claw' # Example prefix

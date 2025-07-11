@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-intake_bp = Bluelogger.info('intake', __name__, url_prefix='/intake')
+intake_bp = Blueprint('intake', __name__, url_prefix='/intake')
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads/intake'

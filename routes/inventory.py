@@ -36,7 +36,7 @@ import traceback
 logger = logging.getLogger(__name__)
 
 
-inventory_bp = Bluelogger.info('inventory', __name__, url_prefix='/inventory')
+inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
 
 def get_filtered_customers(db_session, user):

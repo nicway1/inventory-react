@@ -40,7 +40,7 @@ from sqlalchemy import text
 from models.accessory import Accessory
 from models.company_customer_permission import CompanyCustomerPermission
 
-admin_bp = Bluelogger.info('admin', __name__)
+admin_bp = Blueprint('admin', __name__)
 snipe_client = SnipeITClient()
 db_manager = DatabaseManager()
 csrf = CSRFProtect()

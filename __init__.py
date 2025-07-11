@@ -22,8 +22,8 @@ def create_app():
     from routes.auth import auth_bp
     
     # Register blueprints with URL prefixes
-    app.register_bluelogger.info(inventory_bp, url_prefix='/inventory')
-    app.register_bluelogger.info(tickets_bp, url_prefix='/tickets')
-    app.register_bluelogger.info(auth_bp, url_prefix='/auth')
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(tickets_bp, url_prefix='/tickets')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     
     return app 

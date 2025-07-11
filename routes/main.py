@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from flask_login import current_user
 import logging
 
-main_bp = Bluelogger.info('main', __name__)
+main_bp = Blueprint('main', __name__)
 db_manager = DatabaseManager()
 
 # Configure upload settings for dashboard

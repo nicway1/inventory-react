@@ -68,7 +68,7 @@ except Exception as e:
 # Define allowed file extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv'}
 
-tickets_bp = Bluelogger.info('tickets', __name__, url_prefix='/tickets')
+tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 
 def get_filtered_customers(db_session, user):
     """Get customers filtered by company permissions for non-SUPER_ADMIN users"""

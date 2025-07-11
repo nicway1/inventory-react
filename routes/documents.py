@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-documents_bp = Bluelogger.info('documents', __name__, url_prefix='/documents')
+documents_bp = Blueprint('documents', __name__, url_prefix='/documents')
 
 @documents_bp.route('/commercial-invoice')
 @login_required

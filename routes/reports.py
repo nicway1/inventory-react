@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 )
 from models.asset import AssetStatus
 
-reports_bp = Bluelogger.info('reports', __name__, url_prefix='/reports')
+reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
 @reports_bp.route('/')
 @login_required
