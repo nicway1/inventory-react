@@ -274,10 +274,10 @@ def create_ticket():
                category == 'ASSET_CHECKOUT_AUTO' or \
                category == 'ASSET_CHECKOUT_CLAW': # Added CLAW
                 serial_number = request.form.get('asset_checkout_serial')
-                logger.info("Asset Checkout Serial Number: {serial_number}")  # Debug log
+                logger.info(f"Asset Checkout Serial Number: {serial_number}")  # Debug log
             else:
                 serial_number = request.form.get('serial_number')
-                logger.info("Standard Serial Number: {serial_number}")  # Debug log
+                logger.info(f"Standard Serial Number: {serial_number}")  # Debug log
 
             # Check if this is a custom category
             is_custom_category = False
@@ -328,7 +328,7 @@ def create_ticket():
                     except ValueError:
                         queue_id = None
                 
-                logger.info("Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
+                logger.info(f"Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
@@ -380,7 +380,7 @@ Shipping Method: {shipping_method}
 Additional Notes:
 {notes}"""
 
-                logger.info("Creating ticket with description: {description}")  # Debug log
+                logger.info(f"Creating ticket with description: {description}")  # Debug log
 
                 try:
                     # Determine appropriate ticket category enum value based on shipping method
@@ -444,7 +444,7 @@ Additional Notes:
                         try:
                             import json
                             selected_accessories_data = json.loads(selected_accessories_json)
-                            logger.info("Processing {len(selected_accessories_data)} selected accessories")  # Debug log
+                            logger.info(f"Processing {len(selected_accessories_data)} selected accessories")  # Debug log
                             
                             for acc_data in selected_accessories_data:
                                 inventory_id = acc_data.get('inventoryId')
@@ -503,9 +503,9 @@ Additional Notes:
                             notes=notes,
                             case_owner_id=int(case_owner_id) if case_owner_id else None
                         )
-                        logger.info("[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
+                        logger.info(f"[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
                     except Exception as ticket_creation_error:
-                        logger.info("[TICKET CREATION ERROR] Failed to create ticket: {str(ticket_creation_error)}")
+                        logger.info(f"[TICKET CREATION ERROR] Failed to create ticket: {str(ticket_creation_error)}")
                         import traceback
                         traceback.print_exc()
                         
@@ -521,7 +521,7 @@ Additional Notes:
                     
                     if not ticket_id:
                         error_msg = "Ticket creation failed: No ticket ID returned"
-                        logger.info("[TICKET CREATION ERROR] {error_msg}")
+                        logger.info(f"[TICKET CREATION ERROR] {error_msg}")
                         
                         # Check if this is an AJAX request
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -568,7 +568,7 @@ Additional Notes:
                                         created_ticket.shipping_carrier_5 = carrier or 'claw'
                                         created_ticket.shipping_status_5 = 'Pending'
                                     
-                                    logger.info("[PACKAGE DEBUG] Added Package {package_num}: {tracking_number} ({carrier})")
+                                    logger.info(f"[PACKAGE DEBUG] Added Package {package_num}: {tracking_number} ({carrier})")
                             
                             # Update the ticket's updated_at timestamp
                             from datetime import datetime
@@ -576,14 +576,14 @@ Additional Notes:
                             
                             # Commit the package changes
                             db_session.commit()
-                            logger.info("[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
+                            logger.info(f"[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
 
                     # Get the created ticket for asset assignment
                     from models.ticket import Ticket  # Ensure import is available in this scope
                     created_ticket = db_session.query(Ticket).get(ticket_id)
                     if created_ticket and asset:
-                        logger.info("[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
-                        logger.info("[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
+                        logger.info(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
+                        logger.info(f"[ASSET ASSIGN DEBUG] Asset object: {asset.model} (ID: {asset.id})")
                         
                         # Create proper ticket-asset relationship using direct SQL
                         # Check if relationship already exists
@@ -594,7 +594,7 @@ Additional Notes:
                         """)
                         existing_count = db_session.execute(existing_check, {"ticket_id": ticket_id, "asset_id": asset.id}).scalar()
                         
-                        logger.info("[ASSET ASSIGN DEBUG] Existing relationship count: {existing_count}")
+                        logger.info(f"[ASSET ASSIGN DEBUG] Existing relationship count: {existing_count}")
                         
                         if existing_count == 0:
                             # Create the ticket-asset relationship using direct SQL
@@ -607,7 +607,7 @@ Additional Notes:
                                 db_session.flush()
                                 logger.info("[ASSET ASSIGN DEBUG] Created ticket-asset relationship via direct SQL")
                             except Exception as e:
-                                logger.info("[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
+                                logger.info(f"[ASSET ASSIGN DEBUG] Error creating ticket-asset relationship: {str(e)}")
                                 # If it's a constraint violation, that's OK - relationship already exists
                                 if "UNIQUE constraint failed" not in str(e):
                                     raise
@@ -615,7 +615,7 @@ Additional Notes:
                         # Update asset status and assign to customer
                         asset.customer_id = customer_id
                         asset.status = AssetStatus.DEPLOYED
-                        logger.info("[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
+                        logger.info(f"[ASSET ASSIGN DEBUG] Updated asset status to DEPLOYED and assigned to customer {customer_id}")
                         
                         # Create asset transaction record for the checkout
                         from models.asset_transaction import AssetTransaction
@@ -632,7 +632,7 @@ Additional Notes:
                         db_session.add(transaction)
                         logger.info("[ASSET ASSIGN DEBUG] Created asset transaction record for checkout")
                     else:
-                        logger.info("[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
+                        logger.info(f"[ASSET ASSIGN DEBUG] Warning: Could not create asset assignment - ticket: {created_ticket}, asset: {asset}")
                     
                     # Now assign accessories to the created ticket
                     if assigned_accessories:
@@ -675,7 +675,7 @@ Additional Notes:
                                             reference_id=ticket.id
                                         )
                                         db_session.add(activity)
-                                        logger.info("Created TicketAccessory for {accessory.name}")  # Debug log
+                                        logger.info(f"Created TicketAccessory for {accessory.name}")  # Debug log
                                 else:
                                     # Create ticket accessory from CSV data (no inventory match)
                                     ticket_accessory = TicketAccessory(
@@ -689,12 +689,12 @@ Additional Notes:
                                     )
                                     db_session.add(ticket_accessory)
                                     actual_assigned.append(f"{acc_data['name']} (x{acc_data['quantity']}) - from CSV")
-                                    logger.info("Created TicketAccessory for CSV item {acc_data['name']}")  # Debug log
+                                    logger.info(f"Created TicketAccessory for CSV item {acc_data['name']}")  # Debug log
                             
                             assigned_accessories = actual_assigned
                                 
                         except Exception as acc_error:
-                            logger.info("Error creating ticket accessories: {str(acc_error)}")
+                            logger.info(f"Error creating ticket accessories: {str(acc_error)}")
                             import traceback
                             traceback.print_exc()
                     
@@ -763,7 +763,7 @@ Additional Notes:
                     flash('PIN request ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    logger.info("Error creating ticket: {str(e)}")  # Debug log
+                    logger.info(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
@@ -780,9 +780,9 @@ Additional Notes:
                 # Extract the return description from the form
                 user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
                 
-                logger.info("DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
-                logger.info("DEBUG - Form description: {request.form.get('description')}")  # Debug log
-                logger.info("DEBUG - Final user_return_description: {user_return_description}")  # Debug log
+                logger.info(f"DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
+                logger.info(f"DEBUG - Form description: {request.form.get('description')}")  # Debug log
+                logger.info(f"DEBUG - Final user_return_description: {user_return_description}")  # Debug log
                 
                 # Convert queue_id to int if provided
                 if queue_id:
@@ -791,7 +791,7 @@ Additional Notes:
                     except ValueError:
                         queue_id = None
                 
-                logger.info("Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
+                logger.info(f"Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
                 
                 if not customer_id:
                     flash('Please select a customer', 'error')
@@ -818,7 +818,7 @@ Additional Notes:
                     try:
                         company_name = customer.company.name
                     except Exception as e:
-                        logger.info("Error accessing company name: {str(e)}")
+                        logger.info(f"Error accessing company name: {str(e)}")
                         company_name = 'N/A'
                 
                 # Prepare system description (separate from user return description)
@@ -855,11 +855,11 @@ Shipping Method: Claw (Ship24)"""
                         case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
 
-                    logger.info("Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
+                    logger.info(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log
                     flash('Asset return ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    logger.info("Error creating ticket: {str(e)}")  # Debug log
+                    logger.info(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
@@ -976,7 +976,7 @@ Additional Notes:
                     flash('Asset intake ticket created successfully')
                     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 except Exception as e:
-                    logger.info("Error creating ticket: {str(e)}")  # Debug log
+                    logger.info(f"Error creating ticket: {str(e)}")  # Debug log
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
