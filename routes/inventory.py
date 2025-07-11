@@ -1524,9 +1524,9 @@ def add_asset():
         if request.method == 'POST':
             try:
                 # Debug log the form data
-                current_app.logger.info("Form data received in add_asset:")
+                logger.info("Form data received in add_asset:")
                 for key, value in request.form.items():
-                    current_app.logger.info(f"  {key}: '{value}'")
+                    logger.info(f"  {key}: '{value}'")
                 
                 # Check for required fields
                 required_fields = {
@@ -1555,7 +1555,7 @@ def add_asset():
                 
                 if all_missing:
                     error_msg = f"Missing required fields: {', '.join(all_missing)}"
-                    current_app.logger.warning(f"Form validation failed: {error_msg}")
+                    logger.warning(f"Form validation failed: {error_msg}")
                     if is_ajax:
                         return jsonify({'success': False, 'error': error_msg, 'missing_fields': all_missing}), 400
                     else:
@@ -1668,7 +1668,7 @@ def add_asset():
                             new_asset.intake_ticket_id = ticket.id
                             
                             # More careful approach to linking - check if already linked first
-                            current_app.logger.info(f"Linking asset to ticket {ticket.id}")
+                            logger.info(f"Linking asset to ticket {ticket.id}")
                             
                             # First add the asset
                             db_session.add(new_asset)
@@ -1684,13 +1684,13 @@ def add_asset():
                             db_session.add(new_asset)
                             db_session.flush()
                             activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Ticket ID {intake_ticket_id} not found for linking."
-                            current_app.logger.warning(f"Ticket ID {intake_ticket_id} not found for linking with new asset")
+                            logger.warning(f"Ticket ID {intake_ticket_id} not found for linking with new asset")
                     except ValueError:
                         # Still create the asset, just don't link to a ticket
                         db_session.add(new_asset)
                         db_session.flush()
                         activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Invalid ticket ID {intake_ticket_id} provided."
-                        current_app.logger.warning(f"Invalid ticket ID format: {intake_ticket_id}")
+                        logger.warning(f"Invalid ticket ID format: {intake_ticket_id}")
                 else:
                     # No ticket to link, just create the asset
                     db_session.add(new_asset)
@@ -1731,16 +1731,16 @@ def add_asset():
             except Exception as e:
                 db_session.rollback()
                 error_msg = str(e)
-                current_app.logger.error(f"Error adding asset: {error_msg}")
+                logger.error(f"Error adding asset: {error_msg}")
                 
                 # Log full exception for debugging
-                current_app.logger.error(traceback.format_exc())
+                logger.error(traceback.format_exc())
                 
                 # Be more specific about the ticket_assets constraint
                 if "UNIQUE constraint failed: ticket_assets.ticket_id, ticket_assets.asset_id" in error_msg:
-                    current_app.logger.debug(f"Ticket-Asset constraint violation detected")
-                    current_app.logger.debug(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
-                    current_app.logger.debug(f"Asset data: {request.form}")
+                    logger.debug(f"Ticket-Asset constraint violation detected")
+                    logger.debug(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
+                    logger.debug(f"Asset data: {request.form}")
                     
                     # Check if this is really a constraint error or some other SQLite error
                     ticket_id = request.form.get('intake_ticket_id')
@@ -1757,15 +1757,15 @@ def add_asset():
                             if count > 0:
                                 # This is a legitimate constraint violation
                                 error = "This asset is already linked to this ticket."
-                                current_app.logger.info(f"Confirmed: Asset {new_asset.id} already linked to ticket {ticket_id}")
+                                logger.info(f"Confirmed: Asset {new_asset.id} already linked to ticket {ticket_id}")
                             else:
                                 # This might be a different issue or a false positive
                                 error = "An error occurred while linking the asset to the ticket."
-                                current_app.logger.warning(f"False positive? Asset {new_asset.id} not found linked to ticket {ticket_id}")
+                                logger.warning(f"False positive? Asset {new_asset.id} not found linked to ticket {ticket_id}")
                         except Exception as e2:
                             # If we can't query, fall back to the original error
                             error = "This asset is already linked to this ticket."
-                            current_app.logger.error(f"Error checking ticket-asset link: {str(e2)}")
+                            logger.error(f"Error checking ticket-asset link: {str(e2)}")
                     else:
                         error = "This asset is already linked to this ticket."
                     
@@ -1813,7 +1813,7 @@ def add_asset():
     except Exception as e:
         # ... existing error handling ...
         flash(f'Error loading form: {str(e)}', 'error')
-        current_app.logger.error(f"Error loading add_asset form: {e}", exc_info=True)
+        logger.error(f"Error loading add_asset form: {e}", exc_info=True)
         return redirect(url_for('inventory.view_inventory'))
     finally:
         db_session.close()
@@ -2803,7 +2803,7 @@ def bulk_checkout():
 
     except Exception as e:
         db_session.rollback()
-        current_app.logger.error(f"Error in bulk_checkout: {str(e)}")
+        logger.error(f"Error in bulk_checkout: {str(e)}")
         return jsonify({'error': f"Unexpected error during checkout: {str(e)}"}), 500
     finally:
         db_session.close()
@@ -3384,23 +3384,23 @@ def import_customers():
 @inventory_bp.route('/api/accessories/<int:id>/transactions')
 @login_required
 def get_accessory_transactions(id):
-    current_app.logger.debug(f"Fetching transactions for accessory {id}")
+    logger.debug(f"Fetching transactions for accessory {id}")
     db_session = db_manager.get_session()
     try:
         # First check if the accessory exists
         accessory = db_session.query(Accessory).get(id)
         if not accessory:
-            current_app.logger.error(f"Accessory {id} not found")
+            logger.error(f"Accessory {id} not found")
             return jsonify({'error': 'Accessory not found'}), 404
 
-        current_app.logger.debug(f"Found accessory: {accessory.name}")
+        logger.debug(f"Found accessory: {accessory.name}")
         
         # Get transactions
         transactions = db_session.query(AccessoryTransaction).filter(
             AccessoryTransaction.accessory_id == id
         ).order_by(AccessoryTransaction.transaction_date.desc()).all()
         
-        current_app.logger.debug(f"Found {len(transactions)} transactions")
+        logger.debug(f"Found {len(transactions)} transactions")
         
         transaction_list = []
         for t in transactions:
@@ -3415,15 +3415,15 @@ def get_accessory_transactions(id):
                     'customer': t.customer.name if t.customer else None
                 }
                 transaction_list.append(transaction_data)
-                current_app.logger.debug(f"Processed transaction: {t.transaction_number}")
+                logger.debug(f"Processed transaction: {t.transaction_number}")
             except Exception as e:
-                current_app.logger.error(f"Error processing transaction {t.id}: {str(e)}")
+                logger.error(f"Error processing transaction {t.id}: {str(e)}")
                 continue
         
-        current_app.logger.debug(f"Successfully processed {len(transaction_list)} transactions")
+        logger.debug(f"Successfully processed {len(transaction_list)} transactions")
         return jsonify(transaction_list)
     except Exception as e:
-        current_app.logger.error(f"Error fetching transactions: {str(e)}")
+        logger.error(f"Error fetching transactions: {str(e)}")
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
@@ -3715,7 +3715,7 @@ def get_maintenance_assets():
         })
     
     except Exception as e:
-        current_app.logger.error(f"Error retrieving maintenance assets: {str(e)}")
+        logger.error(f"Error retrieving maintenance assets: {str(e)}")
         return jsonify({'error': f"Error retrieving maintenance assets: {str(e)}"}), 500
     finally:
         db_session.close()
@@ -3725,6 +3725,7 @@ def get_maintenance_assets():
 @admin_required
 def bulk_update_erased():
     """API endpoint to bulk update the ERASED status of multiple assets"""
+    db_session = db_manager.get_session()
     try:
         data = request.get_json()
         
@@ -3758,8 +3759,10 @@ def bulk_update_erased():
         
     except Exception as e:
         db_session.rollback()
-        app.logger.error(f"Error updating assets: {str(e)}")
+        logger.error(f"Error updating assets: {str(e)}")
         return jsonify({'error': f"Error updating assets: {str(e)}"}), 500
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/update-erase-status', methods=['POST'])
 @login_required
@@ -3809,7 +3812,7 @@ def update_erase_status():
         
     except Exception as e:
         db_session.rollback()
-        app.logger.error(f"Error updating erase status: {str(e)}")
+        logger.error(f"Error updating erase status: {str(e)}")
         return jsonify({'error': f"Error updating erase status: {str(e)}"}), 500
     finally:
         db_session.close()
