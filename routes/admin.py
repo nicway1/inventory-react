@@ -12,7 +12,7 @@ from models.company import Company
 from models.queue import Queue
 from models.company_queue_permission import CompanyQueuePermission
 from utils.email_sender import send_welcome_email
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, and_
 import os
 import shutil
 import glob
@@ -2435,39 +2435,77 @@ def csv_import_preview_ticket():
                             'confidence': 'High'
                         })
                 
-                # 2. Search by product name in assets (medium priority)
+                # 2. Search by product name in assets (medium priority) - IMPROVED ALGORITHM
                 if product_title and len(matches) < 3:
-                    # Create search terms by splitting product title
-                    search_terms = product_title.lower().split()
+                    # First try exact phrase matches (highest relevance)
+                    exact_phrase_matches = asset_query.filter(
+                        or_(
+                            Asset.name.ilike(f'%{product_title}%'),
+                            Asset.model.ilike(f'%{product_title}%'),
+                            Asset.hardware_type.ilike(f'%{product_title}%')
+                        )
+                    ).limit(3).all()
                     
-                    for term in search_terms:
-                        if len(term) > 3:  # Only search terms longer than 3 characters
-                            name_matches = asset_query.filter(
-                                or_(
-                                    Asset.name.ilike(f'%{term}%'),
-                                    Asset.model.ilike(f'%{term}%'),
-                                    Asset.hardware_type.ilike(f'%{term}%'),
-                                    Asset.manufacturer.ilike(f'%{term}%')
-                                )
-                            ).limit(2).all()
+                    for asset in exact_phrase_matches:
+                        if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                            is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                            status_display = asset.status.value if asset.status else 'Unknown'
+                            availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
                             
-                            for asset in name_matches:
-                                # Avoid duplicates
-                                if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
-                                    is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
-                                    status_display = asset.status.value if asset.status else 'Unknown'
-                                    availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
-                                    
-                                    matches.append({
-                                        'match_type': 'Product Name (Asset)',
-                                        'item_type': 'asset',
-                                        'id': asset.id,
-                                        'name': asset.name or asset.model,
-                                        'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
-                                        'availability': availability_text,
-                                        'is_available': is_available,
-                                        'confidence': 'Medium'
-                                    })
+                            matches.append({
+                                'match_type': 'Exact Phrase (Asset)',
+                                'item_type': 'asset',
+                                'id': asset.id,
+                                'name': asset.name or asset.model,
+                                'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
+                                'confidence': 'High'
+                            })
+                    
+                    # If still need more matches, try smart keyword matching
+                    if len(matches) < 3:
+                        # Extract meaningful keywords (filter out common words)
+                        common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
+                        search_terms = [term.lower() for term in product_title.split() 
+                                      if len(term) > 3 and term.lower() not in common_words]
+                        
+                        # Only proceed if we have meaningful terms
+                        if search_terms:
+                            # Create a query that requires multiple term matches for better relevance
+                            conditions = []
+                            for term in search_terms[:3]:  # Limit to first 3 meaningful terms
+                                conditions.append(
+                                    or_(
+                                        Asset.name.ilike(f'%{term}%'),
+                                        Asset.model.ilike(f'%{term}%'),
+                                        Asset.hardware_type.ilike(f'%{term}%'),
+                                        Asset.manufacturer.ilike(f'%{term}%')
+                                    )
+                                )
+                            
+                            # Try to find assets that match multiple terms
+                            if len(conditions) >= 2:
+                                multi_term_matches = asset_query.filter(
+                                    and_(*conditions[:2])  # Require at least 2 terms to match
+                                ).limit(2).all()
+                                
+                                for asset in multi_term_matches:
+                                    if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                                        is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                                        status_display = asset.status.value if asset.status else 'Unknown'
+                                        availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
+                                        
+                                        matches.append({
+                                            'match_type': 'Multi-term Match (Asset)',
+                                            'item_type': 'asset',
+                                            'id': asset.id,
+                                            'name': asset.name or asset.model,
+                                            'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                            'availability': availability_text,
+                                            'is_available': is_available,
+                                            'confidence': 'Medium'
+                                        })
                 
                 # 3. Search by brand in assets (lower priority)
                 if brand and len(matches) < 3:
@@ -2492,26 +2530,30 @@ def csv_import_preview_ticket():
                                 'confidence': 'Low'
                             })
                 
-                # 4. Search for accessories
+                # 4. Search for accessories - IMPROVED ALGORITHM
                 accessory_query = db_session.query(Accessory)
                 
                 # Debug logging for accessory matching
                 logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
                 
-                # Search by exact product name in accessories
+                # Search by exact product name in accessories (highest priority)
                 if product_title:
-                    accessory_matches = accessory_query.filter(
-                        Accessory.name.ilike(f'%{product_title}%')
+                    # First try exact phrase matches
+                    exact_accessory_matches = accessory_query.filter(
+                        or_(
+                            Accessory.name.ilike(f'%{product_title}%'),
+                            Accessory.model_no.ilike(f'%{product_title}%')
+                        )
                     ).limit(3).all()
                     
-                    logger.info(f"CSV_ACCESSORY_DEBUG: Found {len(accessory_matches)} exact matches")
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Found {len(exact_accessory_matches)} exact phrase matches")
                     
-                    for accessory in accessory_matches:
+                    for accessory in exact_accessory_matches:
                         is_available = accessory.available_quantity > 0
                         availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
                         
                         matches.append({
-                            'match_type': 'Product Name (Accessory)',
+                            'match_type': 'Exact Phrase (Accessory)',
                             'item_type': 'accessory',
                             'id': accessory.id,
                             'name': accessory.name,
@@ -2521,32 +2563,42 @@ def csv_import_preview_ticket():
                             'confidence': 'High'
                         })
                 
-                # 5. Search accessories by category or fuzzy name matching
+                # 5. Search accessories by intelligent keyword matching
                 if len(matches) < 5:
-                    # Create search terms for fuzzy matching
-                    search_terms = product_title.lower().split() if product_title else []
-                    logger.info("CSV_ACCESSORY_DEBUG: Fuzzy search terms: {search_terms}")
+                    # Extract meaningful keywords (filter out common words)
+                    common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
+                    search_terms = [term.lower() for term in product_title.split() 
+                                  if len(term) > 3 and term.lower() not in common_words] if product_title else []
                     
-                    for term in search_terms:
-                        if len(term) > 3:  # Only search terms longer than 3 characters
-                            logger.info("CSV_ACCESSORY_DEBUG: Searching fuzzy matches for term: '{term}'")
-                            fuzzy_matches = accessory_query.filter(
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Intelligent search terms: {search_terms}")
+                    
+                    if search_terms:
+                        # Try multi-term matching for better relevance
+                        conditions = []
+                        for term in search_terms[:3]:  # Limit to first 3 meaningful terms
+                            conditions.append(
                                 or_(
                                     Accessory.name.ilike(f'%{term}%'),
                                     Accessory.category.ilike(f'%{term}%'),
                                     Accessory.manufacturer.ilike(f'%{term}%'),
                                     Accessory.model_no.ilike(f'%{term}%')
                                 )
+                            )
+                        
+                        # Try to find accessories that match multiple terms
+                        if len(conditions) >= 2:
+                            logger.info(f"CSV_ACCESSORY_DEBUG: Searching for multi-term matches")
+                            multi_term_accessory_matches = accessory_query.filter(
+                                and_(*conditions[:2])  # Require at least 2 terms to match
                             ).limit(2).all()
                             
-                            for accessory in fuzzy_matches:
-                                # Avoid duplicates
+                            for accessory in multi_term_accessory_matches:
                                 if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
                                     is_available = accessory.available_quantity > 0
                                     availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
                                     
                                     matches.append({
-                                        'match_type': 'Fuzzy Match (Accessory)',
+                                        'match_type': 'Multi-term Match (Accessory)',
                                         'item_type': 'accessory',
                                         'id': accessory.id,
                                         'name': accessory.name,
@@ -2554,6 +2606,37 @@ def csv_import_preview_ticket():
                                         'availability': availability_text,
                                         'is_available': is_available,
                                         'confidence': 'Medium'
+                                    })
+                        
+                        # If still need matches, try single meaningful term matches (lower priority)
+                        elif len(matches) < 5 and search_terms:
+                            # Use only the most specific term (usually the product type)
+                            primary_term = search_terms[0]  # Usually the most important term
+                            logger.info(f"CSV_ACCESSORY_DEBUG: Searching single term matches for: '{primary_term}'")
+                            
+                            single_term_matches = accessory_query.filter(
+                                or_(
+                                    Accessory.name.ilike(f'%{primary_term}%'),
+                                    Accessory.category.ilike(f'%{primary_term}%'),
+                                    Accessory.manufacturer.ilike(f'%{primary_term}%'),
+                                    Accessory.model_no.ilike(f'%{primary_term}%')
+                                )
+                            ).limit(2).all()
+                            
+                            for accessory in single_term_matches:
+                                if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                                    is_available = accessory.available_quantity > 0
+                                    availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                                    
+                                    matches.append({
+                                        'match_type': 'Single Term Match (Accessory)',
+                                        'item_type': 'accessory',
+                                        'id': accessory.id,
+                                        'name': accessory.name,
+                                        'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                        'availability': availability_text,
+                                        'is_available': is_available,
+                                        'confidence': 'Low'
                                     })
                 
                 # 6. Search accessories by brand
