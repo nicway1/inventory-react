@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 # Create a new blueprint for debug routes
-debug_bp = Bluelogger.debug('debug', __name__, url_prefix='/debug')
+debug_bp = Blueprint('debug', __name__, url_prefix='/debug')
 
 @debug_bp.route('/documents/<int:ticket_id>')
 @login_required
