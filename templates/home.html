@@ -122,11 +122,43 @@
                 <svg class="w-6 h-6 text-teal-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <h2 class="text-xl font-semibold">Import Data</h2>
+                <h2 class="text-xl font-semibold">Import Assets</h2>
             </div>
             <p class="text-3xl font-bold text-teal-600">Import</p>
-            <p class="text-gray-600">Import New Data</p>
-            <a href="{{ url_for('inventory.import_inventory') }}" class="mt-4 inline-block text-teal-600 hover:text-teal-800">Import Data →</a>
+            <p class="text-gray-600">Import Asset Data</p>
+            <div class="mt-4 space-y-2">
+                <form method="POST" enctype="multipart/form-data" class="flex flex-col space-y-2">
+                    <input type="hidden" name="import_type" value="asset">
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" required>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">Import Assets</button>
+                </form>
+                <a href="{{ url_for('inventory.import_inventory') }}" class="text-teal-600 hover:text-teal-800 text-sm">Advanced Import →</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ticket Import Card for Supervisors -->
+        {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <h2 class="text-xl font-semibold">Import Tickets</h2>
+            </div>
+            <p class="text-3xl font-bold text-purple-600">CSV</p>
+            <p class="text-gray-600">Import Ticket Orders</p>
+            <div class="mt-4 space-y-2">
+                <form method="POST" enctype="multipart/form-data" class="flex flex-col space-y-2">
+                    <input type="hidden" name="import_type" value="ticket">
+                    <input type="file" name="file" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" required>
+                    <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">Import Tickets</button>
+                </form>
+                <div class="text-sm text-gray-500">
+                    <p>CSV columns: subject, description, category, priority, requester_email, country, company</p>
+                    <p>→ Imports to FirstBase New Orders queue</p>
+                </div>
+            </div>
         </div>
         {% endif %}
 

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Import Tickets - Preview{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">
+                        <i class="fas fa-file-import"></i>
+                        Import Tickets - Preview
+                    </h3>
+                    <div class="btn-group">
+                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if preview_data.success %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Preview:</strong> Found {{ preview_data.total_tickets }} tickets to import into the <strong>FirstBase New Orders</strong> queue.
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h5>CSV Columns Detected:</h5>
+                                <div class="d-flex flex-wrap">
+                                    {% for column in preview_data.columns %}
+                                        <span class="badge badge-secondary m-1">{{ column }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Import Summary:</h5>
+                                <ul class="list-unstyled">
+                                    <li><strong>Total Tickets:</strong> {{ preview_data.total_tickets }}</li>
+                                    <li><strong>Destination Queue:</strong> FirstBase New Orders</li>
+                                    <li><strong>Status:</strong> All tickets will be created as NEW</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Row</th>
+                                        <th>Subject</th>
+                                        <th>Description</th>
+                                        <th>Category</th>
+                                        <th>Priority</th>
+                                        <th>Country</th>
+                                        <th>Company</th>
+                                        <th>Requester Email</th>
+                                        <th>Queue</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ticket in preview_data.tickets %}
+                                        <tr>
+                                            <td>{{ ticket.row_number }}</td>
+                                            <td>{{ ticket.subject[:50] }}{% if ticket.subject|length > 50 %}...{% endif %}</td>
+                                            <td>{{ ticket.description[:50] }}{% if ticket.description|length > 50 %}...{% endif %}</td>
+                                            <td>{{ ticket.category }}</td>
+                                            <td>
+                                                <span class="badge badge-{% if ticket.priority == 'HIGH' %}danger{% elif ticket.priority == 'MEDIUM' %}warning{% else %}info{% endif %}">
+                                                    {{ ticket.priority }}
+                                                </span>
+                                            </td>
+                                            <td>{{ ticket.country if ticket.country else '-' }}</td>
+                                            <td>{{ ticket.company if ticket.company else '-' }}</td>
+                                            <td>{{ ticket.requester_email if ticket.requester_email else '-' }}</td>
+                                            <td>
+                                                <span class="badge badge-primary">{{ ticket.queue_name }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-success">{{ ticket.status }}</span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Important:</strong> 
+                                    <ul class="mb-0">
+                                        <li>All tickets will be imported to the <strong>FirstBase New Orders</strong> queue</li>
+                                        <li>You will be set as the requester for all imported tickets</li>
+                                        <li>Tickets will be created with status <strong>NEW</strong></li>
+                                        <li>This action cannot be undone</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 text-center">
+                                <form method="POST" action="{{ url_for('main.import_tickets') }}">
+                                    <input type="hidden" name="filename" value="{{ filename }}">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-upload"></i>
+                                        Import {{ preview_data.total_tickets }} Tickets
+                                    </button>
+                                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-lg ml-2">
+                                        <i class="fas fa-times"></i>
+                                        Cancel
+                                    </a>
+                                </form>
+                            </div>
+                        </div>
+                        
+                    {% else %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <strong>Error:</strong> {{ preview_data.error }}
+                        </div>
+                        
+                        <div class="text-center">
+                            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                                <i class="fas fa-arrow-left"></i>
+                                Back to Dashboard
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.table td {
+    vertical-align: middle;
+}
+.badge {
+    font-size: 0.9em;
+}
+</style>
+{% endblock %}

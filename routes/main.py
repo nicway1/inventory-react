@@ -4,6 +4,7 @@ from utils.store_instances import (
     user_store, activity_store, ticket_store, 
     inventory_store, queue_store
 )
+from utils.ticket_import_store import ticket_import_store
 import logging
 
 # Set up logging for this module
@@ -29,7 +30,7 @@ db_manager = DatabaseManager()
 
 # Configure upload settings for dashboard
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
+ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -97,7 +98,17 @@ def index():
             return redirect(url_for('auth.login'))
         
         # Handle file upload if POST request
-        if request.method == 'POST' and user.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
+        if request.method == 'POST':
+            import_type = request.form.get('import_type', 'asset')  # Default to asset import
+            
+            # Check permissions based on import type
+            if import_type == 'asset' and user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
+                flash('You do not have permission to import assets')
+                return redirect(url_for('main.index'))
+            elif import_type == 'ticket' and user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                flash('You do not have permission to import tickets')
+                return redirect(url_for('main.index'))
+            
             if 'file' not in request.files:
                 flash('No file uploaded')
                 return redirect(request.url)
@@ -112,20 +123,22 @@ def index():
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
                 file.save(filepath)
                 
-                if inventory_store.import_from_excel(filepath):
-                    flash('Inventory imported successfully')
-                    # Clean up the uploaded file
-                    os.remove(filepath)
-                else:
-                    flash('Error importing inventory')
+                if import_type == 'asset':
+                    # Handle asset import
+                    if inventory_store.import_from_excel(filepath):
+                        flash('Inventory imported successfully')
+                        os.remove(filepath)
+                    else:
+                        flash('Error importing inventory')
+                        os.remove(filepath)
+                elif import_type == 'ticket':
+                    # Handle ticket import - redirect to preview
+                    return redirect(url_for('main.preview_ticket_import', filename=filename))
                     
                 return redirect(url_for('main.index'))
             else:
-                flash('Invalid file type. Please upload an Excel file (.xlsx or .xls)')
+                flash('Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file (.csv)')
                 return redirect(request.url)
-        elif request.method == 'POST':
-            flash('You do not have permission to import data')
-            return redirect(url_for('main.index'))
 
         # Get queues with filtering based on user permissions
         if user.user_type == UserType.SUPER_ADMIN:
@@ -446,3 +459,90 @@ def fix_supervisor_permissions():
             
     except Exception as e:
         return f"Error updating permissions: {str(e)}"
+
+@main_bp.route('/preview-ticket-import/<filename>')
+@login_required
+def preview_ticket_import(filename):
+    """Preview tickets from CSV before importing"""
+    user_id = session['user_id']
+    try:
+        with db_manager as db:
+            user = db.get_user(user_id)
+            
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+        
+        # Check permissions
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            flash('You do not have permission to import tickets')
+            return redirect(url_for('main.index'))
+        
+        # Get preview data
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.exists(filepath):
+            flash('Upload file not found')
+            return redirect(url_for('main.index'))
+        
+        preview_data = ticket_import_store.preview_tickets_from_csv(filepath)
+        
+        if not preview_data['success']:
+            flash(f'Error previewing tickets: {preview_data["error"]}')
+            os.remove(filepath)
+            return redirect(url_for('main.index'))
+        
+        return render_template('ticket_import_preview.html', 
+                             preview_data=preview_data, 
+                             filename=filename,
+                             user=user)
+        
+    except Exception as e:
+        logger.error(f"Error in preview_ticket_import: {str(e)}")
+        flash('An error occurred while previewing tickets')
+        return redirect(url_for('main.index'))
+
+@main_bp.route('/import-tickets', methods=['POST'])
+@login_required
+def import_tickets():
+    """Import tickets from CSV file"""
+    user_id = session['user_id']
+    try:
+        with db_manager as db:
+            user = db.get_user(user_id)
+            
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+        
+        # Check permissions
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            flash('You do not have permission to import tickets')
+            return redirect(url_for('main.index'))
+        
+        filename = request.form.get('filename')
+        if not filename:
+            flash('No filename provided')
+            return redirect(url_for('main.index'))
+        
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.exists(filepath):
+            flash('Upload file not found')
+            return redirect(url_for('main.index'))
+        
+        # Import tickets
+        import_result = ticket_import_store.import_tickets_from_csv(filepath, user_id)
+        
+        # Clean up file
+        os.remove(filepath)
+        
+        if import_result['success']:
+            flash(f'Successfully imported {import_result["imported_count"]} tickets to {import_result["queue_name"]} queue')
+        else:
+            flash(f'Error importing tickets: {import_result["error"]}')
+        
+        return redirect(url_for('main.index'))
+        
+    except Exception as e:
+        logger.error(f"Error in import_tickets: {str(e)}")
+        flash('An error occurred while importing tickets')
+        return redirect(url_for('main.index'))
