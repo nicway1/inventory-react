@@ -106,6 +106,7 @@
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <form method="POST" action="{{ url_for('main.import_tickets') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="filename" value="{{ filename }}">
                                     <button type="submit" class="btn btn-success btn-lg">
                                         <i class="fas fa-upload"></i>
