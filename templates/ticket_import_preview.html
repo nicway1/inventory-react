@@ -24,6 +24,9 @@
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
                             <strong>Preview:</strong> Found {{ preview_data.total_tickets }} tickets to import into the <strong>FirstBase New Orders</strong> queue.
+                            {% if preview_data.grouped_by_order %}
+                                <br><strong>Order Grouping:</strong> Items with the same order ID have been grouped into single tickets.
+                            {% endif %}
                         </div>
                         
                         <div class="row mb-3">
@@ -41,51 +44,68 @@
                                     <li><strong>Total Tickets:</strong> {{ preview_data.total_tickets }}</li>
                                     <li><strong>Destination Queue:</strong> FirstBase New Orders</li>
                                     <li><strong>Status:</strong> All tickets will be created as NEW</li>
+                                    {% if preview_data.grouped_by_order %}
+                                        <li><strong>Grouping:</strong> Orders grouped by Order ID</li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>
                         
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Row</th>
-                                        <th>Subject</th>
-                                        <th>Description</th>
-                                        <th>Category</th>
-                                        <th>Priority</th>
-                                        <th>Country</th>
-                                        <th>Company</th>
-                                        <th>Requester Email</th>
-                                        <th>Queue</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for ticket in preview_data.tickets %}
-                                        <tr>
-                                            <td>{{ ticket.row_number }}</td>
-                                            <td>{{ ticket.subject[:50] }}{% if ticket.subject|length > 50 %}...{% endif %}</td>
-                                            <td>{{ ticket.description[:50] }}{% if ticket.description|length > 50 %}...{% endif %}</td>
-                                            <td>{{ ticket.category }}</td>
-                                            <td>
-                                                <span class="badge badge-{% if ticket.priority == 'HIGH' %}danger{% elif ticket.priority == 'MEDIUM' %}warning{% else %}info{% endif %}">
-                                                    {{ ticket.priority }}
-                                                </span>
-                                            </td>
-                                            <td>{{ ticket.country if ticket.country else '-' }}</td>
-                                            <td>{{ ticket.company if ticket.company else '-' }}</td>
-                                            <td>{{ ticket.requester_email if ticket.requester_email else '-' }}</td>
-                                            <td>
-                                                <span class="badge badge-primary">{{ ticket.queue_name }}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-success">{{ ticket.status }}</span>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <!-- Improved Card-based Preview -->
+                        <div class="row">
+                            {% for ticket in preview_data.tickets %}
+                                <div class="col-lg-6 col-md-12 mb-4">
+                                    <div class="card border-left-primary h-100">
+                                        <div class="card-header bg-light">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h5 class="card-title mb-0 text-truncate-subject">
+                                                    <i class="fas fa-ticket-alt text-primary"></i>
+                                                    {{ ticket.subject }}
+                                                </h5>
+                                                <div class="d-flex align-items-center">
+                                                    {% if ticket.item_count and ticket.item_count > 1 %}
+                                                        <span class="badge badge-info mr-2">{{ ticket.item_count }} items</span>
+                                                    {% endif %}
+                                                    <span class="badge badge-{% if ticket.priority == 'HIGH' %}danger{% elif ticket.priority == 'MEDIUM' %}warning{% else %}info{% endif %}">
+                                                        {{ ticket.priority }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <p class="text-muted mb-1"><strong>Order/Row:</strong> {{ ticket.row_number }}</p>
+                                                    <p class="text-muted mb-1"><strong>Category:</strong> {{ ticket.category }}</p>
+                                                    <p class="text-muted mb-1"><strong>Queue:</strong> <span class="badge badge-primary">{{ ticket.queue_name }}</span></p>
+                                                    <p class="text-muted mb-1"><strong>Status:</strong> <span class="badge badge-success">{{ ticket.status }}</span></p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    {% if ticket.customer_name and ticket.customer_name != 'nan' %}
+                                                        <p class="text-muted mb-1"><strong>Customer:</strong> {{ ticket.customer_name }}</p>
+                                                    {% endif %}
+                                                    {% if ticket.requester_email and ticket.requester_email != 'nan' %}
+                                                        <p class="text-muted mb-1"><strong>Email:</strong> {{ ticket.requester_email }}</p>
+                                                    {% endif %}
+                                                    {% if ticket.company and ticket.company != 'nan' %}
+                                                        <p class="text-muted mb-1"><strong>Company:</strong> {{ ticket.company }}</p>
+                                                    {% endif %}
+                                                    {% if ticket.country and ticket.country != 'nan' %}
+                                                        <p class="text-muted mb-1"><strong>Country:</strong> {{ ticket.country }}</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="description-preview">
+                                                <strong>Description:</strong>
+                                                <div class="mt-2 p-3 bg-light rounded">
+                                                    <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.9em;">{{ ticket.description }}</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
                         
                         <div class="row mt-4">
@@ -140,11 +160,44 @@
 </div>
 
 <style>
-.table td {
-    vertical-align: middle;
+.border-left-primary {
+    border-left: 4px solid #4e73df !important;
+}
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+    transition: all 0.3s;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2) !important;
 }
 .badge {
-    font-size: 0.9em;
+    font-size: 0.85em;
+    padding: 0.4em 0.6em;
+}
+.description-preview pre {
+    background: transparent;
+    border: none;
+    color: #5a5c69;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.card-header {
+    border-bottom: 1px solid #e3e6f0;
+}
+.btn-lg {
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+}
+.alert {
+    border-radius: 0.5rem;
+}
+.text-truncate-subject {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 </style>
 {% endblock %}

@@ -248,7 +248,7 @@ if __name__ == '__main__':
             db.close()
 
     # Try different ports if 5001 is in use
-    port = 5003
+    port = 5005
     while port < 5010:  # Try ports 5001-5009
         try:
             app.run(debug=True, host='127.0.0.1', port=port)

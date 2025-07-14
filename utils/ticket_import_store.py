@@ -1,7 +1,11 @@
 from utils.db_manager import DatabaseManager
 from models.ticket import Ticket, TicketCategory, TicketStatus
 from models.queue import Queue
+from models.customer_user import CustomerUser
+from models.company import Company
 import pandas as pd
+import csv
+import io
 from datetime import datetime
 import os
 import logging
@@ -14,32 +18,233 @@ class TicketImportStore:
     def __init__(self):
         self.db_manager = DatabaseManager()
 
+    def clean_csv_row(self, row):
+        """Clean and validate a CSV row - copied from admin.py"""
+        try:
+            # Required fields for validation
+            required_fields = ['product_title', 'org_name']
+            
+            # Clean whitespace and handle quoted empty values
+            cleaned = {}
+            for key, value in row.items():
+                if value is None:
+                    cleaned[key] = ''
+                else:
+                    # Strip whitespace and handle quoted spaces like " "
+                    cleaned_value = str(value).strip()
+                    if cleaned_value in ['" "', "'  '", '""', "''"]:
+                        cleaned_value = ''
+                    cleaned[key] = cleaned_value
+            
+            # Check if required fields are present and non-empty
+            for field in required_fields:
+                if not cleaned.get(field):
+                    logger.info(f"Skipping row due to missing {field}: {cleaned}")
+                    return None
+            
+            # Set default values for missing fields
+            defaults = {
+                'person_name': cleaned.get('person_name') or 'Unknown Customer',
+                'primary_email': cleaned.get('primary_email') or '',
+                'phone_number': cleaned.get('phone_number') or '',
+                'category_code': cleaned.get('category_code') or 'GENERAL',
+                'brand': cleaned.get('brand') or '',
+                'serial_number': cleaned.get('serial_number') or '',
+                'preferred_condition': cleaned.get('preferred_condition') or 'Good',
+                'priority': cleaned.get('priority') or '1',
+                'order_id': cleaned.get('order_id') or '',
+                'order_item_id': cleaned.get('order_item_id') or '',
+                'organization_id': cleaned.get('organization_id') or '',
+                'status': cleaned.get('status') or 'Pending',
+                'start_date': cleaned.get('start_date') or '',
+                'shipped_date': cleaned.get('shipped_date') or '',
+                'delivery_date': cleaned.get('delivery_date') or '',
+                'office_name': cleaned.get('office_name') or '',
+                'address_line1': cleaned.get('address_line1') or '',
+                'address_line2': cleaned.get('address_line2') or '',
+                'city': cleaned.get('city') or '',
+                'state': cleaned.get('state') or '',
+                'postal_code': cleaned.get('postal_code') or '',
+                'country_code': cleaned.get('country_code') or '',
+                'carrier': cleaned.get('carrier') or '',
+                'tracking_link': cleaned.get('tracking_link') or ''
+            }
+            
+            # Update cleaned row with defaults
+            for key, default_value in defaults.items():
+                if not cleaned.get(key):
+                    cleaned[key] = default_value
+            
+            return cleaned
+            
+        except Exception as e:
+            logger.info(f"Error cleaning row: {e}")
+            return None
+
+    def group_orders_by_id(self, data):
+        """Group CSV rows by order_id - copied from admin.py"""
+        try:
+            order_groups = {}
+            individual_items = []
+            
+            # Group by order_id
+            for row in data:
+                order_id = row.get('order_id', '').strip()
+                if order_id:
+                    if order_id not in order_groups:
+                        order_groups[order_id] = []
+                    order_groups[order_id].append(row)
+                else:
+                    # No order_id, treat as individual
+                    individual_items.append(row)
+            
+            grouped_orders = []
+            
+            # Process groups
+            for order_id, items in order_groups.items():
+                if len(items) > 1:
+                    # Multiple items - create grouped order
+                    primary_item = items[0]  # Use first item as primary
+                    
+                    # Create item summary
+                    product_titles = [item['product_title'] for item in items]
+                    if len(product_titles) <= 3:
+                        title_summary = ', '.join(product_titles)
+                    else:
+                        title_summary = f"{', '.join(product_titles[:2])} and {len(product_titles) - 2} more..."
+                    
+                    grouped_order = {
+                        'is_grouped': True,
+                        'order_id': order_id,
+                        'item_count': len(items),
+                        'title_summary': title_summary,
+                        'all_items': items,
+                        # Include primary item data for compatibility
+                        **primary_item
+                    }
+                    grouped_orders.append(grouped_order)
+                else:
+                    # Single item, add to individual
+                    item = items[0]
+                    item['is_grouped'] = False
+                    individual_items.append(item)
+            
+            # Mark individual items
+            for item in individual_items:
+                if 'is_grouped' not in item:
+                    item['is_grouped'] = False
+            
+            return grouped_orders, individual_items
+            
+        except Exception as e:
+            logger.info(f"Error grouping orders: {e}")
+            return [], data
+
     def preview_tickets_from_csv(self, file_path):
         """Preview tickets from CSV file before importing"""
         try:
-            # Read CSV file
-            df = pd.read_csv(file_path)
+            # Read CSV file using same method as admin.py
+            with open(file_path, 'r', encoding='utf-8') as csvfile:
+                csv_content = csvfile.read()
             
-            # Debug: Print column names
-            logger.info(f"CSV columns: {df.columns.tolist()}")
+            csv_reader = csv.DictReader(io.StringIO(csv_content))
+            
+            # Convert to list and validate
+            raw_data = []
+            for row in csv_reader:
+                # Clean and validate the row
+                cleaned_row = self.clean_csv_row(row)
+                if cleaned_row:  # Only add valid rows
+                    raw_data.append(cleaned_row)
+            
+            if not raw_data:
+                return {
+                    'success': False,
+                    'error': 'No valid data found in CSV',
+                    'tickets': [],
+                    'total_tickets': 0
+                }
+            
+            # Group orders by order_id
+            grouped_data, individual_data = self.group_orders_by_id(raw_data)
+            
+            # Combine grouped and individual data
+            all_data = grouped_data + individual_data
             
             tickets_preview = []
             
-            # Convert DataFrame to ticket preview data
-            for index, row in df.iterrows():
-                # Extract ticket data from CSV row
-                ticket_data = {
-                    'row_number': index + 1,
-                    'subject': str(row.get('subject', row.get('Subject', f'Ticket {index + 1}'))),
-                    'description': str(row.get('description', row.get('Description', 'Imported from CSV'))),
-                    'category': str(row.get('category', row.get('Category', 'GENERAL'))),
-                    'priority': str(row.get('priority', row.get('Priority', 'MEDIUM'))),
-                    'requester_email': str(row.get('requester_email', row.get('Requester Email', ''))),
-                    'country': str(row.get('country', row.get('Country', ''))),
-                    'company': str(row.get('company', row.get('Company', ''))),
-                    'status': TicketStatus.NEW.value,
-                    'queue_name': 'FirstBase New Orders'
-                }
+            for index, row in enumerate(all_data):
+                if row.get('is_grouped', False):
+                    # Grouped order
+                    all_items = row.get('all_items', [])
+                    
+                    # Build description with all products
+                    product_items = []
+                    for item in all_items:
+                        product_title = item.get('product_title', '')
+                        brand = item.get('brand', '')
+                        serial_number = item.get('serial_number', '')
+                        
+                        item_desc = f"- {product_title}"
+                        if brand and brand != 'nan':
+                            item_desc += f" ({brand})"
+                        if serial_number and serial_number != 'nan':
+                            item_desc += f" [Serial: {serial_number}]"
+                        
+                        product_items.append(item_desc)
+                    
+                    description = f"Order ID: {row['order_id']}\n\nItems:\n" + "\n".join(product_items)
+                    
+                    # Create customer address
+                    customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                    if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                        customer_address = "Address not provided"
+                    
+                    ticket_data = {
+                        'row_number': f"Order {row['order_id']}",
+                        'subject': f"Order {row['order_id']} - {row['title_summary']}",
+                        'description': description,
+                        'category': 'ASSET_CHECKOUT',
+                        'priority': 'MEDIUM',
+                        'requester_email': row.get('primary_email', ''),
+                        'country': row.get('country_code', ''),
+                        'company': row.get('org_name', ''),
+                        'customer_name': row.get('person_name', ''),
+                        'customer_address': customer_address,
+                        'status': TicketStatus.NEW.value,
+                        'queue_name': 'FirstBase New Orders',
+                        'order_id': row['order_id'],
+                        'item_count': row.get('item_count', len(all_items))
+                    }
+                else:
+                    # Individual item
+                    description = f"Product: {row.get('product_title', '')}"
+                    if row.get('brand'):
+                        description += f"\nBrand: {row['brand']}"
+                    if row.get('serial_number'):
+                        description += f"\nSerial Number: {row['serial_number']}"
+                    
+                    # Create customer address
+                    customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                    if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                        customer_address = "Address not provided"
+                    
+                    ticket_data = {
+                        'row_number': index + 1,
+                        'subject': f"Asset Request - {row.get('product_title', 'Unknown Product')}",
+                        'description': description,
+                        'category': 'ASSET_CHECKOUT',
+                        'priority': 'MEDIUM',
+                        'requester_email': row.get('primary_email', ''),
+                        'country': row.get('country_code', ''),
+                        'company': row.get('org_name', ''),
+                        'customer_name': row.get('person_name', ''),
+                        'customer_address': customer_address,
+                        'status': TicketStatus.NEW.value,
+                        'queue_name': 'FirstBase New Orders',
+                        'order_id': row.get('order_id', ''),
+                        'item_count': 1
+                    }
                 
                 tickets_preview.append(ticket_data)
             
@@ -47,7 +252,8 @@ class TicketImportStore:
                 'success': True,
                 'total_tickets': len(tickets_preview),
                 'tickets': tickets_preview,
-                'columns': df.columns.tolist()
+                'columns': list(csv_reader.fieldnames) if csv_reader.fieldnames else [],
+                'grouped_by_order': len(grouped_data) > 0
             }
             
         except Exception as e:
@@ -64,8 +270,32 @@ class TicketImportStore:
     def import_tickets_from_csv(self, file_path, user_id):
         """Import tickets from CSV file to FirstBase New Orders queue"""
         try:
-            # Read CSV file
-            df = pd.read_csv(file_path)
+            # Read CSV file using same method as preview
+            with open(file_path, 'r', encoding='utf-8') as csvfile:
+                csv_content = csvfile.read()
+            
+            csv_reader = csv.DictReader(io.StringIO(csv_content))
+            
+            # Convert to list and validate
+            raw_data = []
+            for row in csv_reader:
+                # Clean and validate the row
+                cleaned_row = self.clean_csv_row(row)
+                if cleaned_row:  # Only add valid rows
+                    raw_data.append(cleaned_row)
+            
+            if not raw_data:
+                return {
+                    'success': False,
+                    'error': 'No valid data found in CSV',
+                    'imported_count': 0
+                }
+            
+            # Group orders by order_id
+            grouped_data, individual_data = self.group_orders_by_id(raw_data)
+            
+            # Combine grouped and individual data
+            all_data = grouped_data + individual_data
             
             db_session = self.db_manager.get_session()
             try:
@@ -86,49 +316,101 @@ class TicketImportStore:
                 
                 imported_tickets = []
                 
-                # Convert DataFrame to tickets
-                for index, row in df.iterrows():
-                    # Extract ticket data from CSV row
-                    subject = str(row.get('subject', row.get('Subject', f'Ticket {index + 1}')))
-                    description = str(row.get('description', row.get('Description', 'Imported from CSV')))
-                    category_str = str(row.get('category', row.get('Category', 'GENERAL')))
-                    priority_str = str(row.get('priority', row.get('Priority', 'MEDIUM')))
-                    requester_email = str(row.get('requester_email', row.get('Requester Email', '')))
-                    country = str(row.get('country', row.get('Country', '')))
-                    company = str(row.get('company', row.get('Company', '')))
+                for row in all_data:
+                    # Create or get customer
+                    customer = db_session.query(CustomerUser).filter(
+                        CustomerUser.email == row['primary_email']
+                    ).first()
                     
-                    # Convert category string to enum
-                    try:
-                        category = TicketCategory[category_str.upper()]
-                    except (KeyError, AttributeError):
-                        category = TicketCategory.GENERAL
+                    customer_created = False
+                    if not customer:
+                        # Get or create company
+                        company = db_session.query(Company).filter(
+                            Company.name == row['org_name']
+                        ).first()
+                        
+                        if not company:
+                            company = Company(
+                                name=row['org_name'],
+                                description=f"Auto-created from CSV import",
+                                contact_email=row['primary_email']
+                            )
+                            db_session.add(company)
+                            db_session.flush()
+                        
+                        # Create customer address
+                        customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                        if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                            customer_address = "Address not provided"
+                        
+                        customer = CustomerUser(
+                            name=row['person_name'],
+                            email=row['primary_email'],
+                            contact_number=row.get('phone_number', ''),
+                            address=customer_address,
+                            company_id=company.id,
+                            country=row.get('country_code', '')
+                        )
+                        db_session.add(customer)
+                        db_session.flush()
+                        customer_created = True
+                    
+                    # Create ticket based on whether it's grouped or individual
+                    if row.get('is_grouped', False):
+                        # Grouped order
+                        all_items = row.get('all_items', [])
+                        
+                        # Build description with all products
+                        product_items = []
+                        for item in all_items:
+                            product_title = item.get('product_title', '')
+                            brand = item.get('brand', '')
+                            serial_number = item.get('serial_number', '')
+                            
+                            item_desc = f"- {product_title}"
+                            if brand and brand != 'nan':
+                                item_desc += f" ({brand})"
+                            if serial_number and serial_number != 'nan':
+                                item_desc += f" [Serial: {serial_number}]"
+                            
+                            product_items.append(item_desc)
+                        
+                        description = f"Order ID: {row['order_id']}\n\nItems:\n" + "\n".join(product_items)
+                        subject = f"Order {row['order_id']} - {row['title_summary']}"
+                        
+                    else:
+                        # Individual item
+                        description = f"Product: {row.get('product_title', '')}"
+                        if row.get('brand'):
+                            description += f"\nBrand: {row['brand']}"
+                        if row.get('serial_number'):
+                            description += f"\nSerial Number: {row['serial_number']}"
+                        
+                        subject = f"Asset Request - {row.get('product_title', 'Unknown Product')}"
                     
                     # Create new Ticket
                     ticket = Ticket(
                         subject=subject,
                         description=description,
-                        category=category,
+                        category=TicketCategory.ASSET_CHECKOUT,
                         status=TicketStatus.NEW,
-                        priority=priority_str.upper() if priority_str.upper() in ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] else 'MEDIUM',
+                        priority='MEDIUM',
                         requester_id=user_id,  # Set the importing user as requester
                         queue_id=firstbase_queue.id,
-                        country=country if country else None,
+                        country=row.get('country_code', None),
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow()
                     )
                     
-                    # Add additional fields from CSV if they exist
-                    if hasattr(ticket, 'company') and company:
-                        ticket.company = company
-                    if hasattr(ticket, 'requester_email') and requester_email:
-                        ticket.requester_email = requester_email
-                    
                     db_session.add(ticket)
                     imported_tickets.append({
                         'subject': subject,
-                        'description': description,
-                        'category': category.value,
-                        'priority': priority_str
+                        'description': description[:100] + '...' if len(description) > 100 else description,
+                        'category': 'ASSET_CHECKOUT',
+                        'priority': 'MEDIUM',
+                        'order_id': row.get('order_id', ''),
+                        'item_count': row.get('item_count', 1),
+                        'customer_created': customer_created
                     })
                 
                 db_session.commit()
@@ -159,13 +441,31 @@ class TicketImportStore:
     def get_supported_csv_columns(self):
         """Get list of supported CSV columns for ticket import"""
         return [
-            'subject',
-            'description', 
-            'category',
-            'priority',
-            'requester_email',
-            'country',
-            'company'
+            'order_id',          # For grouping multiple items into one ticket
+            'order_item_id',     # Individual item ID
+            'product_title',     # Product name/title (REQUIRED)
+            'brand',             # Product brand
+            'serial_number',     # Serial number
+            'category_code',     # Category code
+            'person_name',       # Customer name
+            'primary_email',     # Customer email
+            'phone_number',      # Customer phone
+            'org_name',          # Organization name (REQUIRED)
+            'address_line1',     # Address line 1
+            'address_line2',     # Address line 2
+            'city',              # City
+            'state',             # State
+            'postal_code',       # Postal code
+            'country_code',      # Country code
+            'office_name',       # Office name
+            'preferred_condition', # Preferred condition
+            'priority',          # Priority
+            'status',            # Status
+            'start_date',        # Start date
+            'shipped_date',      # Shipped date
+            'delivery_date',     # Delivery date
+            'carrier',           # Carrier
+            'tracking_link'      # Tracking link
         ]
 
 # Create singleton instance

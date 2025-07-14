@@ -157,8 +157,10 @@
                     <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">Import Tickets</button>
                 </form>
                 <div class="text-sm text-gray-500">
-                    <p>CSV columns: subject, description, category, priority, requester_email, country, company</p>
-                    <p>→ Imports to FirstBase New Orders queue</p>
+                    <p><strong>Required columns:</strong> product_title, org_name</p>
+                    <p><strong>Optional columns:</strong> order_id, person_name, primary_email, brand, serial_number, address_line1, city, state, postal_code, country_code, etc.</p>
+                    <p><strong>Order Grouping:</strong> Items with same order_id will be grouped into one ticket</p>
+                    <p>→ Imports to FirstBase New Orders queue as Asset Checkout tickets</p>
                 </div>
             </div>
         </div>
