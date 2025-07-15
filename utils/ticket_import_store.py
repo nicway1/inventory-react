@@ -3,12 +3,14 @@ from models.ticket import Ticket, TicketCategory, TicketStatus
 from models.queue import Queue
 from models.customer_user import CustomerUser
 from models.company import Company
+from models.enums import Country
 import pandas as pd
 import csv
 import io
 from datetime import datetime
 import os
 import logging
+import uuid
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
@@ -17,6 +19,51 @@ logger = logging.getLogger(__name__)
 class TicketImportStore:
     def __init__(self):
         self.db_manager = DatabaseManager()
+    
+    def map_country_code(self, country_code):
+        """Map country code to Country enum value"""
+        if not country_code:
+            return Country.USA  # Default to USA if no country provided
+        
+        country_code = country_code.strip().upper()
+        
+        # Direct mapping for country codes
+        country_mapping = {
+            'US': Country.USA,
+            'USA': Country.USA,
+            'JP': Country.JAPAN,
+            'JAPAN': Country.JAPAN,
+            'PH': Country.PHILIPPINES,
+            'PHILIPPINES': Country.PHILIPPINES,
+            'AU': Country.AUSTRALIA,
+            'AUSTRALIA': Country.AUSTRALIA,
+            'IL': Country.ISRAEL,
+            'ISRAEL': Country.ISRAEL,
+            'IN': Country.INDIA,
+            'INDIA': Country.INDIA,
+            'TW': Country.TAIWAN,
+            'TAIWAN': Country.TAIWAN,
+            'CN': Country.CHINA,
+            'CHINA': Country.CHINA,
+            'HK': Country.HONG_KONG,
+            'HONG_KONG': Country.HONG_KONG,
+            'MY': Country.MALAYSIA,
+            'MALAYSIA': Country.MALAYSIA,
+            'TH': Country.THAILAND,
+            'THAILAND': Country.THAILAND,
+            'VN': Country.VIETNAM,
+            'VIETNAM': Country.VIETNAM,
+            'KR': Country.SOUTH_KOREA,
+            'SOUTH_KOREA': Country.SOUTH_KOREA,
+            'ID': Country.INDONESIA,
+            'INDONESIA': Country.INDONESIA,
+            'CA': Country.CANADA,
+            'CANADA': Country.CANADA,
+            'SG': Country.SINGAPORE,
+            'SINGAPORE': Country.SINGAPORE
+        }
+        
+        return country_mapping.get(country_code, Country.USA)  # Default to USA if not found
 
     def clean_csv_row(self, row):
         """Clean and validate a CSV row - copied from admin.py"""
@@ -204,7 +251,7 @@ class TicketImportStore:
                         'row_number': f"Order {row['order_id']}",
                         'subject': f"Order {row['order_id']} - {row['title_summary']}",
                         'description': description,
-                        'category': 'ASSET_CHECKOUT',
+                        'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
                         'priority': 'MEDIUM',
                         'requester_email': row.get('primary_email', ''),
                         'country': row.get('country_code', ''),
@@ -218,7 +265,12 @@ class TicketImportStore:
                     }
                 else:
                     # Individual item
-                    description = f"Product: {row.get('product_title', '')}"
+                    description = ""
+                    # Add order ID if available
+                    if row.get('order_id'):
+                        description += f"Order ID: {row['order_id']}\n\n"
+                    
+                    description += f"Product: {row.get('product_title', '')}"
                     if row.get('brand'):
                         description += f"\nBrand: {row['brand']}"
                     if row.get('serial_number'):
@@ -233,7 +285,7 @@ class TicketImportStore:
                         'row_number': index + 1,
                         'subject': f"Asset Request - {row.get('product_title', 'Unknown Product')}",
                         'description': description,
-                        'category': 'ASSET_CHECKOUT',
+                        'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
                         'priority': 'MEDIUM',
                         'requester_email': row.get('primary_email', ''),
                         'country': row.get('country_code', ''),
@@ -317,13 +369,17 @@ class TicketImportStore:
                 imported_tickets = []
                 
                 for row in all_data:
-                    # Create or get customer
-                    customer = db_session.query(CustomerUser).filter(
-                        CustomerUser.email == row['primary_email']
-                    ).first()
-                    
+                    # Create or get customer - only if email is provided
+                    customer = None
                     customer_created = False
-                    if not customer:
+                    
+                    if row.get('primary_email') and row['primary_email'].strip():
+                        customer = db_session.query(CustomerUser).filter(
+                            CustomerUser.email == row['primary_email']
+                        ).first()
+                    
+                    if not customer and row.get('primary_email') and row['primary_email'].strip():
+                        logger.info(f"Creating customer with email: {row['primary_email']}")
                         # Get or create company
                         company = db_session.query(Company).filter(
                             Company.name == row['org_name']
@@ -344,12 +400,47 @@ class TicketImportStore:
                             customer_address = "Address not provided"
                         
                         customer = CustomerUser(
-                            name=row['person_name'],
+                            name=row['person_name'] or 'Unknown Customer',
                             email=row['primary_email'],
-                            contact_number=row.get('phone_number', ''),
+                            contact_number=row.get('phone_number', '') or 'No phone provided',
                             address=customer_address,
                             company_id=company.id,
-                            country=row.get('country_code', '')
+                            country=self.map_country_code(row.get('country_code', ''))
+                        )
+                        db_session.add(customer)
+                        db_session.flush()
+                        customer_created = True
+                    elif not row.get('primary_email') or not row['primary_email'].strip():
+                        # No email provided - create customer with a generated email
+                        # Get or create company
+                        company = db_session.query(Company).filter(
+                            Company.name == row['org_name']
+                        ).first()
+                        
+                        if not company:
+                            company = Company(
+                                name=row['org_name'],
+                                description=f"Auto-created from CSV import",
+                                contact_email=""
+                            )
+                            db_session.add(company)
+                            db_session.flush()
+                        
+                        # Create customer address
+                        customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                        if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                            customer_address = "Address not provided"
+                        
+                        # Generate a unique email for customer without email
+                        generated_email = f"noemail_{uuid.uuid4().hex[:8]}@{row['org_name'].lower().replace(' ', '')}.generated"
+                        
+                        customer = CustomerUser(
+                            name=row['person_name'] or 'Unknown Customer',
+                            email=generated_email,
+                            contact_number=row.get('phone_number', '') or 'No phone provided',
+                            address=customer_address,
+                            company_id=company.id,
+                            country=self.map_country_code(row.get('country_code', ''))
                         )
                         db_session.add(customer)
                         db_session.flush()
@@ -380,7 +471,12 @@ class TicketImportStore:
                         
                     else:
                         # Individual item
-                        description = f"Product: {row.get('product_title', '')}"
+                        description = ""
+                        # Add order ID if available
+                        if row.get('order_id'):
+                            description += f"Order ID: {row['order_id']}\n\n"
+                        
+                        description += f"Product: {row.get('product_title', '')}"
                         if row.get('brand'):
                             description += f"\nBrand: {row['brand']}"
                         if row.get('serial_number'):
@@ -392,10 +488,11 @@ class TicketImportStore:
                     ticket = Ticket(
                         subject=subject,
                         description=description,
-                        category=TicketCategory.ASSET_CHECKOUT,
+                        category=TicketCategory.ASSET_CHECKOUT_CLAW,
                         status=TicketStatus.NEW,
                         priority='MEDIUM',
                         requester_id=user_id,  # Set the importing user as requester
+                        customer_id=customer.id if customer else None,  # Link to customer
                         queue_id=firstbase_queue.id,
                         country=row.get('country_code', None),
                         created_at=datetime.utcnow(),
@@ -406,7 +503,7 @@ class TicketImportStore:
                     imported_tickets.append({
                         'subject': subject,
                         'description': description[:100] + '...' if len(description) > 100 else description,
-                        'category': 'ASSET_CHECKOUT',
+                        'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
                         'priority': 'MEDIUM',
                         'order_id': row.get('order_id', ''),
                         'item_count': row.get('item_count', 1),

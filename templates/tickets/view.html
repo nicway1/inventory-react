@@ -953,6 +953,19 @@ body.dark-theme [class*="bg-neutral"] {
                             <div class="sf-field-label">Category</div>
                             <div class="sf-field-value">{{ ticket.get_category_display_name() if ticket.get_category_display_name() != 'Custom' else 'Custom Category' }}</div>
                         </div>
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Queue</div>
+                            <div class="sf-field-value">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-gray-900 font-medium">{{ ticket.queue.name if ticket.queue else 'No Queue' }}</span>
+                                    {% if not ticket.queue %}
+                                        <span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                                            Unassigned
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1330,6 +1343,12 @@ body.dark-theme [class*="bg-neutral"] {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                     Change Case Owner
+                </button>
+                <button class="sf-button primary-button" onclick="openQueueChangeModal()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    Change Queue
                 </button>
                 <button class="sf-button primary-button" onclick="showAssignItemToPackageModal()">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -7771,6 +7790,78 @@ function updateAccessoryTable(accessory) {
     </div>
 </div>
 
+<!-- Queue Change Modal -->
+<div id="queueChangeModal" class="direct-modal" style="display: none;">
+    <div class="direct-modal-content max-w-md">
+        <div class="direct-modal-header border-b border-gray-200 pb-4 mb-6">
+            <div class="flex items-center space-x-3">
+                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Change Queue</h2>
+                    <p class="text-sm text-gray-600">Move this ticket to a different queue</p>
+                </div>
+            </div>
+            <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-colors" onclick="closeQueueChangeModal()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form method="POST" action="{{ url_for('tickets.change_ticket_queue', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-3">
+                    <label for="queue_id" class="block text-sm font-medium text-gray-700">
+                        Current Queue
+                    </label>
+                </div>
+                <div class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                    {{ ticket.queue.name if ticket.queue else 'No Queue Assigned' }}
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label for="queue_id" class="block text-sm font-medium text-gray-700 mb-3">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Select New Queue
+                    </span>
+                </label>
+                <select name="queue_id" id="queue_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" required>
+                    <option value="">Choose a queue...</option>
+                    {% for queue in queues %}
+                        <option value="{{ queue.id }}" {% if ticket.queue_id == queue.id %}selected{% endif %}>
+                            {{ queue.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" onclick="closeQueueChangeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-sm">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        Change Queue
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 // Show Import Tech Asset Modal
 function showImportTechAssetModal() {
@@ -8728,6 +8819,23 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 
+// Queue Change Modal Functions
+function openQueueChangeModal() {
+    document.getElementById('queueChangeModal').style.display = 'block';
+}
+
+function closeQueueChangeModal() {
+    document.getElementById('queueChangeModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('queueChangeModal');
+    if (event.target === modal) {
+        closeQueueChangeModal();
+    }
+}
+
 // Make functions globally available
 window.showAddItemModal = showAddItemModal;
 window.hideAddItemModal = hideAddItemModal;
@@ -8735,6 +8843,8 @@ window.loadItemOptions = loadItemOptions;
 window.showAssignItemToPackageModal = showAssignItemToPackageModal;
 window.hideAssignItemToPackageModal = hideAssignItemToPackageModal;
 window.loadAssignItemOptions = loadAssignItemOptions;
+window.openQueueChangeModal = openQueueChangeModal;
+window.closeQueueChangeModal = closeQueueChangeModal;
 
 </script>
 {% endblock %}

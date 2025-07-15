@@ -7180,3 +7180,67 @@ def get_ticket_items(ticket_id):
     except Exception as e:
         logger.info("Error in get_ticket_items: {str(e)}")
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'})
+
+
+@tickets_bp.route('/change_queue/<int:ticket_id>', methods=['POST'])
+@login_required
+def change_ticket_queue(ticket_id):
+    """Change the queue for a ticket"""
+    logger.info(f"Starting queue change for ticket {ticket_id}")
+    db_session = db_manager.get_session()
+    try:
+        new_queue_id = request.form.get('queue_id')
+        logger.info(f"Form data received - queue_id: {new_queue_id}")
+        
+        if not new_queue_id:
+            logger.warning("No queue_id provided in form")
+            flash('Please select a queue', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+        # Get the ticket
+        logger.info(f"Looking up ticket {ticket_id}")
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            logger.warning(f"Ticket {ticket_id} not found")
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+        
+        # Get the new queue
+        logger.info(f"Looking up queue {new_queue_id}")
+        new_queue = db_session.query(Queue).get(new_queue_id)
+        if not new_queue:
+            logger.warning(f"Queue {new_queue_id} not found")
+            flash('Queue not found', 'error')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+        
+        # Store old queue name for logging
+        old_queue_name = ticket.queue.name if ticket.queue else "No Queue"
+        logger.info(f"Changing queue from '{old_queue_name}' to '{new_queue.name}'")
+        
+        # Update the ticket queue
+        ticket.queue_id = int(new_queue_id)
+        ticket.updated_at = datetime.datetime.utcnow()
+        
+        # Add a comment about the queue change
+        comment = Comment.create(
+            ticket_id=ticket_id,
+            user_id=current_user.id,
+            content=f"Queue changed from '{old_queue_name}' to '{new_queue.name}'"
+        )
+        db_session.add(comment)
+        
+        logger.info("Committing database changes")
+        db_session.commit()
+        flash(f'Ticket queue changed to {new_queue.name}', 'success')
+        logger.info(f"Successfully changed ticket {ticket_id} queue from '{old_queue_name}' to '{new_queue.name}'")
+        
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error changing queue for ticket {ticket_id}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        flash(f'Failed to change ticket queue: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))

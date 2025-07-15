@@ -3,201 +3,290 @@
 {% block title %}Import Tickets - Preview{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title">
-                        <i class="fas fa-file-import"></i>
-                        Import Tickets - Preview
-                    </h3>
-                    <div class="btn-group">
-                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Dashboard
-                        </a>
-                    </div>
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">📋 Import Tickets - Preview</h1>
+                    <p class="mt-2 text-gray-600">Review tickets before importing to the system</p>
                 </div>
-                
-                <div class="card-body">
-                    {% if preview_data.success %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Preview:</strong> Found {{ preview_data.total_tickets }} tickets to import into the <strong>FirstBase New Orders</strong> queue.
-                            {% if preview_data.grouped_by_order %}
-                                <br><strong>Order Grouping:</strong> Items with the same order ID have been grouped into single tickets.
-                            {% endif %}
-                        </div>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <h5>CSV Columns Detected:</h5>
-                                <div class="d-flex flex-wrap">
-                                    {% for column in preview_data.columns %}
-                                        <span class="badge badge-secondary m-1">{{ column }}</span>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>Import Summary:</h5>
-                                <ul class="list-unstyled">
-                                    <li><strong>Total Tickets:</strong> {{ preview_data.total_tickets }}</li>
-                                    <li><strong>Destination Queue:</strong> FirstBase New Orders</li>
-                                    <li><strong>Status:</strong> All tickets will be created as NEW</li>
-                                    {% if preview_data.grouped_by_order %}
-                                        <li><strong>Grouping:</strong> Orders grouped by Order ID</li>
-                                    {% endif %}
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <!-- Improved Card-based Preview -->
-                        <div class="row">
-                            {% for ticket in preview_data.tickets %}
-                                <div class="col-lg-6 col-md-12 mb-4">
-                                    <div class="card border-left-primary h-100">
-                                        <div class="card-header bg-light">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <h5 class="card-title mb-0 text-truncate-subject">
-                                                    <i class="fas fa-ticket-alt text-primary"></i>
-                                                    {{ ticket.subject }}
-                                                </h5>
-                                                <div class="d-flex align-items-center">
-                                                    {% if ticket.item_count and ticket.item_count > 1 %}
-                                                        <span class="badge badge-info mr-2">{{ ticket.item_count }} items</span>
-                                                    {% endif %}
-                                                    <span class="badge badge-{% if ticket.priority == 'HIGH' %}danger{% elif ticket.priority == 'MEDIUM' %}warning{% else %}info{% endif %}">
-                                                        {{ ticket.priority }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <p class="text-muted mb-1"><strong>Order/Row:</strong> {{ ticket.row_number }}</p>
-                                                    <p class="text-muted mb-1"><strong>Category:</strong> {{ ticket.category }}</p>
-                                                    <p class="text-muted mb-1"><strong>Queue:</strong> <span class="badge badge-primary">{{ ticket.queue_name }}</span></p>
-                                                    <p class="text-muted mb-1"><strong>Status:</strong> <span class="badge badge-success">{{ ticket.status }}</span></p>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    {% if ticket.customer_name and ticket.customer_name != 'nan' %}
-                                                        <p class="text-muted mb-1"><strong>Customer:</strong> {{ ticket.customer_name }}</p>
-                                                    {% endif %}
-                                                    {% if ticket.requester_email and ticket.requester_email != 'nan' %}
-                                                        <p class="text-muted mb-1"><strong>Email:</strong> {{ ticket.requester_email }}</p>
-                                                    {% endif %}
-                                                    {% if ticket.company and ticket.company != 'nan' %}
-                                                        <p class="text-muted mb-1"><strong>Company:</strong> {{ ticket.company }}</p>
-                                                    {% endif %}
-                                                    {% if ticket.country and ticket.country != 'nan' %}
-                                                        <p class="text-muted mb-1"><strong>Country:</strong> {{ ticket.country }}</p>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <hr>
-                                            <div class="description-preview">
-                                                <strong>Description:</strong>
-                                                <div class="mt-2 p-3 bg-light rounded">
-                                                    <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.9em;">{{ ticket.description }}</pre>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        
-                        <div class="row mt-4">
-                            <div class="col-md-12">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <strong>Important:</strong> 
-                                    <ul class="mb-0">
-                                        <li>All tickets will be imported to the <strong>FirstBase New Orders</strong> queue</li>
-                                        <li>You will be set as the requester for all imported tickets</li>
-                                        <li>Tickets will be created with status <strong>NEW</strong></li>
-                                        <li>This action cannot be undone</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-12 text-center">
-                                <form method="POST" action="{{ url_for('main.import_tickets') }}">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="filename" value="{{ filename }}">
-                                    <button type="submit" class="btn btn-success btn-lg">
-                                        <i class="fas fa-upload"></i>
-                                        Import {{ preview_data.total_tickets }} Tickets
-                                    </button>
-                                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-lg ml-2">
-                                        <i class="fas fa-times"></i>
-                                        Cancel
-                                    </a>
-                                </form>
-                            </div>
-                        </div>
-                        
-                    {% else %}
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <strong>Error:</strong> {{ preview_data.error }}
-                        </div>
-                        
-                        <div class="text-center">
-                            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
-                                <i class="fas fa-arrow-left"></i>
-                                Back to Dashboard
-                            </a>
-                        </div>
-                    {% endif %}
+                <div>
+                    <a href="{{ url_for('main.index') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Back to Dashboard
+                    </a>
                 </div>
             </div>
         </div>
+
+        {% if preview_data.success %}
+            <!-- Import Summary Card -->
+            <div class="bg-white shadow rounded-lg mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">📊 Import Summary</h2>
+                    <p class="mt-1 text-sm text-gray-500">Overview of tickets ready for import</p>
+                </div>
+                <div class="p-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <p class="text-blue-900 font-medium">
+                                    Found {{ preview_data.total_tickets }} tickets to import into the <strong>FirstBase New Orders</strong> queue
+                                </p>
+                                {% if preview_data.grouped_by_order %}
+                                    <p class="text-blue-700 text-sm mt-1">
+                                        <strong>Order Grouping:</strong> Items with the same order ID have been grouped into single tickets
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- CSV Columns Detected -->
+                        <div>
+                            <h3 class="text-base font-medium text-gray-900 mb-3">📄 CSV Columns Detected</h3>
+                            <div class="flex flex-wrap gap-2">
+                                {% for column in preview_data.columns %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {{ column }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Import Configuration -->
+                        <div>
+                            <h3 class="text-base font-medium text-gray-900 mb-3">⚙️ Import Configuration</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Total Tickets:</span>
+                                    <span class="font-medium text-gray-900">{{ preview_data.total_tickets }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Destination Queue:</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        FirstBase New Orders
+                                    </span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Initial Status:</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        NEW
+                                    </span>
+                                </div>
+                                {% if preview_data.grouped_by_order %}
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Grouping:</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            By Order ID
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ticket Preview Section -->
+            <div class="bg-white shadow rounded-lg mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">🎫 Ticket Preview</h2>
+                    <p class="mt-1 text-sm text-gray-500">Review individual tickets before importing</p>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {% for ticket in preview_data.tickets %}
+                            <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                <!-- Ticket Header -->
+                                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200 rounded-t-lg">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center min-w-0 flex-1">
+                                            <svg class="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                            </svg>
+                                            <h3 class="text-lg font-medium text-gray-900 truncate">
+                                                {{ ticket.subject }}
+                                            </h3>
+                                        </div>
+                                        <div class="flex items-center space-x-2 ml-4">
+                                            {% if ticket.item_count and ticket.item_count > 1 %}
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    {{ ticket.item_count }} items
+                                                </span>
+                                            {% endif %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium 
+                                                {% if ticket.priority == 'HIGH' %}bg-red-100 text-red-800{% elif ticket.priority == 'MEDIUM' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ ticket.priority }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Ticket Body -->
+                                <div class="p-6 space-y-4">
+                                    <!-- Ticket Details -->
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-600">Ticket:</span>
+                                                <span class="text-sm text-gray-900 ml-2">{{ loop.index }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-600">Category:</span>
+                                                <span class="text-sm text-gray-900 ml-2">{{ ticket.category }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-600">Queue:</span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">
+                                                    {{ ticket.queue_name }}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-600">Status:</span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
+                                                    {{ ticket.status }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="space-y-2">
+                                            {% if ticket.customer_name and ticket.customer_name != 'nan' %}
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-600">Customer:</span>
+                                                    <span class="text-sm text-gray-900 ml-2">{{ ticket.customer_name }}</span>
+                                                </div>
+                                            {% endif %}
+                                            {% if ticket.requester_email and ticket.requester_email != 'nan' %}
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-600">Email:</span>
+                                                    <span class="text-sm text-gray-900 ml-2">{{ ticket.requester_email }}</span>
+                                                </div>
+                                            {% endif %}
+                                            {% if ticket.company and ticket.company != 'nan' %}
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-600">Company:</span>
+                                                    <span class="text-sm text-gray-900 ml-2">{{ ticket.company }}</span>
+                                                </div>
+                                            {% endif %}
+                                            {% if ticket.country and ticket.country != 'nan' %}
+                                                <div>
+                                                    <span class="text-sm font-medium text-gray-600">Country:</span>
+                                                    <span class="text-sm text-gray-900 ml-2">{{ ticket.country }}</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Description -->
+                                    <div class="border-t border-gray-200 pt-4">
+                                        <h4 class="text-sm font-medium text-gray-900 mb-2">📝 Description</h4>
+                                        <div class="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-sans">{{ ticket.description }}</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Important Notice -->
+            <div class="bg-white shadow rounded-lg mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">⚠️ Important Notice</h2>
+                </div>
+                <div class="p-6">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-yellow-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                            <div>
+                                <h3 class="text-sm font-medium text-yellow-800 mb-2">Please review the following before importing:</h3>
+                                <ul class="text-sm text-yellow-700 space-y-1">
+                                    <li>• All tickets will be imported to the <strong>FirstBase New Orders</strong> queue</li>
+                                    <li>• You will be set as the requester for all imported tickets</li>
+                                    <li>• Tickets will be created with status <strong>NEW</strong></li>
+                                    <li>• This action cannot be undone</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">🚀 Import Actions</h2>
+                </div>
+                <div class="p-6">
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <form method="POST" action="{{ url_for('main.import_tickets') }}" class="flex-shrink-0">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="filename" value="{{ filename }}">
+                            <button type="submit" 
+                                    class="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                                Import {{ preview_data.total_tickets }} Tickets
+                            </button>
+                        </form>
+                        
+                        <a href="{{ url_for('main.index') }}" 
+                           class="inline-flex items-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+        {% else %}
+            <!-- Error State -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">❌ Import Error</h2>
+                </div>
+                <div class="p-6">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-red-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <h3 class="text-sm font-medium text-red-800 mb-1">Import Failed</h3>
+                                <p class="text-sm text-red-700">{{ preview_data.error }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('main.index') }}" 
+                           class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
-
-<style>
-.border-left-primary {
-    border-left: 4px solid #4e73df !important;
-}
-.card {
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
-    transition: all 0.3s;
-}
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2) !important;
-}
-.badge {
-    font-size: 0.85em;
-    padding: 0.4em 0.6em;
-}
-.description-preview pre {
-    background: transparent;
-    border: none;
-    color: #5a5c69;
-    max-height: 200px;
-    overflow-y: auto;
-}
-.card-header {
-    border-bottom: 1px solid #e3e6f0;
-}
-.btn-lg {
-    padding: 0.75rem 2rem;
-    font-size: 1.1rem;
-    border-radius: 0.5rem;
-}
-.alert {
-    border-radius: 0.5rem;
-}
-.text-truncate-subject {
-    max-width: 300px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-</style>
 {% endblock %}
