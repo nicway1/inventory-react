@@ -1946,10 +1946,10 @@ def update_tracking(ticket_id):
 def upload_attachment(ticket_id):
     db_session = db_manager.get_session()
     try:
-        # Debug logging
-        logger.info("Received upload request for ticket:", ticket_id)
-        logger.info("Files in request:", request.files)
-        logger.info("Form data:", request.form)
+        # Debug logging with explicit string conversion
+        logger.info(f"Received upload request for ticket: {str(ticket_id)}")
+        logger.info(f"Files in request: {str(request.files)}")
+        logger.info(f"Form data: {str(request.form)}")
         
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
@@ -6932,7 +6932,7 @@ def debug_form_data():
     """Debug endpoint to check what form data is being received"""
     try:
         logger.info("=== FORM DEBUG ENDPOINT ===")
-        logger.info("Form keys:", list(request.form.keys()))
+        logger.info(f"Form keys: {list(request.form.keys())}")
         logger.info("Form data:")
         for key, value in request.form.items():
             if key == 'selected_accessories':
