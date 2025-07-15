@@ -247,6 +247,10 @@ class TicketImportStore:
                     if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
                         customer_address = "Address not provided"
                     
+                    # Check if ticket status is PROCESSING
+                    ticket_status = row.get('status', 'Unknown')
+                    is_processing = ticket_status.upper() == 'PROCESSING'
+                    
                     ticket_data = {
                         'row_number': f"Order {row['order_id']}",
                         'subject': f"Order {row['order_id']} - {row['title_summary']}",
@@ -258,10 +262,12 @@ class TicketImportStore:
                         'company': row.get('org_name', ''),
                         'customer_name': row.get('person_name', ''),
                         'customer_address': customer_address,
-                        'status': TicketStatus.NEW.value,
+                        'status': ticket_status,  # Preserve original CSV status
                         'queue_name': 'FirstBase New Orders',
                         'order_id': row['order_id'],
-                        'item_count': row.get('item_count', len(all_items))
+                        'item_count': row.get('item_count', len(all_items)),
+                        'is_processing': is_processing,
+                        'cannot_import': is_processing
                     }
                 else:
                     # Individual item
@@ -281,6 +287,10 @@ class TicketImportStore:
                     if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
                         customer_address = "Address not provided"
                     
+                    # Check if ticket status is PROCESSING
+                    ticket_status = row.get('status', 'Unknown')
+                    is_processing = ticket_status.upper() == 'PROCESSING'
+                    
                     ticket_data = {
                         'row_number': index + 1,
                         'subject': f"Asset Request - {row.get('product_title', 'Unknown Product')}",
@@ -292,17 +302,25 @@ class TicketImportStore:
                         'company': row.get('org_name', ''),
                         'customer_name': row.get('person_name', ''),
                         'customer_address': customer_address,
-                        'status': TicketStatus.NEW.value,
+                        'status': ticket_status,  # Preserve original CSV status
                         'queue_name': 'FirstBase New Orders',
                         'order_id': row.get('order_id', ''),
-                        'item_count': 1
+                        'item_count': 1,
+                        'is_processing': is_processing,
+                        'cannot_import': is_processing
                     }
                 
                 tickets_preview.append(ticket_data)
             
+            # Count processing tickets
+            processing_count = sum(1 for ticket in tickets_preview if ticket.get('is_processing', False))
+            importable_count = len(tickets_preview) - processing_count
+            
             return {
                 'success': True,
                 'total_tickets': len(tickets_preview),
+                'importable_tickets': importable_count,
+                'processing_tickets': processing_count,
                 'tickets': tickets_preview,
                 'columns': list(csv_reader.fieldnames) if csv_reader.fieldnames else [],
                 'grouped_by_order': len(grouped_data) > 0
@@ -367,8 +385,16 @@ class TicketImportStore:
                     db_session.refresh(firstbase_queue)
                 
                 imported_tickets = []
+                skipped_processing = []
                 
                 for row in all_data:
+                    # Skip tickets with PROCESSING status
+                    if row.get('status', '').upper() == 'PROCESSING':
+                        skipped_processing.append({
+                            'order_id': row.get('order_id', ''),
+                            'reason': 'Status is PROCESSING'
+                        })
+                        continue
                     # Create or get customer - only if email is provided
                     customer = None
                     customer_created = False
@@ -515,8 +541,10 @@ class TicketImportStore:
                 return {
                     'success': True,
                     'imported_count': len(imported_tickets),
+                    'skipped_processing_count': len(skipped_processing),
                     'queue_name': firstbase_queue.name,
-                    'tickets': imported_tickets
+                    'tickets': imported_tickets,
+                    'skipped_processing': skipped_processing
                 }
                 
             except Exception as e:

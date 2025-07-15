@@ -2867,10 +2867,25 @@ def csv_import_import_ticket():
             
         row = csv_data[row_index]
         
+        # Check if the ticket has PROCESSING status and block import
+        if row.get('status') == 'PROCESSING':
+            return jsonify({
+                'success': False, 
+                'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+            })
+        
         if is_grouped:
             all_items = row.get('all_items', [row])
             if not all_items or len(all_items) == 0:
                 return jsonify({'success': False, 'error': 'No items found in grouped order'})
+            
+            # Check if any item in grouped order has PROCESSING status
+            for item in all_items:
+                if item.get('status') == 'PROCESSING':
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Cannot import tickets with PROCESSING status. One or more items in this order are still processing.'
+                    })
         else:
             all_items = [row]
         
@@ -2997,7 +3012,11 @@ Selected Accessories from Inventory:
             
             if is_grouped:
                 # Create description for multiple items
+                csv_status = primary_item['status']
+                status_indicator = f"📋 CSV Status: {csv_status}" + (" 🔴" if csv_status == 'PROCESSING' else " ✅")
+                
                 description = f"""Asset Checkout Request - CSV Import (Multi-Item Order)
+{status_indicator}
 
 Customer Information:
 - Name: {primary_item['person_name']}
@@ -3009,7 +3028,7 @@ Order Information:
 - Order ID: {primary_item['order_id']}
 - Total Items: {len(all_items)}
 - Organization ID: {primary_item['organization_id']}
-- Status: {primary_item['status']}
+- CSV Import Status: {csv_status}
 - Start Date: {primary_item['start_date'] or 'Not specified'}
 
 Asset Information ({len(all_items)} items):
@@ -3029,11 +3048,15 @@ Item {i}:
                 description += f"""
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 
-                subject = f"Asset Checkout - Order {primary_item['order_id']} ({len(all_items)} items)"
+                subject = f"Asset Checkout - Order {primary_item['order_id']} ({len(all_items)} items) [{csv_status}]"
                 
             else:
                 # Single item description
+                csv_status = primary_item['status']
+                status_indicator = f"📋 CSV Status: {csv_status}" + (" 🔴" if csv_status == 'PROCESSING' else " ✅")
+                
                 description = f"""Asset Checkout Request - CSV Import
+{status_indicator}
 
 Customer Information:
 - Name: {primary_item['person_name']}
@@ -3047,10 +3070,11 @@ Asset Information:
 - Serial Number: {primary_item['serial_number']}
 - Category: {primary_item['category_code']}
 - Condition: {primary_item['preferred_condition'] or 'Not specified'}
+- CSV Import Status: {csv_status}
 {selected_items_text}
 Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 
-                subject = f"Asset Checkout - {primary_item['product_title']}"
+                subject = f"Asset Checkout - {primary_item['product_title']} [{csv_status}]"
             
             # 5. FORMAT SHIPPING ADDRESS (as requested)
             shipping_address = f"""{primary_item['office_name']}
@@ -3297,6 +3321,16 @@ def csv_import_bulk_import():
                 results.append({'row_index': row_index, 'success': False, 'error': 'Invalid row index'})
                 continue
             
+            # Check if the ticket has PROCESSING status and block import
+            row = csv_data[row_index]
+            if row.get('status') == 'PROCESSING':
+                results.append({
+                    'row_index': row_index, 
+                    'success': False, 
+                    'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+                })
+                continue
+            
             # Import single ticket (reuse the logic)
             try:
                 result = csv_import_import_ticket_internal(csv_data[row_index], auto_create_customer, selected_accessories, selected_assets, current_user.id)
@@ -3320,6 +3354,14 @@ def csv_import_bulk_import():
 
 def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_accessories=[], selected_assets=[], user_id=None):
     """Internal function to import a single ticket (used by bulk import)"""
+    
+    # Check if the ticket has PROCESSING status and block import
+    if row.get('status') == 'PROCESSING':
+        return {
+            'success': False, 
+            'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+        }
+    
     db_session = db_manager.get_session()
     
     try:
@@ -3445,7 +3487,12 @@ Selected Accessories from Inventory:
             for acc in selected_accessories:
                 selected_accessories_text += f"- {acc.get('accessoryName', 'Unknown Accessory')} (ID: {acc.get('accessoryId', 'N/A')})\n"
         
+        # Create CSV status indicator
+        csv_status = row['status']
+        status_indicator = f"📋 CSV Status: {csv_status}" + (" 🔴" if csv_status == 'PROCESSING' else " ✅")
+        
         description = f"""Asset Checkout Request - CSV Import
+{status_indicator}
 
 Customer Information:
 - Name: {row['person_name']}
@@ -3459,6 +3506,7 @@ Asset Information:
 - Serial Number: {row['serial_number']}
 - Category: {row['category_code']}
 - Condition: {row['preferred_condition'] or 'Not specified'}
+- CSV Import Status: {csv_status}
 
 Shipping Information:
 - Office: {row['office_name']}
@@ -3472,7 +3520,7 @@ Order Information:
 - Order ID: {row['order_id']}
 - Order Item ID: {row['order_item_id']}
 - Organization ID: {row['organization_id']}
-- Status: {row['status']}
+- CSV Status: {csv_status}
 - Start Date: {row['start_date'] or 'Not specified'}
 - Shipped Date: {row['shipped_date'] or 'Not specified'}
 - Delivery Date: {row['delivery_date'] or 'Not specified'}
@@ -3490,7 +3538,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 requester_id = 1  # Fallback to admin user
         
         ticket = Ticket(
-            subject=f"Asset Checkout - {row['product_title']}",
+            subject=f"Asset Checkout - {row['product_title']} [{csv_status}]",
             description=description,
             customer_id=customer.id,
             category=category,

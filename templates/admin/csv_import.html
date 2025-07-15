@@ -483,7 +483,7 @@ function displayCSVData(data) {
         tr.innerHTML = `
             <td class="px-3 py-4 whitespace-nowrap">
                 <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                       data-index="${index}">
+                       data-index="${index}" ${row.status === 'PROCESSING' ? 'disabled' : ''}>
             </td>
             <td class="px-3 py-4">
                 ${row.is_grouped ? 
@@ -535,13 +535,17 @@ function displayCSVData(data) {
             <td class="px-3 py-4">
                 <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(row.status)}">
                     ${row.status || 'Unknown'}
+                    ${row.status === 'PROCESSING' ? ' 🚫' : ''}
                 </span>
             </td>
             <td class="px-3 py-4 text-sm font-medium space-x-2">
                 <button onclick="previewTicket(${index}, ${row.is_grouped || false})" 
                         class="text-blue-600 hover:text-blue-900">👁️ Preview</button>
-                <button onclick="importSingleTicket(${index})" 
-                        class="text-green-600 hover:text-green-900">📥 Import</button>
+                ${row.status === 'PROCESSING' ? 
+                    `<span class="text-red-500 cursor-not-allowed opacity-60">🚫 Blocked</span>` :
+                    `<button onclick="importSingleTicket(${index})" 
+                            class="text-green-600 hover:text-green-900">📥 Import</button>`
+                }
             </td>
         `;
         
@@ -566,7 +570,7 @@ function getCategoryColor(category) {
 // Get status color
 function getStatusColor(status) {
     const colors = {
-        'PROCESSING': 'bg-yellow-100 text-yellow-800',
+        'PROCESSING': 'bg-red-100 text-red-800',  // Red for blocked status
         'ORDERED': 'bg-blue-100 text-blue-800',
         'APPROVED': 'bg-green-100 text-green-800',
         'SHIPPED': 'bg-purple-100 text-purple-800',
@@ -575,9 +579,9 @@ function getStatusColor(status) {
     return colors[status] || 'bg-gray-100 text-gray-800';
 }
 
-// Select all functionality
+// Select all functionality - only select non-disabled checkboxes (exclude PROCESSING tickets)
 document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const checkboxes = document.querySelectorAll('.row-checkbox:not(:disabled)');
     checkboxes.forEach(checkbox => {
         checkbox.checked = this.checked;
     });
@@ -670,8 +674,13 @@ function populatePreviewModal(preview) {
                          preview.priority === 'MEDIUM' ? 'text-yellow-600 bg-yellow-100' : 
                          'text-green-600 bg-green-100';
     
-    // Format status with colors                     
-    const statusColor = preview.status === 'OPEN' ? 'text-blue-600 bg-blue-100' : 
+    // Format status with colors - use the same logic as getStatusColor function
+    const statusColor = preview.status === 'PROCESSING' ? 'text-red-600 bg-red-100' :
+                       preview.status === 'ORDERED' ? 'text-blue-600 bg-blue-100' :
+                       preview.status === 'APPROVED' ? 'text-green-600 bg-green-100' :
+                       preview.status === 'SHIPPED' ? 'text-purple-600 bg-purple-100' :
+                       preview.status === 'DELIVERED' ? 'text-green-600 bg-green-100' :
+                       preview.status === 'OPEN' ? 'text-blue-600 bg-blue-100' : 
                        preview.status === 'CLOSED' ? 'text-gray-600 bg-gray-100' : 
                        'text-green-600 bg-green-100';
     

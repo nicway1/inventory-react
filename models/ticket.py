@@ -11,6 +11,7 @@ from models.ticket_attachment import TicketAttachment
 class TicketStatus(enum.Enum):
     NEW = "New"
     IN_PROGRESS = "In Progress"
+    PROCESSING = "Processing"
     ON_HOLD = "On Hold"
     RESOLVED = "Resolved"
     RESOLVED_DELIVERED = "Resolved (All Package Delivered)"

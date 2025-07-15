@@ -39,11 +39,19 @@
                             </svg>
                             <div>
                                 <p class="text-blue-900 font-medium">
-                                    Found {{ preview_data.total_tickets }} tickets to import into the <strong>FirstBase New Orders</strong> queue
+                                    Found {{ preview_data.total_tickets }} tickets total
+                                    {% if preview_data.processing_tickets > 0 %}
+                                        - {{ preview_data.importable_tickets }} can be imported, {{ preview_data.processing_tickets }} will be skipped
+                                    {% endif %}
                                 </p>
                                 {% if preview_data.grouped_by_order %}
                                     <p class="text-blue-700 text-sm mt-1">
                                         <strong>Order Grouping:</strong> Items with the same order ID have been grouped into single tickets
+                                    </p>
+                                {% endif %}
+                                {% if preview_data.processing_tickets > 0 %}
+                                    <p class="text-red-700 text-sm mt-1">
+                                        <strong>⚠️ Warning:</strong> {{ preview_data.processing_tickets }} tickets with PROCESSING status will be skipped (highlighted in red below)
                                     </p>
                                 {% endif %}
                             </div>
@@ -106,9 +114,9 @@
                 <div class="p-6">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {% for ticket in preview_data.tickets %}
-                            <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                            <div class="bg-white border {% if ticket.is_processing %}border-red-500 bg-red-50{% else %}border-gray-200{% endif %} rounded-lg shadow-sm hover:shadow-md transition-shadow">
                                 <!-- Ticket Header -->
-                                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200 rounded-t-lg">
+                                <div class="{% if ticket.is_processing %}bg-gradient-to-r from-red-50 to-red-100{% else %}bg-gradient-to-r from-blue-50 to-indigo-50{% endif %} px-6 py-4 border-b border-gray-200 rounded-t-lg">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center min-w-0 flex-1">
                                             <svg class="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,6 +127,11 @@
                                             </h3>
                                         </div>
                                         <div class="flex items-center space-x-2 ml-4">
+                                            {% if ticket.is_processing %}
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    ⚠️ WILL BE SKIPPED
+                                                </span>
+                                            {% endif %}
                                             {% if ticket.item_count and ticket.item_count > 1 %}
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                     {{ ticket.item_count }} items
@@ -153,8 +166,10 @@
                                             </div>
                                             <div>
                                                 <span class="text-sm font-medium text-gray-600">Status:</span>
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ml-2 
+                                                    {% if ticket.is_processing %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">
                                                     {{ ticket.status }}
+                                                    {% if ticket.is_processing %}⚠️{% endif %}
                                                 </span>
                                             </div>
                                         </div>
