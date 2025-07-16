@@ -683,8 +683,8 @@ def update_queue_permissions():
     """Update queue permissions for companies"""
     try:
         # Debug incoming request data
-        logger.info("Form data received:", request.form)
-        logger.info("JSON data received:", request.get_json(silent=True))
+        logger.info(f"Form data received: {request.form}")
+        logger.info(f"JSON data received: {request.get_json(silent=True)}")
         
         # Try multiple ways to get the data
         if request.form:
@@ -701,8 +701,8 @@ def update_queue_permissions():
             can_view = data.get('can_view', False)
             can_create = data.get('can_create', False)
         
-        logger.info("Raw company_id: {company_id}, type: {type(company_id)}")
-        logger.info("Raw queue_id: {queue_id}, type: {type(queue_id)}")
+        logger.info(f"Raw company_id: {company_id}, type: {type(company_id)}")
+        logger.info(f"Raw queue_id: {queue_id}, type: {type(queue_id)}")
         
         # Convert to integers with safer handling
         try:
@@ -711,12 +711,12 @@ def update_queue_permissions():
             if queue_id:
                 queue_id = int(queue_id)
         except (ValueError, TypeError) as e:
-            logger.info("Error converting IDs to integers: {str(e)}")
+            logger.info(f"Error converting IDs to integers: {str(e)}")
             flash(f"Invalid ID format: {str(e)}", 'error')
             return redirect(url_for('admin.manage_queue_permissions'))
         
-        logger.info("Converted company_id: {company_id}, queue_id: {queue_id}")
-        logger.info("Permission values - has_permission: {has_permission}, can_view: {can_view}, can_create: {can_create}")
+        logger.info(f"Converted company_id: {company_id}, queue_id: {queue_id}")
+        logger.info(f"Permission values - has_permission: {has_permission}, can_view: {can_view}, can_create: {can_create}")
         
         if not company_id or not queue_id:
             logger.info("INVALID: Missing company_id or queue_id")
@@ -730,12 +730,12 @@ def update_queue_permissions():
             queue = db_session.query(Queue).get(queue_id)
             
             if not company:
-                logger.info("Company with ID {company_id} not found")
+                logger.info(f"Company with ID {company_id} not found")
                 flash(f"Company with ID {company_id} not found", 'error')
                 return redirect(url_for('admin.manage_queue_permissions'))
                 
             if not queue:
-                logger.info("Queue with ID {queue_id} not found")
+                logger.info(f"Queue with ID {queue_id} not found")
                 flash(f"Queue with ID {queue_id} not found", 'error')
                 return redirect(url_for('admin.manage_queue_permissions'))
             
@@ -743,7 +743,7 @@ def update_queue_permissions():
             permission = db_session.query(CompanyQueuePermission).filter_by(
                 company_id=company_id, queue_id=queue_id).first()
             
-            logger.info("Existing permission found: {permission is not None}")
+            logger.info(f"Existing permission found: {permission is not None}")
             
             if not has_permission:
                 # If no permission should be granted, delete existing permission if it exists
@@ -757,7 +757,7 @@ def update_queue_permissions():
                     # Update existing permission
                     permission.can_view = can_view
                     permission.can_create = can_create
-                    logger.info("Updated permission - can_view: {can_view}, can_create: {can_create}")
+                    logger.info(f"Updated permission - can_view: {can_view}, can_create: {can_create}")
                 else:
                     # Create new permission
                     permission = CompanyQueuePermission(
@@ -767,7 +767,7 @@ def update_queue_permissions():
                         can_create=can_create
                     )
                     db_session.add(permission)
-                    logger.info("Created new permission - can_view: {can_view}, can_create: {can_create}")
+                    logger.info(f"Created new permission - can_view: {can_view}, can_create: {can_create}")
             
                 db_session.commit()
                 flash('Queue permissions updated successfully', 'success')
@@ -777,16 +777,16 @@ def update_queue_permissions():
             
         except Exception as e:
             db_session.rollback()
-            logger.info("ERROR: {str(e)}")
-            logger.info("Stack trace: {traceback.format_exc()}")
+            logger.info(f"ERROR: {str(e)}")
+            logger.info(f"Stack trace: {traceback.format_exc()}")
             flash(f'Error updating queue permissions: {str(e)}', 'error')
             return jsonify({"status": "error", "message": str(e)}), 500
         finally:
             db_session.close()
     
     except Exception as e:
-        logger.info("Unexpected error: {str(e)}")
-        logger.info("Stack trace: {traceback.format_exc()}")
+        logger.info(f"Unexpected error: {str(e)}")
+        logger.info(f"Stack trace: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}"}), 500
         
     return redirect(url_for('admin.manage_queue_permissions'))
