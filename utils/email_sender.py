@@ -539,3 +539,242 @@ This notification was sent because you were mentioned in a case comment."""
         import traceback
         traceback.print_exc()
         return False 
+
+
+def send_queue_notification_email(user, ticket, queue, action_type="created"):
+    """
+    Send a notification email when a ticket is created or moved to a queue
+    
+    Args:
+        user: User to notify
+        ticket: The ticket that was created/moved
+        queue: The queue the ticket was created in or moved to
+        action_type: "created" or "moved"
+    """
+    try:
+        logging.info(f"Attempting to send queue notification to {user.email}")
+        
+        if not current_app:
+            logging.error("No Flask application context")
+            return False
+            
+        if not user.email:
+            logging.warning(f"User {user.username} has no email address")
+            return False
+        
+        # Helper function to safely get enum values
+        def get_display_value(field):
+            if field is None:
+                return None
+            if hasattr(field, 'value'):
+                return field.value
+            return str(field)
+        
+        # Get safe display values
+        priority_value = get_display_value(ticket.priority) if ticket.priority else 'Normal'
+        status_value = get_display_value(ticket.status) if ticket.status else 'New'
+        
+        # Create the ticket URL
+        ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
+        
+        # Determine the action text
+        if action_type == "created":
+            action_text = f"A new ticket has been created in the {queue.name} queue"
+            action_title = "New Ticket Created"
+            action_icon = "🎫"
+        else:  # moved
+            action_text = f"A ticket has been moved to the {queue.name} queue"
+            action_title = "Ticket Moved to Queue"
+            action_icon = "📋"
+        
+        # Salesforce-style HTML email template
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{action_title} - {ticket.subject}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                        {action_icon} {action_title}
+                    </h1>
+                    <p style="color: #e8f0fe; margin: 8px 0 0 0; font-size: 16px;">
+                        TrueLog Inventory Management
+                    </p>
+                </div>
+                
+                <!-- Main Content -->
+                <div style="padding: 40px;">
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <h2 style="color: #1a202c; margin: 0 0 10px 0; font-size: 20px;">
+                            Hello {user.username}!
+                        </h2>
+                        <p style="color: #4a5568; margin: 0; font-size: 16px; line-height: 1.5;">
+                            <strong>{action_text}</strong> that you're subscribed to receive notifications for.
+                        </p>
+                    </div>
+                    
+                    <!-- Queue Info -->
+                    <div style="background-color: #e6fffa; border: 1px solid #81e6d9; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                        <h3 style="color: #234e52; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
+                            📁 Queue: {queue.name}
+                        </h3>
+                        {f'<p style="color: #2c7a7b; margin: 0; font-size: 14px;">{queue.description}</p>' if queue.description else ''}
+                    </div>
+                    
+                    <!-- Ticket Details Card -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background-color: #667eea; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">📋 Ticket Details</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600; width: 120px;">Ticket ID:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">#{ticket.display_id or ticket.id}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Subject:</td>
+                                    <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">{ticket.subject}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Priority:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: {'#fee2e2' if priority_value == 'High' else '#fef3c7' if priority_value == 'Medium' else '#dcfce7'}; 
+                                                     color: {'#dc2626' if priority_value == 'High' else '#d97706' if priority_value == 'Medium' else '#16a34a'}; 
+                                                     padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {priority_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Status:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: #e0f2fe; color: #0277bd; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {status_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {f'''
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Requester:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{ticket.requester.username if ticket.requester else 'Unknown'}</td>
+                                </tr>
+                                ''' if ticket.requester else ''}
+                                {f'''
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Assigned to:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'}</td>
+                                </tr>
+                                ''' if hasattr(ticket, 'assigned_to') else ''}
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Description Preview -->
+                    {f'''
+                    <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                        <h4 style="color: #2d3748; margin: 0 0 10px 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Description Preview</h4>
+                        <p style="color: #4a5568; margin: 0; line-height: 1.6; font-size: 14px;">
+                            {(ticket.description[:200] + "..." if len(ticket.description) > 200 else ticket.description) if ticket.description else "No description provided."}
+                        </p>
+                    </div>
+                    ''' if ticket.description else ''}
+                    
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{ticket_url}" 
+                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                  color: white; 
+                                  text-decoration: none; 
+                                  padding: 14px 28px; 
+                                  border-radius: 8px; 
+                                  font-weight: 600; 
+                                  font-size: 16px; 
+                                  display: inline-block; 
+                                  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+                                  transition: all 0.3s ease;">
+                            🔗 View Ticket
+                        </a>
+                    </div>
+                    
+                    <!-- Manage Subscriptions -->
+                    <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px;">
+                        <h4 style="color: #0c4a6e; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
+                            ⚙️ Manage Your Notifications
+                        </h4>
+                        <p style="color: #0369a1; margin: 0; line-height: 1.6; font-size: 14px;">
+                            You're receiving this notification because you subscribed to updates for the <strong>{queue.name}</strong> queue. 
+                            You can manage your queue notification preferences in your account settings.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                        This notification was sent because you subscribed to queue notifications.
+                    </p>
+                    <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                        TrueLog Inventory Management System | 
+                        <a href="https://www.truelog.site" style="color: #667eea; text-decoration: none;">truelog.site</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version as fallback
+        text_body = f"""
+{action_title} - TrueLog Inventory
+
+Hello {user.username}!
+
+{action_text} that you're subscribed to receive notifications for.
+
+Queue: {queue.name}
+{f"Description: {queue.description}" if queue.description else ""}
+
+Ticket Details:
+- Ticket ID: #{ticket.display_id or ticket.id}
+- Subject: {ticket.subject}
+- Priority: {priority_value}
+- Status: {status_value}
+{f"- Requester: {ticket.requester.username}" if ticket.requester else ""}
+{f"- Assigned to: {ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'}" if hasattr(ticket, 'assigned_to') else ""}
+
+{f"Description: {ticket.description[:200]}{'...' if len(ticket.description) > 200 else ''}" if ticket.description else ""}
+
+View the ticket: {ticket_url}
+
+Manage Your Notifications:
+You're receiving this notification because you subscribed to updates for the {queue.name} queue. 
+You can manage your queue notification preferences in your account settings.
+
+This notification was sent because you subscribed to queue notifications.
+
+TrueLog Inventory Management System
+https://www.truelog.site
+        """
+        
+        result = _send_email_via_method(
+            to_emails=user.email,
+            subject=f"[TrueLog] {action_title}: {ticket.subject}",
+            html_body=html_body,
+            text_body=text_body
+        )
+        
+        if result:
+            logging.info(f"Queue notification sent successfully to {user.email}")
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error sending queue notification to {user.email}: {str(e)}")
+        logger.info("Error sending queue notification: {str(e)}")
+        return False

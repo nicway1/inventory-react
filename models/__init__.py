@@ -24,6 +24,7 @@ from models.asset_transaction import AssetTransaction
 from models.accessory_transaction import AccessoryTransaction
 from models.firecrawl_key import FirecrawlKey
 from models.ticket_category_config import TicketCategoryConfig
+from models.queue_notification import QueueNotification
 
 __all__ = [
     "Base",
@@ -57,5 +58,6 @@ __all__ = [
     "AssetTransaction",
     "AccessoryTransaction",
     "FirecrawlKey",
-    "TicketCategoryConfig"
+    "TicketCategoryConfig",
+    "QueueNotification"
 ]

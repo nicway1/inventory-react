@@ -526,6 +526,15 @@ class TicketImportStore:
                     )
                     
                     db_session.add(ticket)
+                    db_session.flush()  # Ensure ticket gets an ID
+                    
+                    # Send queue notifications for the imported ticket
+                    try:
+                        from utils.queue_notification_sender import send_queue_notifications
+                        send_queue_notifications(ticket, action_type="created")
+                    except Exception as e:
+                        logger.error(f"Error sending queue notifications for imported ticket: {str(e)}")
+                    
                     imported_tickets.append({
                         'subject': subject,
                         'description': description[:100] + '...' if len(description) > 100 else description,

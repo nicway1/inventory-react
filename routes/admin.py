@@ -816,6 +816,115 @@ def delete_queue_permission(permission_id):
     
     return redirect(url_for('admin.manage_queue_permissions'))
 
+@admin_bp.route('/queue-notifications')
+@admin_required
+def manage_queue_notifications():
+    """Manage queue notification subscriptions"""
+    from models.queue_notification import QueueNotification
+    from models.queue import Queue
+    from models.user import User
+    
+    db_session = db_manager.get_session()
+    try:
+        # Get all users, queues, and existing notifications
+        users = db_session.query(User).order_by(User.username).all()
+        queues = db_session.query(Queue).order_by(Queue.name).all()
+        notifications = db_session.query(QueueNotification).all()
+        
+        # Create a mapping for easier template access
+        notification_map = {}
+        for notification in notifications:
+            key = f"{notification.user_id}_{notification.queue_id}"
+            notification_map[key] = notification
+        
+        return render_template('admin/queue_notifications.html',
+                              users=users,
+                              queues=queues,
+                              notification_map=notification_map)
+    except Exception as e:
+        flash(f'Error loading queue notifications: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_users'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/queue-notifications/update', methods=['POST'])
+@admin_required
+def update_queue_notification():
+    """Update or create a queue notification subscription"""
+    from models.queue_notification import QueueNotification
+    from datetime import datetime
+    
+    try:
+        user_id = int(request.form.get('user_id'))
+        queue_id = int(request.form.get('queue_id'))
+        notify_on_create = request.form.get('notify_on_create') == 'on'
+        notify_on_move = request.form.get('notify_on_move') == 'on'
+        is_active = request.form.get('is_active') == 'on'
+        
+        db_session = db_manager.get_session()
+        try:
+            # Check if notification already exists
+            notification = db_session.query(QueueNotification).filter_by(
+                user_id=user_id, queue_id=queue_id).first()
+            
+            if notification:
+                # Update existing notification
+                notification.notify_on_create = notify_on_create
+                notification.notify_on_move = notify_on_move
+                notification.is_active = is_active
+                notification.updated_at = datetime.utcnow()
+                action = "updated"
+            else:
+                # Create new notification
+                notification = QueueNotification(
+                    user_id=user_id,
+                    queue_id=queue_id,
+                    notify_on_create=notify_on_create,
+                    notify_on_move=notify_on_move,
+                    is_active=is_active
+                )
+                db_session.add(notification)
+                action = "created"
+            
+            db_session.commit()
+            flash(f'Queue notification {action} successfully', 'success')
+            
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error updating queue notification: {str(e)}', 'error')
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        flash(f'Invalid request data: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.manage_queue_notifications'))
+
+
+@admin_bp.route('/queue-notifications/delete/<int:notification_id>', methods=['POST'])
+@admin_required
+def delete_queue_notification(notification_id):
+    """Delete a queue notification subscription"""
+    from models.queue_notification import QueueNotification
+    
+    db_session = db_manager.get_session()
+    try:
+        notification = db_session.query(QueueNotification).get(notification_id)
+        if notification:
+            db_session.delete(notification)
+            db_session.commit()
+            flash('Queue notification deleted successfully', 'success')
+        else:
+            flash('Queue notification not found', 'error')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting queue notification: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_queue_notifications'))
+
 @admin_bp.route('/system-config')
 @super_admin_required
 def system_config():
@@ -3120,8 +3229,16 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             )
             
             db_session.add(ticket)
+            db_session.flush()  # Ensure ticket gets an ID
             db_session.commit()
             logger.info("[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
+            
+            # Send queue notifications for the imported ticket
+            try:
+                from utils.queue_notification_sender import send_queue_notifications
+                send_queue_notifications(ticket, action_type="created")
+            except Exception as e:
+                logger.error(f"Error sending queue notifications for CSV imported ticket: {str(e)}")
             
             # 8. ASSIGN SELECTED ASSETS AND ACCESSORIES TO TICKET
             assigned_accessories = []
@@ -3548,7 +3665,15 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
         )
         
         db_session.add(ticket)
+        db_session.flush()  # Ensure ticket gets an ID
         db_session.commit()
+        
+        # Send queue notifications for the imported ticket
+        try:
+            from utils.queue_notification_sender import send_queue_notifications
+            send_queue_notifications(ticket, action_type="created")
+        except Exception as e:
+            logger.error(f"Error sending queue notifications for CSV imported ticket: {str(e)}")
         
         # Assign selected assets and accessories to ticket
         assigned_accessories = []

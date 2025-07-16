@@ -161,6 +161,15 @@ class TicketStore:
                 logger.info("Skipping automatic asset assignment for asset {asset_id} - will be handled manually")
             
             db_session.commit()
+            
+            # Send queue notifications if ticket was created in a queue
+            if queue_id:
+                try:
+                    from utils.queue_notification_sender import send_queue_notifications
+                    send_queue_notifications(ticket, action_type="created")
+                except Exception as e:
+                    logger.error(f"Error sending queue notifications: {str(e)}")
+            
             return ticket.id  # Return the ID instead of the ticket object
         finally:
             db_session.close()

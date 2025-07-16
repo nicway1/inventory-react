@@ -1016,10 +1016,22 @@ Additional Notes:
                 custom_description = f"[CUSTOM CATEGORY: {category}]\n\n{new_ticket.description}"
                 new_ticket.description = custom_description
                 
+                # Set queue if provided
+                if queue_id:
+                    new_ticket.queue_id = queue_id
+                
                 db_session.add(new_ticket)
                 db_session.flush()  # Get the ID
                 ticket_id = new_ticket.id
                 db_session.commit()
+                
+                # Send queue notifications if ticket was created in a queue
+                if queue_id:
+                    try:
+                        from utils.queue_notification_sender import send_queue_notifications
+                        send_queue_notifications(new_ticket, action_type="created")
+                    except Exception as e:
+                        logger.error(f"Error sending queue notifications: {str(e)}")
             else:
                 # For enum categories, use existing logic
                 asset_id = None
@@ -7213,7 +7225,8 @@ def change_ticket_queue(ticket_id):
             flash('Queue not found', 'error')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         
-        # Store old queue name for logging
+        # Store old queue info for logging and notifications
+        old_queue_id = ticket.queue_id
         old_queue_name = ticket.queue.name if ticket.queue else "No Queue"
         logger.info(f"Changing queue from '{old_queue_name}' to '{new_queue.name}'")
         
@@ -7231,6 +7244,14 @@ def change_ticket_queue(ticket_id):
         
         logger.info("Committing database changes")
         db_session.commit()
+        
+        # Send queue move notifications
+        try:
+            from utils.queue_notification_sender import send_queue_move_notifications
+            send_queue_move_notifications(ticket, old_queue_id, int(new_queue_id))
+        except Exception as e:
+            logger.error(f"Error sending queue move notifications: {str(e)}")
+        
         flash(f'Ticket queue changed to {new_queue.name}', 'success')
         logger.info(f"Successfully changed ticket {ticket_id} queue from '{old_queue_name}' to '{new_queue.name}'")
         

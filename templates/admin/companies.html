@@ -29,6 +29,9 @@
                         <a class="dropdown-item" href="/admin/queue-permissions">
                             <i class="fas fa-lock mr-2"></i> Queue Permissions
                         </a>
+                        <a class="dropdown-item" href="{{ url_for('admin.manage_queue_notifications') }}">
+                            <i class="fas fa-bell mr-2"></i> Queue Notifications
+                        </a>
                         <div class="dropdown-divider"></div>
                         <a class="dropdown-item" href="{{ url_for('admin.view_history') }}">
                             <i class="fas fa-history mr-2"></i> System History
