@@ -375,3 +375,19 @@ class DatabaseManager:
             return session.query(Asset).filter(Asset.assigned_to_id == user_id).all()
         finally:
             session.close()
+
+    def update_user_password(self, user_id, new_password):
+        """Update user password"""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if user:
+                user.set_password(new_password)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
