@@ -167,6 +167,10 @@ def view_inventory():
         models = tech_assets_query.with_entities(Asset.model).distinct().all()
         models = sorted(list(set([m[0] for m in models if m[0]])))
 
+        # Get unique status values for the status filter
+        statuses = tech_assets_query.with_entities(Asset.status).distinct().all()
+        statuses = sorted(list(set([s[0].value for s in statuses if s[0]])))
+
         # For Country Admin or Supervisor, only show their assigned country
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             countries = [user.assigned_country.value]
@@ -471,7 +475,15 @@ def filter_inventory():
         
         if 'status' in data and data['status'] or 'inventory_status' in data and data['inventory_status']:
             status_value = data.get('status') or data.get('inventory_status')
-            query = query.filter(Asset.status == status_value)
+            # Convert status value to enum for comparison
+            try:
+                # Try to match by enum value (case-insensitive)
+                for status_enum in AssetStatus:
+                    if status_enum.value.lower() == status_value.lower():
+                        query = query.filter(Asset.status == status_enum)
+                        break
+            except (AttributeError, TypeError):
+                pass
         
         if 'customer' in data and data['customer'] or 'company' in data and data['company']:
             company_value = data.get('customer') or data.get('company')
