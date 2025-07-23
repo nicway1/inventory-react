@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
+<script src="{{ url_for('static', filename='js/tab-system.js') }}"></script>
 <style>
     /* Enhanced Salesforce-style UI styling */
     body {
@@ -458,7 +459,7 @@
                 <svg style="width: 2rem; height: 2rem; color: #0176d3;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Support Tickets
+                Tickets
             </h1>
         </div>
 
@@ -582,7 +583,7 @@
                             <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}">
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
-                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-blue-600 hover:text-blue-900 font-medium">
+                                    <a href="javascript:void(0)" onclick="openTicketInTab({{ ticket.id }}, '{{ ticket.subject|e }}')" class="text-blue-600 hover:text-blue-900 font-medium">
                                         {{ ticket.subject }}
                                     </a>
                                 </td>
@@ -661,7 +662,7 @@
                                             </svg>
                                         </button>
                                         <div class="sf-action-dropdown">
-                                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="sf-action-item">Edit</a>
+                                            <a href="javascript:void(0)" onclick="openTicketInTab({{ ticket.id }}, '{{ ticket.subject|e }}')" class="sf-action-item">Edit</a>
                                             <a href="#" class="sf-action-item">Close</a>
                                             {% if current_user.is_super_admin or current_user.permissions.can_delete_tickets or (current_user.permissions.can_delete_own_tickets and current_user.id == ticket.requester_id) %}
                                             <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" 
@@ -990,5 +991,26 @@
         updatePagination();
         showPage(1);
     }
+
+    // Tab system integration
+    function openTicketInTab(ticketId, ticketSubject) {
+        if (window.tabSystem) {
+            window.tabSystem.openTicket(ticketId, ticketSubject);
+            // Navigate to the ticket
+            window.location.href = `/tickets/${ticketId}`;
+        } else {
+            // Fallback if tab system isn't loaded
+            window.location.href = `/tickets/${ticketId}`;
+        }
+    }
+
+    // Initialize current page as home tab
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (window.tabSystem) {
+                window.tabSystem.setActiveTab('home');
+            }
+        }, 200);
+    });
 </script>
 {% endblock %} 

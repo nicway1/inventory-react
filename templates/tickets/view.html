@@ -3,6 +3,7 @@
 {% block head %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+<script src="{{ url_for('static', filename='js/tab-system.js') }}"></script>
 
 <!-- Add HTTP request interception for any internal references to port 5000 -->
 <script>
@@ -36,6 +37,19 @@
     // Initialize when the document is ready
     document.addEventListener('DOMContentLoaded', function() {
         loadingIndicator = document.getElementById('loadingIndicator');
+        
+        // Initialize tab system for this ticket
+        setTimeout(() => {
+            if (window.tabSystem) {
+                const ticketId = {{ ticket.id }};
+                const ticketSubject = "{{ ticket.subject|e }}";
+                const tabId = `ticket-${ticketId}`;
+                
+                // Add this ticket to tabs if not already present
+                window.tabSystem.addTab(tabId, `Case ${ticketId}`, window.location.pathname, 'ticket');
+                window.tabSystem.setActiveTab(tabId);
+            }
+        }, 100);
     });
 </script>
 
@@ -588,6 +602,8 @@ body.dark-theme .grid {
     color: #e5e7eb;
 }
 
+
+
 /* AGGRESSIVE DARK MODE - ELIMINATE ALL WHITE BACKGROUNDS */
 body.dark-theme,
 body.dark-theme * {
@@ -854,19 +870,19 @@ body.dark-theme [class*="bg-neutral"] {
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Notification container -->
-        <div id="notification" class="fixed top-4 right-4 z-50 hidden"></div>
-        
-        <!-- Loading indicator -->
-        <div id="loadingIndicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white p-4 rounded-lg shadow-lg">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                <p class="text-center mt-2 text-gray-700">Loading...</p>
+            <!-- Notification container -->
+            <div id="notification" class="fixed top-4 right-4 z-50 hidden"></div>
+            
+            <!-- Loading indicator -->
+            <div id="loadingIndicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-4 rounded-lg shadow-lg">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="text-center mt-2 text-gray-700">Loading...</p>
+                </div>
             </div>
-        </div>
-        
-        <!-- Main content wrapper with white background -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
+            
+            <!-- Main content wrapper with white background -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
         <!-- Case Header -->
         <div class="sf-card mb-6">
                 <div class="sf-card-header">
@@ -917,15 +933,15 @@ body.dark-theme [class*="bg-neutral"] {
                             <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
                         </div>
                         {% endif %}
-                        {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' and ticket.customer %}
+                        {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
                         <div class="sf-field-row">
                             <div class="sf-field-label">Customer Name</div>
-                            <div class="sf-field-value">{{ ticket.customer.name }}</div>
+                            <div class="sf-field-value">{{ ticket.customer.name if ticket.customer else 'Not specified' }}</div>
                         </div>
                         <div class="sf-field-row">
                             <div class="sf-field-label">Company</div>
                             <div class="sf-field-value">
-                                {% if ticket.customer.company %}
+                                {% if ticket.customer and ticket.customer.company %}
                                     {{ ticket.customer.company.name }}
                                 {% else %}
                                     No Company
@@ -1641,7 +1657,7 @@ body.dark-theme [class*="bg-neutral"] {
                         </div>
                     </div>
 
-                    <!-- Customer Information Card for Asset Checkout Categories -->
+                    <!-- Customer Information Card for Asset Checkout and Return Categories -->
                     {% if ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
                           ticket.category.name == 'ASSET_CHECKOUT_CLAW' or 
                           ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 
@@ -1649,7 +1665,8 @@ body.dark-theme [class*="bg-neutral"] {
                           ticket.category.name == 'ASSET_CHECKOUT_UPS' or 
                           ticket.category.name == 'ASSET_CHECKOUT_BLUEDART' or 
                           ticket.category.name == 'ASSET_CHECKOUT_DTDC' or 
-                          ticket.category.name == 'ASSET_CHECKOUT_AUTO') and ticket.customer %}
+                          ticket.category.name == 'ASSET_CHECKOUT_AUTO' or
+                          ticket.category.name == 'ASSET_RETURN_CLAW') and ticket.customer %}
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                                                          <h2 class="sf-card-title flex items-center gap-2">
@@ -1727,7 +1744,15 @@ body.dark-theme [class*="bg-neutral"] {
                                 <div class="space-y-4">
                                     {% if ticket.customer.address or ticket.shipping_address %}
                                     <div class="sf-field-row">
-                                        <div class="sf-field-label">{% if ticket.shipping_address %}Shipping Address{% else %}Address{% endif %}</div>
+                                        <div class="sf-field-label">
+                                            {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+                                                Return Address
+                                            {% elif ticket.shipping_address %}
+                                                Shipping Address
+                                            {% else %}
+                                                Address
+                                            {% endif %}
+                                        </div>
                                         <div class="sf-field-value whitespace-pre-wrap">
                                             {% if ticket.shipping_address %}
                                             {{ ticket.shipping_address }}
@@ -4889,6 +4914,8 @@ body.dark-theme [class*="bg-neutral"] {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
             </div>
         </div>
     </div>
@@ -8836,6 +8863,8 @@ window.onclick = function(event) {
     }
 }
 
+
+
 // Make functions globally available
 window.showAddItemModal = showAddItemModal;
 window.hideAddItemModal = hideAddItemModal;
@@ -8845,6 +8874,7 @@ window.hideAssignItemToPackageModal = hideAssignItemToPackageModal;
 window.loadAssignItemOptions = loadAssignItemOptions;
 window.openQueueChangeModal = openQueueChangeModal;
 window.closeQueueChangeModal = closeQueueChangeModal;
+
 
 </script>
 {% endblock %}
