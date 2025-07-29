@@ -604,34 +604,29 @@ body.dark-theme .grid {
 
 
 
-/* AGGRESSIVE DARK MODE - ELIMINATE ALL WHITE BACKGROUNDS */
-body.dark-theme,
-body.dark-theme * {
+/* IMPROVED DARK MODE - BETTER TEXT VISIBILITY */
+body.dark-theme {
     background-color: #1f2937 !important;
     color: #e5e7eb !important;
 }
 
-/* Override specific white backgrounds */
+/* Main containers and backgrounds */
 body.dark-theme .bg-white,
 body.dark-theme .bg-gray-50,
 body.dark-theme .bg-gray-100,
 body.dark-theme .bg-gray-200 {
     background-color: #1f2937 !important;
-    color: #e5e7eb !important;
 }
 
-/* Force dark theme on all containers */
-body.dark-theme div,
-body.dark-theme span,
-body.dark-theme p,
-body.dark-theme td,
-body.dark-theme th,
-body.dark-theme li {
+/* Card specific styling */
+body.dark-theme .sf-card,
+body.dark-theme .sf-card-header,
+body.dark-theme .sf-card-body {
     background-color: #1f2937 !important;
-    color: #e5e7eb !important;
+    border-color: #374151 !important;
 }
 
-/* Headers should be bright white */
+/* Headers - bright and visible */
 body.dark-theme h1,
 body.dark-theme h2,
 body.dark-theme h3,
@@ -639,23 +634,42 @@ body.dark-theme h4,
 body.dark-theme h5,
 body.dark-theme h6 {
     color: #ffffff !important;
-    background-color: #1f2937 !important;
 }
 
-/* Special handling for labels */
+/* Field labels - medium gray for readability */
 body.dark-theme .sf-field-label,
 body.dark-theme label {
     color: #9ca3af !important;
-    background-color: #1f2937 !important;
 }
 
-/* Card specific overrides */
-body.dark-theme .sf-card,
-body.dark-theme .sf-card-header,
-body.dark-theme .sf-card-body {
-    background-color: #1f2937 !important;
+/* Field values - bright white for readability */
+body.dark-theme .sf-field-value {
+    color: #ffffff !important;
+}
+
+/* More specific targeting for field content */
+body.dark-theme .sf-field-row .sf-field-label {
+    color: #9ca3af !important;
+}
+
+body.dark-theme .sf-field-row .sf-field-value {
+    color: #ffffff !important;
+}
+
+/* Target the specific content areas */
+body.dark-theme .sf-card-body .sf-field-label {
+    color: #9ca3af !important;
+}
+
+body.dark-theme .sf-card-body .sf-field-value {
+    color: #ffffff !important;
+}
+
+/* Text content - ensure visibility */
+body.dark-theme p,
+body.dark-theme span:not(.sf-field-label),
+body.dark-theme div:not(.sf-field-label) {
     color: #e5e7eb !important;
-    border-color: #374151 !important;
 }
 
 /* Form elements */
@@ -668,14 +682,14 @@ body.dark-theme select {
 }
 
 /* Buttons */
-body.dark-theme button,
-body.dark-theme .sf-button {
+body.dark-theme button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600):not(.bg-orange-600),
+body.dark-theme .sf-button:not(.primary-button) {
     background-color: #374151 !important;
     color: #e5e7eb !important;
     border-color: #4b5563 !important;
 }
 
-/* Special buttons that should stay colored */
+/* Colored buttons - keep their colors */
 body.dark-theme .bg-blue-600,
 body.dark-theme .bg-blue-700,
 body.dark-theme .primary-button {
@@ -693,51 +707,96 @@ body.dark-theme .bg-red-600 {
     color: #ffffff !important;
 }
 
-/* Links should be visible */
+body.dark-theme .bg-orange-600 {
+    background-color: #ea580c !important;
+    color: #ffffff !important;
+}
+
+/* Links - bright blue for visibility */
 body.dark-theme a {
     color: #60a5fa !important;
-    background-color: transparent !important;
 }
 
 /* Tables */
 body.dark-theme table,
 body.dark-theme tbody,
-body.dark-theme thead {
+body.dark-theme thead,
+body.dark-theme td,
+body.dark-theme th {
     background-color: #1f2937 !important;
     color: #e5e7eb !important;
+    border-color: #374151 !important;
 }
 
-/* Badges and status indicators */
+/* Status badges and indicators */
 body.dark-theme .sf-badge {
     background-color: #374151 !important;
     color: #e5e7eb !important;
 }
 
-/* Specific overrides for common Tailwind classes */
-body.dark-theme .text-gray-900,
-body.dark-theme .text-gray-800,
-body.dark-theme .text-gray-700,
-body.dark-theme .text-gray-600,
-body.dark-theme .text-gray-500 {
+/* Specific text color overrides for better visibility */
+body.dark-theme .text-gray-900 {
+    color: #ffffff !important;
+}
+
+body.dark-theme .text-gray-800 {
+    color: #f3f4f6 !important;
+}
+
+body.dark-theme .text-gray-700 {
     color: #e5e7eb !important;
+}
+
+body.dark-theme .text-gray-600 {
+    color: #d1d5db !important;
+}
+
+body.dark-theme .text-gray-500 {
+    color: #9ca3af !important;
 }
 
 body.dark-theme .text-black {
-    color: #e5e7eb !important;
+    color: #ffffff !important;
 }
 
-/* Ensure no white text on white background */
-body.dark-theme .text-white {
-    color: #e5e7eb !important;
+/* Font weight preservation */
+body.dark-theme .font-medium {
+    color: #ffffff !important;
 }
 
-/* Override any remaining light backgrounds */
-body.dark-theme [class*="bg-gray"],
-body.dark-theme [class*="bg-white"],
-body.dark-theme [class*="bg-slate"],
-body.dark-theme [class*="bg-neutral"] {
-    background-color: #1f2937 !important;
-    color: #e5e7eb !important;
+body.dark-theme .font-semibold {
+    color: #ffffff !important;
+}
+
+body.dark-theme .font-bold {
+    color: #ffffff !important;
+}
+
+/* ULTRA SPECIFIC DARK MODE FIXES - HIGHEST PRIORITY */
+body.dark-theme div.sf-field-label,
+body.dark-theme .sf-field-row div.sf-field-label,
+body.dark-theme .sf-card-body div.sf-field-label {
+    color: #9ca3af !important;
+    background-color: transparent !important;
+}
+
+body.dark-theme div.sf-field-value,
+body.dark-theme .sf-field-row div.sf-field-value,
+body.dark-theme .sf-card-body div.sf-field-value {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+/* Override any remaining gray text */
+body.dark-theme .sf-card-body div,
+body.dark-theme .sf-card-body span,
+body.dark-theme .sf-card-body p {
+    color: #ffffff !important;
+}
+
+/* Ensure labels remain distinguishable */
+body.dark-theme .sf-card-body .sf-field-label {
+    color: #9ca3af !important;
 }
 
 .animate-fade-in {

@@ -1,0 +1,662 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Inventory Audit</h1>
+                <p class="text-gray-600">Audit your inventory by country to track missing and unexpected assets</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="{{ url_for('inventory.view_audit_reports') }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    View Reports
+                </a>
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Info Card -->
+    <div id="debugInfo" class="bg-gray-100 rounded-lg p-4 mb-6 text-sm">
+        <h3 class="font-semibold mb-2">Debug Information:</h3>
+        <div id="debugContent">Loading debug info...</div>
+    </div>
+
+    <!-- Audit Setup Card -->
+    <div id="auditSetup" class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Start New Audit</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="countrySelect" class="block text-sm font-medium text-gray-700 mb-2">Select Country to Audit</label>
+                <select id="countrySelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Choose a country...</option>
+                    {% for country in available_countries %}
+                    <option value="{{ country }}">{{ country }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex items-end">
+                <button id="startAuditBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Start Audit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Audit Section -->
+    <div id="activeAudit" class="hidden">
+        <!-- Audit Status Card -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Audit Progress</h2>
+                <div class="flex space-x-3">
+                    <button id="endAuditBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        End Audit
+                    </button>
+                    <button id="generateReportBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Generate Report
+                    </button>
+                    <button id="clearAuditBtn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm">
+                        Clear Audit
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-blue-50 p-4 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors" onclick="showAssetDetails('total')">
+                    <div class="text-2xl font-bold text-blue-600" id="totalAssets">0</div>
+                    <div class="text-sm text-gray-600">Total Assets</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg cursor-pointer hover:bg-green-100 transition-colors" onclick="showAssetDetails('scanned')">
+                    <div class="text-2xl font-bold text-green-600" id="scannedAssets">0</div>
+                    <div class="text-sm text-gray-600">Scanned</div>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors" onclick="showAssetDetails('missing')">
+                    <div class="text-2xl font-bold text-yellow-600" id="missingAssets">0</div>
+                    <div class="text-sm text-gray-600">Missing</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg cursor-pointer hover:bg-red-100 transition-colors" onclick="showAssetDetails('unexpected')">
+                    <div class="text-2xl font-bold text-red-600" id="unexpectedAssets">0</div>
+                    <div class="text-sm text-gray-600">Unexpected</div>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between mb-1">
+                    <span class="text-sm font-medium text-gray-700">Completion Progress</span>
+                    <span class="text-sm text-gray-500" id="progressPercentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="text-sm text-gray-600">
+                Auditing: <span id="auditCountry" class="font-semibold"></span> | 
+                Started: <span id="auditStartTime"></span>
+            </div>
+        </div>
+
+        <!-- Scanning Options -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Manual Scan Card -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12l-3.53-3.53M12 12l3.53 3.53" />
+                    </svg>
+                    Manual Scan
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="scanInput" class="block text-sm font-medium text-gray-700 mb-2">Asset Tag or Serial Number</label>
+                        <div class="flex space-x-2">
+                            <input type="text" id="scanInput" placeholder="Scan or type asset identifier..." 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <button id="scanBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                Scan
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Last Scan Result -->
+                    <div id="scanResult" class="hidden p-3 rounded-md"></div>
+                </div>
+            </div>
+
+            <!-- CSV Upload Card -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    CSV Upload
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="csvFile" class="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
+                        <input type="file" id="csvFile" accept=".csv" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                    </div>
+                    
+                    <button id="uploadCsvBtn" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Upload and Process
+                    </button>
+                    
+                    <div class="text-xs text-gray-500">
+                        CSV should contain asset tags or serial numbers in the first column. Header row optional.
+                    </div>
+                    
+                    <!-- Upload Result -->
+                    <div id="uploadResult" class="hidden p-3 rounded-md"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl">
+        <div class="flex items-center space-x-3">
+            <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="loadingText">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let auditActive = false;
+let csrfToken;
+let loadingModal, loadingText;
+
+// Helper function to add CSRF token to fetch requests
+function fetchWithCSRF(url, options = {}) {
+    const headers = options.headers || {};
+    headers['X-CSRFToken'] = csrfToken;
+    return fetch(url, { ...options, headers });
+}
+
+function showLoading(text) {
+    if (loadingText) loadingText.textContent = text;
+    if (loadingModal) {
+        loadingModal.classList.remove('hidden');
+        loadingModal.classList.add('flex');
+    }
+}
+
+function hideLoading() {
+    if (loadingModal) {
+        loadingModal.classList.add('hidden');
+        loadingModal.classList.remove('flex');
+    }
+}
+
+function showAlert(message, type) {
+    // Simple alert for now, you can enhance this with better styling
+    alert(message);
+}
+
+// Global functions that need to be accessible from onclick handlers
+function showAssetDetails(type) {
+    if (!auditActive) {
+        showAlert('No active audit session', 'error');
+        return;
+    }
+
+    showLoading('Loading asset details...');
+    
+    fetchWithCSRF(`/inventory/audit/details/${type}`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            displayAssetModal(data.assets, data.title, type);
+        } else {
+            showAlert(data.error || 'Failed to load asset details', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showAlert('Error loading asset details', 'error');
+    });
+}
+
+function displayAssetModal(assets, title, type) {
+    const modal = document.getElementById('assetDetailsModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    
+    modalTitle.textContent = title;
+    
+    if (assets.length === 0) {
+        modalContent.innerHTML = '<p class="text-gray-500 text-center py-4">No assets found</p>';
+    } else {
+        let content = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+        content += '<thead class="bg-gray-50"><tr>';
+        
+        if (type === 'unexpected') {
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Identifier</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scanned At</th>';
+        } else {
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>';
+            content += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>';
+        }
+        
+        content += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+        
+        assets.forEach(asset => {
+            content += '<tr>';
+            if (type === 'unexpected') {
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${asset.identifier}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.scanned_at}</td>`;
+            } else {
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${asset.asset_tag || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.serial_num || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.name || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.model || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.status || 'N/A'}</td>`;
+                content += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.location || 'N/A'}</td>`;
+            }
+            content += '</tr>';
+        });
+        
+        content += '</tbody></table></div>';
+        modalContent.innerHTML = content;
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeAssetModal() {
+    const modal = document.getElementById('assetDetailsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize global variables
+    csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    loadingModal = document.getElementById('loadingModal');
+    loadingText = document.getElementById('loadingText');
+    const startAuditBtn = document.getElementById('startAuditBtn');
+    const countrySelect = document.getElementById('countrySelect');
+    const auditSetup = document.getElementById('auditSetup');
+    const activeAudit = document.getElementById('activeAudit');
+    const scanInput = document.getElementById('scanInput');
+    const scanBtn = document.getElementById('scanBtn');
+    const csvFile = document.getElementById('csvFile');
+    const uploadCsvBtn = document.getElementById('uploadCsvBtn');
+    const endAuditBtn = document.getElementById('endAuditBtn');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const clearAuditBtn = document.getElementById('clearAuditBtn');
+
+    // Check if there's an active audit session
+    checkAuditStatus();
+    
+    // Load debug information
+    loadDebugInfo();
+
+    // Start audit
+    startAuditBtn.addEventListener('click', function() {
+        const selectedCountry = countrySelect.value;
+        if (!selectedCountry) {
+            alert('Please select a country to audit');
+            return;
+        }
+
+        showLoading('Starting audit...');
+        
+        fetchWithCSRF('/inventory/audit/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ country: selectedCountry })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                auditActive = true;
+                auditSetup.classList.add('hidden');
+                activeAudit.classList.remove('hidden');
+                document.getElementById('auditCountry').textContent = selectedCountry;
+                document.getElementById('auditStartTime').textContent = new Date().toLocaleString();
+                updateAuditStatus();
+                showAlert(data.message, 'success');
+            } else {
+                showAlert(data.error || 'Failed to start audit', 'error');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('Error starting audit', 'error');
+        });
+    });
+
+    // Manual scan
+    function performScan() {
+        const identifier = scanInput.value.trim();
+        if (!identifier) {
+            showAlert('Please enter an asset identifier', 'error');
+            return;
+        }
+
+        fetchWithCSRF('/inventory/audit/scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ identifier: identifier })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayScanResult(data);
+                updateAuditStatus();
+                scanInput.value = '';
+                scanInput.focus();
+            } else {
+                showAlert(data.error || 'Scan failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error scanning asset', 'error');
+        });
+    }
+
+    scanBtn.addEventListener('click', performScan);
+    
+    scanInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performScan();
+        }
+    });
+
+    // CSV Upload
+    uploadCsvBtn.addEventListener('click', function() {
+        const file = csvFile.files[0];
+        if (!file) {
+            showAlert('Please select a CSV file', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        showLoading('Processing CSV...');
+
+        fetchWithCSRF('/inventory/audit/upload-csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                displayUploadResult(data);
+                updateAuditStatus();
+                csvFile.value = '';
+            } else {
+                showAlert(data.error || 'Upload failed', 'error');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('Error uploading CSV', 'error');
+        });
+    });
+
+    // End Audit
+    endAuditBtn.addEventListener('click', function() {
+        if (!auditActive) {
+            showAlert('No active audit session', 'error');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to end this audit? This will generate a final report and allow for remediation actions.')) {
+            showLoading('Ending audit and generating report...');
+            
+            fetchWithCSRF('/inventory/audit/end', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    // Redirect to remediation page
+                    window.location.href = `/inventory/audit/remediation/${data.audit_id}`;
+                } else {
+                    showAlert(data.error || 'Failed to end audit', 'error');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showAlert('Error ending audit', 'error');
+            });
+        }
+    });
+
+    // Generate Report
+    generateReportBtn.addEventListener('click', function() {
+        window.open('/inventory/audit/report', '_blank');
+    });
+
+    // Clear Audit
+    clearAuditBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear the current audit session? This cannot be undone.')) {
+            fetchWithCSRF('/inventory/audit/clear')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    auditActive = false;
+                    activeAudit.classList.add('hidden');
+                    auditSetup.classList.remove('hidden');
+                    countrySelect.value = '';
+                    showAlert('Audit session cleared', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to clear audit', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error clearing audit', 'error');
+            });
+        }
+    });
+
+    // Helper functions
+    function checkAuditStatus() {
+        fetchWithCSRF('/inventory/audit/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                auditActive = true;
+                auditSetup.classList.add('hidden');
+                activeAudit.classList.remove('hidden');
+                document.getElementById('auditCountry').textContent = data.country;
+                document.getElementById('auditStartTime').textContent = new Date(data.started_at).toLocaleString();
+                updateAuditStatusFromData(data);
+            }
+        })
+        .catch(error => {
+            // No active audit session
+        });
+    }
+
+    function updateAuditStatus() {
+        if (!auditActive) return;
+
+        fetchWithCSRF('/inventory/audit/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateAuditStatusFromData(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating status:', error);
+        });
+    }
+
+    function updateAuditStatusFromData(data) {
+        document.getElementById('totalAssets').textContent = data.total_assets;
+        document.getElementById('scannedAssets').textContent = data.scanned_count;
+        document.getElementById('missingAssets').textContent = data.missing_count;
+        document.getElementById('unexpectedAssets').textContent = data.unexpected_count;
+        document.getElementById('progressPercentage').textContent = data.completion_percentage + '%';
+        document.getElementById('progressBar').style.width = data.completion_percentage + '%';
+    }
+
+    function displayScanResult(data) {
+        const resultDiv = document.getElementById('scanResult');
+        resultDiv.classList.remove('hidden');
+        
+        if (data.status === 'found') {
+            resultDiv.className = 'p-3 rounded-md bg-green-50 border border-green-200';
+            resultDiv.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="text-green-800">${data.message}</span>
+                </div>
+                <div class="mt-2 text-sm text-green-700">
+                    ${data.asset.name} (${data.asset.model}) - ${data.asset.status}
+                </div>
+            `;
+        } else if (data.status === 'already_scanned') {
+            resultDiv.className = 'p-3 rounded-md bg-yellow-50 border border-yellow-200';
+            resultDiv.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.768 0L3.046 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <span class="text-yellow-800">${data.message}</span>
+                </div>
+            `;
+        } else if (data.status === 'unexpected') {
+            resultDiv.className = 'p-3 rounded-md bg-red-50 border border-red-200';
+            resultDiv.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-red-800">${data.message}</span>
+                </div>
+            `;
+        }
+    }
+
+    function displayUploadResult(data) {
+        const resultDiv = document.getElementById('uploadResult');
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'p-3 rounded-md bg-blue-50 border border-blue-200';
+        
+        resultDiv.innerHTML = `
+            <div class="text-blue-800 font-medium">${data.message}</div>
+            <div class="mt-2 text-sm text-blue-700">
+                <div>Found: ${data.summary.found}</div>
+                <div>Unexpected: ${data.summary.unexpected}</div>
+                <div>Already Scanned: ${data.summary.already_scanned}</div>
+            </div>
+        `;
+    }
+
+    function loadDebugInfo() {
+        fetchWithCSRF('/inventory/audit/debug')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const debugContent = document.getElementById('debugContent');
+                debugContent.innerHTML = `
+                    <div><strong>Total Assets in Database:</strong> ${data.total_assets}</div>
+                    <div><strong>Available Countries:</strong> ${data.countries.join(', ') || 'None'}</div>
+                    <div><strong>Assets by Country:</strong></div>
+                    <ul style="margin-left: 20px;">
+                        ${Object.entries(data.country_counts).map(([country, count]) => 
+                            `<li>${country}: ${count} assets</li>`
+                        ).join('')}
+                    </ul>
+                    <div><strong>User Type:</strong> ${data.user_info.user_type}</div>
+                    <div><strong>Assigned Country:</strong> ${data.user_info.assigned_country || 'None'}</div>
+                    <div><strong>Company ID:</strong> ${data.user_info.company_id || 'None'}</div>
+                `;
+            } else {
+                document.getElementById('debugContent').innerHTML = `Error: ${data.error}`;
+            }
+        })
+        .catch(error => {
+            document.getElementById('debugContent').innerHTML = `Failed to load debug info: ${error}`;
+        });
+    }
+
+    // Auto-refresh status every 10 seconds during active audit
+    setInterval(function() {
+        if (auditActive) {
+            updateAuditStatus();
+        }
+    }, 10000);
+});
+</script>
+
+<!-- Asset Details Modal -->
+<div id="assetDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden items-center justify-center z-50">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <!-- Modal header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Asset Details</h3>
+            <button type="button" class="text-gray-400 hover:text-gray-600" onclick="closeAssetModal()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Modal content -->
+        <div class="flex-1 overflow-y-auto p-6" id="modalContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        
+        <!-- Modal footer -->
+        <div class="flex justify-end p-6 border-t border-gray-200">
+            <button type="button" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600" onclick="closeAssetModal()">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

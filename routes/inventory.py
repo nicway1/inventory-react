@@ -14,6 +14,7 @@ from models.company import Company
 from models.activity import Activity
 from models.ticket import Ticket
 from models.accessory_transaction import AccessoryTransaction
+from models.audit_session import AuditSession
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -3826,5 +3827,1180 @@ def update_erase_status():
         db_session.rollback()
         logger.error(f"Error updating erase status: {str(e)}")
         return jsonify({'error': f"Error updating erase status: {str(e)}"}), 500
+    finally:
+        db_session.close()
+
+# ===============================
+# INVENTORY AUDIT FUNCTIONALITY
+# ===============================
+
+@inventory_bp.route('/audit')
+@login_required
+def audit_inventory():
+    """Inventory audit main page"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        if not user:
+            flash('User not found')
+            return redirect(url_for('auth.login'))
+        
+        # Check permissions - only certain user types can perform audits
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            flash('You do not have permission to perform inventory audits')
+            return redirect(url_for('main.index'))
+        
+        # Get available countries from actual inventory data based on user permissions
+        available_countries = []
+        
+        # Base query to get countries from assets
+        country_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None), Asset.country != '')
+        
+        if user.user_type == UserType.SUPER_ADMIN:
+            # Super admin can audit any country with assets
+            countries_raw = country_query.all()
+            available_countries = sorted([country[0] for country in countries_raw if country[0]])
+        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            # Country admin can only audit their assigned country if it has assets
+            country_assets = country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country.value)).first()
+            if country_assets:
+                available_countries = [user.assigned_country.value]
+        elif user.user_type == UserType.SUPERVISOR:
+            # Supervisors can audit all countries with assets
+            countries_raw = country_query.all()
+            available_countries = sorted([country[0] for country in countries_raw if country[0]])
+        
+        # Apply additional filtering for Country Admin based on company
+        if user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
+            company_country_query = db_session.query(Asset.country).distinct().filter(
+                Asset.country.isnot(None), 
+                Asset.country != '',
+                Asset.company_id == user.company_id
+            )
+            if user.assigned_country:
+                company_country_query = company_country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country.value))
+            
+            company_countries_raw = company_country_query.all()
+            available_countries = sorted([country[0] for country in company_countries_raw if country[0]])
+        
+        # Debug logging
+        logger.info(f"Available countries for audit: {available_countries}")
+        total_assets_count = db_session.query(Asset).count()
+        logger.info(f"Total assets in database: {total_assets_count}")
+        
+        return render_template('inventory/audit.html', 
+                             user=user, 
+                             available_countries=available_countries)
+    
+    except Exception as e:
+        logger.error(f"Error loading audit page: {str(e)}")
+        flash('Error loading audit page')
+        return redirect(url_for('main.index'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/audit/start', methods=['POST'])
+@login_required
+def start_audit():
+    """Start a new inventory audit session"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check permissions
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        data = request.get_json()
+        selected_country = data.get('country')
+        
+        if not selected_country:
+            return jsonify({'error': 'Country is required'}), 400
+        
+        # Validate country permissions
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            if selected_country != user.assigned_country.value:
+                return jsonify({'error': 'You can only audit your assigned country'}), 403
+        
+        # Get inventory for the selected country (case-insensitive)
+        inventory_query = db_session.query(Asset).filter(func.lower(Asset.country) == func.lower(selected_country))
+        
+        # Apply additional filtering for Country Admin
+        if user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
+            inventory_query = inventory_query.filter(
+                or_(Asset.company_id == user.company_id, Asset.company_id.is_(None))
+            )
+        
+        inventory_assets = inventory_query.all()
+        
+        # Debug logging
+        logger.info(f"Audit for country '{selected_country}': Found {len(inventory_assets)} assets")
+        if len(inventory_assets) == 0:
+            # Check what countries actually exist
+            all_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+            logger.info(f"Available countries in database: {[c[0] for c in all_countries if c[0]]}")
+            
+            # Check if there are any assets at all
+            total_assets = db_session.query(Asset).count()
+            logger.info(f"Total assets in database: {total_assets}")
+        
+        # Create audit session data
+        audit_session = {
+            'country': selected_country,
+            'total_assets': len(inventory_assets),
+            'scanned_assets': [],
+            'missing_assets': [],
+            'unexpected_assets': [],
+            'started_at': datetime.utcnow().isoformat(),
+            'started_by': user_id
+        }
+        
+        # Debug logging for session storage
+        logger.info(f"About to store audit session with {len(inventory_assets)} assets")
+        logger.info(f"User type: {user.user_type}, Company ID: {user.company_id}")
+        
+        # Don't start audit if no assets found
+        if len(inventory_assets) == 0:
+            return jsonify({'error': f'No assets found for country: {selected_country}. Cannot start audit.'}), 400
+        
+        # Create audit ID
+        audit_id = f"audit_{int(time.time())}"
+        
+        # Prepare inventory data for database storage
+        inventory_data = [
+            {
+                'id': asset.id,
+                'asset_tag': asset.asset_tag,
+                'serial_num': asset.serial_num,
+                'name': asset.name,
+                'model': asset.model,
+                'status': asset.status.value if asset.status else 'Unknown',
+                'location': asset.location.name if asset.location else 'Unknown'
+            } for asset in inventory_assets
+        ]
+        
+        # Create audit session in database
+        audit_session_db = AuditSession(
+            id=audit_id,
+            country=selected_country,
+            total_assets=len(inventory_assets),
+            started_by=user_id,
+            scanned_assets=json.dumps([]),
+            missing_assets=json.dumps([]),
+            unexpected_assets=json.dumps([]),
+            audit_inventory=json.dumps(inventory_data)
+        )
+        
+        db_session.add(audit_session_db)
+        db_session.commit()
+        
+        # Store minimal session data (just the audit ID)
+        session['current_audit_id'] = audit_id
+        
+        # Verify session was stored
+        logger.info(f"Audit session created in database with ID: {audit_id}, Total assets: {len(inventory_assets)}")
+        
+        return jsonify({
+            'success': True,
+            'audit_id': audit_id,
+            'country': selected_country,
+            'total_assets': len(inventory_assets),
+            'message': f'Audit started for {selected_country}. Found {len(inventory_assets)} assets to audit.'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error starting audit: {str(e)}")
+        return jsonify({'error': f'Error starting audit: {str(e)}'}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/audit/reports')
+@login_required
+def view_audit_reports():
+    """View all completed audit reports"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        if not user:
+            flash('User not found')
+            return redirect(url_for('auth.login'))
+        
+        # Check permissions - only certain user types can view audit reports
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            flash('You do not have permission to view audit reports')
+            return redirect(url_for('main.index'))
+        
+        # Get audit sessions based on user permissions
+        query = db_session.query(AuditSession).filter(AuditSession.completed_at.isnot(None))
+        
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            # Country admin can only see reports for their assigned country
+            query = query.filter(func.lower(AuditSession.country) == func.lower(user.assigned_country.value))
+        
+        # Order by completion date, most recent first
+        audit_reports = query.order_by(AuditSession.completed_at.desc()).all()
+        
+        # Parse JSON data for each report
+        for report in audit_reports:
+            try:
+                report.scanned_assets_data = json.loads(report.scanned_assets) if report.scanned_assets else []
+                report.missing_assets_data = json.loads(report.missing_assets) if report.missing_assets else []
+                report.unexpected_assets_data = json.loads(report.unexpected_assets) if report.unexpected_assets else []
+                
+                # Calculate summary statistics
+                report.total_scanned = len(report.scanned_assets_data)
+                report.total_missing = len(report.missing_assets_data)
+                report.total_unexpected = len(report.unexpected_assets_data)
+                report.completion_percentage = round((report.total_scanned / report.total_assets * 100), 1) if report.total_assets > 0 else 0
+            except (json.JSONDecodeError, TypeError):
+                # Handle corrupted JSON data
+                report.scanned_assets_data = []
+                report.missing_assets_data = []
+                report.unexpected_assets_data = []
+                report.total_scanned = 0
+                report.total_missing = 0
+                report.total_unexpected = 0
+                report.completion_percentage = 0
+        
+        return render_template('inventory/audit_reports_list.html', 
+                             audit_reports=audit_reports,
+                             user=user)
+    
+    except Exception as e:
+        logger.error(f"Error loading audit reports: {str(e)}")
+        flash('Error loading audit reports')
+        return redirect(url_for('main.index'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/audit/reports/<audit_id>')
+@login_required
+def view_audit_report_detail(audit_id):
+    """View detailed audit report"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        if not user:
+            flash('User not found')
+            return redirect(url_for('auth.login'))
+        
+        # Check permissions
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            flash('You do not have permission to view audit reports')
+            return redirect(url_for('main.index'))
+        
+        # Get the specific audit session
+        audit_session = db_session.query(AuditSession).filter(AuditSession.id == audit_id).first()
+        
+        if not audit_session:
+            flash('Audit report not found')
+            return redirect(url_for('inventory.view_audit_reports'))
+        
+        # Check if user has permission to view this specific report
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            if audit_session.country.lower() != user.assigned_country.value.lower():
+                flash('You do not have permission to view this audit report')
+                return redirect(url_for('inventory.view_audit_reports'))
+        
+        # Parse JSON data
+        try:
+            scanned_assets = json.loads(audit_session.scanned_assets) if audit_session.scanned_assets else []
+            missing_assets = json.loads(audit_session.missing_assets) if audit_session.missing_assets else []
+            unexpected_assets = json.loads(audit_session.unexpected_assets) if audit_session.unexpected_assets else []
+            audit_inventory = json.loads(audit_session.audit_inventory) if audit_session.audit_inventory else []
+        except (json.JSONDecodeError, TypeError):
+            scanned_assets = []
+            missing_assets = []
+            unexpected_assets = []
+            audit_inventory = []
+        
+        # Create report data structure
+        report_data = {
+            'audit_session': audit_session,
+            'summary': {
+                'total_expected': audit_session.total_assets,
+                'total_scanned': len(scanned_assets),
+                'total_missing': len(missing_assets),
+                'total_unexpected': len(unexpected_assets),
+                'completion_percentage': round((len(scanned_assets) / audit_session.total_assets * 100), 1) if audit_session.total_assets > 0 else 0
+            },
+            'scanned_assets': scanned_assets,
+            'missing_assets': missing_assets,
+            'unexpected_assets': unexpected_assets,
+            'audit_inventory': audit_inventory
+        }
+        
+        return render_template('inventory/audit_report_detail.html', 
+                             report=report_data,
+                             user=user)
+    
+    except Exception as e:
+        logger.error(f"Error loading audit report detail: {str(e)}")
+        flash('Error loading audit report')
+        return redirect(url_for('inventory.view_audit_reports'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/audit/scan', methods=['POST'])
+@login_required
+def scan_asset():
+    """Scan a single asset during audit"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if audit session exists
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        data = request.get_json()
+        scanned_identifier = data.get('identifier', '').strip()
+        
+        if not scanned_identifier:
+            return jsonify({'error': 'Asset identifier is required'}), 400
+        
+        # Parse JSON data from database
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        
+        # Look for the asset in the expected inventory
+        found_asset = None
+        for asset in audit_inventory:
+            if (asset['asset_tag'] == scanned_identifier or 
+                asset['serial_num'] == scanned_identifier):
+                found_asset = asset
+                break
+        
+        if found_asset:
+            # Asset found in expected inventory
+            if found_asset['id'] not in scanned_assets:
+                scanned_assets.append(found_asset['id'])
+                
+                # Update database
+                audit_session_db.scanned_assets = json.dumps(scanned_assets)
+                db_session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'status': 'found',
+                    'asset': found_asset,
+                    'message': f'Asset {scanned_identifier} found and marked as present',
+                    'scanned_count': len(scanned_assets),
+                    'total_count': audit_session_db.total_assets
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'status': 'already_scanned',
+                    'asset': found_asset,
+                    'message': f'Asset {scanned_identifier} was already scanned',
+                    'scanned_count': len(scanned_assets),
+                    'total_count': audit_session_db.total_assets
+                })
+        else:
+            # Asset not found in expected inventory - might be unexpected
+            unexpected_asset = {
+                'identifier': scanned_identifier,
+                'scanned_at': datetime.utcnow().isoformat()
+            }
+            
+            unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+            if unexpected_asset not in unexpected_assets:
+                unexpected_assets.append(unexpected_asset)
+                audit_session_db.unexpected_assets = json.dumps(unexpected_assets)
+                db_session.commit()
+            
+            return jsonify({
+                'success': True,
+                'status': 'unexpected',
+                'message': f'Asset {scanned_identifier} not expected in this location',
+                'scanned_count': len(scanned_assets),
+                'total_count': audit_session_db.total_assets,
+                'unexpected_count': len(unexpected_assets)
+            })
+    
+    except Exception as e:
+        logger.error(f"Error scanning asset: {str(e)}")
+        return jsonify({'error': f'Error scanning asset: {str(e)}'}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/audit/upload-csv', methods=['POST'])
+@login_required
+def upload_audit_csv():
+    """Upload CSV file with scanned asset identifiers"""
+    user_id = session['user_id']
+    db_session = None
+    
+    try:
+        db_session = db_manager.get_session()
+        user = db_manager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if audit session exists
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'error': 'File must be a CSV'}), 400
+        
+        # Read CSV content and normalize line endings
+        content = file.read().decode('utf-8-sig')  # Handle BOM if present
+        content = content.replace('\r\n', '\n').replace('\r', '\n')  # Normalize line endings
+        csv_reader = csv.reader(StringIO(content), skipinitialspace=True)
+        
+        # Parse JSON data from database
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+        
+        processed_count = 0
+        found_count = 0
+        unexpected_count = 0
+        already_scanned_count = 0
+        
+        for row in csv_reader:
+            if not row or not row[0].strip():
+                continue
+            
+            scanned_identifier = row[0].strip()
+            processed_count += 1
+            
+            # Look for the asset in the expected inventory
+            found_asset = None
+            for asset in audit_inventory:
+                if (asset['asset_tag'] == scanned_identifier or 
+                    asset['serial_num'] == scanned_identifier):
+                    found_asset = asset
+                    break
+            
+            if found_asset:
+                if found_asset['id'] not in scanned_assets:
+                    scanned_assets.append(found_asset['id'])
+                    found_count += 1
+                else:
+                    already_scanned_count += 1
+            else:
+                # Unexpected asset
+                unexpected_asset = {
+                    'identifier': scanned_identifier,
+                    'scanned_at': datetime.utcnow().isoformat()
+                }
+                
+                if unexpected_asset not in unexpected_assets:
+                    unexpected_assets.append(unexpected_asset)
+                    unexpected_count += 1
+        
+        # Update database
+        audit_session_db.scanned_assets = json.dumps(scanned_assets)
+        audit_session_db.unexpected_assets = json.dumps(unexpected_assets)
+        db_session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processed {processed_count} entries from CSV',
+            'summary': {
+                'processed': processed_count,
+                'found': found_count,
+                'unexpected': unexpected_count,
+                'already_scanned': already_scanned_count,
+                'total_scanned': len(scanned_assets),
+                'total_expected': audit_session_db.total_assets
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"Error uploading audit CSV: {str(e)}")
+        return jsonify({'error': f'Error processing CSV: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/status')
+@login_required
+def audit_status():
+    """Get current audit status"""
+    db_session = None
+    try:
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        db_session = db_manager.get_session()
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Parse JSON data
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        
+        # Calculate missing assets
+        scanned_asset_ids = set(scanned_assets)
+        missing_assets = [asset for asset in audit_inventory if asset['id'] not in scanned_asset_ids]
+        
+        return jsonify({
+            'success': True,
+            'country': audit_session_db.country,
+            'total_assets': audit_session_db.total_assets,
+            'scanned_count': len(scanned_assets),
+            'missing_count': len(missing_assets),
+            'unexpected_count': len(json.loads(audit_session_db.unexpected_assets)),
+            'completion_percentage': round((len(scanned_assets) / audit_session_db.total_assets * 100), 2) if audit_session_db.total_assets > 0 else 0,
+            'started_at': audit_session_db.started_at.isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting audit status: {str(e)}")
+        return jsonify({'error': f'Error getting audit status: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/report')
+@login_required
+def generate_audit_report():
+    """Generate final audit report"""
+    db_session = None
+    try:
+        if 'current_audit_id' not in session:
+            flash('No active audit session')
+            return redirect(url_for('inventory.audit_inventory'))
+        
+        # Get audit session from database
+        db_session = db_manager.get_session()
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            flash('No active audit session')
+            return redirect(url_for('inventory.audit_inventory'))
+        
+        # Parse JSON data
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+        
+        # Calculate missing assets
+        scanned_asset_ids = set(scanned_assets)
+        missing_assets = [asset for asset in audit_inventory if asset['id'] not in scanned_asset_ids]
+        
+        # Prepare report data
+        report_data = {
+            'audit_session': {
+                'country': audit_session_db.country,
+                'total_assets': audit_session_db.total_assets,
+                'started_at': audit_session_db.started_at.isoformat(),
+                'started_by': audit_session_db.started_by
+            },
+            'missing_assets': missing_assets,
+            'unexpected_assets': unexpected_assets,
+            'scanned_assets': [asset for asset in audit_inventory if asset['id'] in scanned_asset_ids],
+            'summary': {
+                'total_expected': len(audit_inventory),
+                'total_scanned': len(scanned_assets),
+                'total_missing': len(missing_assets),
+                'total_unexpected': len(unexpected_assets),
+                'completion_percentage': round((len(scanned_assets) / len(audit_inventory) * 100), 2) if len(audit_inventory) > 0 else 0
+            }
+        }
+        
+        return render_template('inventory/audit_report.html', report=report_data)
+    
+    except Exception as e:
+        logger.error(f"Error generating audit report: {str(e)}")
+        flash('Error generating audit report')
+        return redirect(url_for('inventory.audit_inventory'))
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/export-report')
+@login_required
+def export_audit_report():
+    """Export audit report as CSV"""
+    db_session = None
+    try:
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        db_session = db_manager.get_session()
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Parse JSON data
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        
+        # Calculate missing assets
+        scanned_asset_ids = set(scanned_assets)
+        missing_assets = [asset for asset in audit_inventory if asset['id'] not in scanned_asset_ids]
+        
+        # Create CSV content
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Parse unexpected assets
+        unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+        
+        # Write header
+        writer.writerow(['Audit Report - Generated at', datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow(['Country', audit_session_db.country])
+        writer.writerow(['Started at', audit_session_db.started_at.isoformat()])
+        writer.writerow([])
+        
+        # Summary
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Total Expected Assets', len(audit_inventory)])
+        writer.writerow(['Assets Scanned', len(scanned_assets)])
+        writer.writerow(['Missing Assets', len(missing_assets)])
+        writer.writerow(['Unexpected Assets', len(unexpected_assets)])
+        writer.writerow([])
+        
+        # Missing assets
+        writer.writerow(['MISSING ASSETS'])
+        writer.writerow(['Asset Tag', 'Serial Number', 'Name', 'Model', 'Status', 'Location'])
+        for asset in missing_assets:
+            writer.writerow([
+                asset['asset_tag'],
+                asset['serial_num'],
+                asset['name'],
+                asset['model'],
+                asset['status'],
+                asset['location']
+            ])
+        writer.writerow([])
+        
+        # Unexpected assets
+        writer.writerow(['UNEXPECTED ASSETS'])
+        writer.writerow(['Identifier', 'Scanned At'])
+        for unexpected in unexpected_assets:
+            writer.writerow([
+                unexpected['identifier'],
+                unexpected['scanned_at']
+            ])
+        
+        # Create response
+        output.seek(0)
+        filename = f"audit_report_{audit_session_db.country}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    
+    except Exception as e:
+        logger.error(f"Error exporting audit report: {str(e)}")
+        return jsonify({'error': f'Error exporting report: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/clear')
+@login_required  
+def clear_audit_session():
+    """Clear current audit session"""
+    db_session = None
+    try:
+        if 'current_audit_id' in session:
+            # Mark audit session as inactive in database
+            db_session = db_manager.get_session()
+            audit_session_db = db_session.query(AuditSession).filter(
+                AuditSession.id == session['current_audit_id']
+            ).first()
+            
+            if audit_session_db:
+                audit_session_db.is_active = False
+                audit_session_db.completed_at = datetime.utcnow()
+                db_session.commit()
+            
+            del session['current_audit_id']
+        
+        return jsonify({'success': True, 'message': 'Audit session cleared'})
+    
+    except Exception as e:
+        logger.error(f"Error clearing audit session: {str(e)}")
+        return jsonify({'error': f'Error clearing session: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/end', methods=['POST'])
+@login_required
+def end_audit():
+    """End the current audit and prepare for remediation"""
+    db_session = None
+    try:
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        db_session = db_manager.get_session()
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Mark audit as completed
+        audit_session_db.is_active = False
+        audit_session_db.completed_at = datetime.utcnow()
+        db_session.commit()
+        
+        # Keep the audit ID in session for remediation page
+        audit_id = session['current_audit_id']
+        
+        logger.info(f"Audit {audit_id} ended successfully")
+        
+        return jsonify({
+            'success': True,
+            'audit_id': audit_id,
+            'message': 'Audit ended successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error ending audit: {str(e)}")
+        return jsonify({'error': f'Error ending audit: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/details/<detail_type>')
+@login_required
+def get_audit_details(detail_type):
+    """Get detailed asset lists for audit categories"""
+    db_session = None
+    try:
+        if 'current_audit_id' not in session:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Get audit session from database
+        db_session = db_manager.get_session()
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == session['current_audit_id'],
+            AuditSession.is_active == True
+        ).first()
+        
+        if not audit_session_db:
+            return jsonify({'error': 'No active audit session'}), 400
+        
+        # Parse JSON data from database
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+        
+        if detail_type == 'total':
+            return jsonify({
+                'success': True,
+                'title': f'All Assets ({len(audit_inventory)})',
+                'assets': audit_inventory
+            })
+        elif detail_type == 'scanned':
+            scanned_asset_list = [asset for asset in audit_inventory if asset['id'] in scanned_assets]
+            return jsonify({
+                'success': True,
+                'title': f'Scanned Assets ({len(scanned_asset_list)})',
+                'assets': scanned_asset_list
+            })
+        elif detail_type == 'missing':
+            missing_asset_list = [asset for asset in audit_inventory if asset['id'] not in scanned_assets]
+            return jsonify({
+                'success': True,
+                'title': f'Missing Assets ({len(missing_asset_list)})',
+                'assets': missing_asset_list
+            })
+        elif detail_type == 'unexpected':
+            return jsonify({
+                'success': True,
+                'title': f'Unexpected Assets ({len(unexpected_assets)})',
+                'assets': unexpected_assets
+            })
+        else:
+            return jsonify({'error': 'Invalid detail type'}), 400
+            
+    except Exception as e:
+        logger.error(f"Error getting audit details: {str(e)}")
+        return jsonify({'error': f'Error getting audit details: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/remediation/<audit_id>')
+@login_required
+def audit_remediation(audit_id):
+    """Audit remediation page for handling missing assets"""
+    db_session = None
+    try:
+        db_session = db_manager.get_session()
+        
+        # Get the completed audit session
+        audit_session_db = db_session.query(AuditSession).filter(
+            AuditSession.id == audit_id,
+            AuditSession.is_active == False
+        ).first()
+        
+        if not audit_session_db:
+            flash('Audit session not found or still active')
+            return redirect(url_for('inventory.audit_inventory'))
+        
+        # Parse audit data
+        audit_inventory = json.loads(audit_session_db.audit_inventory)
+        scanned_assets = json.loads(audit_session_db.scanned_assets)
+        unexpected_assets = json.loads(audit_session_db.unexpected_assets)
+        
+        # Calculate missing assets
+        missing_assets = [asset for asset in audit_inventory if asset['id'] not in scanned_assets]
+        scanned_asset_list = [asset for asset in audit_inventory if asset['id'] in scanned_assets]
+        
+        # Get customers for dropdown
+        customers = db_session.query(CustomerUser).all()
+        logger.info(f"Found {len(customers)} customers for dropdown")
+        
+        # Get companies for dropdown
+        companies = db_session.query(Company).all()
+        
+        # Prepare audit summary
+        audit_summary = {
+            'audit_id': audit_id,
+            'country': audit_session_db.country,
+            'started_at': audit_session_db.started_at,
+            'completed_at': audit_session_db.completed_at,
+            'total_assets': audit_session_db.total_assets,
+            'scanned_count': len(scanned_assets),
+            'missing_count': len(missing_assets),
+            'unexpected_count': len(unexpected_assets)
+        }
+        
+        return render_template('inventory/audit_remediation.html',
+                             audit_summary=audit_summary,
+                             missing_assets=missing_assets,
+                             scanned_assets=scanned_asset_list,
+                             unexpected_assets=unexpected_assets,
+                             customers=customers,
+                             companies=companies)
+        
+    except Exception as e:
+        logger.error(f"Error loading audit remediation: {str(e)}")
+        flash('Error loading audit remediation page')
+        return redirect(url_for('inventory.audit_inventory'))
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/mark-found', methods=['POST'])
+@login_required
+def mark_asset_found():
+    """Mark a missing asset as found during remediation"""
+    db_session = None
+    try:
+        data = request.get_json()
+        asset_id = data.get('asset_id')
+        
+        if not asset_id:
+            return jsonify({'error': 'Asset ID is required'}), 400
+        
+        db_session = db_manager.get_session()
+        
+        # Get the asset
+        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+        if not asset:
+            return jsonify({'error': 'Asset not found'}), 404
+        
+        # Update asset status to indicate it was found during remediation
+        asset.status = AssetStatus.AVAILABLE
+        
+        # Create activity log
+        activity = Activity(
+            asset_id=asset_id,
+            action='AUDIT_FOUND',
+            details=f'Asset marked as found during audit remediation',
+            performed_by=session['user_id'],
+            timestamp=datetime.utcnow()
+        )
+        db_session.add(activity)
+        
+        db_session.commit()
+        
+        logger.info(f"Asset {asset_id} marked as found during audit remediation")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Asset marked as found successfully'
+        })
+        
+    except Exception as e:
+        if db_session:
+            db_session.rollback()
+        logger.error(f"Error marking asset as found: {str(e)}")
+        return jsonify({'error': f'Error marking asset as found: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/ship-out', methods=['POST'])
+@login_required
+def ship_out_asset():
+    """Create checkout case for missing asset that was shipped out"""
+    db_session = None
+    try:
+        data = request.get_json()
+        asset_id = data.get('asset_id')
+        customer_id = data.get('customer_id')
+        notes = data.get('notes', '')
+        
+        if not asset_id:
+            return jsonify({'error': 'Asset ID is required'}), 400
+        
+        if not customer_id:
+            return jsonify({'error': 'Customer is required'}), 400
+        
+        db_session = db_manager.get_session()
+        
+        # Get the asset
+        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+        if not asset:
+            return jsonify({'error': 'Asset not found'}), 404
+        
+        # Get customer info
+        customer = db_session.query(CustomerUser).filter(CustomerUser.id == customer_id).first()
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+        
+        # Create a checkout case/ticket
+        from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory
+        
+        case_title = f"Asset Checkout - {asset.asset_tag or asset.serial_num}"
+        case_description = f"""Asset checkout case created during audit remediation.
+
+Asset Details:
+- Asset Tag: {asset.asset_tag or 'N/A'}
+- Serial Number: {asset.serial_num or 'N/A'}
+- Name: {asset.name or 'N/A'}
+- Model: {asset.model or 'N/A'}
+
+Customer: {customer.name} ({customer.company.name if customer.company else 'No Company'})
+Notes: {notes}
+
+This asset was identified as missing during audit but has been shipped out to the customer."""
+        
+        ticket = Ticket(
+            subject=case_title,
+            description=case_description,
+            status=TicketStatus.NEW,
+            priority=TicketPriority.MEDIUM,
+            category=TicketCategory.ASSET_CHECKOUT,
+            customer_id=customer_id,
+            asset_id=asset_id,
+            requester_id=session['user_id'],
+            created_at=datetime.utcnow()
+        )
+        db_session.add(ticket)
+        db_session.flush()
+        
+        # Safely assign asset to ticket using the proper function
+        from routes.admin import safely_assign_asset_to_ticket
+        safely_assign_asset_to_ticket(ticket, asset, db_session)
+        
+
+        
+        # Update asset status and assign to customer
+        asset.status = AssetStatus.DEPLOYED
+        asset.customer_id = customer_id
+        
+        # Create activity log
+        activity = Activity(
+            user_id=session['user_id'],
+            type='asset_shipped',
+            content=f'Asset marked as shipped out during audit remediation to {customer.name} ({customer.company.name if customer.company else "No Company"}). Case #{ticket.id} created.',
+            reference_id=asset_id
+        )
+        db_session.add(activity)
+        
+        db_session.commit()
+        
+        logger.info(f"Asset {asset_id} marked as shipped out during audit remediation. Case #{ticket.id} created.")
+        
+        # Get display name for customer
+        customer_display = f"{customer.name}"
+        if customer.company:
+            customer_display += f" ({customer.company.name})"
+        
+        return jsonify({
+            'success': True,
+            'case_id': ticket.id,
+            'customer_name': customer_display,
+            'message': 'Checkout case created successfully'
+        })
+        
+    except Exception as e:
+        if db_session:
+            db_session.rollback()
+        logger.error(f"Error creating ship out case: {str(e)}")
+        return jsonify({'error': f'Error creating checkout case: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/customers/create', methods=['POST'])
+@login_required
+def create_customer():
+    """Create a new customer"""
+    db_session = None
+    try:
+        data = request.get_json()
+        
+        name = data.get('name', '').strip()
+        contact_number = data.get('contact_number', '').strip()
+        email = data.get('email', '').strip()
+        company_id = data.get('company_id')
+        country = data.get('country', '').strip()
+        address = data.get('address', '').strip()
+        
+        if not name or not contact_number or not country or not address:
+            return jsonify({'error': 'Name, contact number, country, and address are required'}), 400
+        
+        db_session = db_manager.get_session()
+        
+        # Convert country string to enum
+        from models.user import Country
+        try:
+            country_enum = Country(country)
+        except ValueError:
+            return jsonify({'error': f'Invalid country: {country}'}), 400
+        
+        # Create new customer
+        customer = CustomerUser(
+            name=name,
+            contact_number=contact_number,
+            email=email,
+            address=address,
+            company_id=company_id,
+            country=country_enum,
+            created_at=datetime.utcnow()
+        )
+        
+        db_session.add(customer)
+        db_session.commit()
+        
+        logger.info(f"New customer created: {customer.name} (ID: {customer.id})")
+        
+        return jsonify({
+            'success': True,
+            'customer': {
+                'id': customer.id,
+                'name': customer.name,
+                'contact_number': customer.contact_number,
+                'email': customer.email,
+                'country': customer.country.value,
+                'address': customer.address,
+                'company': customer.company.name if customer.company else None
+            },
+            'message': 'Customer created successfully'
+        })
+        
+    except Exception as e:
+        if db_session:
+            db_session.rollback()
+        logger.error(f"Error creating customer: {str(e)}")
+        return jsonify({'error': f'Error creating customer: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
+
+@inventory_bp.route('/audit/debug')
+@login_required
+def debug_audit_data():
+    """Debug route to check audit data"""
+    user_id = session['user_id']
+    db_session = db_manager.get_session()
+    
+    try:
+        user = db_manager.get_user(user_id)
+        
+        # Get total assets count
+        total_assets = db_session.query(Asset).count()
+        
+        # Get all countries
+        all_countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        countries_list = [c[0] for c in all_countries if c[0]]
+        
+        # Get assets by country
+        country_counts = {}
+        for country in countries_list:
+            count = db_session.query(Asset).filter(func.lower(Asset.country) == func.lower(country)).count()
+            country_counts[country] = count
+        
+        # Check user permissions
+        user_info = {
+            'user_type': user.user_type.value if user.user_type else None,
+            'assigned_country': user.assigned_country.value if user.assigned_country else None,
+            'company_id': user.company_id
+        }
+        
+        return jsonify({
+            'success': True,
+            'total_assets': total_assets,
+            'countries': countries_list,
+            'country_counts': country_counts,
+            'user_info': user_info
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Debug error: {str(e)}'}), 500
     finally:
         db_session.close()

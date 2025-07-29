@@ -41,12 +41,61 @@
         <!-- Changelog Entries -->
         <div class="space-y-8">
             
-            <!-- Version 0.5.1 -->
+            <!-- Version 8.2.1 -->
             <div class="border-l-4 border-blue-500 pl-6">
                 <div class="flex items-center mb-3">
-                    <h2 class="text-xl font-semibold text-gray-900">v0.5.1</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">v8.2.1</h2>
                     <span class="ml-3 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Current</span>
                     <span class="ml-2 text-sm text-gray-500">Released: {{ version_info.build_date }}</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-green-700">✨ New Features</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>🎯 <strong>Salesforce-style Tab System:</strong> Persistent tabs across navigation with session storage</li>
+                            <li>📊 <strong>Audit Reports Management:</strong> View completed inventory audit reports with detailed analysis</li>
+                            <li>🔧 <strong>Audit Remediation:</strong> Direct access to remediation tools from audit reports</li>
+                            <li>🏠 <strong>Enhanced Home Dashboard:</strong> Dedicated Inventory Audit card with integrated functionality</li>
+                            <li>⌨️ <strong>Keyboard Shortcuts:</strong> Ctrl+W (close tab), Ctrl+T (new tab), Ctrl+1 (home)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-blue-700">🔧 Improvements</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>🎨 <strong>UI/UX Enhancements:</strong> Improved ticket view with better navigation and styling</li>
+                            <li>👥 <strong>Customer Information:</strong> Added comprehensive customer details for Asset Return (claw) tickets</li>
+                            <li>🔍 <strong>Case-Insensitive Filtering:</strong> Fixed inventory status filter to work with any case format</li>
+                            <li>📱 <strong>Responsive Design:</strong> Tab system works seamlessly across all screen sizes</li>
+                            <li>🌙 <strong>Dark Mode Support:</strong> Full dark theme compatibility for all new features</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-purple-700">🎯 User Experience</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>📋 <strong>Audit Report Details:</strong> Tabbed interface for scanned, missing, and unexpected assets</li>
+                            <li>🖨️ <strong>Print Functionality:</strong> Print-ready audit reports with proper formatting</li>
+                            <li>🔄 <strong>Persistent Navigation:</strong> Tabs maintain state across page refreshes and navigation</li>
+                            <li>📊 <strong>Visual Progress Indicators:</strong> Completion percentages and progress bars for audits</li>
+                            <li>🎨 <strong>Consistent Styling:</strong> Unified design language across all new components</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-red-700">🐛 Bug Fixes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Fixed inventory status filter case sensitivity issues (IN STOCK vs in stock)</li>
+                            <li>Resolved missing customer information display for Asset Return tickets</li>
+                            <li>Fixed tab positioning to appear below navigation bar instead of above</li>
+                            <li>Corrected duplicate card issues on home dashboard</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Version 0.5.1 -->
+            <div class="border-l-4 border-gray-300 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">v0.5.1</h2>
+                    <span class="ml-2 text-sm text-gray-500">Released: 2025-06-22</span>
                 </div>
                 <div class="space-y-3">
                     <div>
@@ -121,30 +170,30 @@
                 </div>
                 <div class="space-y-3">
                     <div>
-                        <h3 class="font-medium text-purple-700">🚀 v0.6.0 - Enhanced Analytics</h3>
+                        <h3 class="font-medium text-purple-700">🚀 v8.3.0 - Advanced Analytics</h3>
                         <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
-                            <li>Advanced reporting dashboard</li>
-                            <li>Asset utilization analytics</li>
-                            <li>Cost tracking and budgeting</li>
-                            <li>Performance metrics</li>
+                            <li>Enhanced audit analytics and trends</li>
+                            <li>Asset utilization reporting</li>
+                            <li>Performance metrics dashboard</li>
+                            <li>Automated audit scheduling</li>
                         </ul>
                     </div>
                     <div>
-                        <h3 class="font-medium text-purple-700">🚀 v0.7.0 - API & Integrations</h3>
+                        <h3 class="font-medium text-purple-700">🚀 v8.4.0 - Mobile & API</h3>
                         <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
-                            <li>REST API development</li>
-                            <li>Third-party system integrations</li>
-                            <li>Webhook support</li>
-                            <li>Export/import improvements</li>
+                            <li>Mobile-optimized audit interface</li>
+                            <li>REST API for external integrations</li>
+                            <li>Barcode scanning improvements</li>
+                            <li>Offline audit capabilities</li>
                         </ul>
                     </div>
                     <div>
-                        <h3 class="font-medium text-purple-700">🚀 v1.0.0 - Stable Release</h3>
+                        <h3 class="font-medium text-purple-700">🚀 v9.0.0 - Enterprise Features</h3>
                         <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
-                            <li>Production-ready deployment</li>
-                            <li>Performance optimizations</li>
-                            <li>Security enhancements</li>
-                            <li>Comprehensive documentation</li>
+                            <li>Multi-location audit management</li>
+                            <li>Advanced user roles and permissions</li>
+                            <li>Automated compliance reporting</li>
+                            <li>Integration with enterprise systems</li>
                         </ul>
                     </div>
                 </div>

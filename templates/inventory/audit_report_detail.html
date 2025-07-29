@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Report Details</h1>
+                <p class="text-gray-600">{{ report.audit_session.country }} | Completed: {{ report.audit_session.completed_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('inventory.audit_remediation', audit_id=report.audit_session.id) }}" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    Remediation
+                </a>
+                <button onclick="window.print()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H3a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Print Report
+                </button>
+                <a href="{{ url_for('inventory.view_audit_reports') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    Back to Reports
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-blue-50 rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="bg-blue-100 p-3 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <div class="text-2xl font-bold text-blue-600">{{ report.summary.total_expected }}</div>
+                    <div class="text-sm text-gray-600">Total Expected</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-green-50 rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="bg-green-100 p-3 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <div class="text-2xl font-bold text-green-600">{{ report.summary.total_scanned }}</div>
+                    <div class="text-sm text-gray-600">Assets Found</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-red-50 rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="bg-red-100 p-3 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <div class="text-2xl font-bold text-red-600">{{ report.summary.total_missing }}</div>
+                    <div class="text-sm text-gray-600">Missing Assets</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-yellow-50 rounded-lg p-6">
+            <div class="flex items-center">
+                <div class="bg-yellow-100 p-3 rounded-lg">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <div class="text-2xl font-bold text-yellow-600">{{ report.summary.total_unexpected }}</div>
+                    <div class="text-sm text-gray-600">Unexpected Assets</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Overview -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Audit Progress</h2>
+        <div class="flex justify-between text-sm text-gray-600 mb-2">
+            <span>Completion Rate</span>
+            <span>{{ report.summary.completion_percentage }}% ({{ report.summary.total_scanned }}/{{ report.summary.total_expected }})</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3">
+            <div class="bg-blue-600 h-3 rounded-full" style="width: {{ report.summary.completion_percentage }}%"></div>
+        </div>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-600">Started by:</span>
+                <span class="font-medium ml-2">{{ report.audit_session.user.username }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Started at:</span>
+                <span class="font-medium ml-2">{{ report.audit_session.started_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results Tabs -->
+    <div class="bg-white rounded-lg shadow">
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8 px-6">
+                <button onclick="showTab('scanned')" id="scanned-tab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
+                    Scanned Assets ({{ report.summary.total_scanned }})
+                </button>
+                <button onclick="showTab('missing')" id="missing-tab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Missing Assets ({{ report.summary.total_missing }})
+                </button>
+                <button onclick="showTab('unexpected')" id="unexpected-tab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Unexpected Assets ({{ report.summary.total_unexpected }})
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- Scanned Assets Tab -->
+            <div id="scanned-content" class="tab-content">
+                {% if report.scanned_assets %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scanned At</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for asset in report.scanned_assets %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ asset.asset_tag or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.serial_num or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.model or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        {{ asset.status or 'N/A' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.scanned_at or 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No assets were scanned during this audit.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Missing Assets Tab -->
+            <div id="missing-content" class="tab-content hidden">
+                {% if report.missing_assets %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for asset in report.missing_assets %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ asset.asset_tag or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.serial_num or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.model or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Missing
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No missing assets found during this audit.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Unexpected Assets Tab -->
+            <div id="unexpected-content" class="tab-content hidden">
+                {% if report.unexpected_assets %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scanned At</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for asset in report.unexpected_assets %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ asset.asset_tag or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.serial_num or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.model or 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ asset.scanned_at or 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No unexpected assets found during this audit.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tab contents
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => content.classList.add('hidden'));
+    
+    // Remove active class from all tab buttons
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(button => {
+        button.classList.remove('active', 'text-blue-600', 'border-blue-500');
+        button.classList.add('text-gray-500', 'border-transparent');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + '-content').classList.remove('hidden');
+    
+    // Add active class to selected tab button
+    const activeButton = document.getElementById(tabName + '-tab');
+    activeButton.classList.add('active', 'text-blue-600', 'border-blue-500');
+    activeButton.classList.remove('text-gray-500', 'border-transparent');
+}
+</script>
+
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .tab-content.hidden {
+        display: block !important;
+    }
+    
+    .tab-content {
+        page-break-inside: avoid;
+        margin-bottom: 2rem;
+    }
+}
+</style>
+{% endblock %}

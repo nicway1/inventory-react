@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Remediation</h1>
+                <p class="text-gray-600">Handle missing assets and resolve audit discrepancies</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-500">Audit ID: {{ audit_summary.audit_id }}</div>
+                <div class="text-sm text-gray-500">Country: {{ audit_summary.country }}</div>
+                <div class="text-sm text-gray-500">Completed: {{ audit_summary.completed_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Summary -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Audit Summary</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-blue-600">{{ audit_summary.total_assets }}</div>
+                <div class="text-sm text-gray-600">Total Assets</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-green-600">{{ audit_summary.scanned_count }}</div>
+                <div class="text-sm text-gray-600">Found</div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-yellow-600">{{ audit_summary.missing_count }}</div>
+                <div class="text-sm text-gray-600">Missing</div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-red-600">{{ audit_summary.unexpected_count }}</div>
+                <div class="text-sm text-gray-600">Unexpected</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missing Assets Remediation -->
+    {% if missing_assets %}
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Missing Assets Remediation</h2>
+        <p class="text-gray-600 mb-6">Review missing assets and take appropriate action for each item</p>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for asset in missing_assets %}
+                    <tr id="asset-row-{{ asset.id }}" class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="font-medium text-gray-900">{{ asset.asset_tag or 'N/A' }}</div>
+                            <div class="text-sm text-gray-500">{{ asset.serial_num or 'N/A' }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ asset.name or 'N/A' }}</div>
+                            <div class="text-sm text-gray-500">{{ asset.model or 'N/A' }}</div>
+                            <div class="text-sm text-gray-500">{{ asset.location or 'Unknown' }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span id="status-{{ asset.id }}" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Missing
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <button onclick="markAsFound({{ asset.id }})" 
+                                        class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                    <svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Found
+                                </button>
+                                <button onclick="openShipOutModal({{ asset.id }}, '{{ asset.asset_tag or asset.serial_num }}', '{{ asset.name }}')" 
+                                        class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                    <svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"></path>
+                                    </svg>
+                                    Ship Out
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Found Assets Summary -->
+    {% if scanned_assets %}
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Found Assets ({{ scanned_assets|length }})</h2>
+        <div class="text-sm text-gray-600">
+            <p class="mb-2">Assets successfully located during the audit:</p>
+            <div class="max-h-48 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {% for asset in scanned_assets[:20] %}
+                    <div class="bg-green-50 p-2 rounded text-xs">
+                        <div class="font-medium">{{ asset.asset_tag or asset.serial_num }}</div>
+                        <div class="text-gray-600">{{ asset.name }}</div>
+                    </div>
+                    {% endfor %}
+                    {% if scanned_assets|length > 20 %}
+                    <div class="bg-gray-50 p-2 rounded text-xs text-center text-gray-500">
+                        ... and {{ scanned_assets|length - 20 }} more
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Unexpected Assets Summary -->
+    {% if unexpected_assets %}
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Unexpected Assets ({{ unexpected_assets|length }})</h2>
+        <div class="text-sm text-gray-600">
+            <p class="mb-2">Assets found that were not expected in this location:</p>
+            <div class="max-h-48 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {% for asset in unexpected_assets %}
+                    <div class="bg-red-50 p-2 rounded text-xs">
+                        <div class="font-medium">{{ asset.identifier }}</div>
+                        <div class="text-gray-600">Scanned: {{ asset.scanned_at }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">Final Actions</h2>
+        <div class="flex space-x-4">
+            <button onclick="window.print()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                Print Report
+            </button>
+            <a href="/inventory/audit/export-report" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export CSV
+            </a>
+            <a href="{{ url_for('inventory.audit_inventory') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                </svg>
+                New Audit
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Ship Out Modal -->
+<div id="shipOutModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden items-center justify-center z-50">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh]">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Ship Out Asset</h3>
+            <button type="button" class="text-gray-400 hover:text-gray-600" onclick="closeShipOutModal()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto max-h-[70vh]">
+            <div class="mb-4">
+                <div class="text-sm font-medium text-gray-700">Asset:</div>
+                <div id="modalAssetInfo" class="text-gray-900"></div>
+            </div>
+            
+            <div class="mb-4">
+                <div id="customerSelectionSection">
+                    <label for="customerSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                        Select Customer
+                    </label>
+                    <div class="flex space-x-2">
+                        <select id="customerSelect" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Choose existing customer...</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" id="newCustomerBtn" 
+                                onclick="showNewCustomerForm()" 
+                                class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                                title="Create New Customer">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        {{ customers|length }} existing customers available
+                    </div>
+                </div>
+                
+                <div id="newCustomerSection" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-700">Create New Customer</h4>
+                        <button type="button" onclick="hideNewCustomerForm()" 
+                                class="text-gray-400 hover:text-gray-600 text-sm">
+                            ← Back to customer selection
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                            <input type="text" id="newCustomerName" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                            <input type="text" id="newCustomerContact" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="newCustomerEmail" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                            <select id="newCustomerCompany" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select company (optional)...</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                            <select id="newCustomerCountry" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Select country...</option>
+                                <option value="SINGAPORE">Singapore</option>
+                                <option value="AUSTRALIA">Australia</option>
+                                <option value="ISRAEL">Israel</option>
+                                <option value="PHILIPPINES">Philippines</option>
+                                <option value="INDIA">India</option>
+                            </select>
+                        </div>
+                        <div></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+                        <textarea id="newCustomerAddress" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required></textarea>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button type="button" onclick="createNewCustomer()" 
+                                class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Create Customer
+                        </button>
+                        <button type="button" onclick="hideNewCustomerForm()" 
+                                class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="shipOutNotes" class="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (Optional)
+                </label>
+                <textarea id="shipOutNotes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Add any notes about this shipment..."></textarea>
+            </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3 p-6 border-t border-gray-200">
+            <button type="button" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600" onclick="closeShipOutModal()">
+                Cancel
+            </button>
+            <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" onclick="confirmShipOut()">
+                Create Checkout Case
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div id="loadingText" class="text-gray-700">Processing...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div id="successModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden items-center justify-center z-50">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <!-- Success Icon -->
+            <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            
+            <!-- Title -->
+            <h3 class="text-lg font-semibold text-gray-900 text-center mb-2">
+                Checkout Case Created Successfully!
+            </h3>
+            
+            <!-- Message -->
+            <p class="text-gray-600 text-center mb-6">
+                <span id="successMessage"></span>
+            </p>
+            
+            <!-- Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="button" 
+                        class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center justify-center"
+                        onclick="viewCase()">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    View Case
+                </button>
+                <button type="button" 
+                        class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                        onclick="closeSuccessModal()">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAssetId = null;
+
+// Helper function to add CSRF token to fetch requests
+function fetchWithCSRF(url, options = {}) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const headers = options.headers || {};
+    headers['X-CSRFToken'] = csrfToken;
+    return fetch(url, { ...options, headers });
+}
+
+function showLoading(text) {
+    document.getElementById('loadingText').textContent = text;
+    document.getElementById('loadingModal').classList.remove('hidden');
+    document.getElementById('loadingModal').classList.add('flex');
+}
+
+function hideLoading() {
+    document.getElementById('loadingModal').classList.add('hidden');
+    document.getElementById('loadingModal').classList.remove('flex');
+}
+
+function markAsFound(assetId) {
+    if (confirm('Mark this asset as found? This will update its status in the system.')) {
+        showLoading('Marking asset as found...');
+        
+        fetchWithCSRF('/inventory/audit/mark-found', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                asset_id: assetId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                // Update the row visually
+                const row = document.getElementById('asset-row-' + assetId);
+                const status = document.getElementById('status-' + assetId);
+                
+                status.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800';
+                status.textContent = 'Found';
+                
+                // Disable action buttons
+                const buttons = row.querySelector('td:last-child .flex');
+                buttons.innerHTML = '<span class="text-green-600 text-sm">✓ Marked as Found</span>';
+                
+                alert('Asset marked as found successfully!');
+            } else {
+                alert('Error: ' + (data.error || 'Failed to mark asset as found'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            alert('Error marking asset as found');
+        });
+    }
+}
+
+function openShipOutModal(assetId, assetTag, assetName) {
+    currentAssetId = assetId;
+    document.getElementById('modalAssetInfo').textContent = assetTag + ' - ' + assetName;
+    document.getElementById('shipOutModal').classList.remove('hidden');
+    document.getElementById('shipOutModal').classList.add('flex');
+}
+
+function closeShipOutModal() {
+    currentAssetId = null;
+    document.getElementById('shipOutModal').classList.add('hidden');
+    document.getElementById('shipOutModal').classList.remove('flex');
+    
+    // Reset form
+    document.getElementById('customerSelect').value = '';
+    document.getElementById('customerSelectionSection').classList.remove('hidden');
+    document.getElementById('newCustomerSection').classList.add('hidden');
+    document.getElementById('shipOutNotes').value = '';
+    document.getElementById('newCustomerName').value = '';
+    document.getElementById('newCustomerContact').value = '';
+    document.getElementById('newCustomerEmail').value = '';
+    document.getElementById('newCustomerCompany').value = '';
+    document.getElementById('newCustomerCountry').value = '';
+    document.getElementById('newCustomerAddress').value = '';
+}
+
+// Show new customer form
+function showNewCustomerForm() {
+    document.getElementById('customerSelectionSection').classList.add('hidden');
+    document.getElementById('newCustomerSection').classList.remove('hidden');
+    
+    // Clear the form
+    document.getElementById('newCustomerName').value = '';
+    document.getElementById('newCustomerContact').value = '';
+    document.getElementById('newCustomerEmail').value = '';
+    document.getElementById('newCustomerCompany').value = '';
+    document.getElementById('newCustomerCountry').value = '';
+    document.getElementById('newCustomerAddress').value = '';
+}
+
+// Hide new customer form
+function hideNewCustomerForm() {
+    document.getElementById('customerSelectionSection').classList.remove('hidden');
+    document.getElementById('newCustomerSection').classList.add('hidden');
+    
+    // Clear the form
+    document.getElementById('newCustomerName').value = '';
+    document.getElementById('newCustomerContact').value = '';
+    document.getElementById('newCustomerEmail').value = '';
+    document.getElementById('newCustomerCompany').value = '';
+    document.getElementById('newCustomerCountry').value = '';
+    document.getElementById('newCustomerAddress').value = '';
+}
+
+// Create new customer and add to system
+function createNewCustomer() {
+    const name = document.getElementById('newCustomerName').value.trim();
+    const contact = document.getElementById('newCustomerContact').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
+    const companyId = document.getElementById('newCustomerCompany').value;
+    const country = document.getElementById('newCustomerCountry').value;
+    const address = document.getElementById('newCustomerAddress').value.trim();
+    
+    if (!name || !contact || !country || !address) {
+        alert('Please fill in all required fields: Name, Contact Number, Country, and Address');
+        return;
+    }
+    
+    showLoading('Creating customer...');
+    
+    const requestData = {
+        name: name,
+        contact_number: contact,
+        email: email,
+        country: country,
+        address: address
+    };
+    
+    if (companyId) {
+        requestData.company_id = parseInt(companyId);
+    }
+    
+    fetchWithCSRF('/inventory/customers/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            // Add new customer to dropdown
+            const customerSelect = document.getElementById('customerSelect');
+            const option = document.createElement('option');
+            option.value = data.customer.id;
+            option.textContent = `${data.customer.name} (${data.customer.company || 'No Company'})`;
+            customerSelect.appendChild(option);
+            
+            // Select the new customer
+            customerSelect.value = data.customer.id;
+            
+            // Hide form and show selection
+            hideNewCustomerForm();
+            
+            alert(`Customer "${data.customer.name}" created successfully!`);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to create customer'));
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        alert('Error creating customer');
+    });
+}
+
+function confirmShipOut() {
+    const customerSelect = document.getElementById('customerSelect');
+    const notes = document.getElementById('shipOutNotes').value;
+    
+    let customerId = customerSelect.value;
+    
+    if (!customerId) {
+        alert('Please select a customer or create a new one first');
+        return;
+    }
+    
+    showLoading('Creating checkout case...');
+    
+    fetchWithCSRF('/inventory/audit/ship-out', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            asset_id: currentAssetId,
+            customer_id: customerId,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            // Update the row visually
+            const row = document.getElementById('asset-row-' + currentAssetId);
+            const status = document.getElementById('status-' + currentAssetId);
+            
+            status.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
+            status.textContent = 'Shipped Out';
+            
+            // Disable action buttons
+            const buttons = row.querySelector('td:last-child .flex');
+            buttons.innerHTML = `<span class="text-blue-600 text-sm">✓ Shipped to ${data.customer_name}</span>`;
+            
+            closeShipOutModal();
+            showSuccessModal(data.case_id, data.customer_name);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to create checkout case'));
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        alert('Error creating checkout case');
+    });
+}
+
+// Success Modal Functions
+let currentCaseId = null;
+
+function showSuccessModal(caseId, customerName) {
+    currentCaseId = caseId;
+    document.getElementById('successMessage').textContent = `Case #${caseId} has been created and assigned to ${customerName}.`;
+    document.getElementById('successModal').classList.remove('hidden');
+    document.getElementById('successModal').classList.add('flex');
+}
+
+function closeSuccessModal() {
+    currentCaseId = null;
+    document.getElementById('successModal').classList.add('hidden');
+    document.getElementById('successModal').classList.remove('flex');
+}
+
+function viewCase() {
+    if (currentCaseId) {
+        // Open the case in a new tab
+        window.open(`/tickets/${currentCaseId}`, '_blank');
+        closeSuccessModal();
+    }
+}
+</script>
+
+{% endblock %}
