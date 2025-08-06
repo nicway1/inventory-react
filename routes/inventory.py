@@ -2825,7 +2825,7 @@ def bulk_checkout():
 @login_required
 @admin_required
 def bulk_delete():
-    """Delete multiple assets and accessories"""
+    """Delete multiple assets and accessories - Optimized for large batches"""
     if not current_user.is_admin:
         flash('You do not have permission to delete items.', 'error')
         return redirect(url_for('inventory.view_inventory'))
@@ -2848,79 +2848,327 @@ def bulk_delete():
         deleted_accessories = 0
         errors = []
 
-        # Process assets
-        for asset_id in asset_ids:
-            try:
-                asset = db_session.query(Asset).get(asset_id)
-                if asset:
-                    # Store asset info for activity log
-                    asset_info = {
-                        'name': asset.name,
-                        'asset_tag': asset.asset_tag,
-                        'serial_num': asset.serial_num
-                    }
-                    
-                    # Delete asset history first
-                    db_session.query(AssetHistory).filter(AssetHistory.asset_id == asset_id).delete()
-                    
-                    # Delete the asset
-                    db_session.delete(asset)
-                    deleted_assets += 1
+        # Process assets in batches for better performance
+        BATCH_SIZE = 100  # Process 100 assets at a time
+        
+        if asset_ids:
+            logger.info(f"Starting bulk deletion of {len(asset_ids)} assets")
+            
+            # Get asset info for activity logging before deletion
+            assets_info = []
+            if len(asset_ids) <= 1000:  # Only get detailed info for reasonable batch sizes
+                assets_query = db_session.query(Asset.id, Asset.name, Asset.asset_tag, Asset.serial_num)\
+                    .filter(Asset.id.in_(asset_ids)).all()
+                assets_info = {asset.id: {
+                    'name': asset.name or 'Unknown',
+                    'asset_tag': asset.asset_tag or 'Unknown',
+                    'serial_num': asset.serial_num or 'Unknown'
+                } for asset in assets_query}
 
-                    # Add activity log
+            # Process assets in batches
+            for i in range(0, len(asset_ids), BATCH_SIZE):
+                batch_ids = asset_ids[i:i + BATCH_SIZE]
+                
+                try:
+                    # Delete related data first using bulk operations
+                    # 1. Delete asset history
+                    deleted_history = db_session.query(AssetHistory)\
+                        .filter(AssetHistory.asset_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    # 2. Delete asset transactions
+                    deleted_transactions = db_session.query(AssetTransaction)\
+                        .filter(AssetTransaction.asset_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    # 3. Remove ticket-asset associations
+                    if batch_ids:
+                        from models.asset import ticket_assets
+                        db_session.execute(
+                            ticket_assets.delete().where(ticket_assets.c.asset_id.in_(batch_ids))
+                        )
+                    
+                    # 4. Delete the assets themselves
+                    deleted_count = db_session.query(Asset)\
+                        .filter(Asset.id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    deleted_assets += deleted_count
+                    
+                    # Commit this batch
+                    db_session.commit()
+                    
+                    logger.info(f"Deleted batch {i//BATCH_SIZE + 1}: {deleted_count} assets, {deleted_history} history records, {deleted_transactions} transactions")
+                    
+                except Exception as e:
+                    db_session.rollback()
+                    error_msg = f'Error deleting asset batch {i//BATCH_SIZE + 1}: {str(e)}'
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+                    continue
+
+            # Add a single activity log for the bulk operation
+            if deleted_assets > 0:
+                try:
                     activity = Activity(
                         user_id=current_user.id,
-                        type='asset_deleted',
-                        content=f'Deleted asset: {asset_info["name"]} (Asset Tag: {asset_info["asset_tag"]}, Serial: {asset_info["serial_num"]})',
+                        type='bulk_asset_deleted',
+                        content=f'Bulk deleted {deleted_assets} assets',
                         reference_id=0
                     )
                     db_session.add(activity)
-            except Exception as e:
-                errors.append(f'Error deleting asset {asset_id}: {str(e)}')
+                    db_session.commit()
+                except Exception as e:
+                    logger.error(f"Error adding activity log: {str(e)}")
 
-        # Process accessories
-        for accessory_id in accessory_ids:
-            try:
-                accessory = db_session.query(Accessory).get(accessory_id)
-                if accessory:
-                    # Store accessory info for activity log
-                    accessory_info = {
-                        'name': accessory.name,
-                        'total_quantity': accessory.total_quantity
-                    }
-                    
+        # Process accessories in batches
+        if accessory_ids:
+            logger.info(f"Starting bulk deletion of {len(accessory_ids)} accessories")
+            
+            for i in range(0, len(accessory_ids), BATCH_SIZE):
+                batch_ids = accessory_ids[i:i + BATCH_SIZE]
+                
+                try:
                     # Delete accessory history first
-                    db_session.query(AccessoryHistory).filter(AccessoryHistory.accessory_id == accessory_id).delete()
+                    deleted_history = db_session.query(AccessoryHistory)\
+                        .filter(AccessoryHistory.accessory_id.in_(batch_ids)).delete(synchronize_session=False)
                     
-                    # Delete the accessory
-                    db_session.delete(accessory)
-                    deleted_accessories += 1
+                    # Delete accessory transactions
+                    deleted_transactions = db_session.query(AccessoryTransaction)\
+                        .filter(AccessoryTransaction.accessory_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    # Delete the accessories
+                    deleted_count = db_session.query(Accessory)\
+                        .filter(Accessory.id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    deleted_accessories += deleted_count
+                    
+                    # Commit this batch
+                    db_session.commit()
+                    
+                    logger.info(f"Deleted accessory batch {i//BATCH_SIZE + 1}: {deleted_count} accessories, {deleted_history} history records, {deleted_transactions} transactions")
+                    
+                except Exception as e:
+                    db_session.rollback()
+                    error_msg = f'Error deleting accessory batch {i//BATCH_SIZE + 1}: {str(e)}'
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+                    continue
 
-                    # Add activity log
+            # Add activity log for accessory bulk operation
+            if deleted_accessories > 0:
+                try:
                     activity = Activity(
                         user_id=current_user.id,
-                        type='accessory_deleted',
-                        content=f'Deleted accessory: {accessory_info["name"]} (Total Quantity: {accessory_info["total_quantity"]})',
+                        type='bulk_accessory_deleted',
+                        content=f'Bulk deleted {deleted_accessories} accessories',
                         reference_id=0
                     )
                     db_session.add(activity)
-            except Exception as e:
-                errors.append(f'Error deleting accessory {accessory_id}: {str(e)}')
+                    db_session.commit()
+                except Exception as e:
+                    logger.error(f"Error adding accessory activity log: {str(e)}")
 
+        # Report results
         if errors:
-            db_session.rollback()
-            error_message = '<br>'.join(errors)
-            flash(f'Errors occurred during deletion:<br>{error_message}', 'error')
+            error_message = '<br>'.join(errors[:10])  # Limit error messages
+            if len(errors) > 10:
+                error_message += f'<br>... and {len(errors) - 10} more errors'
+            flash(f'Partial deletion completed. {deleted_assets} assets and {deleted_accessories} accessories deleted.<br>Errors:<br>{error_message}', 'warning')
         else:
-            db_session.commit()
             flash(f'Successfully deleted {deleted_assets} assets and {deleted_accessories} accessories.', 'success')
 
         return redirect(url_for('inventory.view_inventory'))
 
     except Exception as e:
         db_session.rollback()
-        flash(f'Error during bulk deletion: {str(e)}', 'error')
+        logger.error(f'Critical error during bulk deletion: {str(e)}')
+        logger.error(traceback.format_exc())
+        flash(f'Critical error during bulk deletion: {str(e)}', 'error')
         return redirect(url_for('inventory.view_inventory'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/bulk-delete-large', methods=['POST'])
+@login_required
+@admin_required
+def bulk_delete_large():
+    """Handle very large bulk deletions (1000+ items) with progress tracking"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Permission denied'}), 403
+
+    try:
+        # Get selected IDs
+        data = request.get_json()
+        asset_ids = data.get('asset_ids', [])
+        accessory_ids = data.get('accessory_ids', [])
+        
+        if not asset_ids and not accessory_ids:
+            return jsonify({'error': 'No items selected'}), 400
+
+        total_items = len(asset_ids) + len(accessory_ids)
+        
+        # For very large operations, process in background
+        if total_items > 500:
+            # Store the deletion job in session for progress tracking
+            session['bulk_delete_job'] = {
+                'asset_ids': asset_ids,
+                'accessory_ids': accessory_ids,
+                'total_items': total_items,
+                'processed': 0,
+                'status': 'starting',
+                'start_time': datetime.utcnow().isoformat()
+            }
+            
+            return jsonify({
+                'status': 'started',
+                'total_items': total_items,
+                'message': f'Started bulk deletion of {total_items} items. This may take several minutes.'
+            })
+        else:
+            # For smaller batches, process immediately
+            return jsonify({'status': 'redirect', 'url': url_for('inventory.bulk_delete')})
+            
+    except Exception as e:
+        logger.error(f'Error starting bulk delete: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@inventory_bp.route('/bulk-delete-progress', methods=['GET'])
+@login_required
+@admin_required
+def bulk_delete_progress():
+    """Get progress of bulk deletion operation"""
+    job = session.get('bulk_delete_job')
+    if not job:
+        return jsonify({'error': 'No active deletion job'}), 404
+    
+    # If job is starting, begin processing
+    if job['status'] == 'starting':
+        try:
+            _process_bulk_delete_job(job)
+        except Exception as e:
+            job['status'] = 'error'
+            job['error'] = str(e)
+            session['bulk_delete_job'] = job
+    
+    return jsonify(job)
+
+def _process_bulk_delete_job(job):
+    """Process the bulk deletion job in chunks"""
+    db_session = db_manager.get_session()
+    
+    try:
+        job['status'] = 'processing'
+        session['bulk_delete_job'] = job
+        
+        asset_ids = job['asset_ids']
+        accessory_ids = job['accessory_ids']
+        
+        deleted_assets = 0
+        deleted_accessories = 0
+        BATCH_SIZE = 50  # Smaller batches for large operations
+        
+        # Process assets
+        if asset_ids:
+            for i in range(0, len(asset_ids), BATCH_SIZE):
+                batch_ids = asset_ids[i:i + BATCH_SIZE]
+                
+                try:
+                    # Delete related data first
+                    db_session.query(AssetHistory)\
+                        .filter(AssetHistory.asset_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    db_session.query(AssetTransaction)\
+                        .filter(AssetTransaction.asset_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    # Remove ticket associations
+                    if batch_ids:
+                        from models.asset import ticket_assets
+                        db_session.execute(
+                            ticket_assets.delete().where(ticket_assets.c.asset_id.in_(batch_ids))
+                        )
+                    
+                    # Delete assets
+                    deleted_count = db_session.query(Asset)\
+                        .filter(Asset.id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    deleted_assets += deleted_count
+                    db_session.commit()
+                    
+                    # Update progress
+                    job['processed'] += len(batch_ids)
+                    job['deleted_assets'] = deleted_assets
+                    session['bulk_delete_job'] = job
+                    
+                except Exception as e:
+                    db_session.rollback()
+                    logger.error(f"Error in asset batch {i//BATCH_SIZE + 1}: {str(e)}")
+                    continue
+        
+        # Process accessories
+        if accessory_ids:
+            for i in range(0, len(accessory_ids), BATCH_SIZE):
+                batch_ids = accessory_ids[i:i + BATCH_SIZE]
+                
+                try:
+                    # Delete related data first
+                    db_session.query(AccessoryHistory)\
+                        .filter(AccessoryHistory.accessory_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    db_session.query(AccessoryTransaction)\
+                        .filter(AccessoryTransaction.accessory_id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    # Delete accessories
+                    deleted_count = db_session.query(Accessory)\
+                        .filter(Accessory.id.in_(batch_ids)).delete(synchronize_session=False)
+                    
+                    deleted_accessories += deleted_count
+                    db_session.commit()
+                    
+                    # Update progress
+                    job['processed'] += len(batch_ids)
+                    job['deleted_accessories'] = deleted_accessories
+                    session['bulk_delete_job'] = job
+                    
+                except Exception as e:
+                    db_session.rollback()
+                    logger.error(f"Error in accessory batch {i//BATCH_SIZE + 1}: {str(e)}")
+                    continue
+        
+        # Mark as completed
+        job['status'] = 'completed'
+        job['deleted_assets'] = deleted_assets
+        job['deleted_accessories'] = deleted_accessories
+        job['end_time'] = datetime.utcnow().isoformat()
+        session['bulk_delete_job'] = job
+        
+        # Add activity log
+        try:
+            if deleted_assets > 0:
+                activity = Activity(
+                    user_id=current_user.id,
+                    type='bulk_asset_deleted',
+                    content=f'Bulk deleted {deleted_assets} assets',
+                    reference_id=0
+                )
+                db_session.add(activity)
+            
+            if deleted_accessories > 0:
+                activity = Activity(
+                    user_id=current_user.id,
+                    type='bulk_accessory_deleted',
+                    content=f'Bulk deleted {deleted_accessories} accessories',
+                    reference_id=0
+                )
+                db_session.add(activity)
+            
+            db_session.commit()
+        except Exception as e:
+            logger.error(f"Error adding activity logs: {str(e)}")
+        
+    except Exception as e:
+        job['status'] = 'error'
+        job['error'] = str(e)
+        session['bulk_delete_job'] = job
+        logger.error(f"Critical error in bulk delete job: {str(e)}")
+        logger.error(traceback.format_exc())
     finally:
         db_session.close()
 

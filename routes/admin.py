@@ -3038,13 +3038,71 @@ def csv_import_import_ticket():
                 if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
                     customer_address = "Address not provided"
                 
+                # Map city to country as requested by user, with fallback to country_code
+                city_to_country_mapping = {
+                    'Singapore': Country.SINGAPORE,
+                    'Kuala Lumpur': Country.MALAYSIA,
+                    'Bangkok': Country.THAILAND,
+                    'Manila': Country.PHILIPPINES,
+                    'Jakarta': Country.INDONESIA,
+                    'Ho Chi Minh City': Country.VIETNAM,
+                    'Hanoi': Country.VIETNAM,
+                    'Seoul': Country.SOUTH_KOREA,
+                    'Tokyo': Country.JAPAN,
+                    'Osaka': Country.JAPAN,
+                    'Sydney': Country.AUSTRALIA,
+                    'Melbourne': Country.AUSTRALIA,
+                    'Mumbai': Country.INDIA,
+                    'Delhi': Country.INDIA,
+                    'Bangalore': Country.INDIA,
+                    'Tel Aviv': Country.ISRAEL,
+                    'Jerusalem': Country.ISRAEL,
+                    'Toronto': Country.CANADA,
+                    'Vancouver': Country.CANADA,
+                    'New York': Country.USA,
+                    'Los Angeles': Country.USA,
+                    'San Francisco': Country.USA,
+                    'Hong Kong': Country.HONG_KONG,
+                    'Taipei': Country.TAIWAN,
+                    'Beijing': Country.CHINA,
+                    'Shanghai': Country.CHINA
+                }
+                
+                # First try to map from city, then fallback to country_code
+                city = primary_item.get('city', '')
+                country_code = primary_item.get('country_code', '')
+                
+                if city and city in city_to_country_mapping:
+                    customer_country = city_to_country_mapping[city]
+                else:
+                    # Fallback to country code mapping
+                    country_code_mapping = {
+                        'SG': Country.SINGAPORE,
+                        'US': Country.USA,
+                        'JP': Country.JAPAN,
+                        'IN': Country.INDIA,
+                        'AU': Country.AUSTRALIA,
+                        'PH': Country.PHILIPPINES,
+                        'IL': Country.ISRAEL,
+                        'CA': Country.CANADA,
+                        'TW': Country.TAIWAN,
+                        'CN': Country.CHINA,
+                        'HK': Country.HONG_KONG,
+                        'MY': Country.MALAYSIA,
+                        'TH': Country.THAILAND,
+                        'VN': Country.VIETNAM,
+                        'KR': Country.SOUTH_KOREA,
+                        'ID': Country.INDONESIA
+                    }
+                    customer_country = country_code_mapping.get(country_code, Country.SINGAPORE)
+                
                 customer = CustomerUser(
                     name=primary_item['person_name'],
                     email=primary_item['primary_email'],
                     contact_number=primary_item.get('phone_number', ''),
                     address=customer_address,
                     company_id=company.id,
-                    country=primary_item.get('country_code', '')
+                    country=customer_country
                 )
                 db_session.add(customer)
                 db_session.flush()
@@ -3517,26 +3575,63 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_a
                 db_session.add(company)
                 db_session.flush()
             
-            # Map country code to Country enum
-            country_mapping = {
-                'SG': Country.SINGAPORE,
-                'US': Country.USA,
-                'JP': Country.JAPAN,
-                'IN': Country.INDIA,
-                'AU': Country.AUSTRALIA,
-                'PH': Country.PHILIPPINES,
-                'IL': Country.IL,
-                'CA': Country.CA,
-                'TW': Country.TAIWAN,
-                'CN': Country.CHINA,
-                'HK': Country.HONG_KONG,
-                'MY': Country.MALAYSIA,
-                'TH': Country.THAILAND,
-                'VN': Country.VIETNAM,
-                'KR': Country.SOUTH_KOREA,
-                'ID': Country.INDONESIA
+            # Map city to country as requested by user, with fallback to country_code
+            city_to_country_mapping = {
+                'Singapore': Country.SINGAPORE,
+                'Kuala Lumpur': Country.MALAYSIA,
+                'Bangkok': Country.THAILAND,
+                'Manila': Country.PHILIPPINES,
+                'Jakarta': Country.INDONESIA,
+                'Ho Chi Minh City': Country.VIETNAM,
+                'Hanoi': Country.VIETNAM,
+                'Seoul': Country.SOUTH_KOREA,
+                'Tokyo': Country.JAPAN,
+                'Osaka': Country.JAPAN,
+                'Sydney': Country.AUSTRALIA,
+                'Melbourne': Country.AUSTRALIA,
+                'Mumbai': Country.INDIA,
+                'Delhi': Country.INDIA,
+                'Bangalore': Country.INDIA,
+                'Tel Aviv': Country.ISRAEL,
+                'Jerusalem': Country.ISRAEL,
+                'Toronto': Country.CANADA,
+                'Vancouver': Country.CANADA,
+                'New York': Country.USA,
+                'Los Angeles': Country.USA,
+                'San Francisco': Country.USA,
+                'Hong Kong': Country.HONG_KONG,
+                'Taipei': Country.TAIWAN,
+                'Beijing': Country.CHINA,
+                'Shanghai': Country.CHINA
             }
-            country = country_mapping.get(row['country_code'], Country.SINGAPORE)
+            
+            # First try to map from city, then fallback to country_code
+            city = row.get('city', '')
+            country_code = row.get('country_code', '')
+            
+            if city and city in city_to_country_mapping:
+                country = city_to_country_mapping[city]
+            else:
+                # Fallback to country code mapping
+                country_code_mapping = {
+                    'SG': Country.SINGAPORE,
+                    'US': Country.USA,
+                    'JP': Country.JAPAN,
+                    'IN': Country.INDIA,
+                    'AU': Country.AUSTRALIA,
+                    'PH': Country.PHILIPPINES,
+                    'IL': Country.ISRAEL,
+                    'CA': Country.CANADA,
+                    'TW': Country.TAIWAN,
+                    'CN': Country.CHINA,
+                    'HK': Country.HONG_KONG,
+                    'MY': Country.MALAYSIA,
+                    'TH': Country.THAILAND,
+                    'VN': Country.VIETNAM,
+                    'KR': Country.SOUTH_KOREA,
+                    'ID': Country.INDONESIA
+                }
+                country = country_code_mapping.get(country_code, Country.SINGAPORE)
             
             # Create address from available fields
             address_parts = [

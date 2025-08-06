@@ -132,6 +132,67 @@
             <a href="{{ url_for('reports.index') }}" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800">View Reports →</a>
         </div>
 
+        <!-- Knowledge Base Card -->
+        {% if current_user.is_authenticated and current_user.permissions.can_view_knowledge_base %}
+        <div class="bg-white rounded-lg shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-200">
+            <div class="flex items-center mb-6">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-lg mr-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Knowledge Base</h2>
+                    <p class="text-gray-600 text-sm">Find answers and documentation</p>
+                </div>
+            </div>
+            
+            <div class="space-y-3 mb-6">
+                <div class="flex items-center text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
+                    <div class="bg-blue-500 p-1 rounded-full mr-3">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <span class="font-medium">Standard Operating Procedures</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-700 bg-green-50 p-3 rounded-lg">
+                    <div class="bg-green-500 p-1 rounded-full mr-3">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <span class="font-medium">Troubleshooting Guides</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-700 bg-purple-50 p-3 rounded-lg">
+                    <div class="bg-purple-500 p-1 rounded-full mr-3">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <span class="font-medium">Searchable Documentation</span>
+                </div>
+            </div>
+            
+            <div class="flex space-x-3">
+                <a href="{{ url_for('knowledge.index') }}" 
+                   class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-center py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105">
+                    Browse Articles
+                </a>
+                {% if current_user.permissions.can_create_articles %}
+                <a href="{{ url_for('knowledge.admin_dashboard') }}" 
+                   class="bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Manage
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Import Card -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">

@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block title %}{% if article %}Edit Article{% else %}Create Article{% endif %} - Knowledge Base{% endblock %}
+
+{% block content %}
+<!-- Salesforce Knowledge Base Article Editor -->
+<div style="background: #f3f3f3; min-height: 100vh; font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    
+    <!-- Header Section -->
+    <div style="background: white; border-bottom: 1px solid #e5e5e5; padding: 1.5rem 0;">
+        <div class="container-fluid" style="max-width: 1200px; margin: 0 auto; padding: 0 1rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center;">
+                    <div style="background: #1589ee; padding: 0.75rem; border-radius: 0.5rem; margin-right: 1rem;">
+                        <svg style="width: 1.5rem; height: 1.5rem; fill: white;" viewBox="0 0 24 24">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 style="font-size: 1.5rem; font-weight: 600; color: #181818; margin: 0; line-height: 1.2;">
+                            {% if article %}Edit Article{% else %}Create New Article{% endif %}
+                        </h1>
+                        {% if article %}
+                        <p style="font-size: 0.875rem; color: #706e6b; margin: 0.25rem 0 0 0;">{{ article.title }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="{{ url_for('knowledge.admin_manage_articles') }}" 
+                       style="background: white; color: #706e6b; border: 1px solid #e5e5e5; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-size: 0.875rem; display: flex; align-items: center;">
+                        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: currentColor;" viewBox="0 0 24 24">
+                            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                        </svg>
+                        Back to Articles
+                    </a>
+                    {% if article %}
+                    <a href="{{ url_for('knowledge.view_article', article_id=article.id) }}" 
+                       style="background: #1589ee; color: white; border: 1px solid #1589ee; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-size: 0.875rem; display: flex; align-items: center;">
+                        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: white;" viewBox="0 0 24 24">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                        </svg>
+                        View Article
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container-fluid" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <form method="POST" action="{% if article %}{{ url_for('knowledge.admin_update_article', article_id=article.id) }}{% else %}{{ url_for('knowledge.admin_save_article') }}{% endif %}" style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <!-- Main Form Content -->
+            <div>
+                <!-- Title Field -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <label for="title" style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        Title <span style="color: #c23934;">*</span>
+                    </label>
+                    <input type="text" 
+                           id="title" 
+                           name="title" 
+                           value="{% if article %}{{ article.title }}{% endif %}" 
+                           required 
+                           maxlength="255"
+                           placeholder="Enter article title..."
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 1rem; background: white;">
+                </div>
+
+                <!-- Summary Field -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <label for="summary" style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        Summary
+                    </label>
+                    <textarea id="summary" 
+                              name="summary" 
+                              rows="3" 
+                              placeholder="Brief description of the article (optional)"
+                              style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 0.875rem; background: white; resize: vertical;">{% if article and article.summary %}{{ article.summary }}{% endif %}</textarea>
+                    <p style="font-size: 0.75rem; color: #706e6b; margin: 0.5rem 0 0 0;">This will be shown in search results and article listings.</p>
+                </div>
+
+                <!-- Content Field -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <label for="content" style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        Content <span style="color: #c23934;">*</span>
+                    </label>
+                    <div style="border: 1px solid #d8dde6; border-radius: 0.25rem; overflow: hidden;">
+                        <!-- Toolbar -->
+                        <div style="background: #f8f9fa; border-bottom: 1px solid #d8dde6; padding: 0.5rem; display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                            <button type="button" onclick="formatText('bold')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-weight: bold;">B</button>
+                            <button type="button" onclick="formatText('italic')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-style: italic;">I</button>
+                            <button type="button" onclick="formatText('underline')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; text-decoration: underline;">U</button>
+                            <div style="width: 1px; background: #d8dde6; margin: 0 0.25rem;"></div>
+                            <button type="button" onclick="insertList('ul')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">• List</button>
+                            <button type="button" onclick="insertList('ol')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">1. List</button>
+                            <button type="button" onclick="insertHeading()" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">H</button>
+                        </div>
+                        <textarea id="content" 
+                                  name="content" 
+                                  rows="20" 
+                                  required
+                                  placeholder="Enter article content... You can use HTML formatting."
+                                  style="width: 100%; padding: 1rem; border: none; font-size: 0.875rem; background: white; resize: vertical; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;">{% if article %}{{ article.content }}{% endif %}</textarea>
+                    </div>
+                    <p style="font-size: 0.75rem; color: #706e6b; margin: 0.5rem 0 0 0;">You can use HTML formatting in the content.</p>
+                </div>
+
+                <!-- Tags Field -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem;">
+                    <label for="tags" style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        Tags
+                    </label>
+                    <input type="text" 
+                           id="tags" 
+                           name="tags" 
+                           value="{% if article %}{{ article.tags | map(attribute='name') | join(', ') }}{% endif %}"
+                           placeholder="Enter tags separated by commas"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 0.875rem; background: white;">
+                    <p style="font-size: 0.75rem; color: #706e6b; margin: 0.5rem 0 0 0;">Tags help users find related articles.</p>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div>
+                <!-- Article Settings -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #181818; margin: 0 0 1rem 0;">Article Settings</h3>
+                    
+                    <!-- Category -->
+                    <div style="margin-bottom: 1rem;">
+                        <label for="category_id" style="display: block; font-weight: 500; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                            Category
+                        </label>
+                        <select id="category_id" 
+                                name="category_id"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 0.875rem; background: white;">
+                            <option value="">Select a category</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" 
+                                    {% if (article and article.category_id == category.id) or (category_id and category_id == category.id|string) %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Visibility -->
+                    <div style="margin-bottom: 1rem;">
+                        <label for="visibility" style="display: block; font-weight: 500; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                            Visibility
+                        </label>
+                        <select id="visibility" 
+                                name="visibility"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 0.875rem; background: white;">
+                            <option value="internal" {% if not article or article.visibility.value == 'internal' %}selected{% endif %}>
+                                Internal - All authenticated users
+                            </option>
+                            <option value="public" {% if article and article.visibility.value == 'public' %}selected{% endif %}>
+                                Public - Everyone
+                            </option>
+                            <option value="restricted" {% if article and article.visibility.value == 'restricted' %}selected{% endif %}>
+                                Restricted - Authorized users only
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div style="margin-bottom: 1rem;">
+                        <label for="status" style="display: block; font-weight: 500; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                            Status
+                        </label>
+                        <select id="status" 
+                                name="status"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 0.875rem; background: white;">
+                            <option value="draft" {% if not article or article.status.value == 'draft' %}selected{% endif %}>
+                                Draft - Not visible to users
+                            </option>
+                            <option value="published" {% if article and article.status.value == 'published' %}selected{% endif %}>
+                                Published - Visible to users
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Article Info -->
+                {% if article %}
+                <div style="background: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #181818; margin: 0 0 1rem 0;">Article Information</h3>
+                    <div style="font-size: 0.875rem; color: #706e6b; line-height: 1.5;">
+                        <div style="margin-bottom: 0.5rem;"><strong>Author:</strong> {{ article.author.username }}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Created:</strong> {{ article.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Updated:</strong> {{ article.updated_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                        <div><strong>Views:</strong> {{ article.view_count }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button type="submit" 
+                                style="background: #1589ee; color: white; border: 1px solid #1589ee; padding: 0.75rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: white;" viewBox="0 0 24 24">
+                                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                            </svg>
+                            {% if article %}Update Article{% else %}Create Article{% endif %}
+                        </button>
+                        
+                        {% if article %}
+                        <button type="button" onclick="previewArticle()" 
+                                style="background: white; color: #706e6b; border: 1px solid #d8dde6; padding: 0.75rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: currentColor;" viewBox="0 0 24 24">
+                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                            </svg>
+                            Preview
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('knowledge.admin_manage_articles') }}" 
+                           style="background: white; color: #c23934; border: 1px solid #d8dde6; padding: 0.75rem 1rem; border-radius: 0.25rem; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+                            <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: currentColor;" viewBox="0 0 24 24">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 0.5rem; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 2rem;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #181818; margin: 0;">Article Preview</h3>
+            <button onclick="closePreview()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #706e6b;">&times;</button>
+        </div>
+        <div id="previewContent" style="padding: 1.5rem;">
+            <!-- Preview content will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<style>
+/* Responsive Design */
+@media (max-width: 768px) {
+    form[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    div[style*="display: flex; align-items: center; justify-content: space-between"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem;
+    }
+}
+
+/* Form Focus States */
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #1589ee !important;
+    box-shadow: 0 0 0 2px rgba(21, 137, 238, 0.1) !important;
+}
+
+/* Button Hover Effects */
+button:hover, a[style*="background:"]:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* Toolbar Button Hover */
+button[onclick*="formatText"]:hover, button[onclick*="insertList"]:hover, button[onclick*="insertHeading"]:hover {
+    background: #f0f0f0 !important;
+}
+</style>
+
+<script>
+// Rich text formatting functions
+function formatText(command) {
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    let formattedText = '';
+    switch(command) {
+        case 'bold':
+            formattedText = `<strong>${selectedText || 'bold text'}</strong>`;
+            break;
+        case 'italic':
+            formattedText = `<em>${selectedText || 'italic text'}</em>`;
+            break;
+        case 'underline':
+            formattedText = `<u>${selectedText || 'underlined text'}</u>`;
+            break;
+    }
+    
+    textarea.value = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+    textarea.focus();
+}
+
+function insertList(type) {
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    const listHtml = type === 'ul' ? 
+        '<ul>\n  <li>Item 1</li>\n  <li>Item 2</li>\n  <li>Item 3</li>\n</ul>\n' :
+        '<ol>\n  <li>First item</li>\n  <li>Second item</li>\n  <li>Third item</li>\n</ol>\n';
+    
+    textarea.value = textarea.value.substring(0, start) + listHtml + textarea.value.substring(start);
+    textarea.focus();
+}
+
+function insertHeading() {
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const headingHtml = `<h3>${selectedText || 'Heading'}</h3>\n`;
+    
+    textarea.value = textarea.value.substring(0, start) + headingHtml + textarea.value.substring(end);
+    textarea.focus();
+}
+
+// Preview functionality
+function previewArticle() {
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+    const summary = document.getElementById('summary').value;
+    
+    const previewHtml = `
+        <h1 style="font-size: 1.75rem; font-weight: 600; color: #181818; margin-bottom: 1rem;">${title}</h1>
+        ${summary ? `<p style="color: #706e6b; font-size: 1rem; margin-bottom: 1.5rem; font-style: italic;">${summary}</p><hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e5e5e5;">` : ''}
+        <div style="line-height: 1.7; color: #3e3e3c;">${content}</div>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = previewHtml;
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
+function closePreview() {
+    document.getElementById('previewModal').style.display = 'none';
+}
+
+// Auto-save functionality (optional)
+let autoSaveTimer;
+function autoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        console.log('Auto-saving draft...');
+        // Implement auto-save logic here if needed
+    }, 30000); // Auto-save every 30 seconds
+}
+
+// Trigger auto-save on content changes
+document.getElementById('content').addEventListener('input', autoSave);
+document.getElementById('title').addEventListener('input', autoSave);
+</script>
+
+<style>
+.article-content {
+    line-height: 1.6;
+}
+
+.article-content h1, .article-content h2, .article-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.article-content pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+}
+
+.article-content img {
+    max-width: 100%;
+    height: auto;
+}
+</style>
+
+<script>
+// Close preview modal when clicking outside
+document.getElementById('previewModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePreview();
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 's':
+                e.preventDefault();
+                document.querySelector('form').submit();
+                break;
+            case 'p':
+                e.preventDefault();
+                if (document.getElementById('previewModal')) {
+                    previewArticle();
+                }
+                break;
+        }
+    }
+    
+    // Close preview with Escape key
+    if (e.key === 'Escape' && document.getElementById('previewModal').style.display === 'flex') {
+        closePreview();
+    }
+});
+
+// Character count for title
+document.getElementById('title').addEventListener('input', function() {
+    const maxLength = 255;
+    const currentLength = this.value.length;
+    const remaining = maxLength - currentLength;
+    
+    // You can add a character counter here if needed
+    if (remaining < 20) {
+        this.style.borderColor = remaining < 0 ? '#c23934' : '#ff9500';
+    } else {
+        this.style.borderColor = '#d8dde6';
+    }
+});
+</script>
+
+{% endblock %}

@@ -58,6 +58,14 @@ class Permission(Base):
     can_access_documents = Column(Boolean, default=True)
     can_create_commercial_invoices = Column(Boolean, default=True)
     can_create_packing_lists = Column(Boolean, default=True)
+    
+    # Knowledge Base Permissions
+    can_view_knowledge_base = Column(Boolean, default=True)
+    can_create_articles = Column(Boolean, default=False)
+    can_edit_articles = Column(Boolean, default=False)
+    can_delete_articles = Column(Boolean, default=False)
+    can_manage_categories = Column(Boolean, default=False)
+    can_view_restricted_articles = Column(Boolean, default=False)
 
     @classmethod
     def permission_fields(cls):
@@ -103,7 +111,13 @@ class Permission(Base):
                 'can_export_data': True,
                 'can_access_documents': True,
                 'can_create_commercial_invoices': True,
-                'can_create_packing_lists': True
+                'can_create_packing_lists': True,
+                'can_view_knowledge_base': True,
+                'can_create_articles': True,
+                'can_edit_articles': True,
+                'can_delete_articles': True,
+                'can_manage_categories': True,
+                'can_view_restricted_articles': True
             }
         elif user_type == UserType.COUNTRY_ADMIN:
             return {
@@ -138,7 +152,13 @@ class Permission(Base):
                 'can_export_data': True,
                 'can_access_documents': True,
                 'can_create_commercial_invoices': True,
-                'can_create_packing_lists': True
+                'can_create_packing_lists': True,
+                'can_view_knowledge_base': True,
+                'can_create_articles': True,
+                'can_edit_articles': True,
+                'can_delete_articles': False,
+                'can_manage_categories': True,
+                'can_view_restricted_articles': False
             }
         elif user_type == UserType.CLIENT:
             return {
@@ -173,7 +193,13 @@ class Permission(Base):
                 'can_export_data': False,
                 'can_access_documents': False,
                 'can_create_commercial_invoices': False,
-                'can_create_packing_lists': False
+                'can_create_packing_lists': False,
+                'can_view_knowledge_base': True,
+                'can_create_articles': False,
+                'can_edit_articles': False,
+                'can_delete_articles': False,
+                'can_manage_categories': False,
+                'can_view_restricted_articles': False
             }
         else:  # Supervisor
             return {
@@ -208,5 +234,11 @@ class Permission(Base):
                 'can_export_data': True,
                 'can_access_documents': True,
                 'can_create_commercial_invoices': True,
-                'can_create_packing_lists': True
+                'can_create_packing_lists': True,
+                'can_view_knowledge_base': True,
+                'can_create_articles': False,
+                'can_edit_articles': False,
+                'can_delete_articles': False,
+                'can_manage_categories': False,
+                'can_view_restricted_articles': False
             } 

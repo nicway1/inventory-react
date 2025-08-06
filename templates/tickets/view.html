@@ -1826,7 +1826,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     {% if ticket.customer.country %}
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Country</div>
-                                        <div class="sf-field-value">{{ ticket.customer.country }}</div>
+                                        <div class="sf-field-value">{{ ticket.customer.country.value if ticket.customer.country else 'Unknown' }}</div>
                                     </div>
                                     {% endif %}
                                     {% if ticket.customer.timezone %}

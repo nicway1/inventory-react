@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} - Knowledge Base{% endblock %}
+
+{% block content %}
+<div class="slds-scope">
+    <!-- Breadcrumb Navigation -->
+    <div class="slds-breadcrumb" style="background: #f3f3f3; padding: 1rem 0; border-bottom: 1px solid #d8dde6;">
+        <div class="container-fluid">
+            <ol class="slds-breadcrumb__list">
+                <li class="slds-breadcrumb__item">
+                    <a href="{{ url_for('knowledge.index') }}" style="color: #0070d2; text-decoration: none;">Knowledge Base</a>
+                </li>
+                {% if article.category %}
+                <li class="slds-breadcrumb__item">
+                    <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" style="color: #0070d2; text-decoration: none;">{{ article.category.name }}</a>
+                </li>
+                {% endif %}
+                <li class="slds-breadcrumb__item slds-breadcrumb__item_active">
+                    <span style="color: #3e3e3c;">{{ article.title }}</span>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="container-fluid" style="padding: 2rem 0;">
+        <div class="slds-grid slds-wrap slds-gutters">
+            <!-- Main Content -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
+                <!-- Article Header -->
+                <div class="slds-page-header" style="background: white; border: 1px solid #d8dde6; border-radius: 0.5rem; margin-bottom: 1.5rem; padding: 1.5rem;">
+                    <div class="slds-grid slds-grid_align-spread slds-has-flexi-truncate">
+                        <div class="slds-grid slds-grid_vertical-align-center slds-has-flexi-truncate">
+                            <div class="slds-media slds-media_center slds-no-space slds-grow">
+                                <div class="slds-media__figure">
+                                    <span class="slds-icon_container" style="background: #0070d2; border-radius: 0.5rem;">
+                                        <svg class="slds-icon slds-icon-text-default" style="width: 2.5rem; height: 2.5rem; fill: white;" viewBox="0 0 24 24">
+                                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="slds-media__body">
+                                    <div class="slds-page-header__name">
+                                        <div class="slds-page-header__name-title">
+                                            <h1 class="slds-page-header__title slds-truncate" style="color: #080707; font-size: 1.75rem; font-weight: 400; margin: 0;">{{ article.title }}</h1>
+                                        </div>
+                                    </div>
+                                    <div class="slds-page-header__info" style="margin-top: 0.5rem;">
+                                        <div class="slds-grid slds-grid_align-spread">
+                                            <div class="slds-col">
+                                                <span class="slds-text-body_small" style="color: #706e6b;">
+                                                    By <strong>{{ article.author.username }}</strong> • 
+                                                    Created {{ article.created_at.strftime('%b %d, %Y') }}
+                                                    {% if article.updated_at != article.created_at %}
+                                                    • Updated {{ article.updated_at.strftime('%b %d, %Y') }}
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="slds-col slds-no-flex">
+                                                <span class="slds-badge" style="background: #ecebea; color: #3e3e3c;">
+                                                    {{ article.view_count }} views
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slds-no-flex">
+                            {% if current_user.permissions.can_edit_articles or article.author_id == current_user.id %}
+                            <div class="slds-button-group" role="group">
+                                <a href="{{ url_for('knowledge.admin_edit_article', article_id=article.id) }}" 
+                                   class="slds-button slds-button_neutral" style="border: 1px solid #d8dde6;">
+                                    <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
+                                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                    </svg>
+                                    Edit Article
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Article Content -->
+                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+                    <div class="slds-card__body slds-card__body_inner" style="padding: 2rem;">
+                        <div class="article-content slds-text-longform">
+                            {{ article.content | safe }}
+                        </div>
+
+                        <!-- Tags -->
+                        {% if article.tags %}
+                        <div class="slds-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
+                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Tags</h3>
+                            <div class="slds-grid slds-wrap">
+                                {% for tag in article.tags %}
+                                <span class="slds-badge slds-m-right_x-small slds-m-bottom_x-small" style="background: #0070d2; color: white;">
+                                    {{ tag.name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Attachments -->
+                        {% if article.attachments %}
+                        <div class="slds-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
+                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Attachments</h3>
+                            <ul class="slds-list_vertical slds-has-dividers_around-space">
+                                {% for attachment in article.attachments %}
+                                <li class="slds-list__item slds-p-around_medium">
+                                    <div class="slds-media">
+                                        <div class="slds-media__figure">
+                                            <span class="slds-icon_container" style="background: #f3f3f3; border-radius: 0.25rem;">
+                                                <svg class="slds-icon slds-icon_small" style="fill: #706e6b; width: 1.5rem; height: 1.5rem;" viewBox="0 0 24 24">
+                                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                        <div class="slds-media__body">
+                                            <div class="slds-grid slds-grid_align-spread slds-has-flexi-truncate">
+                                                <div class="slds-has-flexi-truncate">
+                                                    <h3 class="slds-truncate" style="color: #080707; font-weight: 500;">
+                                                        {{ attachment.original_filename }}
+                                                    </h3>
+                                                    <p class="slds-text-body_small slds-text-color_weak">
+                                                        {{ attachment.get_file_size_formatted() }}
+                                                    </p>
+                                                </div>
+                                                <div class="slds-no-flex">
+                                                    <a href="{{ url_for('knowledge.download_attachment', attachment_id=attachment.id) }}" 
+                                                       class="slds-button slds-button_neutral" style="border: 1px solid #d8dde6;">
+                                                        <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
+                                                            <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
+                                                        </svg>
+                                                        Download
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Feedback Section -->
+                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
+                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
+                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                            <div class="slds-media__figure">
+                                <span class="slds-icon_container" style="background: #2e844a; border-radius: 0.25rem;">
+                                    <svg class="slds-icon slds-icon_small" style="fill: white; width: 1.5rem; height: 1.5rem;" viewBox="0 0 24 24">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                    </svg>
+                                </span>
+                            </div>
+                            <div class="slds-media__body">
+                                <h2 class="slds-card__header-title">
+                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Article Feedback</span>
+                                </h2>
+                            </div>
+                        </header>
+                    </div>
+                    <div class="slds-card__body slds-card__body_inner" style="padding: 1.5rem;">
+                        <!-- Feedback Stats -->
+                        {% if article.feedback %}
+                        <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_large">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                <div class="slds-text-align_center">
+                                    <div class="slds-text-heading_large" style="color: #0070d2; font-weight: 600;">
+                                        {{ "%.1f"|format(article.get_average_rating()) }}
+                                    </div>
+                                    <div class="slds-text-body_small slds-text-color_weak">Average Rating</div>
+                                </div>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                <div class="slds-text-align_center">
+                                    <div class="slds-text-heading_large" style="color: #2e844a; font-weight: 600;">
+                                        {{ article.get_helpful_count() }}
+                                    </div>
+                                    <div class="slds-text-body_small slds-text-color_weak">Found Helpful</div>
+                                </div>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                <div class="slds-text-align_center">
+                                    <div class="slds-text-heading_large" style="color: #c23934; font-weight: 600;">
+                                        {{ article.get_not_helpful_count() }}
+                                    </div>
+                                    <div class="slds-text-body_small slds-text-color_weak">Not Helpful</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Feedback Form -->
+                        <form action="{{ url_for('knowledge.submit_feedback', article_id=article.id) }}" method="POST" class="slds-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label" style="color: #080707; font-weight: 500;">Rate this article</label>
+                                        <div class="slds-form-element__control">
+                                            <div class="rating-stars">
+                                                {% for i in range(1, 6) %}
+                                                <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" class="rating-input">
+                                                <label for="star{{ i }}" class="rating-star">★</label>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label" style="color: #080707; font-weight: 500;">Was this helpful?</label>
+                                        <div class="slds-form-element__control">
+                                            <div class="slds-radio_button-group">
+                                                <span class="slds-button slds-radio_button">
+                                                    <input type="radio" name="is_helpful" id="helpful_yes" value="true" class="slds-assistive-text">
+                                                    <label class="slds-radio_button__label" for="helpful_yes" style="padding: 0.5rem 1rem; border: 1px solid #d8dde6; border-radius: 0.25rem 0 0 0.25rem;">
+                                                        <span class="slds-radio_faux">Yes</span>
+                                                    </label>
+                                                </span>
+                                                <span class="slds-button slds-radio_button">
+                                                    <input type="radio" name="is_helpful" id="helpful_no" value="false" class="slds-assistive-text">
+                                                    <label class="slds-radio_button__label" for="helpful_no" style="padding: 0.5rem 1rem; border: 1px solid #d8dde6; border-left: none; border-radius: 0 0.25rem 0.25rem 0;">
+                                                        <span class="slds-radio_faux">No</span>
+                                                    </label>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="slds-form-element slds-m-top_medium">
+                                <label class="slds-form-element__label" for="comment" style="color: #080707; font-weight: 500;">Comments (optional)</label>
+                                <div class="slds-form-element__control">
+                                    <textarea class="slds-textarea" name="comment" id="comment" rows="3" 
+                                              placeholder="Share your thoughts about this article..."
+                                              style="border: 1px solid #d8dde6; border-radius: 0.25rem;"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="slds-m-top_medium">
+                                <button type="submit" class="slds-button slds-button_brand" style="background: #0070d2; border: 1px solid #0070d2; color: white; padding: 0.75rem 1.5rem; border-radius: 0.25rem;">
+                                    Submit Feedback
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Recent Comments -->
+                        {% if article.feedback %}
+                        <div class="slds-section slds-m-top_large" style="padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
+                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Recent Comments</h3>
+                            {% for feedback in article.feedback[-5:] %}
+                            {% if feedback.comment %}
+                            <div class="slds-box slds-m-bottom_small" style="background: #f8f9fa; border: 1px solid #d8dde6; border-radius: 0.25rem; padding: 1rem;">
+                                <div class="slds-grid slds-grid_align-spread slds-m-bottom_x-small">
+                                    <div class="slds-col">
+                                        <strong style="color: #080707;">{{ feedback.user.username }}</strong>
+                                    </div>
+                                    <div class="slds-col slds-no-flex">
+                                        <span class="slds-text-body_small slds-text-color_weak">
+                                            {{ feedback.created_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <p style="color: #3e3e3c; margin: 0;">{{ feedback.comment }}</p>
+                                {% if feedback.rating %}
+                                <div class="slds-m-top_x-small">
+                                    <span class="slds-text-body_small slds-text-color_weak">
+                                        Rating: {{ feedback.rating }}/5 stars
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
+                <!-- Navigation Card -->
+                <div class="slds-card slds-m-bottom_medium" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
+                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
+                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                            <div class="slds-media__body">
+                                <h2 class="slds-card__header-title">
+                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Navigation</span>
+                                </h2>
+                            </div>
+                        </header>
+                    </div>
+                    <div class="slds-card__body slds-card__body_inner" style="padding: 1rem;">
+                        <div class="slds-button-group slds-button-group_vertical" style="width: 100%;">
+                            <a href="{{ url_for('knowledge.index') }}" 
+                               class="slds-button slds-button_neutral" 
+                               style="width: 100%; justify-content: flex-start; margin-bottom: 0.5rem; border: 1px solid #d8dde6;">
+                                <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
+                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                                </svg>
+                                Knowledge Base Home
+                            </a>
+                            {% if article.category %}
+                            <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" 
+                               class="slds-button slds-button_neutral" 
+                               style="width: 100%; justify-content: flex-start; border: 1px solid #d8dde6;">
+                                <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
+                                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                                </svg>
+                                {{ article.category.name }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Related Articles -->
+                {% if related_articles %}
+                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
+                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
+                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                            <div class="slds-media__body">
+                                <h2 class="slds-card__header-title">
+                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Related Articles</span>
+                                </h2>
+                            </div>
+                        </header>
+                    </div>
+                    <div class="slds-card__body slds-card__body_inner" style="padding: 0;">
+                        <ul class="slds-list_vertical slds-has-dividers_around-space">
+                            {% for related in related_articles %}
+                            <li class="slds-list__item slds-p-around_medium">
+                                <div class="slds-media">
+                                    <div class="slds-media__figure">
+                                        <span class="slds-icon_container" style="background: #f3f3f3; border-radius: 0.25rem;">
+                                            <svg class="slds-icon slds-icon_x-small" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
+                                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <h3 class="slds-truncate">
+                                            <a href="{{ url_for('knowledge.view_article', article_id=related.id) }}" 
+                                               style="color: #0070d2; text-decoration: none; font-weight: 500; font-size: 0.875rem;">
+                                                {{ related.title }}
+                                            </a>
+                                        </h3>
+                                        <p class="slds-text-body_small slds-text-color_weak" style="margin-top: 0.25rem;">
+                                            {{ related.view_count }} views
+                                        </p>
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Salesforce-inspired Article Styles */
+.slds-scope {
+    font-family: 'Salesforce Sans', Arial, sans-serif;
+}
+
+.article-content {
+    line-height: 1.7;
+    color: #3e3e3c;
+}
+
+.article-content h1, 
+.article-content h2, 
+.article-content h3, 
+.article-content h4, 
+.article-content h5, 
+.article-content h6 {
+    color: #080707;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.article-content h1 { font-size: 2rem; }
+.article-content h2 { font-size: 1.5rem; }
+.article-content h3 { font-size: 1.25rem; }
+.article-content h4 { font-size: 1.125rem; }
+
+.article-content p {
+    margin-bottom: 1rem;
+}
+
+.article-content ul, 
+.article-content ol {
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+.article-content li {
+    margin-bottom: 0.5rem;
+}
+
+.article-content pre {
+    background-color: #f8f9fa;
+    border: 1px solid #d8dde6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.article-content code {
+    background-color: #f8f9fa;
+    border: 1px solid #d8dde6;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.article-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.25rem;
+    margin: 1rem 0;
+}
+
+.article-content blockquote {
+    border-left: 4px solid #0070d2;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: #706e6b;
+}
+
+.article-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    border: 1px solid #d8dde6;
+}
+
+.article-content th,
+.article-content td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #d8dde6;
+}
+
+.article-content th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #080707;
+}
+
+/* Star Rating */
+.rating-stars {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+
+.rating-input {
+    display: none;
+}
+
+.rating-star {
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #d8dde6;
+    transition: color 0.2s ease;
+}
+
+.rating-star:hover,
+.rating-star:hover ~ .rating-star,
+.rating-input:checked ~ .rating-star {
+    color: #fe9339;
+}
+
+/* Radio Button Group */
+.slds-radio_button-group .slds-radio_button__label {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.slds-radio_button-group input:checked + .slds-radio_button__label {
+    background-color: #0070d2;
+    color: white;
+    border-color: #0070d2;
+}
+
+.slds-radio_button-group .slds-radio_button__label:hover {
+    background-color: #f8f9fa;
+}
+
+/* Card Hover Effects */
+.slds-card:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Button Hover Effects */
+.slds-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* List Item Hover */
+.slds-list__item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Breadcrumb */
+.slds-breadcrumb__list {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.slds-breadcrumb__item {
+    display: flex;
+    align-items: center;
+}
+
+.slds-breadcrumb__item:not(:last-child)::after {
+    content: '>';
+    margin: 0 0.5rem;
+    color: #706e6b;
+}
+</style>
+{% endblock %}

@@ -47,4 +47,26 @@ def check_country_access(f):
             if request.method not in ['GET']:
                 abort(403)
         return f(*args, **kwargs)
-    return decorated_function 
+    return decorated_function
+
+def permission_required(permission_name):
+    """Decorator to check if user has a specific permission"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('auth.login'))
+            
+            # Check if user has the required permission
+            if not hasattr(current_user, 'permissions') or not current_user.permissions:
+                abort(403)
+            
+            if not hasattr(current_user.permissions, permission_name):
+                abort(403)
+            
+            if not getattr(current_user.permissions, permission_name):
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator 
