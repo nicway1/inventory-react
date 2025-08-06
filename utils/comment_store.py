@@ -98,6 +98,9 @@ class CommentStore:
             logger.error(f"Error saving comments: {e}")
 
     def add_comment(self, ticket_id, user_id, content):
+        # Ensure ticket_id and user_id are integers for consistency
+        ticket_id = int(ticket_id)
+        user_id = int(user_id)
         logger.debug(f"Adding comment for ticket {ticket_id} by user {user_id}: '{content}'")
         comment = Comment.create(ticket_id, user_id, content)
         self.comments[comment.id] = comment
@@ -176,23 +179,56 @@ class CommentStore:
             traceback.print_exc()
 
     def get_ticket_comments(self, ticket_id):
+        # Ensure ticket_id is an integer for proper comparison
+        ticket_id = int(ticket_id)
         comments = [
             comment for comment in self.comments.values()
-            if comment.ticket_id == ticket_id
+            if int(comment.ticket_id) == ticket_id
         ]
+        
+        # Load user relationships for JSON comments
+        if comments:
+            try:
+                from utils.store_instances import db_manager
+                from models.user import User
+                
+                db_session = db_manager.get_session()
+                try:
+                    # Get all unique user IDs from the comments
+                    user_ids = list(set(comment.user_id for comment in comments))
+                    
+                    # Load all users at once
+                    users = db_session.query(User).filter(User.id.in_(user_ids)).all()
+                    users_dict = {user.id: user for user in users}
+                    
+                    # Set user relationships on comments
+                    for comment in comments:
+                        comment.user = users_dict.get(comment.user_id)
+                        
+                finally:
+                    db_session.close()
+            except Exception as e:
+                logger.error(f"Error loading user relationships for comments: {e}")
+                # Set user to None for all comments if loading fails
+                for comment in comments:
+                    comment.user = None
+        
         logger.debug(f"Retrieved {len(comments)} comments for ticket {ticket_id}")
         for comment in comments:
-            logger.debug(f"Comment {comment.id}: '{comment.content}'")
+            logger.debug(f"Comment {comment.id}: '{comment.content}' (ticket_id: {comment.ticket_id})")
         return comments 
 
     def delete_ticket_comments(self, ticket_id):
         """Delete all comments associated with a ticket"""
         logger.debug(f"Deleting comments for ticket {ticket_id}")
         
+        # Ensure ticket_id is an integer for proper comparison
+        ticket_id = int(ticket_id)
+        
         # Find comment IDs associated with this ticket
         comment_ids_to_delete = [
             comment_id for comment_id, comment in self.comments.items()
-            if comment.ticket_id == ticket_id
+            if int(comment.ticket_id) == ticket_id
         ]
         
         # Remove the comments
@@ -233,7 +269,7 @@ class CommentStore:
         # Find comment IDs for comments referencing non-existent tickets
         comment_ids_to_delete = [
             comment_id for comment_id, comment in self.comments.items()
-            if comment.ticket_id not in valid_ticket_ids
+            if int(comment.ticket_id) not in valid_ticket_ids
         ]
         
         # Remove the orphaned comments

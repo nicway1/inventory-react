@@ -600,3 +600,94 @@ def admin_delete_article(article_id):
         return redirect(url_for('knowledge.admin_manage_articles'))
     finally:
         db.close()
+
+@knowledge_bp.route('/admin/upload-image', methods=['POST'])
+@login_required
+@permission_required('can_create_articles')
+def upload_image():
+    """Upload image for article content"""
+    import os
+    import uuid
+    from werkzeug.utils import secure_filename
+    from flask import current_app, send_from_directory
+    
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'})
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        # Check if file is an image
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+        if not ('.' in file.filename and 
+                file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            return jsonify({'success': False, 'error': 'Invalid file type. Only images are allowed.'})
+        
+        # Check file size (max 5MB)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB.'})
+        
+        # Generate unique filename
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # Create upload directory if it doesn't exist
+        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'knowledge', 'images')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Save file
+        file_path = os.path.join(upload_dir, unique_filename)
+        file.save(file_path)
+        
+        # Create database record
+        db = SessionLocal()
+        try:
+            attachment = KnowledgeAttachment(
+                article_id=None,  # Will be set when article is saved
+                filename=unique_filename,
+                original_filename=secure_filename(file.filename),
+                file_path=f"static/uploads/knowledge/images/{unique_filename}",
+                file_size=file_size,
+                mime_type=file.content_type,
+                uploaded_by=current_user.id
+            )
+            db.add(attachment)
+            db.commit()
+            
+            # Return image URL for editor
+            image_url = url_for('static', filename=f'uploads/knowledge/images/{unique_filename}')
+            
+            return jsonify({
+                'success': True,
+                'image_url': image_url,
+                'attachment_id': attachment.id,
+                'filename': attachment.original_filename
+            })
+            
+        except Exception as e:
+            logger.error(f"Error saving image attachment: {str(e)}")
+            db.rollback()
+            # Clean up uploaded file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return jsonify({'success': False, 'error': 'Error saving image to database'})
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error uploading image: {str(e)}")
+        return jsonify({'success': False, 'error': 'Error uploading image'})
+
+@knowledge_bp.route('/images/<filename>')
+def serve_image(filename):
+    """Serve uploaded images"""
+    from flask import current_app, send_from_directory
+    import os
+    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'knowledge', 'images')
+    return send_from_directory(upload_dir, filename)

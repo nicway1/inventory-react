@@ -398,6 +398,40 @@
 .article-content h1 { font-size: 2rem; }
 .article-content h2 { font-size: 1.5rem; }
 .article-content h3 { font-size: 1.25rem; }
+
+/* Article Image Styles */
+.article-content .article-image {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.article-content .article-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.article-content .article-image img:hover {
+    transform: scale(1.02);
+}
+
+.article-content .article-image p {
+    font-size: 0.875rem;
+    color: #706e6b;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* General image styling for any images in content */
+.article-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 .article-content h4 { font-size: 1.125rem; }
 
 .article-content p {
@@ -542,5 +576,67 @@
     margin: 0 0.5rem;
     color: #706e6b;
 }
+
+/* Image modal for full-size viewing */
+.image-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    cursor: pointer;
+}
+
+.image-modal img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
 </style>
+
+<!-- Image Modal -->
+<div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <img id="modalImage" src="" alt="">
+</div>
+
+<script>
+// Image modal functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers to all images in article content
+    const images = document.querySelectorAll('.article-content img');
+    images.forEach(function(img) {
+        img.addEventListener('click', function() {
+            openImageModal(this.src, this.alt);
+        });
+    });
+});
+
+function openImageModal(src, alt) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    modal.style.display = 'block';
+    modalImg.src = src;
+    modalImg.alt = alt;
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
+    }
+});
+</script>
+
 {% endblock %}

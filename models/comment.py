@@ -24,9 +24,9 @@ class Comment(Base):
     user = relationship('User', backref='comments')
 
     def __init__(self, id, ticket_id, user_id, content, created_at=None):
-        self.id = id
-        self.ticket_id = ticket_id
-        self.user_id = user_id
+        self.id = int(id)
+        self.ticket_id = int(ticket_id)
+        self.user_id = int(user_id)
         logger.info("[DEBUG] Comment.__init__ for ID {id}: Raw content: '{content}'")
         # Store the raw content in _raw_content for the property to use
         self._raw_content = content

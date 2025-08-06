@@ -97,15 +97,35 @@
                             <button type="button" onclick="insertList('ul')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">• List</button>
                             <button type="button" onclick="insertList('ol')" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">1. List</button>
                             <button type="button" onclick="insertHeading()" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">H</button>
+                            <div style="width: 1px; background: #d8dde6; margin: 0 0.25rem;"></div>
+                            <button type="button" onclick="openImageUpload()" style="background: none; border: 1px solid #d8dde6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; display: flex; align-items: center;">
+                                <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                                </svg>
+                                Image
+                            </button>
+                            <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="uploadImage(this)">
                         </div>
                         <textarea id="content" 
                                   name="content" 
                                   rows="20" 
                                   required
-                                  placeholder="Enter article content... You can use HTML formatting."
-                                  style="width: 100%; padding: 1rem; border: none; font-size: 0.875rem; background: white; resize: vertical; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;">{% if article %}{{ article.content }}{% endif %}</textarea>
+                                  placeholder="Enter article content... You can use HTML formatting. Drag and drop images here or use the Image button above."
+                                  style="width: 100%; padding: 1rem; border: none; font-size: 0.875rem; background: white; resize: vertical; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;"
+                                  ondrop="handleDrop(event)" 
+                                  ondragover="handleDragOver(event)"
+                                  ondragenter="handleDragEnter(event)"
+                                  ondragleave="handleDragLeave(event)">{% if article %}{{ article.content }}{% endif %}</textarea>
                     </div>
-                    <p style="font-size: 0.75rem; color: #706e6b; margin: 0.5rem 0 0 0;">You can use HTML formatting in the content.</p>
+                    <div style="font-size: 0.75rem; color: #706e6b; margin: 0.5rem 0 0 0;">
+                        <p style="margin: 0 0 0.25rem 0;">💡 <strong>Tips:</strong></p>
+                        <ul style="margin: 0; padding-left: 1rem;">
+                            <li>Use HTML formatting in the content</li>
+                            <li>Click the Image button or drag & drop images directly into the editor</li>
+                            <li>Images will be automatically resized and positioned where your cursor is</li>
+                            <li>Supported formats: PNG, JPG, JPEG, GIF, WebP, SVG (max 5MB)</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- Tags Field -->
@@ -275,8 +295,20 @@ button:hover, a[style*="background:"]:hover {
 }
 
 /* Toolbar Button Hover */
-button[onclick*="formatText"]:hover, button[onclick*="insertList"]:hover, button[onclick*="insertHeading"]:hover {
+button[onclick*="formatText"]:hover, button[onclick*="insertList"]:hover, button[onclick*="insertHeading"]:hover, button[onclick*="openImageUpload"]:hover {
     background: #f0f0f0 !important;
+}
+
+/* Drag and drop styling */
+#content.drag-over {
+    background-color: #f0f8ff !important;
+    border-color: #1589ee !important;
+}
+
+/* Image upload loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>
 
@@ -325,6 +357,144 @@ function insertHeading() {
     
     textarea.value = textarea.value.substring(0, start) + headingHtml + textarea.value.substring(end);
     textarea.focus();
+}
+
+// Image upload functions
+function openImageUpload() {
+    document.getElementById('imageUpload').click();
+}
+
+function uploadImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'imageUploadLoading';
+    loadingDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    `;
+    loadingDiv.innerHTML = `
+        <div style="width: 2rem; height: 2rem; border: 2px solid #e5e5e5; border-top: 2px solid #1589ee; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <span>Uploading image...</span>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // Add CSS animation
+    if (!document.getElementById('spinAnimation')) {
+        const style = document.createElement('style');
+        style.id = 'spinAnimation';
+        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+    }
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    fetch('{{ url_for("knowledge.upload_image") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove loading indicator
+        const loading = document.getElementById('imageUploadLoading');
+        if (loading) loading.remove();
+        
+        if (data.success) {
+            insertImageIntoContent(data.image_url, data.filename);
+            // Clear the file input
+            input.value = '';
+        } else {
+            alert('Error uploading image: ' + data.error);
+        }
+    })
+    .catch(error => {
+        // Remove loading indicator
+        const loading = document.getElementById('imageUploadLoading');
+        if (loading) loading.remove();
+        
+        console.error('Error:', error);
+        alert('Error uploading image. Please try again.');
+    });
+}
+
+function insertImageIntoContent(imageUrl, filename) {
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    
+    // Create image HTML with responsive styling
+    const imageHtml = `
+<div class="article-image" style="margin: 1.5rem 0; text-align: center;">
+    <img src="${imageUrl}" alt="${filename}" style="max-width: 100%; height: auto; border-radius: 0.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <p style="font-size: 0.875rem; color: #706e6b; margin-top: 0.5rem; font-style: italic;">${filename}</p>
+</div>
+
+`;
+    
+    textarea.value = textarea.value.substring(0, start) + imageHtml + textarea.value.substring(start);
+    textarea.focus();
+    
+    // Position cursor after the inserted image
+    const newPosition = start + imageHtml.length;
+    textarea.setSelectionRange(newPosition, newPosition);
+}
+
+// Drag and drop functionality
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    const textarea = e.target;
+    textarea.style.backgroundColor = '#f0f8ff';
+    textarea.style.borderColor = '#1589ee';
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    const textarea = e.target;
+    textarea.style.backgroundColor = 'white';
+    textarea.style.borderColor = '#d8dde6';
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const textarea = e.target;
+    textarea.style.backgroundColor = 'white';
+    textarea.style.borderColor = '#d8dde6';
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        
+        // Check if it's an image
+        if (file.type.startsWith('image/')) {
+            // Create a fake file input and trigger upload
+            const fakeInput = document.createElement('input');
+            fakeInput.type = 'file';
+            fakeInput.files = files;
+            uploadImage(fakeInput);
+        } else {
+            alert('Please drop an image file.');
+        }
+    }
 }
 
 // Preview functionality
@@ -382,6 +552,33 @@ document.getElementById('title').addEventListener('input', autoSave);
 .article-content img {
     max-width: 100%;
     height: auto;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.article-image {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.article-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.article-image img:hover {
+    transform: scale(1.02);
+}
+
+.article-image p {
+    font-size: 0.875rem;
+    color: #706e6b;
+    margin-top: 0.5rem;
+    font-style: italic;
 }
 </style>
 
