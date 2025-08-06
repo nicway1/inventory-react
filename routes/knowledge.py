@@ -451,6 +451,9 @@ def admin_save_article():
         db.add(article)
         db.flush()  # Get the article ID
         
+        # Associate uploaded images with this article
+        associate_images_with_article(db, article.id, content)
+        
         # Handle tags
         if tags_input:
             tag_names = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
@@ -542,6 +545,9 @@ def admin_update_article(article_id):
         article.visibility = ArticleVisibility(visibility)
         article.status = ArticleStatus(status)
         
+        # Associate uploaded images with this article
+        associate_images_with_article(db, article.id, content)
+        
         # Clear existing tags
         article.tags.clear()
         
@@ -598,6 +604,74 @@ def admin_delete_article(article_id):
         db.rollback()
         flash('Error deleting article. Please try again.', 'error')
         return redirect(url_for('knowledge.admin_manage_articles'))
+    finally:
+        db.close()
+
+def associate_images_with_article(db, article_id, content):
+    """Associate uploaded images found in content with the article"""
+    import re
+    from urllib.parse import urlparse
+    
+    try:
+        # Find all image URLs in the content
+        image_pattern = r'src="([^"]*uploads/knowledge/images/[^"]*)"'
+        image_urls = re.findall(image_pattern, content)
+        
+        for image_url in image_urls:
+            # Extract filename from URL
+            parsed_url = urlparse(image_url)
+            filename = parsed_url.path.split('/')[-1]
+            
+            # Find the attachment record and update its article_id
+            attachment = db.query(KnowledgeAttachment).filter(
+                KnowledgeAttachment.filename == filename,
+                KnowledgeAttachment.article_id.is_(None)
+            ).first()
+            
+            if attachment:
+                attachment.article_id = article_id
+                logger.info(f"Associated image {filename} with article {article_id}")
+        
+        db.flush()
+        
+    except Exception as e:
+        logger.error(f"Error associating images with article: {str(e)}")
+
+def cleanup_orphaned_images():
+    """Clean up images that were uploaded but never associated with an article (older than 24 hours)"""
+    import os
+    from datetime import datetime, timedelta
+    from flask import current_app
+    
+    db = SessionLocal()
+    try:
+        # Find orphaned attachments older than 24 hours
+        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        orphaned_attachments = db.query(KnowledgeAttachment).filter(
+            KnowledgeAttachment.article_id.is_(None),
+            KnowledgeAttachment.created_at < cutoff_time
+        ).all()
+        
+        for attachment in orphaned_attachments:
+            try:
+                # Delete the physical file
+                file_path = os.path.join(current_app.root_path, attachment.file_path)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Deleted orphaned image file: {attachment.filename}")
+                
+                # Delete the database record
+                db.delete(attachment)
+                
+            except Exception as e:
+                logger.error(f"Error deleting orphaned image {attachment.filename}: {str(e)}")
+        
+        db.commit()
+        logger.info(f"Cleaned up {len(orphaned_attachments)} orphaned images")
+        
+    except Exception as e:
+        logger.error(f"Error during orphaned image cleanup: {str(e)}")
+        db.rollback()
     finally:
         db.close()
 

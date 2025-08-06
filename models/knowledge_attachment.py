@@ -8,7 +8,7 @@ class KnowledgeAttachment(Base):
     __tablename__ = 'knowledge_attachments'
     
     id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey('knowledge_articles.id'), nullable=False)
+    article_id = Column(Integer, ForeignKey('knowledge_articles.id'), nullable=True)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)

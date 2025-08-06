@@ -1075,7 +1075,6 @@ def view_ticket(ticket_id):
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
             joinedload(Ticket.accessories),
-            joinedload(Ticket.comments).joinedload(Comment.user)
         ).get(ticket_id)
         
         # Debug: Check how many assets are loaded
@@ -1159,16 +1158,9 @@ def view_ticket(ticket_id):
             Asset.asset_type.isnot(None)).distinct().all()
         asset_modal_types = [t[0] for t in asset_types if t[0]]
         
-        # Get comments from comment_store (JSON file storage)
-        comments_from_store = comment_store.get_ticket_comments(ticket_id)
-        logger.info(f"[DEBUG] Found {len(comments_from_store)} comments from comment_store for ticket {ticket_id}")
-        
-        # Get database comments from the relationship
-        db_comments = ticket.comments if ticket.comments else []
-        logger.info(f"[DEBUG] Found {len(db_comments)} comments from database for ticket {ticket_id}")
-        
-        # Use comment_store comments as primary source (since add_comment uses it)
-        comments = comments_from_store
+        # Get comments from database using comment_store
+        comments = comment_store.get_ticket_comments(ticket_id)
+        logger.info(f"[DEBUG] Found {len(comments)} comments for ticket {ticket_id}")
         
         # Get packages for Asset Checkout (claw) tickets
         packages = []
