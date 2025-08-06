@@ -41,11 +41,73 @@
         <!-- Changelog Entries -->
         <div class="space-y-8">
             
+            <!-- Version 8.2.1.2 -->
+            <div class="border-l-4 border-green-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">v8.2.1.2</h2>
+                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Latest</span>
+                    <span class="ml-2 text-sm text-gray-500">Released: {{ version_info.build_date }}</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-green-700">✨ New Features</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>📚 <strong>Knowledge Base System:</strong> Complete knowledge management with articles, categories, and tags</li>
+                            <li>🔐 <strong>Knowledge Base Permissions:</strong> Granular permission control for viewing, creating, editing, and deleting articles</li>
+                            <li>📝 <strong>Article Management:</strong> Rich text editor with support for attachments and feedback</li>
+                            <li>🏷️ <strong>Category System:</strong> Hierarchical organization of knowledge articles</li>
+                            <li>🔍 <strong>Advanced Search:</strong> Full-text search across articles with filtering by category and tags</li>
+                            <li>👥 <strong>User Feedback:</strong> Rating and comment system for knowledge articles</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-blue-700">🔧 Improvements</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>🌍 <strong>CSV Import Enhancement:</strong> Country field now uses city data for better geographical accuracy</li>
+                            <li>🎯 <strong>Permission Management UI:</strong> Added Knowledge Base permissions to admin interface</li>
+                            <li>🏠 <strong>Home Dashboard:</strong> Knowledge Base section with permission-based visibility</li>
+                            <li>🎨 <strong>Navigation Cleanup:</strong> Removed Knowledge Base link from main navigation for cleaner interface</li>
+                            <li>📊 <strong>Admin Dashboard:</strong> Knowledge Base administration panel with article statistics</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-purple-700">🎯 User Experience</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>📖 <strong>Article Visibility:</strong> Support for public, internal, and restricted article access levels</li>
+                            <li>🔄 <strong>Version Control:</strong> Track article revisions and publication status</li>
+                            <li>📱 <strong>Responsive Design:</strong> Mobile-friendly knowledge base interface</li>
+                            <li>🎨 <strong>Rich Content:</strong> Support for formatted text, images, and file attachments</li>
+                            <li>⭐ <strong>Feedback System:</strong> Users can rate articles and provide comments</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-red-700">🐛 Bug Fixes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Fixed CSV import country field displaying "Country.SG" instead of proper country names</li>
+                            <li>Resolved customer country display issues in ticket view templates</li>
+                            <li>Fixed city-to-country mapping for better geographical data accuracy</li>
+                            <li>Corrected permission checks for Knowledge Base access control</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-orange-700">🗄️ Database Changes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Added knowledge_articles table with full-text search support</li>
+                            <li>Added knowledge_categories table with hierarchical structure</li>
+                            <li>Added knowledge_tags table for article tagging</li>
+                            <li>Added knowledge_feedback table for user ratings and comments</li>
+                            <li>Added knowledge_attachments table for file uploads</li>
+                            <li>Updated permissions table with Knowledge Base permission fields</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Version 8.2.1 -->
             <div class="border-l-4 border-blue-500 pl-6">
                 <div class="flex items-center mb-3">
                     <h2 class="text-xl font-semibold text-gray-900">v8.2.1</h2>
-                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Current</span>
+                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Previous</span>
                     <span class="ml-2 text-sm text-gray-500">Released: {{ version_info.build_date }}</span>
                 </div>
                 <div class="space-y-3">

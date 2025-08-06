@@ -10,15 +10,15 @@ from datetime import datetime
 VERSION_MAJOR = 8
 VERSION_MINOR = 2
 VERSION_PATCH = 1
-VERSION_BUILD = 1
+VERSION_BUILD = 2
 
 # Build the version string
 VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
 VERSION_FULL = f"{VERSION}.{VERSION_BUILD}"
 
 # Build information
-BUILD_DATE = "2025-01-29"
-BUILD_TIME = "14:30:00"
+BUILD_DATE = "2025-01-08"
+BUILD_TIME = "16:45:00"
 
 # Git information (if available)
 def get_git_info():
