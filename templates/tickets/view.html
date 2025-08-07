@@ -74,13 +74,65 @@
         margin: 0 -1rem;
     }
     
-    /* Chat bubble styling */
-    .comment-item .bg-white {
-        position: relative;
-        display: block;
-        width: fit-content;
-        min-width: 60px;
+    /* FORCE LEFT ALIGNMENT - OVERRIDE EVERYTHING */
+    .comment-bubble {
+        position: relative !important;
+        display: block !important;
+        width: fit-content !important;
+        min-width: 60px !important;
         text-align: left !important;
+        direction: ltr !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+    }
+    
+    /* Comment text styling - FORCE LEFT */
+    .comment-text {
+        text-align: left !important;
+        direction: ltr !important;
+        color: #374151 !important;
+        line-height: 1.6 !important;
+        white-space: pre-wrap !important;
+        word-break: break-words !important;
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Override any framework CSS */
+    .comment-bubble,
+    .comment-bubble *,
+    .comment-text,
+    .comment-text * {
+        text-align: left !important;
+        direction: ltr !important;
+    }
+    
+    /* Specific override for any center alignment */
+    .comment-bubble[style*="text-align: center"],
+    .comment-text[style*="text-align: center"] {
+        text-align: left !important;
+    }
+    
+    /* NUCLEAR OPTION - Target everything possible */
+    div.comment-bubble div.comment-text div,
+    div.comment-bubble div.comment-text,
+    div.comment-bubble div,
+    div.comment-bubble {
+        text-align: left !important;
+        direction: ltr !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+    }
+    
+    /* Override Tailwind utilities */
+    .text-center .comment-text,
+    .justify-center .comment-text,
+    .items-center .comment-text {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
     }
     
     /* Ensure comment content container is left-aligned */
@@ -90,14 +142,16 @@
         align-items: flex-start;
     }
     
-    /* Force text alignment to left */
-    .comment-item .bg-white div {
-        text-align: left !important;
-        direction: ltr;
+    /* Ensure avatars stay centered */
+    .w-10.h-10.rounded-full {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
     }
     
     /* Chat bubble tail */
-    .comment-item .bg-white::before {
+    .comment-bubble::before {
         content: '';
         position: absolute;
         left: -8px;
@@ -4059,7 +4113,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                             <div class="space-y-6 mb-8" id="commentsList">
                                 {% if comments and comments|length > 0 %}
                                     {% for comment in comments %}
-                                    <div class="comment-item group">
+                                    <div class="comment-item group" data-comment-id="{{ comment.id }}">
                                         <div class="flex gap-4">
                                             <!-- User Avatar -->
                                             <div class="flex-shrink-0">
@@ -4086,28 +4140,28 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                 </div>
                                                 
                                                 <!-- Comment Body -->
-                                                <div class="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-4 mb-3 shadow-sm max-w-2xl comment-content-wrapper" style="text-align: left !important;">
-                                                    <div class="text-gray-800 leading-relaxed whitespace-pre-wrap break-words comment-content-wrapper comment-text-content" style="text-align: left !important; direction: ltr !important;">
-                                                        {{ comment.content|safe }}
+                                                <div class="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-4 mb-3 shadow-sm max-w-2xl comment-bubble" style="text-align: left !important; direction: ltr !important; display: block !important;">
+                                                    <div class="comment-text" style="text-align: left !important; direction: ltr !important; display: block !important; width: 100% !important;">
+                                                        <div style="text-align: left !important; direction: ltr !important;">{{ comment.content|safe }}</div>
                                                     </div>
                                                 </div>
                                                 
                                                 <!-- Comment Actions -->
                                                 <div class="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <button class="text-sm text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1">
+                                                    <button onclick="replyToComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                                                         </svg>
                                                         Reply
                                                     </button>
                                                     {% if comment.user and comment.user.id == current_user.id %}
-                                                    <button class="text-sm text-gray-500 hover:text-amber-600 transition-colors flex items-center gap-1">
+                                                    <button onclick="editComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-amber-600 transition-colors flex items-center gap-1">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                         </svg>
                                                         Edit
                                                     </button>
-                                                    <button class="text-sm text-gray-500 hover:text-red-600 transition-colors flex items-center gap-1">
+                                                    <button onclick="deleteComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-red-600 transition-colors flex items-center gap-1">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                         </svg>
@@ -4156,6 +4210,13 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
                                                     placeholder="Write a comment... Use @ to mention users"
                                                     required></textarea>
+                                                
+                                                <!-- @mention Autocomplete Dropdown -->
+                                                <div id="mentionDropdown" class="absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto">
+                                                    <div id="mentionList" class="py-1">
+                                                        <!-- Users will be populated here -->
+                                                    </div>
+                                                </div>
                                                 
                                                 <!-- Character Counter -->
                                                 <div class="absolute bottom-3 right-3 text-xs text-gray-400" id="charCounter">
@@ -9236,6 +9297,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
         
+        // @mention autocomplete functionality
+        initializeMentionAutocomplete(messageTextarea);
+        
         // Focus effects
         messageTextarea.addEventListener('focus', function() {
             this.parentElement.classList.add('ring-2', 'ring-blue-500');
@@ -9298,41 +9362,366 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('comments').scrollIntoView({ behavior: 'smooth' });
     }
     
-    // Add mention functionality (basic implementation)
-    if (messageTextarea) {
-        messageTextarea.addEventListener('input', function(e) {
-            const value = this.value;
-            const cursorPos = this.selectionStart;
-            const textBeforeCursor = value.substring(0, cursorPos);
-            const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    // Initialize @mention autocomplete if not already done
+    if (messageTextarea && !messageTextarea.hasAttribute('data-mention-initialized')) {
+        initializeMentionAutocomplete(messageTextarea);
+        messageTextarea.setAttribute('data-mention-initialized', 'true');
+    }
+});
+
+// @mention Autocomplete Functionality
+function initializeMentionAutocomplete(textarea) {
+    const dropdown = document.getElementById('mentionDropdown');
+    const mentionList = document.getElementById('mentionList');
+    let currentMentionStart = -1;
+    let currentMentionQuery = '';
+    let selectedIndex = -1;
+    let mentionUsers = [];
+    
+    if (!dropdown || !mentionList) {
+        console.warn('Mention dropdown elements not found');
+        return;
+    }
+    
+    // Handle input events
+    textarea.addEventListener('input', function(e) {
+        const value = this.value;
+        const cursorPos = this.selectionStart;
+        const textBeforeCursor = value.substring(0, cursorPos);
+        
+        // Look for @mention pattern
+        const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9._@-]*)$/);
+        
+        if (mentionMatch) {
+            currentMentionStart = cursorPos - mentionMatch[0].length;
+            currentMentionQuery = mentionMatch[1];
             
-            if (mentionMatch) {
-                // Here you could implement user mention suggestions
-                console.log('Mention detected:', mentionMatch[1]);
+            if (currentMentionQuery.length >= 0) {
+                searchUsers(currentMentionQuery);
+            }
+        } else {
+            hideMentionDropdown();
+        }
+    });
+    
+    // Handle keyboard navigation
+    textarea.addEventListener('keydown', function(e) {
+        if (!dropdown.classList.contains('hidden')) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, mentionUsers.length - 1);
+                updateSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (selectedIndex >= 0 && selectedIndex < mentionUsers.length) {
+                    e.preventDefault();
+                    selectUser(mentionUsers[selectedIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                hideMentionDropdown();
+            }
+        }
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!textarea.contains(e.target) && !dropdown.contains(e.target)) {
+            hideMentionDropdown();
+        }
+    });
+    
+    // Search users function
+    async function searchUsers(query) {
+        try {
+            const response = await fetch(`/tickets/users/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.success && data.users.length > 0) {
+                mentionUsers = data.users;
+                showMentionDropdown(data.users);
+            } else {
+                hideMentionDropdown();
+            }
+        } catch (error) {
+            console.error('Error searching users:', error);
+            hideMentionDropdown();
+        }
+    }
+    
+    // Show mention dropdown
+    function showMentionDropdown(users) {
+        mentionList.innerHTML = '';
+        selectedIndex = -1;
+        
+        users.forEach((user, index) => {
+            const item = document.createElement('div');
+            item.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
+            item.innerHTML = `
+                <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                    ${user.username[0].toUpperCase()}
+                </div>
+                <div>
+                    <div class="font-medium text-gray-900">${user.username}</div>
+                    ${user.email !== user.username ? `<div class="text-sm text-gray-500">${user.email}</div>` : ''}
+                </div>
+            `;
+            
+            item.addEventListener('click', () => selectUser(user));
+            mentionList.appendChild(item);
+        });
+        
+        dropdown.classList.remove('hidden');
+        
+        // Position dropdown
+        positionDropdown();
+    }
+    
+    // Hide mention dropdown
+    function hideMentionDropdown() {
+        dropdown.classList.add('hidden');
+        selectedIndex = -1;
+        mentionUsers = [];
+    }
+    
+    // Update selection highlighting
+    function updateSelection() {
+        const items = mentionList.querySelectorAll('div');
+        items.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.classList.add('bg-blue-100');
+                item.classList.remove('hover:bg-gray-100');
+            } else {
+                item.classList.remove('bg-blue-100');
+                item.classList.add('hover:bg-gray-100');
             }
         });
     }
-});
+    
+    // Select a user
+    function selectUser(user) {
+        const value = textarea.value;
+        const beforeMention = value.substring(0, currentMentionStart);
+        const afterCursor = value.substring(textarea.selectionStart);
+        
+        // Insert the mention
+        const newValue = beforeMention + `@${user.username} ` + afterCursor;
+        textarea.value = newValue;
+        
+        // Set cursor position after the mention
+        const newCursorPos = currentMentionStart + user.username.length + 2;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        
+        // Trigger input event to update character counter
+        textarea.dispatchEvent(new Event('input'));
+        
+        hideMentionDropdown();
+        textarea.focus();
+    }
+    
+    // Position dropdown relative to textarea
+    function positionDropdown() {
+        const textareaRect = textarea.getBoundingClientRect();
+        const containerRect = textarea.parentElement.getBoundingClientRect();
+        
+        // Position dropdown below the textarea
+        dropdown.style.top = (textareaRect.bottom - containerRect.top + 5) + 'px';
+        dropdown.style.left = '0px';
+        dropdown.style.width = '100%';
+    }
+}
 
 // Comment action handlers
 function replyToComment(commentId) {
     const messageTextarea = document.getElementById('message');
     if (messageTextarea) {
-        messageTextarea.focus();
+        // Scroll to the comment form
         messageTextarea.scrollIntoView({ behavior: 'smooth' });
+        messageTextarea.focus();
+        
+        // Add a mention or reference to the comment being replied to
+        const currentValue = messageTextarea.value;
+        if (currentValue.trim() === '') {
+            messageTextarea.value = `@admin `;
+        }
+        
+        // Trigger input event to update character counter
+        messageTextarea.dispatchEvent(new Event('input'));
     }
 }
 
 function editComment(commentId) {
-    // Implementation for editing comments
-    console.log('Edit comment:', commentId);
+    // Find the comment element
+    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+    if (!commentElement) {
+        console.error('Comment element not found');
+        return;
+    }
+    
+    // Get the comment text
+    const commentTextElement = commentElement.querySelector('.comment-text div');
+    if (!commentTextElement) {
+        console.error('Comment text element not found');
+        return;
+    }
+    
+    const originalText = commentTextElement.textContent.trim();
+    
+    // Replace comment text with an editable textarea
+    const editForm = document.createElement('div');
+    editForm.className = 'edit-comment-form';
+    editForm.innerHTML = `
+        <textarea class="w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  rows="3" 
+                  style="text-align: left !important;">${originalText}</textarea>
+        <div class="flex gap-2 mt-2">
+            <button onclick="saveCommentEdit(${commentId})" 
+                    class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                Save
+            </button>
+            <button onclick="cancelCommentEdit(${commentId})" 
+                    class="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400">
+                Cancel
+            </button>
+        </div>
+    `;
+    
+    // Store original content for cancel functionality
+    editForm.setAttribute('data-original-text', originalText);
+    
+    // Replace the comment text with edit form
+    commentTextElement.style.display = 'none';
+    commentTextElement.parentNode.insertBefore(editForm, commentTextElement.nextSibling);
+    
+    // Focus on the textarea
+    const textarea = editForm.querySelector('textarea');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+function saveCommentEdit(commentId) {
+    const editForm = document.querySelector('.edit-comment-form');
+    const textarea = editForm.querySelector('textarea');
+    const newText = textarea.value.trim();
+    
+    if (newText === '') {
+        alert('Comment cannot be empty');
+        return;
+    }
+    
+    // Show loading state
+    const saveButton = editForm.querySelector('button');
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+    
+    // Make AJAX request to update comment
+    fetch(`/tickets/comments/${commentId}/edit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({ content: newText })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the comment text
+            const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+            const commentTextElement = commentElement.querySelector('.comment-text div');
+            commentTextElement.textContent = newText;
+            
+            // Remove edit form and show original text
+            commentTextElement.style.display = 'block';
+            editForm.remove();
+            
+            // Show success message
+            showNotification('Comment updated successfully', 'success');
+        } else {
+            alert('Error updating comment: ' + data.error);
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating comment');
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save';
+    });
+}
+
+function cancelCommentEdit(commentId) {
+    const editForm = document.querySelector('.edit-comment-form');
+    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+    const commentTextElement = commentElement.querySelector('.comment-text div');
+    
+    // Show original text and remove edit form
+    commentTextElement.style.display = 'block';
+    editForm.remove();
 }
 
 function deleteComment(commentId) {
-    if (confirm('Are you sure you want to delete this comment?')) {
-        // Implementation for deleting comments
-        console.log('Delete comment:', commentId);
+    if (confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+        // Make AJAX request to delete comment
+        fetch(`/tickets/comments/${commentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the comment element from DOM
+                const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    commentElement.style.transition = 'opacity 0.3s ease';
+                    commentElement.style.opacity = '0';
+                    setTimeout(() => {
+                        commentElement.remove();
+                        
+                        // Update comment count
+                        const commentCount = document.querySelector('.comment-count');
+                        if (commentCount) {
+                            const currentCount = parseInt(commentCount.textContent);
+                            commentCount.textContent = Math.max(0, currentCount - 1);
+                        }
+                        
+                        showNotification('Comment deleted successfully', 'success');
+                    }, 300);
+                }
+            } else {
+                alert('Error deleting comment: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting comment');
+        });
     }
+}
+
+// Helper function to show notifications
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-4 py-2 rounded-md text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        notification.style.transition = 'opacity 0.3s ease';
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Make functions globally available

@@ -38,6 +38,7 @@ class User(Base, UserMixin):
     accessory_changes = relationship("AccessoryHistory", back_populates="user")
     company_permissions = relationship("UserCompanyPermission", back_populates="user")
     queue_notifications = relationship("QueueNotification", back_populates="user")
+    notifications = relationship("Notification", back_populates="user", order_by="Notification.created_at.desc()")
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 

@@ -92,6 +92,72 @@ class CommentStore:
         finally:
             db_session.close()
 
+    def get_comment(self, comment_id):
+        """Get a single comment by ID"""
+        logger.debug(f"Getting comment {comment_id}")
+        
+        db_session = self.db_manager.get_session()
+        try:
+            comment = db_session.query(Comment).options(
+                joinedload(Comment.user)
+            ).filter(Comment.id == comment_id).first()
+            
+            return comment
+            
+        except Exception as e:
+            logger.error(f"Error getting comment {comment_id}: {e}")
+            return None
+        finally:
+            db_session.close()
+
+    def update_comment(self, comment_id, content):
+        """Update a comment's content"""
+        logger.debug(f"Updating comment {comment_id}")
+        
+        db_session = self.db_manager.get_session()
+        try:
+            comment = db_session.query(Comment).filter(Comment.id == comment_id).first()
+            if not comment:
+                logger.warning(f"Comment {comment_id} not found")
+                return False
+            
+            comment.content = content
+            comment.updated_at = db_session.execute('SELECT CURRENT_TIMESTAMP').scalar()
+            
+            db_session.commit()
+            logger.debug(f"Updated comment {comment_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating comment {comment_id}: {e}")
+            db_session.rollback()
+            return False
+        finally:
+            db_session.close()
+
+    def delete_comment(self, comment_id):
+        """Delete a single comment"""
+        logger.debug(f"Deleting comment {comment_id}")
+        
+        db_session = self.db_manager.get_session()
+        try:
+            comment = db_session.query(Comment).filter(Comment.id == comment_id).first()
+            if not comment:
+                logger.warning(f"Comment {comment_id} not found")
+                return False
+            
+            db_session.delete(comment)
+            db_session.commit()
+            logger.debug(f"Deleted comment {comment_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting comment {comment_id}: {e}")
+            db_session.rollback()
+            return False
+        finally:
+            db_session.close()
+
     def cleanup_orphaned_comments(self):
         """Remove comments that reference tickets that no longer exist"""
         logger.debug("Cleaning up orphaned comments")
@@ -127,6 +193,7 @@ class CommentStore:
             from models.ticket import Ticket
             from models.user import User
             from utils.email_sender import send_mention_notification_email
+            from utils.notification_service import NotificationService
             
             db_session = self.db_manager.get_session()
             try:
@@ -140,6 +207,9 @@ class CommentStore:
                 
                 logger.debug(f"Found ticket {ticket.display_id} and commenter {commenter.username}")
                 
+                # Initialize notification service
+                notification_service = NotificationService(self.db_manager)
+                
                 for username in comment.mentions:
                     # Find mentioned user by username
                     mentioned_user = db_session.query(User).filter(User.username == username).first()
@@ -151,7 +221,15 @@ class CommentStore:
                         clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment.content)
                         clean_content = re.sub(r'<[^>]+>', '', clean_content)  # Remove any other HTML tags
                         
-                        # Add activity notification
+                        # Create database notification
+                        notification_service.create_mention_notification(
+                            mentioned_user_id=mentioned_user.id,
+                            commenter_user_id=commenter.id,
+                            ticket_id=comment.ticket_id,
+                            comment_content=comment.content
+                        )
+                        
+                        # Add activity notification (keep existing functionality)
                         self.activity_store.add_activity(
                             user_id=mentioned_user.id,
                             type='mention',

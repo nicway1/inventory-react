@@ -42,8 +42,9 @@ class Comment(Base):
             mentions = re.findall(pattern, self.content)
             return mentions
         else:
-            # Extract plain text mentions
-            mention_pattern = r'@(\w+)'
+            # Extract plain text mentions - updated pattern to handle usernames with dots, @ symbols, etc.
+            # This pattern captures usernames that can contain letters, numbers, dots, @ symbols, and hyphens
+            mention_pattern = r'@([a-zA-Z0-9._@-]+)'
             mentions = re.findall(mention_pattern, self.content)
             return mentions
 
@@ -52,7 +53,8 @@ class Comment(Base):
         """Return content with formatted @mentions"""
         # Only format if not already formatted
         if "<span class=\"mention\">" not in self.content:
-            mention_pattern = r'@(\w+)'
+            # Use the same pattern as mentions property
+            mention_pattern = r'@([a-zA-Z0-9._@-]+)'
             formatted = re.sub(
                 mention_pattern,
                 lambda m: f'<span class="mention">@{m.group(1)}</span>',

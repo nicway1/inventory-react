@@ -25,6 +25,7 @@ from models.accessory_transaction import AccessoryTransaction
 from models.firecrawl_key import FirecrawlKey
 from models.ticket_category_config import TicketCategoryConfig
 from models.queue_notification import QueueNotification
+from models.notification import Notification
 from models.knowledge_article import KnowledgeArticle, ArticleStatus, ArticleVisibility
 from models.knowledge_category import KnowledgeCategory
 from models.knowledge_tag import KnowledgeTag, article_tags
@@ -65,6 +66,7 @@ __all__ = [
     "FirecrawlKey",
     "TicketCategoryConfig",
     "QueueNotification",
+    "Notification",
     "KnowledgeArticle",
     "ArticleStatus",
     "ArticleVisibility",

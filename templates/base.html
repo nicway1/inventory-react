@@ -729,6 +729,133 @@
             color: #f8fafc !important;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
         }
+        
+        /* Mention styling */
+        .mention {
+            background-color: #e0f2fe;
+            color: #0277bd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            border: 1px solid #b3e5fc;
+        }
+        
+        .dark .mention {
+            background-color: #1e3a8a;
+            color: #93c5fd;
+            border-color: #3b82f6;
+        }
+        
+        .liquid-glass .mention {
+            background-color: rgba(224, 242, 254, 0.3);
+            color: #0277bd;
+            border-color: rgba(179, 229, 252, 0.5);
+            backdrop-filter: blur(8px);
+        }
+        
+        /* Toast notification styles - Modern design like the image */
+        .toast {
+            min-width: 320px;
+            max-width: 420px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            transform: translateX(100%);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .toast.hide {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        .toast-mention {
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .toast-success {
+            border-left: 4px solid #10b981;
+        }
+        
+        .toast-error {
+            border-left: 4px solid #ef4444;
+        }
+        
+        .toast-warning {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .toast-header {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .toast-message {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+        
+        .toast-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .toast-close:hover {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        /* Dark theme toast styles */
+        .dark .toast {
+            background: #374151;
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .dark .toast-header {
+            color: #f9fafb;
+        }
+        
+        .dark .toast-message {
+            color: #d1d5db;
+        }
+        
+        .dark .toast-close {
+            color: #9ca3af;
+        }
+        
+        .dark .toast-close:hover {
+            background: #4b5563;
+            color: #e5e7eb;
+        }
+        
+        /* Liquid glass theme toast styles */
+        .liquid-glass .toast {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -844,6 +971,38 @@
                         </button>
                     </form>
                     
+                    <!-- Notifications Dropdown -->
+                    <div class="relative" id="notifications-dropdown">
+                        <button type="button" 
+                                class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md relative"
+                                onclick="toggleNotifications()"
+                                id="notifications-button">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                        </button>
+                        
+                        <!-- Dropdown Menu -->
+                        <div id="notifications-menu" 
+                             class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 hidden">
+                            <div class="py-1">
+                                <div class="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                                    <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
+                                    <button onclick="markAllAsRead()" class="text-xs text-truelog-dark hover:text-truelog">Mark all read</button>
+                                </div>
+                                <div id="notifications-list" class="max-h-96 overflow-y-auto">
+                                    <div class="px-4 py-8 text-center text-gray-500">
+                                        <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                        </svg>
+                                        Loading notifications...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <a href="{{ url_for('auth.profile') }}" 
                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -885,6 +1044,11 @@
         {% endif %}
     {% endwith %}
 
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will be inserted here -->
+    </div>
+
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-8">
         {% block content %}{% endblock %}
@@ -893,6 +1057,348 @@
     <!-- Common Scripts -->
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Notifications Script -->
+    {% if session.get('user_id') %}
+    <script>
+        let notificationsOpen = false;
+        
+        // Toggle notifications dropdown
+        function toggleNotifications() {
+            const menu = document.getElementById('notifications-menu');
+            notificationsOpen = !notificationsOpen;
+            
+            if (notificationsOpen) {
+                menu.classList.remove('hidden');
+                loadNotifications();
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('notifications-dropdown');
+            if (!dropdown.contains(event.target) && notificationsOpen) {
+                document.getElementById('notifications-menu').classList.add('hidden');
+                notificationsOpen = false;
+            }
+        });
+        
+        // Load notifications
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/tickets/notifications');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayNotifications(data.notifications);
+                } else {
+                    console.error('Failed to load notifications:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+        
+        // Display notifications in the dropdown
+        function displayNotifications(notifications) {
+            const list = document.getElementById('notifications-list');
+            
+            if (notifications.length === 0) {
+                list.innerHTML = `
+                    <div class="px-4 py-8 text-center text-gray-500">
+                        <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        No notifications
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = notifications.map(notification => `
+                <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${notification.is_read ? 'opacity-60' : ''}" 
+                     onclick="markAsRead(${notification.id}, '${notification.reference_type || ''}', ${notification.reference_id || 'null'})">
+                    <div class="flex items-start">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-900">${notification.title}</p>
+                            <p class="text-sm text-gray-600 mt-1">${notification.message}</p>
+                            <p class="text-xs text-gray-400 mt-1">${formatDate(notification.created_at)}</p>
+                        </div>
+                        ${!notification.is_read ? '<div class="w-2 h-2 bg-truelog rounded-full ml-2 mt-1"></div>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Mark notification as read and navigate to ticket
+        async function markAsRead(notificationId, referenceType, referenceId) {
+            try {
+                // Get CSRF token
+                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+                
+                const response = await fetch(`/tickets/notifications/${notificationId}/mark-read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNotifications();
+                        updateUnreadCount();
+                        
+                        // Navigate to the ticket if reference data is provided
+                        if (referenceType === 'ticket' && referenceId) {
+                            window.location.href = `/tickets/${referenceId}#comments`;
+                        }
+                    } else {
+                        console.error('Failed to mark notification as read:', data.error);
+                    }
+                } else {
+                    console.error('HTTP error:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+        
+        // Mark all notifications as read
+        async function markAllAsRead() {
+            try {
+                // Get CSRF token
+                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+                
+                const response = await fetch('/tickets/notifications/mark-all-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNotifications();
+                        updateUnreadCount();
+                        console.log('All notifications marked as read');
+                    } else {
+                        console.error('Failed to mark notifications as read:', data.error);
+                    }
+                } else {
+                    console.error('HTTP error:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+        
+        // Update unread count badge
+        async function updateUnreadCount() {
+            try {
+                const response = await fetch('/tickets/notifications/unread-count');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const badge = document.getElementById('notification-badge');
+                    if (data.count > 0) {
+                        badge.textContent = data.count > 99 ? '99+' : data.count;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating unread count:', error);
+            }
+        }
+        
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            
+            return date.toLocaleDateString();
+        }
+        
+        // Load unread count on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUnreadCount();
+            
+            // Update unread count every 30 seconds
+            setInterval(updateUnreadCount, 30000);
+            
+            // Check for new notifications every 3 seconds for more responsiveness
+            setInterval(checkForNewNotifications, 3000);
+            
+            // Check immediately if we just posted a comment (for faster feedback)
+            if (window.location.search.includes('comment_posted') || window.location.hash === '#comments') {
+                console.log('🚀 Comment was just posted, checking for notifications immediately...');
+                setTimeout(checkForNewNotifications, 500);
+                // Also check again after a short delay to catch any processing delays
+                setTimeout(checkForNewNotifications, 2000);
+            }
+        });
+        
+        // Track last notification check time
+        let lastNotificationCheck = new Date();
+        
+        // Check for new notifications and show toast
+        async function checkForNewNotifications() {
+            try {
+                console.log('🔍 Checking for new notifications...');
+                const response = await fetch('/tickets/notifications');
+                const data = await response.json();
+                
+                console.log('📨 Notifications response:', data);
+                
+                if (data.success && data.notifications.length > 0) {
+                    console.log(`📋 Found ${data.notifications.length} total notifications`);
+                    console.log('⏰ Last check time:', lastNotificationCheck);
+                    
+                    // Get all unread notifications that haven't been shown yet
+                    const newNotifications = data.notifications.filter(notification => {
+                        const notificationTime = new Date(notification.created_at);
+                        const isUnread = !notification.is_read;
+                        const notShownYet = !window.shownNotifications || !window.shownNotifications.has(notification.id);
+                        
+                        console.log(`📝 Notification "${notification.title}": unread=${isUnread}, notShownYet=${notShownYet}, time=${notificationTime}`);
+                        return isUnread && notShownYet;
+                    });
+                    
+                    console.log(`🆕 Found ${newNotifications.length} new notifications to show`);
+                    
+                    // Initialize shown notifications tracker if not exists
+                    if (!window.shownNotifications) {
+                        window.shownNotifications = new Set();
+                    }
+                    
+                    // Show toast for new notifications
+                    newNotifications.forEach(notification => {
+                        console.log('🍞 Showing toast for:', notification.title);
+                        showToastNotification(notification);
+                        // Mark as shown so we don't show it again
+                        window.shownNotifications.add(notification.id);
+                    });
+                    
+                    // Update last check time
+                    lastNotificationCheck = new Date();
+                } else {
+                    console.log('📭 No notifications found or request failed');
+                }
+            } catch (error) {
+                console.error('❌ Error checking for new notifications:', error);
+            }
+        }
+        
+        // Show toast notification
+        function showToastNotification(notification) {
+            console.log('🍞 showToastNotification called for:', notification);
+            const container = document.getElementById('toast-container');
+            if (!container) {
+                console.error('❌ Toast container not found!');
+                return;
+            }
+            console.log('✅ Toast container found, creating toast...');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-mention';
+            toast.innerHTML = `
+                <div class="p-4 pr-12 relative">
+                    <div class="toast-header">
+                        ${notification.title}
+                    </div>
+                    <div class="toast-message">
+                        ${notification.message.length > 100 ? notification.message.substring(0, 100) + '...' : notification.message}
+                    </div>
+                    <button class="toast-close" onclick="closeToast(this)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Add click handler to mark as read and navigate
+            toast.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SVG' && e.target.tagName !== 'PATH') {
+                    markAsRead(notification.id, notification.reference_type, notification.reference_id);
+                }
+            });
+            
+            // Add to container
+            container.appendChild(toast);
+            
+            // Show toast with animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // Auto-hide after 5 seconds (like modern notification systems)
+            setTimeout(() => {
+                closeToast(toast.querySelector('.toast-close'));
+            }, 5000);
+        }
+        
+        // Close toast notification
+        function closeToast(button) {
+            const toast = button.closest('.toast');
+            if (toast) {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 400); // Match the transition duration
+            }
+        }
+        
+        // Global function to trigger immediate notification check
+        window.triggerNotificationCheck = function() {
+            checkForNewNotifications();
+        };
+        
+        // Global function to reset notification check time (for testing)
+        window.resetNotificationCheckTime = function() {
+            lastNotificationCheck = new Date(0); // Reset to epoch time
+            console.log('🔄 Notification check time reset to:', lastNotificationCheck);
+        };
+        
+        // Global function to manually show a test toast (for immediate testing)
+        window.showTestToast = function() {
+            const testNotification = {
+                id: 999,
+                title: 'Test Notification',
+                message: 'This is a test notification popup to verify the toast system is working!',
+                reference_type: 'ticket',
+                reference_id: 1
+            };
+            console.log('🍞 Showing test toast manually...');
+            showToastNotification(testNotification);
+        };
+    </script>
+    {% endif %}
+    
     {% block scripts %}{% endblock %}
 </body>
 </html> 

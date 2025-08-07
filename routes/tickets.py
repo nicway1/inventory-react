@@ -1242,7 +1242,64 @@ def add_comment(ticket_id):
     )
     
     flash('Comment added successfully')
-    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id) + '?comment_posted=1#comments')
+
+@tickets_bp.route('/comments/<int:comment_id>/edit', methods=['POST'])
+@login_required
+def edit_comment(comment_id):
+    """Edit a comment"""
+    try:
+        data = request.get_json()
+        content = data.get('content', '').strip()
+        
+        if not content:
+            return jsonify({'success': False, 'error': 'Comment cannot be empty'})
+        
+        # Get the comment
+        comment = comment_store.get_comment(comment_id)
+        if not comment:
+            return jsonify({'success': False, 'error': 'Comment not found'})
+        
+        # Check if user owns the comment
+        if comment.user_id != session['user_id']:
+            return jsonify({'success': False, 'error': 'You can only edit your own comments'})
+        
+        # Update the comment
+        success = comment_store.update_comment(comment_id, content)
+        if success:
+            return jsonify({'success': True, 'message': 'Comment updated successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to update comment'})
+            
+    except Exception as e:
+        logger.error(f"Error editing comment: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while updating the comment'})
+
+@tickets_bp.route('/comments/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(comment_id):
+    """Delete a comment"""
+    try:
+        # Get the comment
+        comment = comment_store.get_comment(comment_id)
+        if not comment:
+            return jsonify({'success': False, 'error': 'Comment not found'})
+        
+        # Check if user owns the comment or is admin
+        user = db_manager.get_user(session['user_id'])
+        if comment.user_id != session['user_id'] and not user.is_super_admin:
+            return jsonify({'success': False, 'error': 'You can only delete your own comments'})
+        
+        # Delete the comment
+        success = comment_store.delete_comment(comment_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Comment deleted successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to delete comment'})
+            
+    except Exception as e:
+        logger.error(f"Error deleting comment: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while deleting the comment'})
 
 @tickets_bp.route('/queues')
 @login_required
@@ -7257,3 +7314,249 @@ def change_ticket_queue(ticket_id):
         db_session.close()
     
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+# Notification endpoints
+@tickets_bp.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Get notifications for the current user"""
+    try:
+        from utils.notification_service import NotificationService
+        
+        notification_service = NotificationService(db_manager)
+        user_id = session['user_id']
+        
+        # Get query parameters
+        limit = request.args.get('limit', 50, type=int)
+        unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+        
+        notifications = notification_service.get_user_notifications(
+            user_id=user_id,
+            limit=limit,
+            unread_only=unread_only
+        )
+        
+        # Convert to dict for JSON response
+        notifications_data = []
+        for notification in notifications:
+            notifications_data.append({
+                'id': notification.id,
+                'type': notification.type,
+                'title': notification.title,
+                'message': notification.message,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.isoformat(),
+                'reference_type': notification.reference_type,
+                'reference_id': notification.reference_id
+            })
+        
+        return jsonify({
+            'success': True,
+            'notifications': notifications_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting notifications: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get notifications'
+        }), 500
+
+@tickets_bp.route('/notifications/unread-count', methods=['GET'])
+@login_required
+def get_unread_count():
+    """Get unread notification count for the current user"""
+    try:
+        from utils.notification_service import NotificationService
+        
+        notification_service = NotificationService(db_manager)
+        user_id = session['user_id']
+        
+        count = notification_service.get_unread_count(user_id)
+        
+        return jsonify({
+            'success': True,
+            'count': count
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting unread count: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get unread count'
+        }), 500
+
+@tickets_bp.route('/notifications/<int:notification_id>/mark-read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    """Mark a notification as read"""
+    try:
+        from utils.notification_service import NotificationService
+        
+        notification_service = NotificationService(db_manager)
+        user_id = session['user_id']
+        
+        success = notification_service.mark_notification_as_read(notification_id, user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Notification marked as read'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Notification not found or access denied'
+            }), 404
+        
+    except Exception as e:
+        logger.error(f"Error marking notification as read: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to mark notification as read'
+        }), 500
+
+@tickets_bp.route('/notifications/mark-all-read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    """Mark all notifications as read for the current user"""
+    try:
+        from utils.notification_service import NotificationService
+        
+        notification_service = NotificationService(db_manager)
+        user_id = session['user_id']
+        
+        success = notification_service.mark_all_as_read(user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'All notifications marked as read'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to mark notifications as read'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error marking all notifications as read: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to mark all notifications as read'
+        }), 500
+
+@tickets_bp.route('/users/search', methods=['GET'])
+@login_required
+def search_users():
+    """Search users for @mention autocomplete"""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query or len(query) < 1:
+            return jsonify({'success': True, 'users': []})
+        
+        db_session = db_manager.get_session()
+        try:
+            # Search users by username or email
+            users = db_session.query(User).filter(
+                or_(
+                    User.username.ilike(f'%{query}%'),
+                    User.email.ilike(f'%{query}%')
+                )
+            ).limit(10).all()
+            
+            # Convert to dict for JSON response
+            users_data = []
+            for user in users:
+                users_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'display_name': f"{user.username} ({user.email})" if user.email != user.username else user.username
+                })
+            
+            return jsonify({
+                'success': True,
+                'users': users_data
+            })
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error searching users: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to search users'
+        }), 500
+
+@tickets_bp.route('/test-notification', methods=['POST'])
+@login_required
+def test_notification():
+    """Test endpoint to create a realistic cross-user mention notification"""
+    try:
+        from utils.notification_service import NotificationService
+        from models.user import User
+        
+        notification_service = NotificationService(db_manager)
+        current_user_id = session['user_id']
+        
+        logger.info(f"Creating test notification for current user {current_user_id}")
+        
+        # Get a different user to simulate a mention FROM another user TO current user
+        db_session = db_manager.get_session()
+        try:
+            from models.ticket import Ticket
+            
+            # Get a ticket that exists
+            ticket = db_session.query(Ticket).first()
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'No tickets found in database'
+                }), 400
+            
+            # Get a different user to be the "commenter" (someone mentioning the current user)
+            other_user = db_session.query(User).filter(User.id != current_user_id).first()
+            if not other_user:
+                return jsonify({
+                    'success': False,
+                    'error': 'Need at least 2 users for realistic testing'
+                }), 400
+            
+            current_user = db_session.query(User).get(current_user_id)
+            
+            logger.info(f"Simulating: {other_user.username} mentions {current_user.username} in ticket #{ticket.display_id}")
+            
+        finally:
+            db_session.close()
+        
+        # Create a realistic test notification: other_user mentions current_user
+        success = notification_service.create_mention_notification(
+            mentioned_user_id=current_user_id,  # Current user gets the notification
+            commenter_user_id=other_user.id,   # Other user is the one who mentioned
+            ticket_id=ticket.id,
+            comment_content=f"Hey @{current_user.username}, can you help with this ticket? This is urgent!"
+        )
+        
+        if success:
+            logger.info("Realistic test notification created successfully")
+            return jsonify({
+                'success': True,
+                'message': f'Test notification created: {other_user.username} mentioned you in ticket #{ticket.display_id}'
+            })
+        else:
+            logger.error("Failed to create test notification")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to create test notification'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error creating test notification: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to create test notification: {str(e)}'
+        }), 500
