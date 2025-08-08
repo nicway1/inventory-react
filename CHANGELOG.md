@@ -5,6 +5,83 @@ All notable changes to the TrueLog Inventory Management System will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3.1] - 2025-08-08
+
+### 🚀 New Features
+
+#### Group @Mention System
+- **Complete Group Management Interface** - Accessible via System Configuration → Group Management
+- **Create and Manage Groups** - Full CRUD operations for group creation, editing, and member management
+- **Group @Mentions** - Users can now @mention group names (e.g., @developers, @support-team) to notify all group members
+- **Smart Mention Detection** - Automatically differentiates between user mentions and group mentions
+- **Group Member Management** - Add/remove users from groups with real-time interface updates
+- **Group Status Control** - Activate/deactivate groups as needed
+
+#### Enhanced Notification System
+- **Group Mention Notifications** - All group members receive notifications when their group is mentioned
+- **Customized Email Alerts** - Email notifications clearly indicate group mentions vs. direct mentions
+- **Database Notifications** - Persistent notifications stored in database with group mention tracking
+- **Activity Feed Integration** - Group mentions appear in user activity feeds
+- **Self-Exclusion Logic** - Users don't receive notifications when they mention groups they belong to
+
+#### Admin Features
+- **Comprehensive Group Interface** - Modern, Ajax-powered group management with real-time updates
+- **Group Validation** - Proper naming conventions enforced (lowercase, hyphens allowed)
+- **Member Search & Selection** - Easy user selection for group membership
+- **Group Analytics** - Member count tracking and membership history
+
+### 🔧 Technical Improvements
+
+#### Database Schema
+- **New Groups Table** - Stores group information with proper relationships
+- **Group Memberships Table** - Manages user-group relationships with tracking
+- **Enhanced User Model** - Added group-related properties and helper methods
+- **Extended Comment Model** - Enhanced mention detection capabilities
+
+#### API Enhancements
+- **Group Management Endpoints** - Complete REST API for group operations
+- **Enhanced Comment Processing** - Improved @mention parsing and notification dispatch
+- **Notification Service Updates** - Group mention notification creation and management
+- **Email Service Integration** - Group mention email template support
+
+#### Code Quality
+- **Comprehensive Testing** - Full test suite for group functionality
+- **Debug Tools** - Diagnostic scripts for troubleshooting group issues
+- **Documentation** - Complete implementation documentation
+- **Migration Scripts** - Safe database migration for existing installations
+
+### 🐛 Bug Fixes
+
+#### Comment System
+- **Fixed Comment Constructor** - Resolved queue change comment creation issues
+- **Improved Error Handling** - Better error messages for group membership operations
+- **Type Conversion** - Proper integer handling for user and group IDs
+- **Data Validation** - Enhanced validation for group names and member operations
+
+### 💫 User Experience
+
+#### Interface Improvements
+- **Intuitive Group Management** - Clean, modern interface for all group operations
+- **Real-time Updates** - Ajax-powered interface with immediate feedback
+- **Responsive Design** - Mobile-friendly group management interface
+- **Clear Error Messages** - Detailed feedback for group operation failures
+
+#### Notification Experience
+- **Clear Group Context** - Users understand why they received notifications
+- **Professional Email Design** - Consistent styling with existing email templates
+- **Multiple Notification Channels** - Database, email, and activity feed notifications
+
+### 🔒 Security & Permissions
+- **Admin-Only Group Management** - Only administrators can create and manage groups
+- **Proper Access Control** - Group operations respect existing permission system
+- **Input Validation** - Comprehensive validation for all group-related inputs
+- **Safe Member Operations** - Protected add/remove operations with proper error handling
+
+### 📚 Migration & Deployment
+- **Database Migration Script** - `add_groups_tables.py` for safe schema updates
+- **Backward Compatibility** - Fully compatible with existing @mention functionality
+- **Zero-Downtime Migration** - Safe deployment process for production environments
+
 ## [0.6.1] - 2025-06-22
 
 ### 🎨 User Interface Improvements
