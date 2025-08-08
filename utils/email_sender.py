@@ -373,7 +373,7 @@ https://www.truelog.site
         return False
 
 
-def send_mention_notification_email(mentioned_user, commenter, ticket, comment_content):
+def send_mention_notification_email(mentioned_user, commenter, ticket, comment_content, group_name=None):
     """
     Send a Salesforce-style mention notification email when a user is @mentioned
     """
@@ -429,8 +429,9 @@ def send_mention_notification_email(mentioned_user, commenter, ticket, comment_c
                     <!-- User Info -->
                     <div style="background-color: #fafbfc; border-left: 4px solid #0176d3; padding: 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;">
                         <p style="margin: 0 0 10px 0; color: #16325c; font-size: 16px;">
-                            <strong>{commenter.username}</strong> mentioned you in Case <strong>{ticket.display_id}</strong>
+                            <strong>{commenter.username}</strong> mentioned {'group @' + group_name if group_name else 'you'} in Case <strong>{ticket.display_id}</strong>
                         </p>
+                        {f'<p style="margin: 0 0 10px 0; color: #706e6b; font-size: 14px;">You are receiving this notification because you are a member of the @{group_name} group.</p>' if group_name else ''}
                         <p style="margin: 0; color: #706e6b; font-size: 14px;">
                             <strong>Case Subject:</strong> {ticket.subject}
                         </p>
@@ -522,9 +523,15 @@ View the case and reply: {ticket_url}
 TrueLog Inventory Management System
 This notification was sent because you were mentioned in a case comment."""
         
+        # Create appropriate subject line
+        if group_name:
+            subject = f'Group @{group_name} was mentioned in Case {ticket.display_id}'
+        else:
+            subject = f'You were mentioned in Case {ticket.display_id}'
+        
         result = _send_email_via_method(
             to_emails=mentioned_user.email,
-            subject=f'You were mentioned in Case {ticket.display_id}',
+            subject=subject,
             html_body=html_body,
             text_body=text_body
         )

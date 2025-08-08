@@ -31,6 +31,8 @@ from models.knowledge_category import KnowledgeCategory
 from models.knowledge_tag import KnowledgeTag, article_tags
 from models.knowledge_feedback import KnowledgeFeedback
 from models.knowledge_attachment import KnowledgeAttachment
+from models.group import Group
+from models.group_membership import GroupMembership
 
 __all__ = [
     "Base",
@@ -74,5 +76,7 @@ __all__ = [
     "KnowledgeTag",
     "article_tags",
     "KnowledgeFeedback",
-    "KnowledgeAttachment"
+    "KnowledgeAttachment",
+    "Group",
+    "GroupMembership"
 ]

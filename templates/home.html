@@ -7,25 +7,7 @@
         <h1 class="text-2xl font-bold mb-2">Welcome, {{ user.username }}!</h1>
         <p class="text-gray-600">Here's an overview of your system</p>
         
-        {% if user.user_type.value == 'SUPER_ADMIN' %}
-        <!-- Test Notification Button (Admin Only) -->
-        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p class="text-sm text-yellow-800 mb-2">🧪 <strong>Admin Test:</strong> Test the notification popup system</p>
-            <div class="space-x-2 mb-2">
-                <button onclick="window.showTestToast()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm">
-                    Show Test Toast
-                </button>
-                <button onclick="testNotificationPopup()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">
-                    Create & Show Notification
-                </button>
-            </div>
-            <div>
-                <button onclick="simulateRealMention()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm">
-                    Simulate Real @Mention
-                </button>
-            </div>
-        </div>
-        {% endif %}
+
     </div>
 
     <!-- Quick Access Cards -->
@@ -840,102 +822,7 @@
             });
     }
 
-// Test notification popup function
-async function testNotificationPopup() {
-    try {
-        console.log('🧪 Testing notification popup...');
-        
-        // Reset the last check time to show existing unread notifications
-        if (window.resetNotificationCheckTime) {
-            window.resetNotificationCheckTime();
-            console.log('🔄 Reset notification check time');
-        }
-        
-        // Get CSRF token
-        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-        const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
-        
-        const response = await fetch('/tickets/test-notification', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin'
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ Test notification created:', data.message);
-                
-                // Trigger immediate notification check to show popup
-                if (window.triggerNotificationCheck) {
-                    setTimeout(window.triggerNotificationCheck, 500);
-                } else {
-                    console.log('⏳ Waiting for automatic notification check...');
-                }
-            } else {
-                console.error('❌ Failed:', data.error);
-                alert('Failed to create test notification: ' + data.error);
-            }
-        } else {
-            console.error('❌ HTTP error:', response.status);
-            alert('Request failed: ' + response.status);
-        }
-    } catch (error) {
-        console.error('❌ Error:', error);
-        alert('Error: ' + error.message);
-    }
-}
 
-// Simulate a real @mention scenario
-async function simulateRealMention() {
-    try {
-        console.log('🎭 Simulating real @mention scenario...');
-        
-        // Reset check time to current time (like a fresh page load)
-        if (window.resetNotificationCheckTime) {
-            window.resetNotificationCheckTime();
-            // Set to current time minus 1 second to catch new notifications
-            window.lastNotificationCheck = new Date(Date.now() - 1000);
-            console.log('🔄 Set check time to 1 second ago');
-        }
-        
-        // Get CSRF token
-        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-        const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
-        
-        // Create a realistic mention notification
-        const response = await fetch('/tickets/test-notification', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'same-origin'
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ Real mention simulation created:', data.message);
-                console.log('⏳ Waiting for automatic notification check to show popup...');
-                
-                // The popup should appear automatically within 5 seconds due to polling
-            } else {
-                console.error('❌ Failed:', data.error);
-                alert('Failed: ' + data.error);
-            }
-        } else {
-            console.error('❌ HTTP error:', response.status);
-            alert('Request failed: ' + response.status);
-        }
-    } catch (error) {
-        console.error('❌ Error:', error);
-        alert('Error: ' + error.message);
-    }
-}
 </script>
 
 {% endblock %}

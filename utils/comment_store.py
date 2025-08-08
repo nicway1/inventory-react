@@ -188,10 +188,11 @@ class CommentStore:
             db_session.close()
 
     def _notify_mentions(self, comment):
-        """Send notifications to mentioned users"""
+        """Send notifications to mentioned users and groups"""
         try:
             from models.ticket import Ticket
             from models.user import User
+            from models.group import Group
             from utils.email_sender import send_mention_notification_email
             from utils.notification_service import NotificationService
             
@@ -210,16 +211,18 @@ class CommentStore:
                 # Initialize notification service
                 notification_service = NotificationService(self.db_manager)
                 
-                for username in comment.mentions:
+                # Clean up the content for notification (remove HTML tags)
+                import re
+                clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment.content)
+                clean_content = re.sub(r'<[^>]+>', '', clean_content)  # Remove any other HTML tags
+                
+                # Handle user mentions
+                user_mentions = comment.user_mentions
+                for username in user_mentions:
                     # Find mentioned user by username
                     mentioned_user = db_session.query(User).filter(User.username == username).first()
                     if mentioned_user:
                         logger.debug(f"Notifying user {username} (ID: {mentioned_user.id}) about mention")
-                        
-                        # Clean up the content for notification (remove HTML tags)
-                        import re
-                        clean_content = re.sub(r'<span class="mention">(@[^<]+)</span>', r'\1', comment.content)
-                        clean_content = re.sub(r'<[^>]+>', '', clean_content)  # Remove any other HTML tags
                         
                         # Create database notification
                         notification_service.create_mention_notification(
@@ -253,6 +256,64 @@ class CommentStore:
                             
                     else:
                         logger.warning(f"User {username} not found for mention notification")
+                
+                # Handle group mentions
+                group_mentions = comment.group_mentions
+                for group_name in group_mentions:
+                    # Find mentioned group by name
+                    mentioned_group = db_session.query(Group).filter(
+                        Group.name == group_name, 
+                        Group.is_active == True
+                    ).first()
+                    
+                    if mentioned_group:
+                        logger.debug(f"Notifying group '{group_name}' ({mentioned_group.member_count} members) about mention")
+                        
+                        # Notify all active members of the group
+                        for member in mentioned_group.members:
+                            # Skip if the commenter is mentioning themselves (when they're part of the group)
+                            if member.id == commenter.id:
+                                continue
+                                
+                            logger.debug(f"Notifying group member {member.username} (ID: {member.id}) about group mention")
+                            
+                            # Create database notification for group mention
+                            notification_service.create_group_mention_notification(
+                                mentioned_user_id=member.id,
+                                commenter_user_id=commenter.id,
+                                ticket_id=comment.ticket_id,
+                                group_name=group_name,
+                                comment_content=comment.content
+                            )
+                            
+                            # Add activity notification
+                            self.activity_store.add_activity(
+                                user_id=member.id,
+                                type='group_mention',
+                                content=f"{commenter.username} mentioned group @{group_name} in ticket {ticket.display_id}: {clean_content[:100]}...",
+                                reference_id=comment.ticket_id
+                            )
+                            
+                            # Send email notification
+                            logger.debug(f"Sending group mention email to {member.email}")
+                            email_sent = send_mention_notification_email(
+                                mentioned_user=member,
+                                commenter=commenter,
+                                ticket=ticket,
+                                comment_content=comment.content,
+                                group_name=group_name
+                            )
+                            
+                            if email_sent:
+                                logger.info(f"Group mention email sent successfully to {member.username}")
+                            else:
+                                logger.warning(f"Failed to send group mention email to {member.username}")
+                        
+                        logger.info(f"Notified {mentioned_group.member_count} members of group @{group_name}")
+                        
+                    else:
+                        logger.warning(f"Group {group_name} not found or inactive for mention notification")
+                        
             finally:
                 db_session.close()
                 

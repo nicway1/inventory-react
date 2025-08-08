@@ -86,3 +86,11 @@ Form has selected_accessories: True
 CSV file uploaded: None
 No selected accessories data found in form
 === END CSV DEBUG ===
+
+=== CSV DEBUG 2025-08-08 11:30:40.555685 ===
+selected_accessories_json = ''
+Form keys: ['csrf_token', 'category', 'country', 'serial_number', 'model', 'customer_company', 'lock_type', 'queue_id', 'apple_diagnostics', 'damage_description', 'customer_id', 'asset_checkout_serial', 'subject', 'checkout_serial_number', 'shipping_address', 'package_1_tracking', 'package_1_carrier', 'package_2_tracking', 'package_2_carrier', 'package_3_tracking', 'package_3_carrier', 'package_4_tracking', 'package_4_carrier', 'package_5_tracking', 'package_5_carrier', 'notes', 'selected_accessories', 'intake_title', 'intake_description', 'intake_priority', 'is_asset_return', 'novalidate', 'return_description', 'shipping_tracking', 'return_tracking', 'general_subject', 'visible_outbound_tracking', 'visible_inbound_tracking', 'priority', 'description']
+Form has selected_accessories: True
+CSV file uploaded: None
+No selected accessories data found in form
+=== END CSV DEBUG ===

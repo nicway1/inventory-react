@@ -3090,7 +3090,7 @@ def update_shipping_carrier(ticket_id):
         ticket.updated_at = datetime.datetime.now()
         
         # Add system comment
-        new_comment = Comment.create(
+        new_comment = Comment(
             ticket_id=ticket.id,
             user_id=current_user.id,
             content=f"Updated {tracking_field.replace('_', ' ')} to {carrier}"
@@ -5908,8 +5908,8 @@ def transfer_ticket(ticket_id):
         if transfer_notes:
             comment_text += f"\n\nNotes: {transfer_notes}"
             
-        # Use Comment.create() to automatically generate an ID
-        comment = Comment.create(
+        # Create comment with proper constructor
+        comment = Comment(
             ticket_id=ticket_id,
             user_id=current_user_id,
             content=comment_text
@@ -6557,7 +6557,7 @@ def update_accessory(ticket_id, accessory_id):
         else:
             comment_content = f"Updated accessory: {name} (Category: {category}, Quantity: {new_quantity}, Condition: {condition})"
         
-        comment = Comment.create(
+        comment = Comment(
             ticket_id=ticket_id,
             user_id=current_user.id,
             content=comment_content
@@ -6644,7 +6644,7 @@ def remove_accessory(ticket_id, accessory_id):
                     raise tx_error
         
         # Create a comment about the removal
-        comment = Comment.create(
+        comment = Comment(
             ticket_id=ticket_id,
             user_id=current_user.id,
             content=f"Removed {quantity} x {accessory_name} accessory"
@@ -7284,7 +7284,7 @@ def change_ticket_queue(ticket_id):
         ticket.updated_at = datetime.datetime.utcnow()
         
         # Add a comment about the queue change
-        comment = Comment.create(
+        comment = Comment(
             ticket_id=ticket_id,
             user_id=current_user.id,
             content=f"Queue changed from '{old_queue_name}' to '{new_queue.name}'"

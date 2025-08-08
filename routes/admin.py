@@ -3978,3 +3978,395 @@ def unified_permissions():
         return redirect(url_for('main.index'))
     finally:
         db_session.close()
+
+
+# Group Management Routes
+
+@admin_bp.route('/groups')
+@admin_required
+def manage_groups():
+    """Group management page"""
+    if 'user_id' not in session:
+        flash('Please log in to continue', 'error')
+        return redirect(url_for('auth.login'))
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Import the models here to avoid circular imports
+        from models.group import Group
+        from models.group_membership import GroupMembership
+        
+        # Get all groups with their memberships
+        groups = db_session.query(Group).order_by(Group.created_at.desc()).all()
+        
+        # Get all users for the add member dropdown
+        users = db_session.query(User).order_by(User.username).all()
+
+        return render_template('admin/manage_groups.html', 
+                             user=user,
+                             groups=groups,
+                             users=users)
+
+    except Exception as e:
+        logger.error(f"Error loading groups page: {e}")
+        flash(f'Error loading groups: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/create', methods=['POST'])
+@admin_required
+def create_group():
+    """Create a new group"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the model here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        name = request.form.get('name', '').strip().lower()
+        description = request.form.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'error': 'Group name is required'}), 400
+            
+        # Validate group name (alphanumeric and hyphens only)
+        import re
+        if not re.match(r'^[a-z0-9-]+$', name):
+            return jsonify({'error': 'Group name can only contain lowercase letters, numbers, and hyphens'}), 400
+        
+        # Check if group name already exists
+        existing_group = db_session.query(Group).filter(Group.name == name).first()
+        if existing_group:
+            return jsonify({'error': 'A group with this name already exists'}), 400
+        
+        # Create new group
+        group = Group(
+            name=name,
+            description=description if description else None,
+            created_by_id=user.id
+        )
+        
+        db_session.add(group)
+        db_session.commit()
+        
+        logger.info(f"Group '{name}' created by user {user.username}")
+        flash(f"Group '@{name}' created successfully", 'success')
+        
+        return jsonify({'success': True, 'group_id': group.id})
+
+    except Exception as e:
+        logger.error(f"Error creating group: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/update', methods=['POST'])
+@admin_required
+def update_group():
+    """Update an existing group"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        user = db_manager.get_user(session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the model here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        name = request.form.get('name', '').strip().lower()
+        description = request.form.get('description', '').strip()
+        
+        if not group_id or not name:
+            return jsonify({'error': 'Group ID and name are required'}), 400
+        
+        # Validate group name
+        import re
+        if not re.match(r'^[a-z0-9-]+$', name):
+            return jsonify({'error': 'Group name can only contain lowercase letters, numbers, and hyphens'}), 400
+        
+        # Get the group
+        group = db_session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return jsonify({'error': 'Group not found'}), 404
+        
+        # Check if new name conflicts with existing group (excluding current group)
+        if group.name != name:
+            existing_group = db_session.query(Group).filter(
+                Group.name == name,
+                Group.id != group_id
+            ).first()
+            if existing_group:
+                return jsonify({'error': 'A group with this name already exists'}), 400
+        
+        # Update group
+        old_name = group.name
+        group.name = name
+        group.description = description if description else None
+        group.updated_at = datetime.utcnow()
+        
+        db_session.commit()
+        
+        logger.info(f"Group '{old_name}' updated to '{name}' by user {user.username}")
+        flash(f"Group '@{name}' updated successfully", 'success')
+        
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error updating group: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/add-member', methods=['POST'])
+@admin_required
+def add_group_member():
+    """Add a member to a group"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        current_user = db_manager.get_user(session['user_id'])
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the models here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        user_id = request.form.get('user_id')
+        
+        if not group_id or not user_id:
+            return jsonify({'error': 'Group ID and User ID are required'}), 400
+        
+        # Convert to integers
+        try:
+            group_id = int(group_id)
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid Group ID or User ID format'}), 400
+        
+        # Get the group and user
+        group = db_session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return jsonify({'error': 'Group not found'}), 404
+            
+        user = db_session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if user is already a member
+        if group.has_member(user_id):
+            return jsonify({'error': f'{user.username} is already a member of this group'}), 400
+        
+        # Add member to group
+        membership = group.add_member(user_id, current_user.id)
+        
+        db_session.commit()
+        
+        logger.info(f"User {user.username} added to group '{group.name}' by {current_user.username}")
+        flash(f"{user.username} added to group '@{group.name}' successfully", 'success')
+        
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error adding group member: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/remove-member', methods=['POST'])
+@admin_required
+def remove_group_member():
+    """Remove a member from a group"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        current_user = db_manager.get_user(session['user_id'])
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the models here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        user_id = request.form.get('user_id')
+        
+        if not group_id or not user_id:
+            return jsonify({'error': 'Group ID and User ID are required'}), 400
+        
+        # Convert to integers
+        try:
+            group_id = int(group_id)
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid Group ID or User ID format'}), 400
+        
+        # Get the group and user
+        group = db_session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return jsonify({'error': 'Group not found'}), 404
+            
+        user = db_session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Debug: Check current group membership
+        logger.info(f"Attempting to remove user {user.id} ({user.username}) from group {group.id} ({group.name})")
+        logger.info(f"Group has {group.member_count} members: {[m.username for m in group.members]}")
+        
+        # Check if user is actually in the group before attempting removal
+        if not group.has_member(user_id):
+            current_members = [m.username for m in group.members]
+            logger.warning(f"User {user.username} is not a member of group {group.name}. Current members: {current_members}")
+            return jsonify({'error': f'User {user.username} is not a member of group @{group.name}. Current members: {", ".join(current_members) if current_members else "none"}'}), 400
+        
+        # Remove member from group
+        if group.remove_member(user_id):
+            db_session.commit()
+            
+            logger.info(f"User {user.username} removed from group '{group.name}' by {current_user.username}")
+            flash(f"{user.username} removed from group '@{group.name}' successfully", 'success')
+            
+            return jsonify({'success': True})
+        else:
+            # This shouldn't happen if we got past the has_member check above
+            logger.error(f"Unexpected: remove_member returned False even though user was a member")
+            return jsonify({'error': f'Unexpected error removing user {user.username} from group @{group.name}'}), 500
+
+    except Exception as e:
+        logger.error(f"Error removing group member: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/toggle-status', methods=['POST'])
+@admin_required
+def toggle_group_status():
+    """Activate or deactivate a group"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        current_user = db_manager.get_user(session['user_id'])
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the model here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        is_active = request.form.get('is_active', '').lower() == 'true'
+        
+        if not group_id:
+            return jsonify({'error': 'Group ID is required'}), 400
+        
+        # Get the group
+        group = db_session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return jsonify({'error': 'Group not found'}), 404
+        
+        # Update group status
+        group.is_active = is_active
+        group.updated_at = datetime.utcnow()
+        
+        db_session.commit()
+        
+        status_text = "activated" if is_active else "deactivated"
+        logger.info(f"Group '{group.name}' {status_text} by user {current_user.username}")
+        flash(f"Group '@{group.name}' {status_text} successfully", 'success')
+        
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error toggling group status: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/groups/delete', methods=['POST'])
+@admin_required
+def delete_group():
+    """Delete a group permanently"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    db_session = db_manager.get_session()
+    try:
+        # Get current user
+        current_user = db_manager.get_user(session['user_id'])
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Import the model here to avoid circular imports
+        from models.group import Group
+        
+        # Get form data
+        group_id = request.form.get('group_id')
+        
+        if not group_id:
+            return jsonify({'error': 'Group ID is required'}), 400
+        
+        # Get the group
+        group = db_session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            return jsonify({'error': 'Group not found'}), 404
+        
+        group_name = group.name
+        
+        # Delete the group (this will cascade delete memberships due to the relationship)
+        db_session.delete(group)
+        db_session.commit()
+        
+        logger.info(f"Group '{group_name}' deleted by user {current_user.username}")
+        flash(f"Group '@{group_name}' deleted successfully", 'success')
+        
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error deleting group: {e}")
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()

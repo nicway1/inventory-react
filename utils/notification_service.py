@@ -62,6 +62,59 @@ class NotificationService:
             logger.error(f"Error creating mention notification: {str(e)}")
             return False
     
+    def create_group_mention_notification(self, mentioned_user_id, commenter_user_id, ticket_id, group_name, comment_content):
+        """Create a notification for when a user is mentioned via a group mention"""
+        try:
+            # Prevent self-mentions
+            if mentioned_user_id == commenter_user_id:
+                logger.info(f"Skipping self-mention for user {commenter_user_id}")
+                return True  # Not an error, just skip
+            
+            db_session = self.db_manager.get_session()
+            try:
+                # Get the commenter's username
+                commenter = db_session.query(User).get(commenter_user_id)
+                if not commenter:
+                    logger.error(f"Commenter user {commenter_user_id} not found")
+                    return False
+                
+                # Get ticket info
+                from models.ticket import Ticket
+                ticket = db_session.query(Ticket).get(ticket_id)
+                if not ticket:
+                    logger.error(f"Ticket {ticket_id} not found")
+                    return False
+                
+                # Clean comment content for notification
+                import re
+                clean_content = re.sub(r'<[^>]+>', '', comment_content)  # Remove HTML tags
+                clean_content = clean_content.strip()
+                if len(clean_content) > 100:
+                    clean_content = clean_content[:100] + "..."
+                
+                # Create notification
+                notification = Notification(
+                    user_id=mentioned_user_id,
+                    type='group_mention',
+                    title=f'{commenter.username} mentioned group @{group_name}',
+                    message=f'{commenter.username} mentioned group @{group_name} in ticket #{ticket.display_id}: "{clean_content}"',
+                    reference_type='ticket',
+                    reference_id=ticket_id
+                )
+                
+                db_session.add(notification)
+                db_session.commit()
+                
+                logger.info(f"Created group mention notification for user {mentioned_user_id} (group: @{group_name})")
+                return True
+                
+            finally:
+                db_session.close()
+                
+        except Exception as e:
+            logger.error(f"Error creating group mention notification: {str(e)}")
+            return False
+    
     def get_user_notifications(self, user_id, limit=50, unread_only=False):
         """Get notifications for a user"""
         try:

@@ -34,7 +34,7 @@ class Comment(Base):
 
     @property
     def mentions(self):
-        """Extract @mentions from comment content"""
+        """Extract @mentions from comment content (both users and groups)"""
         # Check if content contains HTML mentions or plain text mentions
         if "<span class=\"mention\">" in self.content:
             # Extract usernames from HTML mentions
@@ -47,6 +47,48 @@ class Comment(Base):
             mention_pattern = r'@([a-zA-Z0-9._@-]+)'
             mentions = re.findall(mention_pattern, self.content)
             return mentions
+    
+    @property
+    def user_mentions(self):
+        """Extract @mentions that are usernames from comment content"""
+        return [mention for mention in self.mentions if self._is_user_mention(mention)]
+    
+    @property
+    def group_mentions(self):
+        """Extract @mentions that are group names from comment content"""
+        return [mention for mention in self.mentions if self._is_group_mention(mention)]
+    
+    def _is_user_mention(self, mention):
+        """Check if a mention is a username by querying the database"""
+        try:
+            from models.user import User
+            from database import SessionLocal
+            
+            db_session = SessionLocal()
+            try:
+                user = db_session.query(User).filter(User.username == mention).first()
+                return user is not None
+            finally:
+                db_session.close()
+        except Exception as e:
+            logger.error(f"Error checking user mention '{mention}': {e}")
+            return False
+    
+    def _is_group_mention(self, mention):
+        """Check if a mention is a group name by querying the database"""
+        try:
+            from models.group import Group
+            from database import SessionLocal
+            
+            db_session = SessionLocal()
+            try:
+                group = db_session.query(Group).filter(Group.name == mention, Group.is_active == True).first()
+                return group is not None
+            finally:
+                db_session.close()
+        except Exception as e:
+            logger.error(f"Error checking group mention '{mention}': {e}")
+            return False
 
     @property
     def formatted_content(self):

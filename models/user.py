@@ -39,6 +39,8 @@ class User(Base, UserMixin):
     company_permissions = relationship("UserCompanyPermission", back_populates="user")
     queue_notifications = relationship("QueueNotification", back_populates="user")
     notifications = relationship("Notification", back_populates="user", order_by="Notification.created_at.desc()")
+    created_groups = relationship("Group", back_populates="created_by")
+    group_memberships = relationship("GroupMembership", foreign_keys="GroupMembership.user_id", back_populates="user")
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 
@@ -282,3 +284,18 @@ class User(Base, UserMixin):
             raise
         finally:
             session.close()
+
+    @property
+    def active_groups(self):
+        """Get all active groups this user belongs to"""
+        return [membership.group for membership in self.group_memberships 
+                if membership.is_active and membership.group.is_active]
+    
+    def is_in_group(self, group_name):
+        """Check if user is in a specific group"""
+        return any(membership.group.name == group_name and membership.is_active 
+                  for membership in self.group_memberships if membership.group.is_active)
+    
+    def get_group_names(self):
+        """Get list of group names this user belongs to"""
+        return [group.name for group in self.active_groups]
