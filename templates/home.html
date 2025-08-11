@@ -61,7 +61,7 @@
         </div>
 
         <!-- Inventory Audit Card -->
-        {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
+        {% if current_user.is_authenticated and current_user.permissions.can_access_inventory_audit %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,8 +71,12 @@
             </div>
             <p class="text-gray-600">Manage inventory audits and reports</p>
             <div class="mt-4 space-y-2">
+                {% if current_user.permissions.can_view_audit_reports %}
                 <a href="{{ url_for('inventory.view_audit_reports') }}" class="block text-indigo-600 hover:text-indigo-800">View Reports →</a>
+                {% endif %}
+                {% if current_user.permissions.can_start_inventory_audit %}
                 <a href="{{ url_for('inventory.audit_inventory') }}" class="block text-indigo-600 hover:text-indigo-800">Start New Audit →</a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -122,6 +126,7 @@
         {% endif %}
 
         <!-- Reports Card -->
+        {% if current_user.is_authenticated and current_user.permissions.can_view_reports %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,6 +138,7 @@
             <p class="text-gray-600">View Reports & Insights</p>
             <a href="{{ url_for('reports.index') }}" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800">View Reports →</a>
         </div>
+        {% endif %}
 
         <!-- Knowledge Base Card -->
         {% if current_user.is_authenticated and current_user.permissions.can_view_knowledge_base %}
