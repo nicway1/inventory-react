@@ -459,10 +459,10 @@ def update_permissions():
     db_session = db_manager.get_session()
     try:
         # Log the form data
-        logger.info("Form data received:", request.form)
+        logger.info(f"Form data received: {request.form}")
         
         user_type = request.form.get('user_type')
-        logger.info("User type:", user_type)
+        logger.info(f"User type: {user_type}")
         
         if not user_type:
             flash('User type is required', 'error')
@@ -470,14 +470,14 @@ def update_permissions():
 
         try:
             user_type_enum = UserType[user_type]
-            logger.info("User type enum:", user_type_enum)
+            logger.info(f"User type enum: {user_type_enum}")
         except KeyError:
             flash('Invalid user type', 'error')
             return redirect(url_for('admin.permission_management'))
 
         # Get existing permission record
         permission = db_session.query(Permission).filter_by(user_type=user_type_enum).first()
-        logger.info("Existing permission:", permission)
+        logger.info(f"Existing permission: {permission}")
         
         if not permission:
             permission = Permission(user_type=user_type_enum)
@@ -486,7 +486,7 @@ def update_permissions():
 
         # Get all permission fields
         fields = Permission.permission_fields()
-        logger.info("Permission fields:", fields)
+        logger.info(f"Permission fields: {fields}")
 
         # Update permissions from form data
         for field in fields:
@@ -494,7 +494,7 @@ def update_permissions():
             # Check if the field exists in form and its value is 'true'
             new_value = request.form.get(field) == 'true'
             setattr(permission, field, new_value)
-            logger.info("Updating {field}: {old_value} -> {new_value}")
+            logger.info(f"Updating {field}: {old_value} -> {new_value}")
 
         db_session.commit()
         logger.info("Changes committed successfully")
@@ -503,7 +503,7 @@ def update_permissions():
         return redirect(url_for('admin.permission_management'))
     except Exception as e:
         db_session.rollback()
-        logger.error("Error updating permissions:", str(e))
+        logger.error(f"Error updating permissions: {str(e)}")
         flash(f'Error updating permissions: {str(e)}', 'error')
         return redirect(url_for('admin.permission_management'))
     finally:
