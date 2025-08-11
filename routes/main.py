@@ -536,7 +536,15 @@ def import_tickets():
         os.remove(filepath)
         
         if import_result['success']:
-            flash(f'Successfully imported {import_result["imported_count"]} tickets to {import_result["queue_name"]} queue')
+            message_parts = [f'Successfully imported {import_result["imported_count"]} tickets to {import_result["queue_name"]} queue']
+            
+            if import_result.get('skipped_processing_count', 0) > 0:
+                message_parts.append(f'{import_result["skipped_processing_count"]} tickets skipped (PROCESSING status)')
+            
+            if import_result.get('skipped_duplicates_count', 0) > 0:
+                message_parts.append(f'{import_result["skipped_duplicates_count"]} tickets skipped (duplicate order IDs)')
+            
+            flash('. '.join(message_parts))
         else:
             flash(f'Error importing tickets: {import_result["error"]}')
         
@@ -546,3 +554,91 @@ def import_tickets():
         logger.error(f"Error in import_tickets: {str(e)}")
         flash('An error occurred while importing tickets')
         return redirect(url_for('main.index'))
+
+@main_bp.route('/debug-supervisor-tickets')
+@login_required
+def debug_supervisor_tickets():
+    """Debug route to check SUPERVISOR user tickets"""
+    user_id = session['user_id']
+    try:
+        with db_manager as db:
+            user = db.get_user(user_id)
+            
+        if not user:
+            return jsonify({'error': 'User not found'})
+        
+        # Get database session
+        db_session = db_manager.get_session()
+        try:
+            # Get all tickets where this user is requester
+            requester_tickets = db_session.query(Ticket).filter(Ticket.requester_id == user_id).all()
+            
+            # Get all tickets where this user is assigned
+            assigned_tickets = db_session.query(Ticket).filter(Ticket.assigned_to_id == user_id).all()
+            
+            # Get all tickets regardless of filter
+            all_tickets = db_session.query(Ticket).all()
+            
+            # Get tickets using the store method
+            store_tickets = ticket_store.get_user_tickets(user_id, user.user_type)
+            
+            # Get FirstBase New Orders queue
+            from models.queue import Queue
+            firstbase_queue = db_session.query(Queue).filter(Queue.name == 'FirstBase New Orders').first()
+            firstbase_queue_id = firstbase_queue.id if firstbase_queue else None
+            
+            # Check queue access for FirstBase New Orders queue
+            can_access_firstbase = user.can_access_queue(firstbase_queue_id) if firstbase_queue_id else False
+            
+            result = {
+                'user_info': {
+                    'id': user_id,
+                    'username': user.username,
+                    'user_type': user.user_type.value,
+                    'is_supervisor': user.is_supervisor,
+                    'is_super_admin': user.is_super_admin,
+                    'company_id': user.company_id
+                },
+                'queue_info': {
+                    'firstbase_queue_id': firstbase_queue_id,
+                    'firstbase_queue_name': firstbase_queue.name if firstbase_queue else None,
+                    'can_access_firstbase': can_access_firstbase
+                },
+                'ticket_counts': {
+                    'requester_tickets': len(requester_tickets),
+                    'assigned_tickets': len(assigned_tickets),
+                    'all_tickets': len(all_tickets),
+                    'store_tickets': len(store_tickets)
+                },
+                'requester_tickets': [
+                    {
+                        'id': t.id,
+                        'subject': t.subject,
+                        'requester_id': t.requester_id,
+                        'assigned_to_id': t.assigned_to_id,
+                        'queue_id': t.queue_id,
+                        'queue_name': t.queue.name if t.queue else None,
+                        'created_at': t.created_at.isoformat() if t.created_at else None
+                    } for t in requester_tickets[:5]  # Show first 5
+                ],
+                'store_tickets': [
+                    {
+                        'id': t.id,
+                        'subject': t.subject,
+                        'requester_id': t.requester_id,
+                        'assigned_to_id': t.assigned_to_id,
+                        'queue_id': t.queue_id,
+                        'queue_name': t.queue.name if t.queue else None,
+                        'created_at': t.created_at.isoformat() if t.created_at else None
+                    } for t in store_tickets[:5]  # Show first 5
+                ]
+            }
+            
+            return jsonify(result)
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in debug_supervisor_tickets: {str(e)}")
+        return jsonify({'error': str(e)})

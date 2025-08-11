@@ -4370,3 +4370,68 @@ def delete_group():
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+@admin_bp.route('/api/mention-suggestions')
+@login_required
+def get_mention_suggestions():
+    """Get users and groups for @mention autocomplete"""
+    query = request.args.get('q', '').lower().strip()
+    
+    db_session = db_manager.get_session()
+    try:
+        from models.group import Group
+        
+        suggestions = []
+        
+        # Get users (limit to 10 for performance)
+        users = db_session.query(User).filter(
+            User.username.ilike(f'%{query}%')
+        ).limit(10).all()
+        
+        for user in users:
+            suggestions.append({
+                'type': 'user',
+                'id': user.id,
+                'name': user.username,
+                'display_name': user.username,
+                'email': user.email,
+                'avatar': user.username[0].upper() if user.username else 'U'
+            })
+        
+        # Get active groups (limit to 10 for performance)
+        groups = db_session.query(Group).filter(
+            Group.name.ilike(f'%{query}%'),
+            Group.is_active == True
+        ).limit(10).all()
+        
+        for group in groups:
+            suggestions.append({
+                'type': 'group',
+                'id': group.id,
+                'name': group.name,
+                'display_name': f"@{group.name}",
+                'description': group.description or f"Group with {group.member_count} members",
+                'member_count': group.member_count,
+                'avatar': 'G'  # Group icon
+            })
+        
+        # Sort by relevance (exact matches first, then partial matches)
+        def sort_key(item):
+            name = item['name'].lower()
+            if name == query:
+                return (0, name)  # Exact match
+            elif name.startswith(query):
+                return (1, name)  # Starts with query
+            else:
+                return (2, name)  # Contains query
+        
+        suggestions.sort(key=sort_key)
+        
+        return jsonify({'suggestions': suggestions[:20]})  # Limit to 20 total suggestions
+        
+    except Exception as e:
+        logger.error(f"Error getting mention suggestions: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()

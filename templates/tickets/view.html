@@ -1869,7 +1869,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <div class="sf-field-label">Date/Time Closed</div>
                                         <div class="sf-field-value">-</div>
                                     </div>
-                                    <div class="sf-field-row">
+                                    <!-- Service Type field hidden per user request -->
+                                    <div class="sf-field-row" style="display: none;">
                                         <div class="sf-field-label">Service Type</div>
                                         <div class="sf-field-value">Hardware Support</div>
                                     </div>
@@ -1925,9 +1926,9 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </h2>
                         </div>
                         <div class="sf-card-body">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                                 <!-- Customer Details -->
-                                <div class="space-y-4">
+                                <div class="space-y-4 lg:col-span-2">
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Customer Name</div>
                                         <div class="sf-field-value font-medium">{{ ticket.customer.name }}</div>
@@ -1959,7 +1960,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
 
                                 <!-- Company Details -->
-                                <div class="space-y-4">
+                                <div class="space-y-4 lg:col-span-1">
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Company</div>
                                         <div class="sf-field-value">
@@ -1989,10 +1990,10 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
 
                                 <!-- Address Details -->
-                                <div class="space-y-4">
+                                <div class="space-y-4 lg:col-span-2">
                                     {% if ticket.customer.address or ticket.shipping_address %}
-                                    <div class="sf-field-row">
-                                        <div class="sf-field-label">
+                                    <div class="flex items-start gap-4">
+                                        <div class="sf-field-label flex-shrink-0 w-24">
                                             {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
                                                 Return Address
                                             {% elif ticket.shipping_address %}
@@ -2001,7 +2002,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                 Address
                                             {% endif %}
                                         </div>
-                                        <div class="sf-field-value whitespace-pre-wrap">
+                                        <div class="sf-field-value whitespace-pre-wrap break-words leading-relaxed flex-1" style="text-align: left !important;">
                                             {% if ticket.shipping_address %}
                                             {{ ticket.shipping_address }}
                                             {% elif ticket.customer.address %}
@@ -2013,9 +2014,9 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     </div>
                                     {% endif %}
                                     {% if ticket.customer.country %}
-                                    <div class="sf-field-row">
-                                        <div class="sf-field-label">Country</div>
-                                        <div class="sf-field-value">{{ ticket.customer.country.value if ticket.customer.country else 'Unknown' }}</div>
+                                    <div class="flex items-start gap-4">
+                                        <div class="sf-field-label flex-shrink-0 w-24">Country</div>
+                                        <div class="sf-field-value flex-1" style="text-align: left !important;">{{ ticket.customer.country.value if ticket.customer.country else 'Unknown' }}</div>
                                     </div>
                                     {% endif %}
                                     {% if ticket.customer.timezone %}
@@ -4208,7 +4209,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                     name="message" 
                                                     rows="4" 
                                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
-                                                    placeholder="Write a comment... Use @ to mention users"
+                                                    placeholder="Write a comment... Use @ to mention users and groups"
                                                     required></textarea>
                                                 
                                                 <!-- @mention Autocomplete Dropdown -->
@@ -9397,7 +9398,7 @@ function initializeMentionAutocomplete(textarea) {
             currentMentionQuery = mentionMatch[1];
             
             if (currentMentionQuery.length >= 0) {
-                searchUsers(currentMentionQuery);
+                searchMentions(currentMentionQuery);
             }
         } else {
             hideMentionDropdown();
@@ -9418,7 +9419,7 @@ function initializeMentionAutocomplete(textarea) {
             } else if (e.key === 'Enter' || e.key === 'Tab') {
                 if (selectedIndex >= 0 && selectedIndex < mentionUsers.length) {
                     e.preventDefault();
-                    selectUser(mentionUsers[selectedIndex]);
+                    selectMention(mentionUsers[selectedIndex]);
                 }
             } else if (e.key === 'Escape') {
                 hideMentionDropdown();
@@ -9433,44 +9434,59 @@ function initializeMentionAutocomplete(textarea) {
         }
     });
     
-    // Search users function
-    async function searchUsers(query) {
+    // Search users and groups function
+    async function searchMentions(query) {
         try {
-            const response = await fetch(`/tickets/users/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`);
             const data = await response.json();
             
-            if (data.success && data.users.length > 0) {
-                mentionUsers = data.users;
-                showMentionDropdown(data.users);
+            if (data.suggestions && data.suggestions.length > 0) {
+                mentionUsers = data.suggestions;
+                showMentionDropdown(data.suggestions);
             } else {
                 hideMentionDropdown();
             }
         } catch (error) {
-            console.error('Error searching users:', error);
+            console.error('Error searching mentions:', error);
             hideMentionDropdown();
         }
     }
     
     // Show mention dropdown
-    function showMentionDropdown(users) {
+    function showMentionDropdown(suggestions) {
         mentionList.innerHTML = '';
         selectedIndex = -1;
         
-        users.forEach((user, index) => {
-            const item = document.createElement('div');
-            item.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
-            item.innerHTML = `
-                <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
-                    ${user.username[0].toUpperCase()}
-                </div>
-                <div>
-                    <div class="font-medium text-gray-900">${user.username}</div>
-                    ${user.email !== user.username ? `<div class="text-sm text-gray-500">${user.email}</div>` : ''}
-                </div>
-            `;
+        suggestions.forEach((item, index) => {
+            const element = document.createElement('div');
+            element.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
             
-            item.addEventListener('click', () => selectUser(user));
-            mentionList.appendChild(item);
+            if (item.type === 'user') {
+                element.innerHTML = `
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        ${item.avatar}
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">${item.name}</div>
+                        ${item.email !== item.name ? `<div class="text-sm text-gray-500">${item.email}</div>` : ''}
+                    </div>
+                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">User</div>
+                `;
+            } else if (item.type === 'group') {
+                element.innerHTML = `
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        <i class="fas fa-users text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">@${item.name}</div>
+                        <div class="text-sm text-gray-500">${item.description}</div>
+                    </div>
+                    <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Group</div>
+                `;
+            }
+            
+            element.addEventListener('click', () => selectMention(item));
+            mentionList.appendChild(element);
         });
         
         dropdown.classList.remove('hidden');
@@ -9501,17 +9517,18 @@ function initializeMentionAutocomplete(textarea) {
     }
     
     // Select a user
-    function selectUser(user) {
+    function selectMention(item) {
         const value = textarea.value;
         const beforeMention = value.substring(0, currentMentionStart);
         const afterCursor = value.substring(textarea.selectionStart);
         
-        // Insert the mention
-        const newValue = beforeMention + `@${user.username} ` + afterCursor;
+        // Insert the mention (both users and groups need @)
+        const mentionText = `@${item.name}`;
+        const newValue = beforeMention + `${mentionText} ` + afterCursor;
         textarea.value = newValue;
         
         // Set cursor position after the mention
-        const newCursorPos = currentMentionStart + user.username.length + 2;
+        const newCursorPos = currentMentionStart + mentionText.length + 1;
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         
         // Trigger input event to update character counter

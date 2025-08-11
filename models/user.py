@@ -114,6 +114,7 @@ class User(Base, UserMixin):
         from sqlalchemy.orm import Session
         from database import engine
         from models.company_queue_permission import CompanyQueuePermission
+        from models.queue import Queue
         
         # Super admins can access all queues
         if self.is_super_admin:
@@ -121,6 +122,12 @@ class User(Base, UserMixin):
         
         session = Session(engine)
         try:
+            # SUPERVISOR users can always access "FirstBase New Orders" queue since they can import tickets into it
+            if self.user_type == UserType.SUPERVISOR:
+                queue = session.query(Queue).filter_by(id=queue_id).first()
+                if queue and queue.name == 'FirstBase New Orders':
+                    return True
+            
             # If user is not associated with a company, they can't access any queue
             if not self.company_id:
                 return False
@@ -146,6 +153,7 @@ class User(Base, UserMixin):
         from sqlalchemy.orm import Session
         from database import engine
         from models.company_queue_permission import CompanyQueuePermission
+        from models.queue import Queue
         
         # Super admins can create tickets in all queues
         if self.is_super_admin:
@@ -153,6 +161,12 @@ class User(Base, UserMixin):
         
         session = Session(engine)
         try:
+            # SUPERVISOR users can always create tickets in "FirstBase New Orders" queue since they can import tickets into it
+            if self.user_type == UserType.SUPERVISOR:
+                queue = session.query(Queue).filter_by(id=queue_id).first()
+                if queue and queue.name == 'FirstBase New Orders':
+                    return True
+            
             # If user is not associated with a company, they can't create tickets
             if not self.company_id:
                 return False
