@@ -66,6 +66,11 @@ class Permission(Base):
     can_delete_articles = Column(Boolean, default=False)
     can_manage_categories = Column(Boolean, default=False)
     can_view_restricted_articles = Column(Boolean, default=False)
+    
+    # Inventory Audit Permissions
+    can_access_inventory_audit = Column(Boolean, default=False)
+    can_start_inventory_audit = Column(Boolean, default=False)
+    can_view_audit_reports = Column(Boolean, default=False)
 
     @classmethod
     def permission_fields(cls):
@@ -117,7 +122,10 @@ class Permission(Base):
                 'can_edit_articles': True,
                 'can_delete_articles': True,
                 'can_manage_categories': True,
-                'can_view_restricted_articles': True
+                'can_view_restricted_articles': True,
+                'can_access_inventory_audit': True,
+                'can_start_inventory_audit': True,
+                'can_view_audit_reports': True
             }
         elif user_type == UserType.COUNTRY_ADMIN:
             return {
@@ -158,7 +166,10 @@ class Permission(Base):
                 'can_edit_articles': True,
                 'can_delete_articles': False,
                 'can_manage_categories': True,
-                'can_view_restricted_articles': False
+                'can_view_restricted_articles': False,
+                'can_access_inventory_audit': True,
+                'can_start_inventory_audit': True,
+                'can_view_audit_reports': True
             }
         elif user_type == UserType.CLIENT:
             return {
@@ -199,7 +210,10 @@ class Permission(Base):
                 'can_edit_articles': False,
                 'can_delete_articles': False,
                 'can_manage_categories': False,
-                'can_view_restricted_articles': False
+                'can_view_restricted_articles': False,
+                'can_access_inventory_audit': False,
+                'can_start_inventory_audit': False,
+                'can_view_audit_reports': False
             }
         else:  # Supervisor
             return {
@@ -240,5 +254,8 @@ class Permission(Base):
                 'can_edit_articles': False,
                 'can_delete_articles': False,
                 'can_manage_categories': False,
-                'can_view_restricted_articles': False
+                'can_view_restricted_articles': False,
+                'can_access_inventory_audit': True,
+                'can_start_inventory_audit': True,
+                'can_view_audit_reports': True
             } 

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file, abort, Response, current_app
 from datetime import datetime
-from utils.auth_decorators import login_required, admin_required
+from utils.auth_decorators import login_required, admin_required, permission_required
 from utils.store_instances import inventory_store, db_manager
 from models.asset import Asset, AssetStatus
 from models.asset_history import AssetHistory
@@ -4084,6 +4084,7 @@ def update_erase_status():
 
 @inventory_bp.route('/audit')
 @login_required
+@permission_required('can_access_inventory_audit')
 def audit_inventory():
     """Inventory audit main page"""
     user_id = session['user_id']
@@ -4094,11 +4095,6 @@ def audit_inventory():
         if not user:
             flash('User not found')
             return redirect(url_for('auth.login'))
-        
-        # Check permissions - only certain user types can perform audits
-        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
-            flash('You do not have permission to perform inventory audits')
-            return redirect(url_for('main.index'))
         
         # Get available countries from actual inventory data based on user permissions
         available_countries = []
@@ -4151,6 +4147,7 @@ def audit_inventory():
 
 @inventory_bp.route('/audit/start', methods=['POST'])
 @login_required
+@permission_required('can_start_inventory_audit')
 def start_audit():
     """Start a new inventory audit session"""
     user_id = session['user_id']
@@ -4270,6 +4267,7 @@ def start_audit():
 
 @inventory_bp.route('/audit/reports')
 @login_required
+@permission_required('can_view_audit_reports')
 def view_audit_reports():
     """View all completed audit reports"""
     user_id = session['user_id']
@@ -4331,6 +4329,7 @@ def view_audit_reports():
 
 @inventory_bp.route('/audit/reports/<audit_id>')
 @login_required
+@permission_required('can_view_audit_reports')
 def view_audit_report_detail(audit_id):
     """View detailed audit report"""
     user_id = session['user_id']

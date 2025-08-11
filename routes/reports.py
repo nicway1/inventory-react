@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
+from utils.auth_decorators import permission_required
 from sqlalchemy import func, extract, and_, or_, case
 from datetime import datetime, timedelta
 import json
@@ -19,12 +20,14 @@ reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
 @reports_bp.route('/')
 @login_required
+@permission_required('can_view_reports')
 def index():
     """Reports dashboard"""
     return render_template('reports/index.html')
 
 @reports_bp.route('/cases')
 @login_required
+@permission_required('can_view_reports')
 def case_reports():
     """Case/Ticket reports with various visualizations"""
     # Get date range from request
@@ -144,6 +147,7 @@ def case_reports():
 
 @reports_bp.route('/assets')
 @login_required
+@permission_required('can_view_reports')
 def asset_reports():
     """Asset reports with various visualizations"""
     # Get database session
@@ -313,6 +317,7 @@ def asset_reports():
 
 @reports_bp.route('/assets/by-model/<model_name>')
 @login_required
+@permission_required('can_view_reports')
 def assets_by_model(model_name):
     """View all assets for a specific model"""
     # Get database session
@@ -384,6 +389,7 @@ def assets_by_model(model_name):
 
 @reports_bp.route('/debug/unknown-models')
 @login_required
+@permission_required('can_view_reports')
 def debug_unknown_models():
     """Debug route to investigate Unknown Model assets"""
     # Get database session

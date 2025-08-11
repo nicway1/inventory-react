@@ -190,6 +190,23 @@
                             </label>
                         </div>
 
+                        <!-- Inventory Audit Permissions -->
+                        <div class="space-y-2">
+                            <h4 class="font-medium text-gray-700">Inventory Audit</h4>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_access_inventory_audit" value="true" {% if permission.can_access_inventory_audit %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Access Inventory Audit</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_start_inventory_audit" value="true" {% if permission.can_start_inventory_audit %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Start Inventory Audit</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_view_audit_reports" value="true" {% if permission.can_view_audit_reports %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">View Audit Reports</span>
+                            </label>
+                        </div>
+
                         <!-- Other Permissions -->
                         <div class="space-y-2">
                             <h4 class="font-medium text-gray-700">Other Permissions</h4>
