@@ -118,7 +118,7 @@ def format_asset_complete(asset):
         "manufacturer": safe_str(asset.manufacturer),
         "status": asset.status.value.lower() if asset.status else "available",
         
-        # Hardware specifications
+        # Hardware specifications - COMPLETE SET
         "cpu_type": safe_str(asset.cpu_type),
         "cpu_cores": safe_int(asset.cpu_cores),
         "gpu_cores": safe_int(asset.gpu_cores),
@@ -127,36 +127,84 @@ def format_asset_complete(asset):
         "hardware_type": safe_str(asset.hardware_type),
         "asset_type": safe_str(asset.asset_type),
         
-        # Condition and status details
+        # Additional hardware specifications from JSON
+        "specifications": asset.specifications if asset.specifications else {},
+        
+        # Condition and status details - COMPLETE SET
         "condition": safe_str(asset.condition),
         "is_erased": bool_to_display(asset.erased) if asset.erased not in [None, '', 'None'] else None,
+        "data_erasure_status": safe_str(asset.erased),  # Raw erasure status
         "has_keyboard": bool_to_display(asset.keyboard) if asset.keyboard not in [None, '', 'None'] else None,
         "has_charger": bool_to_display(asset.charger) if asset.charger not in [None, '', 'None'] else None,
         "diagnostics_code": safe_str(asset.diag),
+        "functional_condition": safe_str(asset.condition),  # Functional condition status
         
-        # Location and assignment details
+        # Purchase and cost information
+        "cost_price": float(asset.cost_price) if asset.cost_price else None,
+        "purchase_cost": float(asset.cost_price) if asset.cost_price else None,  # Alias
+        "purchase_order": safe_str(asset.po),
+        
+        # Location and assignment details - COMPLETE SET
         "current_customer": safe_str(asset.customer),
         "country": safe_str(asset.country),
         "asset_company": asset.company.name if asset.company else None,
+        "company_id": asset.company_id,
         "receiving_date": asset.receiving_date.isoformat() if asset.receiving_date else None,
+        
+        # Physical location details
+        "location": asset.location.name if asset.location else None,
+        "location_id": asset.location_id,
+        "location_details": {
+            "id": asset.location.id,
+            "name": asset.location.name,
+            "address": getattr(asset.location, 'address', None),
+            "city": getattr(asset.location, 'city', None),
+            "country": getattr(asset.location, 'country', None)
+        } if asset.location else None,
+        
+        # Assignment and deployment information - COMPLETE SET
+        "assigned_to": {
+            "id": asset.assigned_to.id,
+            "name": f"{asset.assigned_to.first_name or ''} {asset.assigned_to.last_name or ''}".strip(),
+            "email": asset.assigned_to.email,
+            "username": asset.assigned_to.username,
+            "user_type": asset.assigned_to.user_type.value if asset.assigned_to.user_type else None
+        } if asset.assigned_to else None,
+        "assigned_to_id": asset.assigned_to_id,
+        
+        # Customer user assignment (if different from assigned_to)
+        "customer_user": {
+            "id": asset.customer_user.id,
+            "name": asset.customer_user.name,
+            "email": asset.customer_user.email,
+            "company": getattr(asset.customer_user, 'company', None)
+        } if asset.customer_user else None,
+        "customer_id": asset.customer_id,
+        
+        # Additional deployment details
+        "inventory_status": safe_str(asset.inventory),
+        "intake_ticket_id": asset.intake_ticket_id,
+        "intake_ticket": {
+            "id": asset.intake_ticket.id,
+            "ticket_number": getattr(asset.intake_ticket, 'ticket_number', None),
+            "status": getattr(asset.intake_ticket, 'status', None)
+        } if asset.intake_ticket else None,
+        
+        # Technical notes and documentation
+        "description": safe_str(asset.notes),
+        "notes": safe_str(asset.notes),
+        "tech_notes": safe_str(asset.tech_notes),
+        "technical_notes": safe_str(asset.tech_notes),  # Alias
+        
+        # Category information
+        "category": safe_str(asset.category),
         
         # Standard timestamps
         "created_at": asset.created_at.isoformat() if asset.created_at else None,
         "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
         
-        # Additional useful fields
-        "description": safe_str(asset.notes),
-        "location": asset.location.name if asset.location else None,
-        "assigned_to": {
-            "id": asset.assigned_to.id,
-            "name": f"{asset.assigned_to.first_name or ''} {asset.assigned_to.last_name or ''}".strip(),
-            "email": asset.assigned_to.email
-        } if asset.assigned_to else None,
-        "customer_user": {
-            "id": asset.customer_user.id,
-            "name": asset.customer_user.name,
-            "email": asset.customer_user.email
-        } if asset.customer_user else None
+        # Type identifier for API consumers
+        "item_type": "asset"
     }
 
 @inventory_api_bp.route('/inventory', methods=['GET'])

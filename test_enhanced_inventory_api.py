@@ -106,13 +106,27 @@ def test_api_endpoints():
                 asset = assets[0]  # Check first asset
                 print(f"\n  Sample asset structure:")
                 
-                # Check required fields from specification
+                # Check required fields from specification (COMPLETE SET)
                 required_fields = [
+                    # Basic identification
                     'id', 'name', 'serial_number', 'model', 'asset_tag', 'manufacturer', 'status',
-                    'cpu_type', 'cpu_cores', 'gpu_cores', 'memory', 'storage', 'hardware_type', 'asset_type',
-                    'condition', 'is_erased', 'has_keyboard', 'has_charger', 'diagnostics_code',
-                    'current_customer', 'country', 'asset_company', 'receiving_date',
-                    'created_at', 'updated_at'
+                    # Hardware specifications - COMPLETE
+                    'cpu_type', 'cpu_cores', 'gpu_cores', 'memory', 'storage', 'hardware_type', 'asset_type', 'specifications',
+                    # Condition and status details - COMPLETE
+                    'condition', 'functional_condition', 'is_erased', 'data_erasure_status', 
+                    'has_keyboard', 'has_charger', 'diagnostics_code',
+                    # Purchase and cost information
+                    'cost_price', 'purchase_cost', 'purchase_order',
+                    # Location and assignment details - COMPLETE
+                    'current_customer', 'country', 'asset_company', 'company_id', 'receiving_date',
+                    'location', 'location_id', 'location_details',
+                    # Assignment and deployment information - COMPLETE
+                    'assigned_to', 'assigned_to_id', 'customer_user', 'customer_id',
+                    'inventory_status', 'intake_ticket_id', 'intake_ticket',
+                    # Technical documentation
+                    'description', 'notes', 'tech_notes', 'technical_notes', 'category',
+                    # Standard metadata
+                    'created_at', 'updated_at', 'item_type'
                 ]
                 
                 missing_fields = []
@@ -122,7 +136,7 @@ def test_api_endpoints():
                     if field in asset:
                         present_fields.append(field)
                         # Show some sample values
-                        if field in ['id', 'name', 'serial_number', 'status', 'cpu_type', 'memory', 'condition']:
+                        if field in ['id', 'name', 'serial_number', 'status', 'cpu_type', 'memory', 'condition', 'assigned_to', 'location']:
                             print(f"    {field}: {asset[field]}")
                     else:
                         missing_fields.append(field)
@@ -357,12 +371,18 @@ if __name__ == "__main__":
             print("  - category: Filter by asset/accessory category/type")
             
             print("\n📋 Key Features:")
-            print("  ✓ Complete asset specifications (CPU, memory, storage, etc.)")
+            print("  ✓ COMPLETE asset specifications (CPU, memory, storage, GPU cores, etc.)")
+            print("  ✓ COMPLETE condition details (data erasure status, functional condition)")
+            print("  ✓ COMPLETE deployment information (assigned users, locations, companies)")
             print("  ✓ Complete accessory inventory tracking (quantities, availability)")
+            print("  ✓ Purchase and cost tracking (cost price, purchase orders)")
+            print("  ✓ Technical documentation (notes, technical notes, categories)")
             print("  ✓ Authentication and permission-based access")
             print("  ✓ Country-based restrictions for regional admins")
             print("  ✓ Advanced filtering and search capabilities")
-            print("  ✓ Comprehensive field coverage as requested")
+            print("  ✓ Enhanced location details with full address information")
+            print("  ✓ Intake ticket integration and tracking")
+            print("  ✓ JSON specifications support for additional hardware details")
             
         else:
             print("\n⚠️  Some tests failed. Check the output above for details.")

@@ -81,21 +81,52 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
       "storage": "512.0 GB",
       "hardware_type": "MacBook Pro 14\" Apple",
       "asset_type": "Laptop",
+      "specifications": {},
       "condition": "NEW",
       "is_erased": true,
+      "data_erasure_status": "Yes",
       "has_keyboard": true,
       "has_charger": true,
       "diagnostics_code": "ADP000",
+      "functional_condition": "NEW",
+      "cost_price": 2499.99,
+      "purchase_cost": 2499.99,
+      "purchase_order": "PO-2025-001",
       "current_customer": null,
       "country": "Singapore",
       "asset_company": "Wise",
+      "company_id": 1,
       "receiving_date": "2025-08-11T09:04:27.257649",
+      "location": "Warehouse A",
+      "location_id": 1,
+      "location_details": {
+        "id": 1,
+        "name": "Warehouse A",
+        "address": "123 Storage Street",
+        "city": "Singapore",
+        "country": "Singapore"
+      },
+      "assigned_to": {
+        "id": 15,
+        "name": "John Doe",
+        "email": "john.doe@company.com",
+        "username": "john.doe",
+        "user_type": "USER"
+      },
+      "assigned_to_id": 15,
+      "customer_user": null,
+      "customer_id": null,
+      "inventory_status": "Active",
+      "intake_ticket_id": null,
+      "intake_ticket": null,
+      "description": "Apple MacBook Pro with M3 Pro chip",
+      "notes": "Apple MacBook Pro with M3 Pro chip",
+      "tech_notes": "Configured with standard corporate image",
+      "technical_notes": "Configured with standard corporate image",
+      "category": "Computers",
       "created_at": "2025-08-11T09:04:27.257649",
       "updated_at": "2025-08-11T09:04:27.257649",
-      "description": "Apple MacBook Pro with M3 Pro chip",
-      "location": "Warehouse A",
-      "assigned_to": null,
-      "customer_user": null
+      "item_type": "asset"
     }
   ],
   "pagination": {
@@ -140,21 +171,52 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
     "storage": "512.0 GB",
     "hardware_type": "MacBook Pro 14\" Apple",
     "asset_type": "Laptop",
+    "specifications": {},
     "condition": "NEW",
     "is_erased": true,
+    "data_erasure_status": "Yes",
     "has_keyboard": true,
     "has_charger": true,
     "diagnostics_code": "ADP000",
+    "functional_condition": "NEW",
+    "cost_price": 2499.99,
+    "purchase_cost": 2499.99,
+    "purchase_order": "PO-2025-001",
     "current_customer": null,
     "country": "Singapore",
     "asset_company": "Wise",
+    "company_id": 1,
     "receiving_date": "2025-08-11T09:04:27.257649",
+    "location": "Warehouse A",
+    "location_id": 1,
+    "location_details": {
+      "id": 1,
+      "name": "Warehouse A",
+      "address": "123 Storage Street",
+      "city": "Singapore",
+      "country": "Singapore"
+    },
+    "assigned_to": {
+      "id": 15,
+      "name": "John Doe",
+      "email": "john.doe@company.com",
+      "username": "john.doe",
+      "user_type": "USER"
+    },
+    "assigned_to_id": 15,
+    "customer_user": null,
+    "customer_id": null,
+    "inventory_status": "Active",
+    "intake_ticket_id": null,
+    "intake_ticket": null,
+    "description": "Apple MacBook Pro with M3 Pro chip",
+    "notes": "Apple MacBook Pro with M3 Pro chip",
+    "tech_notes": "Configured with standard corporate image",
+    "technical_notes": "Configured with standard corporate image",
+    "category": "Computers",
     "created_at": "2025-08-11T09:04:27.257649",
     "updated_at": "2025-08-11T09:04:27.257649",
-    "description": "Apple MacBook Pro with M3 Pro chip",
-    "location": "Warehouse A",
-    "assigned_to": null,
-    "customer_user": null
+    "item_type": "asset"
   }
 }
 ```
@@ -310,33 +372,64 @@ GET /api/v1/inventory/health
 | `storage` | string | Storage capacity |
 | `hardware_type` | string | Detailed hardware description |
 | `asset_type` | string | Asset category (Laptop, Desktop, etc.) |
+| `specifications` | object | Additional JSON specifications |
 
 ### Condition and Status Details
 | Field | Type | Description |
 |-------|------|-------------|
 | `condition` | string | Physical condition (NEW, USED, etc.) |
-| `is_erased` | boolean | Whether data has been wiped |
+| `functional_condition` | string | Functional condition status |
+| `is_erased` | boolean | Whether data has been wiped (boolean) |
+| `data_erasure_status` | string | Raw data erasure status (string) |
 | `has_keyboard` | boolean | Keyboard included/present |
 | `has_charger` | boolean | Charger included/present |
 | `diagnostics_code` | string | Diagnostic/testing code |
+
+### Purchase and Cost Information
+| Field | Type | Description |
+|-------|------|-------------|
+| `cost_price` | number | Purchase cost/price |
+| `purchase_cost` | number | Purchase cost (alias) |
+| `purchase_order` | string | Purchase order number |
 
 ### Location and Assignment Details
 | Field | Type | Description |
 |-------|------|-------------|
 | `current_customer` | string | Current customer assignment |
 | `country` | string | Asset location country |
-| `asset_company` | string | Owning/assigned company |
+| `asset_company` | string | Owning/assigned company name |
+| `company_id` | integer | Company ID |
 | `receiving_date` | string (ISO 8601) | Date asset was received |
+| `location` | string | Physical location name |
+| `location_id` | integer | Location ID |
+| `location_details` | object | Complete location information |
 
-### Additional Information
+### Assignment and Deployment Information
+| Field | Type | Description |
+|-------|------|-------------|
+| `assigned_to` | object | Complete assigned user information |
+| `assigned_to_id` | integer | Assigned user ID |
+| `customer_user` | object | Customer user assignment |
+| `customer_id` | integer | Customer user ID |
+| `inventory_status` | string | Internal inventory status |
+| `intake_ticket_id` | integer | Related intake ticket ID |
+| `intake_ticket` | object | Intake ticket information |
+
+### Technical Documentation
 | Field | Type | Description |
 |-------|------|-------------|
 | `description` | string | Asset notes/description |
-| `location` | string | Physical location |
-| `assigned_to` | object | Assigned user information |
-| `customer_user` | object | Customer user information |
+| `notes` | string | General notes |
+| `tech_notes` | string | Technical notes |
+| `technical_notes` | string | Technical notes (alias) |
+| `category` | string | Asset category |
+
+### Standard Metadata
+| Field | Type | Description |
+|-------|------|-------------|
 | `created_at` | string (ISO 8601) | Record creation timestamp |
 | `updated_at` | string (ISO 8601) | Last update timestamp |
+| `item_type` | string | Always "asset" for assets |
 
 ### Accessory Response Fields
 
