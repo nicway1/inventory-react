@@ -121,11 +121,39 @@ class InventoryStore:
 
     def get_all_assets(self):
         """Get all assets (alias for get_all_items for API compatibility)"""
-        return self.get_all_items()
+        db_session = self.db_manager.get_session()
+        try:
+            # Use eager loading to avoid lazy loading issues
+            from sqlalchemy.orm import joinedload
+            assets = db_session.query(Asset).options(
+                joinedload(Asset.location, innerjoin=False)
+            ).all()
+            
+            # Detach objects from session to avoid lazy loading issues
+            for asset in assets:
+                db_session.expunge(asset)
+            
+            return assets
+        finally:
+            db_session.close()
 
     def get_asset_by_id(self, asset_id):
         """Get a specific asset by ID (alias for get_item for API compatibility)"""
-        return self.get_item(asset_id)
+        db_session = self.db_manager.get_session()
+        try:
+            # Use eager loading to avoid lazy loading issues
+            from sqlalchemy.orm import joinedload
+            asset = db_session.query(Asset).options(
+                joinedload(Asset.location, innerjoin=False)
+            ).filter(Asset.id == asset_id).first()
+            
+            if asset:
+                # Detach object from session to avoid lazy loading issues
+                db_session.expunge(asset)
+            
+            return asset
+        finally:
+            db_session.close()
 
     def update_item(self, item_id, updated_data):
         db_session = self.db_manager.get_session()

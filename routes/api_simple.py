@@ -9,6 +9,9 @@ from utils.store_instances import ticket_store, user_store, inventory_store
 from werkzeug.security import check_password_hash
 import jwt
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -739,17 +742,22 @@ def list_inventory():
         
         inventory_data = []
         for item in inventory:
-            item_data = {
-                'id': item.id,
-                'name': item.name if hasattr(item, 'name') else None,
-                'asset_tag': item.asset_tag if hasattr(item, 'asset_tag') else None,
-                'serial_number': item.serial_number if hasattr(item, 'serial_number') else None,
-                'model': item.model if hasattr(item, 'model') else None,
-                'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(item.status) if hasattr(item, 'status') else None,
-                'location': item.location if hasattr(item, 'location') else None,
-                'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None
-            }
-            inventory_data.append(item_data)
+            try:
+                item_data = {
+                    'id': getattr(item, 'id', None),
+                    'name': getattr(item, 'name', None),
+                    'asset_tag': getattr(item, 'asset_tag', None),
+                    'serial_number': getattr(item, 'serial_number', None),
+                    'model': getattr(item, 'model', None),
+                    'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
+                    'location': str(getattr(item, 'location', None)) if getattr(item, 'location', None) else None,
+                    'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None
+                }
+                inventory_data.append(item_data)
+            except Exception as e:
+                # Skip items that cause errors but log them
+                logger.error(f"Error serializing inventory item {getattr(item, 'id', 'unknown')}: {e}")
+                continue
         
         pagination = {
             'page': page,
@@ -789,14 +797,14 @@ def get_inventory_item(item_id):
             return jsonify(response), status_code
         
         item_data = {
-            'id': item.id,
-            'name': item.name if hasattr(item, 'name') else None,
-            'asset_tag': item.asset_tag if hasattr(item, 'asset_tag') else None,
-            'serial_number': item.serial_number if hasattr(item, 'serial_number') else None,
-            'model': item.model if hasattr(item, 'model') else None,
-            'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(item.status) if hasattr(item, 'status') else None,
-            'location': item.location if hasattr(item, 'location') else None,
-            'description': item.description if hasattr(item, 'description') else None,
+            'id': getattr(item, 'id', None),
+            'name': getattr(item, 'name', None),
+            'asset_tag': getattr(item, 'asset_tag', None),
+            'serial_number': getattr(item, 'serial_number', None),
+            'model': getattr(item, 'model', None),
+            'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
+            'location': str(getattr(item, 'location', None)) if getattr(item, 'location', None) else None,
+            'description': getattr(item, 'description', None),
             'purchase_date': item.purchase_date.isoformat() if hasattr(item, 'purchase_date') and item.purchase_date else None,
             'warranty_expiry': item.warranty_expiry.isoformat() if hasattr(item, 'warranty_expiry') and item.warranty_expiry else None,
             'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
