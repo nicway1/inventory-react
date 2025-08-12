@@ -119,6 +119,14 @@ class InventoryStore:
         finally:
             db_session.close()
 
+    def get_all_assets(self):
+        """Get all assets (alias for get_all_items for API compatibility)"""
+        return self.get_all_items()
+
+    def get_asset_by_id(self, asset_id):
+        """Get a specific asset by ID (alias for get_item for API compatibility)"""
+        return self.get_item(asset_id)
+
     def update_item(self, item_id, updated_data):
         db_session = self.db_manager.get_session()
         try:

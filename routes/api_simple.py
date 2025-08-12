@@ -720,3 +720,98 @@ def get_user_profile():
             500
         )
         return jsonify(response), status_code
+
+@api_bp.route('/inventory', methods=['GET'])
+@require_api_key(permissions=['inventory:read'])
+def list_inventory():
+    """List inventory items with pagination"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        
+        # Get inventory from store
+        all_inventory = inventory_store.get_all_assets()
+        
+        # Simple pagination
+        start = (page - 1) * per_page
+        end = start + per_page
+        inventory = all_inventory[start:end]
+        
+        inventory_data = []
+        for item in inventory:
+            item_data = {
+                'id': item.id,
+                'name': item.name if hasattr(item, 'name') else None,
+                'asset_tag': item.asset_tag if hasattr(item, 'asset_tag') else None,
+                'serial_number': item.serial_number if hasattr(item, 'serial_number') else None,
+                'model': item.model if hasattr(item, 'model') else None,
+                'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(item.status) if hasattr(item, 'status') else None,
+                'location': item.location if hasattr(item, 'location') else None,
+                'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None
+            }
+            inventory_data.append(item_data)
+        
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total': len(all_inventory),
+            'has_next': end < len(all_inventory),
+            'has_prev': page > 1
+        }
+        
+        return jsonify(create_success_response(
+            inventory_data,
+            f"Retrieved {len(inventory_data)} inventory items",
+            {"pagination": pagination}
+        ))
+        
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving inventory: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+@api_bp.route('/inventory/<int:item_id>', methods=['GET'])
+@require_api_key(permissions=['inventory:read'])
+def get_inventory_item(item_id):
+    """Get detailed information about a specific inventory item"""
+    try:
+        item = inventory_store.get_asset_by_id(item_id)
+        
+        if not item:
+            response, status_code = create_error_response(
+                "RESOURCE_NOT_FOUND",
+                f"Inventory item with ID {item_id} not found",
+                404
+            )
+            return jsonify(response), status_code
+        
+        item_data = {
+            'id': item.id,
+            'name': item.name if hasattr(item, 'name') else None,
+            'asset_tag': item.asset_tag if hasattr(item, 'asset_tag') else None,
+            'serial_number': item.serial_number if hasattr(item, 'serial_number') else None,
+            'model': item.model if hasattr(item, 'model') else None,
+            'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(item.status) if hasattr(item, 'status') else None,
+            'location': item.location if hasattr(item, 'location') else None,
+            'description': item.description if hasattr(item, 'description') else None,
+            'purchase_date': item.purchase_date.isoformat() if hasattr(item, 'purchase_date') and item.purchase_date else None,
+            'warranty_expiry': item.warranty_expiry.isoformat() if hasattr(item, 'warranty_expiry') and item.warranty_expiry else None,
+            'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
+            'updated_at': item.updated_at.isoformat() if hasattr(item, 'updated_at') and item.updated_at else None
+        }
+        
+        return jsonify(create_success_response(
+            item_data,
+            f"Retrieved inventory item {item_id}"
+        ))
+        
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving inventory item: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
