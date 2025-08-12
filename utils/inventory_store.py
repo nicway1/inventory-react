@@ -126,8 +126,8 @@ class InventoryStore:
             # Query only the columns we need to avoid relationship loading
             from sqlalchemy import text
             result = db_session.execute(text("""
-                SELECT id, name, asset_tag, serial_number, model, status, location_id, 
-                       created_at, updated_at, description, purchase_date, warranty_expiry
+                SELECT id, name, asset_tag, serial_num, model, status, location_id, 
+                       created_at, updated_at, notes, cost_price, manufacturer
                 FROM assets
             """))
             
@@ -138,15 +138,15 @@ class InventoryStore:
                 asset.id = row.id
                 asset.name = row.name
                 asset.asset_tag = row.asset_tag
-                asset.serial_number = row.serial_number
+                asset.serial_number = row.serial_num
                 asset.model = row.model
                 asset.status = row.status
                 asset.location_id = row.location_id
                 asset.created_at = row.created_at
                 asset.updated_at = row.updated_at
-                asset.description = row.description
-                asset.purchase_date = row.purchase_date
-                asset.warranty_expiry = row.warranty_expiry
+                asset.description = row.notes
+                asset.cost_price = row.cost_price
+                asset.manufacturer = row.manufacturer
                 assets.append(asset)
             
             return assets
@@ -160,8 +160,8 @@ class InventoryStore:
             # Query only the columns we need to avoid relationship loading
             from sqlalchemy import text
             result = db_session.execute(text("""
-                SELECT id, name, asset_tag, serial_number, model, status, location_id, 
-                       created_at, updated_at, description, purchase_date, warranty_expiry
+                SELECT id, name, asset_tag, serial_num, model, status, location_id, 
+                       created_at, updated_at, notes, cost_price, manufacturer
                 FROM assets
                 WHERE id = :asset_id
             """), {"asset_id": asset_id})
@@ -172,15 +172,15 @@ class InventoryStore:
                 asset.id = row.id
                 asset.name = row.name
                 asset.asset_tag = row.asset_tag
-                asset.serial_number = row.serial_number
+                asset.serial_number = row.serial_num
                 asset.model = row.model
                 asset.status = row.status
                 asset.location_id = row.location_id
                 asset.created_at = row.created_at
                 asset.updated_at = row.updated_at
-                asset.description = row.description
-                asset.purchase_date = row.purchase_date
-                asset.warranty_expiry = row.warranty_expiry
+                asset.description = row.notes
+                asset.cost_price = row.cost_price
+                asset.manufacturer = row.manufacturer
                 return asset
             
             return None

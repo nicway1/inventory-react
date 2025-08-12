@@ -805,8 +805,8 @@ def get_inventory_item(item_id):
             'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
             'location_id': getattr(item, 'location_id', None),
             'description': getattr(item, 'description', None),
-            'purchase_date': item.purchase_date.isoformat() if hasattr(item, 'purchase_date') and item.purchase_date else None,
-            'warranty_expiry': item.warranty_expiry.isoformat() if hasattr(item, 'warranty_expiry') and item.warranty_expiry else None,
+            'cost_price': getattr(item, 'cost_price', None),
+            'manufacturer': getattr(item, 'manufacturer', None),
             'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
             'updated_at': item.updated_at.isoformat() if hasattr(item, 'updated_at') and item.updated_at else None
         }
