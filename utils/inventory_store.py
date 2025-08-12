@@ -123,29 +123,33 @@ class InventoryStore:
         """Get all assets (alias for get_all_items for API compatibility)"""
         db_session = self.db_manager.get_session()
         try:
-            # Get assets without loading relationships to avoid lazy loading issues
-            assets = db_session.query(Asset).all()
+            # Query only the columns we need to avoid relationship loading
+            from sqlalchemy import text
+            result = db_session.execute(text("""
+                SELECT id, name, asset_tag, serial_number, model, status, location_id, 
+                       created_at, updated_at, description, purchase_date, warranty_expiry
+                FROM assets
+            """))
             
-            # Create a list of detached asset objects with basic attributes
-            detached_assets = []
-            for asset in assets:
-                # Create a simple object with just the attributes we need
-                detached_asset = type('Asset', (), {})()
-                detached_asset.id = asset.id
-                detached_asset.name = getattr(asset, 'name', None)
-                detached_asset.asset_tag = getattr(asset, 'asset_tag', None)
-                detached_asset.serial_number = getattr(asset, 'serial_number', None)
-                detached_asset.model = getattr(asset, 'model', None)
-                detached_asset.status = getattr(asset, 'status', None)
-                detached_asset.location_id = getattr(asset, 'location_id', None)
-                detached_asset.created_at = getattr(asset, 'created_at', None)
-                detached_asset.updated_at = getattr(asset, 'updated_at', None)
-                detached_asset.description = getattr(asset, 'description', None)
-                detached_asset.purchase_date = getattr(asset, 'purchase_date', None)
-                detached_asset.warranty_expiry = getattr(asset, 'warranty_expiry', None)
-                detached_assets.append(detached_asset)
+            # Create simple objects from the raw data
+            assets = []
+            for row in result:
+                asset = type('Asset', (), {})()
+                asset.id = row.id
+                asset.name = row.name
+                asset.asset_tag = row.asset_tag
+                asset.serial_number = row.serial_number
+                asset.model = row.model
+                asset.status = row.status
+                asset.location_id = row.location_id
+                asset.created_at = row.created_at
+                asset.updated_at = row.updated_at
+                asset.description = row.description
+                asset.purchase_date = row.purchase_date
+                asset.warranty_expiry = row.warranty_expiry
+                assets.append(asset)
             
-            return detached_assets
+            return assets
         finally:
             db_session.close()
 
@@ -153,24 +157,31 @@ class InventoryStore:
         """Get a specific asset by ID (alias for get_item for API compatibility)"""
         db_session = self.db_manager.get_session()
         try:
-            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+            # Query only the columns we need to avoid relationship loading
+            from sqlalchemy import text
+            result = db_session.execute(text("""
+                SELECT id, name, asset_tag, serial_number, model, status, location_id, 
+                       created_at, updated_at, description, purchase_date, warranty_expiry
+                FROM assets
+                WHERE id = :asset_id
+            """), {"asset_id": asset_id})
             
-            if asset:
-                # Create a simple object with just the attributes we need
-                detached_asset = type('Asset', (), {})()
-                detached_asset.id = asset.id
-                detached_asset.name = getattr(asset, 'name', None)
-                detached_asset.asset_tag = getattr(asset, 'asset_tag', None)
-                detached_asset.serial_number = getattr(asset, 'serial_number', None)
-                detached_asset.model = getattr(asset, 'model', None)
-                detached_asset.status = getattr(asset, 'status', None)
-                detached_asset.location_id = getattr(asset, 'location_id', None)
-                detached_asset.created_at = getattr(asset, 'created_at', None)
-                detached_asset.updated_at = getattr(asset, 'updated_at', None)
-                detached_asset.description = getattr(asset, 'description', None)
-                detached_asset.purchase_date = getattr(asset, 'purchase_date', None)
-                detached_asset.warranty_expiry = getattr(asset, 'warranty_expiry', None)
-                return detached_asset
+            row = result.first()
+            if row:
+                asset = type('Asset', (), {})()
+                asset.id = row.id
+                asset.name = row.name
+                asset.asset_tag = row.asset_tag
+                asset.serial_number = row.serial_number
+                asset.model = row.model
+                asset.status = row.status
+                asset.location_id = row.location_id
+                asset.created_at = row.created_at
+                asset.updated_at = row.updated_at
+                asset.description = row.description
+                asset.purchase_date = row.purchase_date
+                asset.warranty_expiry = row.warranty_expiry
+                return asset
             
             return None
         finally:
