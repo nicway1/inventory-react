@@ -6,6 +6,10 @@ from flask import Blueprint, request, jsonify, g
 from datetime import datetime, timedelta
 from utils.api_auth import require_api_key, create_success_response, create_error_response
 from utils.store_instances import ticket_store, user_store, inventory_store
+from utils.db_manager import DatabaseManager
+from models.user import User
+from models.ticket import Ticket
+from models.asset import Asset
 from werkzeug.security import check_password_hash
 import jwt
 import os
@@ -15,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 # Create API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
+
+# Initialize database manager (same as web interface)
+db_manager = DatabaseManager()
 
 @api_bp.route('/health', methods=['GET'])
 def health_check():
@@ -56,67 +63,64 @@ def login():
             )
             return jsonify(response), status_code
         
-        # Find user by username or email
-        user = None
-        all_users = user_store.get_all_users()
-        
-        for u in all_users:
-            if (hasattr(u, 'username') and u.username == username_or_email) or \
-               (hasattr(u, 'email') and u.email == username_or_email):
-                user = u
-                break
-        
-        if not user:
+        # Use the same database manager as web login
+        try:
+            with db_manager as db:
+                # Try to find user by username first
+                user = db.get_user_by_username(username_or_email)
+                
+                # If not found by username, try by email
+                if not user:
+                    db_session = db_manager.get_session()
+                    try:
+                        user = db_session.query(User).filter(User.email == username_or_email).first()
+                    finally:
+                        db_session.close()
+                
+                # Check if user exists and password is correct
+                if not user or not user.check_password(password):
+                    response, status_code = create_error_response(
+                        "INVALID_CREDENTIALS",
+                        "Invalid username/email or password",
+                        401
+                    )
+                    return jsonify(response), status_code
+                
+                # Generate JWT token (user authentication successful)
+                secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+                payload = {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'user_type': user.user_type.value if user.user_type else 'USER',
+                    'exp': datetime.utcnow() + timedelta(hours=24),  # Token expires in 24 hours
+                    'iat': datetime.utcnow()
+                }
+                
+                token = jwt.encode(payload, secret_key, algorithm='HS256')
+                
+                # Return success response
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'user_type': user.user_type.value if user.user_type else 'USER',
+                    'token': token,
+                    'expires_at': (datetime.utcnow() + timedelta(hours=24)).isoformat()
+                }
+                
+                return jsonify(create_success_response(
+                    user_data,
+                    "Login successful"
+                ))
+                
+        except Exception as e:
+            logger.error(f"Database error during login: {str(e)}")
             response, status_code = create_error_response(
-                "INVALID_CREDENTIALS",
-                "Invalid username/email or password",
-                401
+                "INTERNAL_ERROR",
+                "Database error during authentication",
+                500
             )
             return jsonify(response), status_code
-        
-        # Check password
-        if not hasattr(user, 'password_hash') or not user.password_hash:
-            response, status_code = create_error_response(
-                "INVALID_CREDENTIALS",
-                "Invalid username/email or password",
-                401
-            )
-            return jsonify(response), status_code
-        
-        if not check_password_hash(user.password_hash, password):
-            response, status_code = create_error_response(
-                "INVALID_CREDENTIALS",
-                "Invalid username/email or password",
-                401
-            )
-            return jsonify(response), status_code
-        
-        # Generate JWT token
-        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
-        payload = {
-            'user_id': user.id,
-            'username': user.username if hasattr(user, 'username') else user.email,
-            'user_type': user.user_type.value if hasattr(user, 'user_type') and user.user_type else 'USER',
-            'exp': datetime.utcnow() + timedelta(hours=24),  # Token expires in 24 hours
-            'iat': datetime.utcnow()
-        }
-        
-        token = jwt.encode(payload, secret_key, algorithm='HS256')
-        
-        # Return success response
-        user_data = {
-            'id': user.id,
-            'username': user.username if hasattr(user, 'username') else None,
-            'email': user.email if hasattr(user, 'email') else None,
-            'user_type': user.user_type.value if hasattr(user, 'user_type') and user.user_type else 'USER',
-            'token': token,
-            'expires_at': (datetime.utcnow() + timedelta(hours=24)).isoformat()
-        }
-        
-        return jsonify(create_success_response(
-            user_data,
-            "Login successful"
-        ))
         
     except Exception as e:
         response, status_code = create_error_response(
@@ -273,35 +277,41 @@ def list_tickets():
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         
-        # Get tickets from store
-        all_tickets = ticket_store.get_all_tickets()
-        
-        # Simple pagination
-        start = (page - 1) * per_page
-        end = start + per_page
-        tickets = all_tickets[start:end]
-        
-        # Convert to API format
-        tickets_data = []
-        for ticket in tickets:
-            ticket_data = {
-                'id': ticket.id,
-                'subject': ticket.subject,
-                'description': ticket.description,
-                'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
-                'priority': ticket.priority.name if ticket.priority else None,
-                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
-                'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
+        # Get tickets from database (same as web interface)
+        db_session = db_manager.get_session()
+        try:
+            # Query tickets from database
+            query = db_session.query(Ticket).order_by(Ticket.created_at.desc())
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            tickets = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            # Convert to API format
+            tickets_data = []
+            for ticket in tickets:
+                ticket_data = {
+                    'id': ticket.id,
+                    'subject': ticket.subject,
+                    'description': ticket.description,
+                    'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                    'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                    'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
+                }
+                tickets_data.append(ticket_data)
+            
+            pagination = {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'has_next': (page * per_page) < total,
+                'has_prev': page > 1
             }
-            tickets_data.append(ticket_data)
-        
-        pagination = {
-            'page': page,
-            'per_page': per_page,
-            'total': len(all_tickets),
-            'has_next': end < len(all_tickets),
-            'has_prev': page > 1
-        }
+        finally:
+            db_session.close()
         
         return jsonify(create_success_response(
             tickets_data,
@@ -322,26 +332,31 @@ def list_tickets():
 def get_ticket(ticket_id):
     """Get detailed information about a specific ticket"""
     try:
-        ticket = ticket_store.get_ticket_by_id(ticket_id)
-        
-        if not ticket:
-            response, status_code = create_error_response(
-                "RESOURCE_NOT_FOUND",
-                f"Ticket with ID {ticket_id} not found",
-                404
-            )
-            return jsonify(response), status_code
-        
-        ticket_data = {
-            'id': ticket.id,
-            'subject': ticket.subject,
-            'description': ticket.description,
-            'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
-            'priority': ticket.priority.name if ticket.priority else None,
-            'category': ticket.category.name if ticket.category else None,
-            'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
-            'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
-        }
+        # Get ticket from database (same as web interface)
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).get(ticket_id)
+            
+            if not ticket:
+                response, status_code = create_error_response(
+                    "RESOURCE_NOT_FOUND",
+                    f"Ticket with ID {ticket_id} not found",
+                    404
+                )
+                return jsonify(response), status_code
+            
+            ticket_data = {
+                'id': ticket.id,
+                'subject': ticket.subject,
+                'description': ticket.description,
+                'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
+                'category': ticket.category.value if hasattr(ticket.category, 'value') else str(ticket.category) if ticket.category else None,
+                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
+            }
+        finally:
+            db_session.close()
         
         return jsonify(create_success_response(
             ticket_data,
@@ -364,32 +379,38 @@ def list_users():
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         
-        # Get users from store
-        all_users = user_store.get_all_users()
-        
-        # Simple pagination
-        start = (page - 1) * per_page
-        end = start + per_page
-        users = all_users[start:end]
-        
-        users_data = []
-        for user in users:
-            user_data = {
-                'id': user.id,
-                'name': user.name if hasattr(user, 'name') else user.username,
-                'email': user.email,
-                'user_type': user.user_type.value if user.user_type else None,
-                'created_at': user.created_at.isoformat() if user.created_at else None
+        # Get users from database (same as web interface)
+        db_session = db_manager.get_session()
+        try:
+            # Query users from database
+            query = db_session.query(User).order_by(User.username)
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            users = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            users_data = []
+            for user in users:
+                user_data = {
+                    'id': user.id,
+                    'name': user.username,  # Use username as name for consistency
+                    'email': user.email,
+                    'user_type': user.user_type.value if user.user_type else None,
+                    'created_at': user.created_at.isoformat() if user.created_at else None
+                }
+                users_data.append(user_data)
+            
+            pagination = {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'has_next': (page * per_page) < total,
+                'has_prev': page > 1
             }
-            users_data.append(user_data)
-        
-        pagination = {
-            'page': page,
-            'per_page': per_page,
-            'total': len(all_users),
-            'has_next': end < len(all_users),
-            'has_prev': page > 1
-        }
+        finally:
+            db_session.close()
         
         return jsonify(create_success_response(
             users_data,
@@ -732,40 +753,46 @@ def list_inventory():
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         
-        # Get inventory from store
-        all_inventory = inventory_store.get_all_assets()
-        
-        # Simple pagination
-        start = (page - 1) * per_page
-        end = start + per_page
-        inventory = all_inventory[start:end]
-        
-        inventory_data = []
-        for item in inventory:
-            try:
-                item_data = {
-                    'id': getattr(item, 'id', None),
-                    'name': getattr(item, 'name', None),
-                    'asset_tag': getattr(item, 'asset_tag', None),
-                    'serial_number': getattr(item, 'serial_number', None),
-                    'model': getattr(item, 'model', None),
-                    'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
-                    'location_id': getattr(item, 'location_id', None),
-                    'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None
-                }
-                inventory_data.append(item_data)
-            except Exception as e:
-                # Skip items that cause errors but log them
-                logger.error(f"Error serializing inventory item {getattr(item, 'id', 'unknown')}: {e}")
-                continue
-        
-        pagination = {
-            'page': page,
-            'per_page': per_page,
-            'total': len(all_inventory),
-            'has_next': end < len(all_inventory),
-            'has_prev': page > 1
-        }
+        # Get inventory from database (same as web interface)
+        db_session = db_manager.get_session()
+        try:
+            # Query assets from database
+            query = db_session.query(Asset).order_by(Asset.created_at.desc())
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            assets = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            inventory_data = []
+            for asset in assets:
+                try:
+                    item_data = {
+                        'id': asset.id,
+                        'name': asset.name,
+                        'asset_tag': asset.asset_tag,
+                        'serial_number': asset.serial_num,
+                        'model': asset.model,
+                        'status': asset.status.value if hasattr(asset.status, 'value') else str(asset.status) if asset.status else 'Unknown',
+                        'location_id': getattr(asset, 'location_id', None),
+                        'created_at': asset.created_at.isoformat() if asset.created_at else None
+                    }
+                    inventory_data.append(item_data)
+                except Exception as e:
+                    # Skip items that cause errors but log them
+                    logger.error(f"Error serializing inventory item {asset.id}: {e}")
+                    continue
+            
+            pagination = {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'has_next': (page * per_page) < total,
+                'has_prev': page > 1
+            }
+        finally:
+            db_session.close()
         
         return jsonify(create_success_response(
             inventory_data,
@@ -786,30 +813,35 @@ def list_inventory():
 def get_inventory_item(item_id):
     """Get detailed information about a specific inventory item"""
     try:
-        item = inventory_store.get_asset_by_id(item_id)
-        
-        if not item:
-            response, status_code = create_error_response(
-                "RESOURCE_NOT_FOUND",
-                f"Inventory item with ID {item_id} not found",
-                404
-            )
-            return jsonify(response), status_code
-        
-        item_data = {
-            'id': getattr(item, 'id', None),
-            'name': getattr(item, 'name', None),
-            'asset_tag': getattr(item, 'asset_tag', None),
-            'serial_number': getattr(item, 'serial_number', None),
-            'model': getattr(item, 'model', None),
-            'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
-            'location_id': getattr(item, 'location_id', None),
-            'description': getattr(item, 'description', None),
-            'cost_price': getattr(item, 'cost_price', None),
-            'manufacturer': getattr(item, 'manufacturer', None),
-            'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
-            'updated_at': item.updated_at.isoformat() if hasattr(item, 'updated_at') and item.updated_at else None
-        }
+        # Get inventory item from database (same as web interface)
+        db_session = db_manager.get_session()
+        try:
+            item = db_session.query(Asset).get(item_id)
+            
+            if not item:
+                response, status_code = create_error_response(
+                    "RESOURCE_NOT_FOUND",
+                    f"Inventory item with ID {item_id} not found",
+                    404
+                )
+                return jsonify(response), status_code
+            
+            item_data = {
+                'id': item.id,
+                'name': item.name,
+                'asset_tag': item.asset_tag,
+                'serial_number': item.serial_num,
+                'model': item.model,
+                'status': item.status.value if hasattr(item.status, 'value') else str(item.status) if item.status else 'Unknown',
+                'location_id': getattr(item, 'location_id', None),
+                'description': getattr(item, 'description', None),
+                'cost_price': getattr(item, 'cost_price', None),
+                'manufacturer': getattr(item, 'manufacturer', None),
+                'created_at': item.created_at.isoformat() if item.created_at else None,
+                'updated_at': item.updated_at.isoformat() if item.updated_at else None
+            }
+        finally:
+            db_session.close()
         
         return jsonify(create_success_response(
             item_data,
