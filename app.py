@@ -17,6 +17,8 @@ from routes.shipments import shipments_bp
 from routes.users import users_bp
 from routes.admin import admin_bp
 from routes.api_simple import api_bp
+from routes.mobile_api import mobile_api_bp
+from routes.json_api import json_api_bp
 from routes.assets import assets_bp
 from routes.documents import documents_bp
 from routes.debug_routes import debug_bp
@@ -180,9 +182,13 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp)
+    app.register_blueprint(mobile_api_bp)
+    app.register_blueprint(json_api_bp)
     
-    # Exempt API blueprint from CSRF protection
+    # Exempt API blueprints from CSRF protection
     csrf.exempt(api_bp)
+    csrf.exempt(mobile_api_bp)
+    csrf.exempt(json_api_bp)
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(documents_bp)
