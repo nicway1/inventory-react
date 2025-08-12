@@ -4435,3 +4435,535 @@ def get_mention_suggestions():
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+# API Management Routes
+
+@admin_bp.route('/api-management')
+@super_admin_required
+def api_management():
+    """API Management Dashboard"""
+    from utils.api_key_manager import APIKeyManager
+    from models.api_key import APIKey
+    from models.api_usage import APIUsage
+    
+    db_session = SessionLocal()
+    try:
+        # Get all API keys with eager loading of relationships
+        from sqlalchemy.orm import joinedload
+        api_keys = db_session.query(APIKey).options(joinedload(APIKey.created_by)).order_by(APIKey.created_at.desc()).all()
+        
+        # Get usage statistics
+        usage_stats = APIKeyManager.get_usage_stats(days=30)
+        daily_usage = APIKeyManager.get_daily_usage(days=7)
+        
+        # Get permission groups
+        permission_groups = APIKeyManager.get_permission_groups()
+        
+        return render_template('admin/api_management.html',
+                             api_keys=api_keys,
+                             usage_stats=usage_stats,
+                             daily_usage=daily_usage,
+                             permission_groups=permission_groups)
+    except Exception as e:
+        current_app.logger.error(f"Error in API management dashboard: {e}")
+        flash(f'Error loading API management dashboard: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/api-management/keys/create', methods=['GET', 'POST'])
+@super_admin_required
+def create_api_key():
+    """Create a new API key"""
+    from utils.api_key_manager import APIKeyManager
+    from datetime import datetime, timedelta
+    
+    if request.method == 'POST':
+        db_session = SessionLocal()
+        try:
+            name = request.form.get('name', '').strip()
+            permission_group = request.form.get('permission_group')
+            custom_permissions = request.form.getlist('custom_permissions')
+            expires_in_days = request.form.get('expires_in_days', type=int)
+            
+            # Validate input
+            if not name:
+                flash('API key name is required', 'error')
+                return redirect(url_for('admin.create_api_key'))
+            
+            # Determine permissions
+            permissions = []
+            if permission_group and permission_group != 'custom':
+                permission_groups = APIKeyManager.get_permission_groups()
+                permissions = permission_groups.get(permission_group, [])
+            elif custom_permissions:
+                permissions = custom_permissions
+            
+            if not permissions:
+                flash('At least one permission must be selected', 'error')
+                return redirect(url_for('admin.create_api_key'))
+            
+            # Set expiration date
+            expires_at = None
+            if expires_in_days and expires_in_days > 0:
+                expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+            
+            # Create API key
+            success, message, api_key = APIKeyManager.generate_key(
+                name=name,
+                permissions=permissions,
+                expires_at=expires_at,
+                created_by_id=current_user.id
+            )
+            
+            if success:
+                flash(f'API key created successfully! Key: {api_key._raw_key}', 'success')
+                return redirect(url_for('admin.api_management'))
+            else:
+                flash(f'Error creating API key: {message}', 'error')
+                
+        except Exception as e:
+            current_app.logger.error(f"Error creating API key: {e}")
+            flash(f'Error creating API key: {str(e)}', 'error')
+        finally:
+            db_session.close()
+    
+    # GET request - show form
+    permission_groups = APIKeyManager.get_permission_groups()
+    return render_template('admin/create_api_key.html', permission_groups=permission_groups)
+
+@admin_bp.route('/api-management/keys/<int:key_id>/revoke', methods=['POST'])
+@super_admin_required
+def revoke_api_key(key_id):
+    """Revoke an API key"""
+    from utils.api_key_manager import APIKeyManager
+    
+    try:
+        success, message = APIKeyManager.revoke_key(key_id)
+        if success:
+            flash('API key revoked successfully', 'success')
+        else:
+            flash(f'Error revoking API key: {message}', 'error')
+    except Exception as e:
+        current_app.logger.error(f"Error revoking API key: {e}")
+        flash(f'Error revoking API key: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/api-management/keys/<int:key_id>/activate', methods=['POST'])
+@super_admin_required
+def activate_api_key(key_id):
+    """Activate a revoked API key"""
+    from utils.api_key_manager import APIKeyManager
+    
+    try:
+        success, message = APIKeyManager.activate_key(key_id)
+        if success:
+            flash('API key activated successfully', 'success')
+        else:
+            flash(f'Error activating API key: {message}', 'error')
+    except Exception as e:
+        current_app.logger.error(f"Error activating API key: {e}")
+        flash(f'Error activating API key: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/api-management/keys/<int:key_id>/extend', methods=['POST'])
+@super_admin_required
+def extend_api_key(key_id):
+    """Extend API key expiration"""
+    from utils.api_key_manager import APIKeyManager
+    
+    try:
+        days = request.form.get('days', 30, type=int)
+        success, message = APIKeyManager.extend_expiration(key_id, days)
+        if success:
+            flash(f'API key expiration extended by {days} days', 'success')
+        else:
+            flash(f'Error extending API key: {message}', 'error')
+    except Exception as e:
+        current_app.logger.error(f"Error extending API key: {e}")
+        flash(f'Error extending API key: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/api-management/keys/<int:key_id>/permissions', methods=['POST'])
+@super_admin_required
+def update_api_key_permissions(key_id):
+    """Update API key permissions"""
+    from utils.api_key_manager import APIKeyManager
+    
+    try:
+        permissions = request.form.getlist('permissions')
+        if not permissions:
+            flash('At least one permission must be selected', 'error')
+            return redirect(url_for('admin.api_management'))
+        
+        success, message = APIKeyManager.update_permissions(key_id, permissions)
+        if success:
+            flash('API key permissions updated successfully', 'success')
+        else:
+            flash(f'Error updating permissions: {message}', 'error')
+    except Exception as e:
+        current_app.logger.error(f"Error updating API key permissions: {e}")
+        flash(f'Error updating permissions: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/api-management/usage/<int:key_id>')
+@super_admin_required
+def api_key_usage(key_id):
+    """View detailed usage for a specific API key"""
+    from utils.api_key_manager import APIKeyManager
+    from models.api_key import APIKey
+    
+    db_session = SessionLocal()
+    try:
+        # Get API key with eager loading
+        from sqlalchemy.orm import joinedload
+        api_key = db_session.query(APIKey).options(joinedload(APIKey.created_by)).filter(APIKey.id == key_id).first()
+        if not api_key:
+            flash('API key not found', 'error')
+            return redirect(url_for('admin.api_management'))
+        
+        # Get usage statistics
+        usage_stats = APIKeyManager.get_usage_stats(key_id, days=30)
+        daily_usage = APIKeyManager.get_daily_usage(key_id, days=30)
+        
+        return render_template('admin/api_key_usage.html',
+                             api_key=api_key,
+                             usage_stats=usage_stats,
+                             daily_usage=daily_usage)
+    except Exception as e:
+        current_app.logger.error(f"Error viewing API key usage: {e}")
+        flash(f'Error loading usage data: {str(e)}', 'error')
+        return redirect(url_for('admin.api_management'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/api-management/cleanup-expired', methods=['POST'])
+@super_admin_required
+def cleanup_expired_keys():
+    """Cleanup expired API keys"""
+    from utils.api_key_manager import APIKeyManager
+    
+    try:
+        count = APIKeyManager.cleanup_expired_keys()
+        if count > 0:
+            flash(f'Cleaned up {count} expired API keys', 'success')
+        else:
+            flash('No expired API keys found', 'info')
+    except Exception as e:
+        current_app.logger.error(f"Error cleaning up expired keys: {e}")
+        flash(f'Error cleaning up expired keys: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/api-management/export-usage')
+@super_admin_required
+def export_api_usage():
+    """Export API usage data as CSV"""
+    from utils.api_key_manager import APIKeyManager
+    from models.api_usage import APIUsage
+    import csv
+    import io
+    from flask import make_response
+    
+    db_session = SessionLocal()
+    try:
+        # Get usage data for the last 30 days
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        
+        usage_records = db_session.query(APIUsage).filter(
+            APIUsage.timestamp >= cutoff_date
+        ).order_by(APIUsage.timestamp.desc()).all()
+        
+        # Create CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Timestamp', 'API Key Name', 'Endpoint', 'Method', 
+            'Status Code', 'Response Time (ms)', 'IP Address', 'User Agent', 'Error Message'
+        ])
+        
+        # Write data
+        for record in usage_records:
+            writer.writerow([
+                record.timestamp.isoformat() if record.timestamp else '',
+                record.api_key.name if record.api_key else 'Unknown',
+                record.endpoint,
+                record.method,
+                record.status_code,
+                record.response_time_ms or '',
+                record.request_ip or '',
+                record.user_agent or '',
+                record.error_message or ''
+            ])
+        
+        # Create response
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=api_usage_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"Error exporting API usage: {e}")
+        flash(f'Error exporting usage data: {str(e)}', 'error')
+        return redirect(url_for('admin.api_management'))
+    finally:
+        db_session.close()
+@admin_bp.route('/api-documentation')
+@super_admin_required
+def api_documentation():
+    """API Documentation Dashboard"""
+    try:
+        # Define available endpoints with their documentation
+        endpoints = [
+            {
+                'method': 'GET',
+                'path': '/api/v1/health',
+                'name': 'Health Check',
+                'description': 'Check API health status',
+                'auth_required': False,
+                'permissions': [],
+                'parameters': [],
+                'response_example': {
+                    'status': 'healthy',
+                    'timestamp': '2024-01-15T10:30:00Z',
+                    'version': '1.0.0'
+                }
+            },
+            {
+                'method': 'POST',
+                'path': '/api/v1/auth/login',
+                'name': 'User Login',
+                'description': 'Authenticate user and receive JWT token for API access',
+                'auth_required': False,
+                'permissions': [],
+                'parameters': [
+                    {'name': 'username', 'type': 'string', 'required': True, 'description': 'Username or email address'},
+                    {'name': 'password', 'type': 'string', 'required': True, 'description': 'User password'}
+                ],
+                'request_body': {
+                    'username': 'admin',
+                    'password': 'your_password'
+                },
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'id': 1,
+                        'username': 'admin',
+                        'email': 'admin@example.com',
+                        'user_type': 'ADMIN',
+                        'token': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...',
+                        'expires_at': '2024-01-16T10:30:00Z'
+                    },
+                    'message': 'Login successful'
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/auth/verify',
+                'name': 'Verify Token',
+                'description': 'Verify JWT token validity and get user information',
+                'auth_required': True,
+                'permissions': [],
+                'parameters': [],
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'user_id': 1,
+                        'username': 'admin',
+                        'user_type': 'ADMIN',
+                        'expires_at': '2024-01-16T10:30:00Z',
+                        'valid': True
+                    },
+                    'message': 'Token is valid'
+                }
+            },
+            {
+                'method': 'POST',
+                'path': '/api/v1/auth/refresh',
+                'name': 'Refresh Token',
+                'description': 'Refresh an existing JWT token to extend its validity',
+                'auth_required': True,
+                'permissions': [],
+                'parameters': [],
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'token': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...',
+                        'expires_at': '2024-01-16T10:30:00Z',
+                        'user_id': 1,
+                        'username': 'admin'
+                    },
+                    'message': 'Token refreshed successfully'
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/auth/permissions',
+                'name': 'Get User Permissions',
+                'description': 'Get current user\'s permissions and capabilities',
+                'auth_required': True,
+                'permissions': [],
+                'parameters': [],
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'user_id': 1,
+                        'username': 'admin',
+                        'user_type': 'ADMIN',
+                        'permissions': [
+                            'tickets:read',
+                            'tickets:write',
+                            'users:read',
+                            'admin:read'
+                        ],
+                        'capabilities': {
+                            'can_create_tickets': True,
+                            'can_edit_tickets': True,
+                            'can_delete_tickets': True,
+                            'can_view_all_tickets': True,
+                            'can_manage_users': True,
+                            'can_access_admin': True
+                        },
+                        'company_id': 1,
+                        'assigned_country': 'US'
+                    },
+                    'message': 'User permissions retrieved successfully'
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/auth/profile',
+                'name': 'Get User Profile',
+                'description': 'Get current user\'s detailed profile information',
+                'auth_required': True,
+                'permissions': [],
+                'parameters': [],
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'id': 1,
+                        'username': 'admin',
+                        'email': 'admin@example.com',
+                        'user_type': 'ADMIN',
+                        'company_id': 1,
+                        'company_name': 'Example Corp',
+                        'assigned_country': 'US',
+                        'role': 'administrator',
+                        'theme_preference': 'light',
+                        'created_at': '2024-01-15T10:30:00Z',
+                        'last_login': '2024-01-15T15:45:00Z'
+                    },
+                    'message': 'User profile retrieved successfully'
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/tickets',
+                'name': 'List Tickets',
+                'description': 'Retrieve a paginated list of tickets with optional filtering',
+                'auth_required': True,
+                'permissions': ['tickets:read'],
+                'parameters': [
+                    {'name': 'page', 'type': 'integer', 'required': False, 'description': 'Page number (default: 1)'},
+                    {'name': 'per_page', 'type': 'integer', 'required': False, 'description': 'Items per page (default: 50, max: 100)'},
+                    {'name': 'status', 'type': 'string', 'required': False, 'description': 'Filter by ticket status'},
+                    {'name': 'priority', 'type': 'string', 'required': False, 'description': 'Filter by priority level'}
+                ],
+                'response_example': {
+                    'success': True,
+                    'data': [
+                        {
+                            'id': 1,
+                            'subject': 'Sample Ticket',
+                            'description': 'Ticket description',
+                            'status': 'NEW',
+                            'priority': 'MEDIUM',
+                            'created_at': '2024-01-15T10:30:00Z'
+                        }
+                    ],
+                    'message': 'Retrieved 1 tickets',
+                    'meta': {
+                        'pagination': {
+                            'page': 1,
+                            'per_page': 50,
+                            'total': 1,
+                            'has_next': False,
+                            'has_prev': False
+                        }
+                    }
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/tickets/{id}',
+                'name': 'Get Ticket',
+                'description': 'Retrieve detailed information about a specific ticket',
+                'auth_required': True,
+                'permissions': ['tickets:read'],
+                'parameters': [
+                    {'name': 'id', 'type': 'integer', 'required': True, 'description': 'Ticket ID'}
+                ],
+                'response_example': {
+                    'success': True,
+                    'data': {
+                        'id': 1,
+                        'subject': 'Sample Ticket',
+                        'description': 'Detailed ticket description',
+                        'status': 'NEW',
+                        'priority': 'MEDIUM',
+                        'category': 'Support',
+                        'created_at': '2024-01-15T10:30:00Z',
+                        'updated_at': '2024-01-15T10:30:00Z'
+                    },
+                    'message': 'Retrieved ticket 1'
+                }
+            },
+            {
+                'method': 'GET',
+                'path': '/api/v1/users',
+                'name': 'List Users',
+                'description': 'Retrieve a paginated list of users',
+                'auth_required': True,
+                'permissions': ['users:read'],
+                'parameters': [
+                    {'name': 'page', 'type': 'integer', 'required': False, 'description': 'Page number (default: 1)'},
+                    {'name': 'per_page', 'type': 'integer', 'required': False, 'description': 'Items per page (default: 50, max: 100)'}
+                ],
+                'response_example': {
+                    'success': True,
+                    'data': [
+                        {
+                            'id': 1,
+                            'name': 'admin',
+                            'email': 'admin@example.com',
+                            'user_type': 'ADMIN',
+                            'created_at': '2024-01-15T10:30:00Z'
+                        }
+                    ],
+                    'message': 'Retrieved 1 users',
+                    'meta': {
+                        'pagination': {
+                            'page': 1,
+                            'per_page': 50,
+                            'total': 1,
+                            'has_next': False,
+                            'has_prev': False
+                        }
+                    }
+                }
+            }
+        ]
+        
+        return render_template('admin/api_documentation.html', endpoints=endpoints)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error loading API documentation: {e}")
+        flash(f'Error loading API documentation: {str(e)}', 'error')
+        return redirect(url_for('admin.api_management'))

@@ -33,6 +33,8 @@ from models.knowledge_feedback import KnowledgeFeedback
 from models.knowledge_attachment import KnowledgeAttachment
 from models.group import Group
 from models.group_membership import GroupMembership
+from models.api_key import APIKey
+from models.api_usage import APIUsage
 
 __all__ = [
     "Base",
@@ -78,5 +80,7 @@ __all__ = [
     "KnowledgeFeedback",
     "KnowledgeAttachment",
     "Group",
-    "GroupMembership"
+    "GroupMembership",
+    "APIKey",
+    "APIUsage"
 ]

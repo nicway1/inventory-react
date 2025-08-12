@@ -41,6 +41,7 @@ class User(Base, UserMixin):
     notifications = relationship("Notification", back_populates="user", order_by="Notification.created_at.desc()")
     created_groups = relationship("Group", back_populates="created_by")
     group_memberships = relationship("GroupMembership", foreign_keys="GroupMembership.user_id", back_populates="user")
+    created_api_keys = relationship("APIKey", back_populates="created_by")
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 

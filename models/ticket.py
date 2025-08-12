@@ -89,6 +89,7 @@ class Ticket(Base):
     shipping_tracking = Column(String(100))
     shipping_carrier = Column(String(50), default='singpost')  # Default to SingPost carrier
     customer_id = Column(Integer, ForeignKey('customer_users.id'))
+    firstbaseorderid = Column(String(100), nullable=True)  # Store order ID for duplicate prevention
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Create API Key{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center">
+                <a href="{{ url_for('admin.api_management') }}" 
+                   class="mr-4 text-gray-600 hover:text-gray-900">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">🔑 Create API Key</h1>
+                    <p class="mt-2 text-gray-600">Generate a new API key with specific permissions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="bg-white shadow rounded-lg">
+            <form method="POST" class="space-y-6 p-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <!-- API Key Name -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">API Key Name</label>
+                    <div class="mt-1">
+                        <input type="text" name="name" id="name" required
+                               class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                               placeholder="e.g., iOS App Production, Mobile Development">
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Choose a descriptive name to identify this API key</p>
+                </div>
+
+                <!-- Permission Group -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Permission Level</label>
+                    <div class="mt-3 space-y-3">
+                        {% for group_name, permissions in permission_groups.items() %}
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="group_{{ group_name }}" name="permission_group" type="radio" value="{{ group_name }}"
+                                       class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                                       {% if group_name == 'mobile_app' %}checked{% endif %}>
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="group_{{ group_name }}" class="font-medium text-gray-700 capitalize">
+                                    {{ group_name.replace('_', ' ').title() }}
+                                </label>
+                                <div class="text-gray-500">
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        {% for permission in permissions %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ permission }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Custom Permissions -->
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="group_custom" name="permission_group" type="radio" value="custom"
+                                       class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="group_custom" class="font-medium text-gray-700">Custom Permissions</label>
+                                <p class="text-gray-500">Select specific permissions below</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Permissions Checkboxes -->
+                <div id="custom_permissions" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Select Custom Permissions</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        {% set all_permissions = [
+                            'tickets:read', 'tickets:write', 'tickets:delete', 'tickets:*',
+                            'users:read', 'users:write', 'users:delete', 'users:*',
+                            'inventory:read', 'inventory:write', 'inventory:delete', 'inventory:*',
+                            'admin:read', 'admin:write', 'admin:*',
+                            'sync:read', 'sync:write', 'sync:*',
+                            'analytics:read', 'analytics:*',
+                            'usage:read', 'usage:*'
+                        ] %}
+                        {% for permission in all_permissions %}
+                        <div class="flex items-center">
+                            <input id="perm_{{ permission }}" name="custom_permissions" type="checkbox" value="{{ permission }}"
+                                   class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded">
+                            <label for="perm_{{ permission }}" class="ml-2 text-sm text-gray-700">{{ permission }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Expiration -->
+                <div>
+                    <label for="expires_in_days" class="block text-sm font-medium text-gray-700">Expiration</label>
+                    <div class="mt-1">
+                        <select name="expires_in_days" id="expires_in_days"
+                                class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                            <option value="">Never expires</option>
+                            <option value="30">30 days</option>
+                            <option value="90" selected>90 days</option>
+                            <option value="180">180 days</option>
+                            <option value="365">1 year</option>
+                        </select>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Choose when this API key should expire</p>
+                </div>
+
+                <!-- Security Notice -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-yellow-800">Security Notice</h3>
+                            <div class="mt-2 text-sm text-yellow-700">
+                                <ul class="list-disc pl-5 space-y-1">
+                                    <li>The API key will be shown only once after creation</li>
+                                    <li>Store the key securely and never share it publicly</li>
+                                    <li>Use HTTPS for all API requests</li>
+                                    <li>Monitor usage regularly and revoke unused keys</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('admin.api_management') }}" 
+                       class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Create API Key
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const customRadio = document.getElementById('group_custom');
+    const customPermissions = document.getElementById('custom_permissions');
+    const allRadios = document.querySelectorAll('input[name="permission_group"]');
+    
+    function toggleCustomPermissions() {
+        if (customRadio.checked) {
+            customPermissions.classList.remove('hidden');
+        } else {
+            customPermissions.classList.add('hidden');
+        }
+    }
+    
+    allRadios.forEach(radio => {
+        radio.addEventListener('change', toggleCustomPermissions);
+    });
+    
+    // Initial state
+    toggleCustomPermissions();
+});
+</script>
+{% endblock %}

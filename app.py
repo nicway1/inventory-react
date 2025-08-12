@@ -15,7 +15,7 @@ from routes.tickets import tickets_bp
 from routes.shipments import shipments_bp
 from routes.users import users_bp
 from routes.admin import admin_bp
-from routes.api import api_bp
+from routes.api_simple import api_bp
 from routes.assets import assets_bp
 from routes.documents import documents_bp
 from routes.debug_routes import debug_bp

@@ -403,6 +403,19 @@
                             Manage Groups
                         </a>
                     </div>
+
+                    <!-- API Management Card -->
+                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">API Management</h3>
+                            <p class="text-sm text-gray-600">Create and manage API keys, monitor usage, and configure API permissions. Control access to system APIs and view usage statistics.</p>
+                        </div>
+                        <a href="{{ url_for('admin.api_management') }}" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <i class="fas fa-key mr-2"></i>
+                            API Management
+                        </a>
+                    </div>
                     
                     <!-- Other System Info -->
                 <div class="grid grid-cols-2 gap-4">

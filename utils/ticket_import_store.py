@@ -86,8 +86,10 @@ class TicketImportStore:
             # Check if required fields are present and non-empty
             for field in required_fields:
                 if not cleaned.get(field):
-                    logger.info(f"Skipping row due to missing {field}: {cleaned}")
+                    logger.info(f"Skipping row due to missing required field '{field}'. Row data: {cleaned}")
                     return None
+            
+            logger.info(f"Row passed validation with required fields: {[field + '=' + str(cleaned.get(field)) for field in required_fields]}")
             
             # Set default values for missing fields
             defaults = {
@@ -198,11 +200,17 @@ class TicketImportStore:
             
             # Convert to list and validate
             raw_data = []
-            for row in csv_reader:
+            for row_index, row in enumerate(csv_reader):
+                logger.info(f"Processing CSV row {row_index + 1}: {dict(row)}")
                 # Clean and validate the row
                 cleaned_row = self.clean_csv_row(row)
                 if cleaned_row:  # Only add valid rows
+                    logger.info(f"Row {row_index + 1} valid, adding to raw_data")
                     raw_data.append(cleaned_row)
+                else:
+                    logger.info(f"Row {row_index + 1} invalid, skipping")
+            
+            logger.info(f"Total valid rows after cleaning: {len(raw_data)}")
             
             if not raw_data:
                 return {
@@ -218,109 +226,143 @@ class TicketImportStore:
             # Combine grouped and individual data
             all_data = grouped_data + individual_data
             
+            logger.info(f"Processing {len(grouped_data)} grouped orders and {len(individual_data)} individual items")
+            
+            # Check for duplicates before creating preview (only against existing DB tickets)
+            db_session = self.db_manager.get_session()
             tickets_preview = []
             
-            for index, row in enumerate(all_data):
-                if row.get('is_grouped', False):
-                    # Grouped order
-                    all_items = row.get('all_items', [])
-                    
-                    # Build description with all products
-                    product_items = []
-                    for item in all_items:
-                        product_title = item.get('product_title', '')
-                        brand = item.get('brand', '')
-                        serial_number = item.get('serial_number', '')
-                        
-                        item_desc = f"- {product_title}"
-                        if brand and brand != 'nan':
-                            item_desc += f" ({brand})"
-                        if serial_number and serial_number != 'nan':
-                            item_desc += f" [Serial: {serial_number}]"
-                        
-                        product_items.append(item_desc)
-                    
-                    description = f"Order ID: {row['order_id']}\n\nItems:\n" + "\n".join(product_items)
-                    
-                    # Create customer address
-                    customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
-                    if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
-                        customer_address = "Address not provided"
-                    
-                    # Check if ticket status is PROCESSING
-                    ticket_status = row.get('status', 'Unknown')
-                    is_processing = ticket_status.upper() == 'PROCESSING'
-                    
-                    ticket_data = {
-                        'row_number': f"Order {row['order_id']}",
-                        'subject': f"Order {row['order_id']} - {row['title_summary']}",
-                        'description': description,
-                        'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
-                        'priority': 'MEDIUM',
-                        'requester_email': row.get('primary_email', ''),
-                        'country': row.get('country_code', ''),
-                        'company': row.get('org_name', ''),
-                        'customer_name': row.get('person_name', ''),
-                        'customer_address': customer_address,
-                        'status': ticket_status,  # Preserve original CSV status
-                        'queue_name': 'FirstBase New Orders',
-                        'order_id': row['order_id'],
-                        'item_count': row.get('item_count', len(all_items)),
-                        'is_processing': is_processing,
-                        'cannot_import': is_processing
-                    }
-                else:
-                    # Individual item
-                    description = ""
-                    # Add order ID if available
-                    if row.get('order_id'):
-                        description += f"Order ID: {row['order_id']}\n\n"
-                    
-                    description += f"Product: {row.get('product_title', '')}"
-                    if row.get('brand'):
-                        description += f"\nBrand: {row['brand']}"
-                    if row.get('serial_number'):
-                        description += f"\nSerial Number: {row['serial_number']}"
-                    
-                    # Create customer address
-                    customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
-                    if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
-                        customer_address = "Address not provided"
-                    
-                    # Check if ticket status is PROCESSING
-                    ticket_status = row.get('status', 'Unknown')
-                    is_processing = ticket_status.upper() == 'PROCESSING'
-                    
-                    ticket_data = {
-                        'row_number': index + 1,
-                        'subject': f"Asset Request - {row.get('product_title', 'Unknown Product')}",
-                        'description': description,
-                        'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
-                        'priority': 'MEDIUM',
-                        'requester_email': row.get('primary_email', ''),
-                        'country': row.get('country_code', ''),
-                        'company': row.get('org_name', ''),
-                        'customer_name': row.get('person_name', ''),
-                        'customer_address': customer_address,
-                        'status': ticket_status,  # Preserve original CSV status
-                        'queue_name': 'FirstBase New Orders',
-                        'order_id': row.get('order_id', ''),
-                        'item_count': 1,
-                        'is_processing': is_processing,
-                        'cannot_import': is_processing
-                    }
-                
-                tickets_preview.append(ticket_data)
+            # Get all existing order IDs from database to avoid repeated queries
+            existing_order_ids = set()
+            try:
+                existing_tickets = db_session.query(Ticket.firstbaseorderid).filter(
+                    Ticket.firstbaseorderid.isnot(None)
+                ).all()
+                existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+            except:
+                existing_order_ids = set()
             
-            # Count processing tickets
+            try:
+                for index, row in enumerate(all_data):
+                    # Check for duplicate order_id only against existing database tickets
+                    is_duplicate = False
+                    order_id = row.get('order_id', '').strip()
+                    if order_id and order_id in existing_order_ids:
+                        is_duplicate = True
+                        logger.info(f"Row {index + 1} marked as duplicate (order_id: {order_id})")
+                    else:
+                        logger.info(f"Row {index + 1} not duplicate (order_id: {order_id})")
+                
+                    if row.get('is_grouped', False):
+                        # Grouped order
+                        all_items = row.get('all_items', [])
+                        
+                        # Build description with all products
+                        product_items = []
+                        for item in all_items:
+                            product_title = item.get('product_title', '')
+                            brand = item.get('brand', '')
+                            serial_number = item.get('serial_number', '')
+                            
+                            item_desc = f"- {product_title}"
+                            if brand and brand != 'nan':
+                                item_desc += f" ({brand})"
+                            if serial_number and serial_number != 'nan':
+                                item_desc += f" [Serial: {serial_number}]"
+                            
+                            product_items.append(item_desc)
+                        
+                        description = f"Order ID: {row['order_id']}\n\nItems:\n" + "\n".join(product_items)
+                        
+                        # Create customer address
+                        customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                        if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                            customer_address = "Address not provided"
+                        
+                        # Check if ticket status is PROCESSING
+                        ticket_status = row.get('status', 'Unknown')
+                        is_processing = ticket_status.upper() == 'PROCESSING'
+                        
+                        ticket_data = {
+                            'row_number': f"Order {row['order_id']}",
+                            'subject': f"Order {row['order_id']} - {row.get('title_summary', 'Multiple Items')}",
+                            'description': description,
+                            'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
+                            'priority': 'MEDIUM',
+                            'requester_email': row.get('primary_email', ''),
+                            'country': row.get('country_code', ''),
+                            'company': row.get('org_name', ''),
+                            'customer_name': row.get('person_name', ''),
+                            'customer_address': customer_address,
+                            'status': ticket_status,
+                            'queue_name': 'FirstBase New Orders',
+                            'order_id': row['order_id'],
+                            'item_count': row.get('item_count', len(all_items)),
+                            'is_processing': is_processing,
+                            'is_duplicate': is_duplicate,
+                            'cannot_import': is_processing or is_duplicate
+                        }
+                    else:
+                        # Individual item
+                        description = ""
+                        # Add order ID if available
+                        if row.get('order_id'):
+                            description += f"Order ID: {row['order_id']}\n\n"
+                        
+                        description += f"Product: {row.get('product_title', '')}"
+                        if row.get('brand') and row.get('brand') != 'nan':
+                            description += f"\nBrand: {row['brand']}"
+                        if row.get('serial_number') and row.get('serial_number') != 'nan':
+                            description += f"\nSerial Number: {row['serial_number']}"
+                        
+                        # Create customer address
+                        customer_address = f"{row.get('address_line1', '')}\n{row.get('address_line2', '')}\n{row.get('city', '')}, {row.get('state', '')} {row.get('postal_code', '')}\n{row.get('country_code', '')}".strip()
+                        if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                            customer_address = "Address not provided"
+                        
+                        # Check if ticket status is PROCESSING
+                        ticket_status = row.get('status', 'Unknown')
+                        is_processing = ticket_status.upper() == 'PROCESSING'
+                        
+                        ticket_data = {
+                            'row_number': index + 1,
+                            'subject': f"Asset Request - {row.get('product_title', 'Unknown Product')}",
+                            'description': description,
+                            'category': TicketCategory.ASSET_CHECKOUT_CLAW.name,
+                            'priority': 'MEDIUM',
+                            'requester_email': row.get('primary_email', ''),
+                            'country': row.get('country_code', ''),
+                            'company': row.get('org_name', ''),
+                            'customer_name': row.get('person_name', ''),
+                            'customer_address': customer_address,
+                            'status': ticket_status,
+                            'queue_name': 'FirstBase New Orders',
+                            'order_id': row.get('order_id', ''),
+                            'item_count': 1,
+                            'is_processing': is_processing,
+                            'is_duplicate': is_duplicate,
+                            'cannot_import': is_processing or is_duplicate
+                        }
+                    
+                    tickets_preview.append(ticket_data)
+                    logger.info(f"Added ticket to preview: {ticket_data['subject']}")
+            
+            finally:
+                db_session.close()
+            
+            logger.info(f"Total tickets in preview: {len(tickets_preview)}")
+            
+            # Count processing and duplicate tickets
             processing_count = sum(1 for ticket in tickets_preview if ticket.get('is_processing', False))
-            importable_count = len(tickets_preview) - processing_count
+            duplicate_count = sum(1 for ticket in tickets_preview if ticket.get('is_duplicate', False))
+            importable_count = len(tickets_preview) - processing_count - duplicate_count
             
             return {
                 'success': True,
                 'total_tickets': len(tickets_preview),
                 'importable_tickets': importable_count,
                 'processing_tickets': processing_count,
+                'duplicate_tickets': duplicate_count,
                 'tickets': tickets_preview,
                 'columns': list(csv_reader.fieldnames) if csv_reader.fieldnames else [],
                 'grouped_by_order': len(grouped_data) > 0
@@ -386,6 +428,17 @@ class TicketImportStore:
                 
                 imported_tickets = []
                 skipped_processing = []
+                skipped_duplicates = []
+                
+                # Get all existing order IDs from database to avoid repeated queries  
+                existing_order_ids = set()
+                try:
+                    existing_tickets = db_session.query(Ticket.firstbaseorderid).filter(
+                        Ticket.firstbaseorderid.isnot(None)
+                    ).all()
+                    existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+                except:
+                    existing_order_ids = set()
                 
                 for row in all_data:
                     # Skip tickets with PROCESSING status
@@ -393,6 +446,15 @@ class TicketImportStore:
                         skipped_processing.append({
                             'order_id': row.get('order_id', ''),
                             'reason': 'Status is PROCESSING'
+                        })
+                        continue
+                    
+                    # Check for duplicate order_id only against existing database tickets
+                    order_id = row.get('order_id', '').strip()
+                    if order_id and order_id in existing_order_ids:
+                        skipped_duplicates.append({
+                            'order_id': order_id,
+                            'reason': 'Order ID already exists in database'
                         })
                         continue
                     # Create or get customer - only if email is provided
@@ -493,7 +555,7 @@ class TicketImportStore:
                             product_items.append(item_desc)
                         
                         description = f"Order ID: {row['order_id']}\n\nItems:\n" + "\n".join(product_items)
-                        subject = f"Order {row['order_id']} - {row['title_summary']}"
+                        subject = f"Order {row['order_id']} - {row.get('title_summary', 'Multiple Items')}"
                         
                     else:
                         # Individual item
@@ -503,9 +565,9 @@ class TicketImportStore:
                             description += f"Order ID: {row['order_id']}\n\n"
                         
                         description += f"Product: {row.get('product_title', '')}"
-                        if row.get('brand'):
+                        if row.get('brand') and row.get('brand') != 'nan':
                             description += f"\nBrand: {row['brand']}"
-                        if row.get('serial_number'):
+                        if row.get('serial_number') and row.get('serial_number') != 'nan':
                             description += f"\nSerial Number: {row['serial_number']}"
                         
                         subject = f"Asset Request - {row.get('product_title', 'Unknown Product')}"
@@ -521,6 +583,7 @@ class TicketImportStore:
                         customer_id=customer.id if customer else None,  # Link to customer
                         queue_id=firstbase_queue.id,
                         country=row.get('country_code', None),
+                        firstbaseorderid=row.get('order_id', None),  # Store order ID for duplicate prevention
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow()
                     )
@@ -551,9 +614,11 @@ class TicketImportStore:
                     'success': True,
                     'imported_count': len(imported_tickets),
                     'skipped_processing_count': len(skipped_processing),
+                    'skipped_duplicates_count': len(skipped_duplicates),
                     'queue_name': firstbase_queue.name,
                     'tickets': imported_tickets,
-                    'skipped_processing': skipped_processing
+                    'skipped_processing': skipped_processing,
+                    'skipped_duplicates': skipped_duplicates
                 }
                 
             except Exception as e:

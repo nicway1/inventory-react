@@ -1,5 +1,9 @@
 # Inventory Management System
 
+## Production URL
+
+**Live Application**: https://inventory.truelog.com.sg/
+
 ## Description
 
 This is a web-based inventory management system built with Flask. It allows users to track assets (like computers, laptops) and accessories, manage their status, assign them to users or customers, and maintain a history of changes and transactions. The system includes role-based access control (Super Admin, Country Admin, Supervisor, Client, User) and provides features for importing/exporting data, managing users and customers, and tracking tickets related to assets.
@@ -71,7 +75,9 @@ This is a web-based inventory management system built with Flask. It allows user
     ```bash
     python app.py
     ```
-2.  **Access the application:** Open your web browser and go to `http://127.0.0.1:5001` (or the port indicated if 5001 is busy).
+2.  **Access the application:** 
+    - **Production**: https://inventory.truelog.com.sg/
+    - **Local Development**: Open your web browser and go to `http://127.0.0.1:5001` (or the port indicated if 5001 is busy).
 3.  **Login:** Use the default admin credentials (`admin`/`admin123`) or credentials for other created users.
 
 ## Database
@@ -98,7 +104,13 @@ The project contains several utility scripts in the root directory for database 
 *   `migrate_db.py` / `run_migrations.py`: Scripts related to database migrations.
 *   `update_*.py` / `fix_*.py` / `add_*.py`: Various scripts created during development to modify schema, fix data, or add specific features (e.g., `update_asset_model.py`, `fix_asset_relationship.py`, `clean_none_none_history.py`). Review script descriptions before running.
 
-## Deployment (PythonAnywhere Example)
+## Deployment
+
+### Production Environment
+
+The application is currently deployed at: **https://inventory.truelog.com.sg/**
+
+### Deployment (PythonAnywhere Example)
 
 1.  Ensure all necessary code and scripts are pushed to your Git repository.
 2.  SSH into your PythonAnywhere account.
@@ -106,3 +118,9 @@ The project contains several utility scripts in the root directory for database 
 4.  Pull the latest changes: `git pull`
 5.  Run any necessary database migration or update scripts (e.g., `python update_asset_model.py`).
 6.  Reload the web application via the PythonAnywhere web tab or by touching the WSGI configuration file: `touch /var/www/yourusername_pythonanywhere_com_wsgi.py`.
+
+### API Access
+
+- **API Base URL**: https://inventory.truelog.com.sg/api/v1/
+- **Admin Panel**: https://inventory.truelog.com.sg/admin/api-management
+- **API Documentation**: https://inventory.truelog.com.sg/admin/api-documentation
