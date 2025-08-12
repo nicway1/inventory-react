@@ -750,7 +750,7 @@ def list_inventory():
                     'serial_number': getattr(item, 'serial_number', None),
                     'model': getattr(item, 'model', None),
                     'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
-                    'location': str(getattr(item, 'location', None)) if getattr(item, 'location', None) else None,
+                    'location_id': getattr(item, 'location_id', None),
                     'created_at': item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None
                 }
                 inventory_data.append(item_data)
@@ -803,7 +803,7 @@ def get_inventory_item(item_id):
             'serial_number': getattr(item, 'serial_number', None),
             'model': getattr(item, 'model', None),
             'status': item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else str(getattr(item, 'status', 'Unknown')),
-            'location': str(getattr(item, 'location', None)) if getattr(item, 'location', None) else None,
+            'location_id': getattr(item, 'location_id', None),
             'description': getattr(item, 'description', None),
             'purchase_date': item.purchase_date.isoformat() if hasattr(item, 'purchase_date') and item.purchase_date else None,
             'warranty_expiry': item.warranty_expiry.isoformat() if hasattr(item, 'warranty_expiry') and item.warranty_expiry else None,

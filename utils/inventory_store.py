@@ -123,17 +123,29 @@ class InventoryStore:
         """Get all assets (alias for get_all_items for API compatibility)"""
         db_session = self.db_manager.get_session()
         try:
-            # Use eager loading to avoid lazy loading issues
-            from sqlalchemy.orm import joinedload
-            assets = db_session.query(Asset).options(
-                joinedload(Asset.location, innerjoin=False)
-            ).all()
+            # Get assets without loading relationships to avoid lazy loading issues
+            assets = db_session.query(Asset).all()
             
-            # Detach objects from session to avoid lazy loading issues
+            # Create a list of detached asset objects with basic attributes
+            detached_assets = []
             for asset in assets:
-                db_session.expunge(asset)
+                # Create a simple object with just the attributes we need
+                detached_asset = type('Asset', (), {})()
+                detached_asset.id = asset.id
+                detached_asset.name = getattr(asset, 'name', None)
+                detached_asset.asset_tag = getattr(asset, 'asset_tag', None)
+                detached_asset.serial_number = getattr(asset, 'serial_number', None)
+                detached_asset.model = getattr(asset, 'model', None)
+                detached_asset.status = getattr(asset, 'status', None)
+                detached_asset.location_id = getattr(asset, 'location_id', None)
+                detached_asset.created_at = getattr(asset, 'created_at', None)
+                detached_asset.updated_at = getattr(asset, 'updated_at', None)
+                detached_asset.description = getattr(asset, 'description', None)
+                detached_asset.purchase_date = getattr(asset, 'purchase_date', None)
+                detached_asset.warranty_expiry = getattr(asset, 'warranty_expiry', None)
+                detached_assets.append(detached_asset)
             
-            return assets
+            return detached_assets
         finally:
             db_session.close()
 
@@ -141,17 +153,26 @@ class InventoryStore:
         """Get a specific asset by ID (alias for get_item for API compatibility)"""
         db_session = self.db_manager.get_session()
         try:
-            # Use eager loading to avoid lazy loading issues
-            from sqlalchemy.orm import joinedload
-            asset = db_session.query(Asset).options(
-                joinedload(Asset.location, innerjoin=False)
-            ).filter(Asset.id == asset_id).first()
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
             
             if asset:
-                # Detach object from session to avoid lazy loading issues
-                db_session.expunge(asset)
+                # Create a simple object with just the attributes we need
+                detached_asset = type('Asset', (), {})()
+                detached_asset.id = asset.id
+                detached_asset.name = getattr(asset, 'name', None)
+                detached_asset.asset_tag = getattr(asset, 'asset_tag', None)
+                detached_asset.serial_number = getattr(asset, 'serial_number', None)
+                detached_asset.model = getattr(asset, 'model', None)
+                detached_asset.status = getattr(asset, 'status', None)
+                detached_asset.location_id = getattr(asset, 'location_id', None)
+                detached_asset.created_at = getattr(asset, 'created_at', None)
+                detached_asset.updated_at = getattr(asset, 'updated_at', None)
+                detached_asset.description = getattr(asset, 'description', None)
+                detached_asset.purchase_date = getattr(asset, 'purchase_date', None)
+                detached_asset.warranty_expiry = getattr(asset, 'warranty_expiry', None)
+                return detached_asset
             
-            return asset
+            return None
         finally:
             db_session.close()
 
