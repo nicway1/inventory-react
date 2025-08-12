@@ -207,6 +207,120 @@ def test_api_endpoints():
     except requests.RequestException as e:
         print(f"✗ Status filter test failed: {str(e)}")
     
+    # Step 6: Test accessory endpoints
+    print("\n6. Testing accessory endpoints...")
+    
+    # Test accessory list endpoint
+    accessories_url = f"{BASE_URL}/api/v1/accessories"
+    try:
+        accessories_response = requests.get(accessories_url, headers=headers, timeout=10)
+        if accessories_response.status_code == 200:
+            accessories_data = accessories_response.json()
+            accessories = accessories_data.get('data', [])
+            pagination = accessories_data.get('pagination', {})
+            
+            print(f"✓ Accessory list successful")
+            print(f"  Total accessories: {pagination.get('total', 0)}")
+            print(f"  Accessories returned: {len(accessories)}")
+            
+            # Check accessory structure if we have accessories
+            if accessories:
+                accessory = accessories[0]  # Check first accessory
+                print(f"\n  Sample accessory structure:")
+                
+                # Check required accessory fields
+                required_fields = [
+                    'id', 'name', 'category', 'manufacturer', 'model', 'status',
+                    'total_quantity', 'available_quantity', 'checked_out_quantity',
+                    'country', 'current_customer', 'is_available',
+                    'checkout_date', 'return_date', 'description',
+                    'created_at', 'updated_at', 'item_type'
+                ]
+                
+                missing_fields = []
+                present_fields = []
+                
+                for field in required_fields:
+                    if field in accessory:
+                        present_fields.append(field)
+                        # Show some sample values
+                        if field in ['id', 'name', 'category', 'status', 'total_quantity', 'available_quantity']:
+                            print(f"    {field}: {accessory[field]}")
+                    else:
+                        missing_fields.append(field)
+                
+                print(f"\n  Field coverage: {len(present_fields)}/{len(required_fields)} fields present")
+                
+                if missing_fields:
+                    print(f"  ✗ Missing fields: {', '.join(missing_fields)}")
+                else:
+                    print(f"  ✓ All required accessory fields present")
+                    
+                # Test single accessory endpoint
+                print("\n  Testing single accessory endpoint...")
+                accessory_id = accessory['id']
+                single_accessory_url = f"{BASE_URL}/api/v1/accessories/{accessory_id}"
+                
+                try:
+                    single_acc_response = requests.get(single_accessory_url, headers=headers, timeout=10)
+                    if single_acc_response.status_code == 200:
+                        single_acc_data = single_acc_response.json()
+                        accessory_details = single_acc_data.get('data', {})
+                        
+                        print(f"  ✓ Single accessory retrieval successful")
+                        print(f"    Accessory ID: {accessory_details.get('id')}")
+                        print(f"    Name: {accessory_details.get('name')}")
+                        print(f"    Category: {accessory_details.get('category')}")
+                        print(f"    Total Qty: {accessory_details.get('total_quantity')}")
+                        print(f"    Available Qty: {accessory_details.get('available_quantity')}")
+                        
+                    else:
+                        print(f"  ✗ Single accessory retrieval failed: {single_acc_response.status_code}")
+                        
+                except requests.RequestException as e:
+                    print(f"  ✗ Single accessory request failed: {str(e)}")
+                    
+            else:
+                print("  No accessories found in response")
+                
+        else:
+            print(f"✗ Accessory list failed: {accessories_response.status_code}")
+            print(f"  Response: {accessories_response.text}")
+            
+    except requests.RequestException as e:
+        print(f"✗ Accessory list request failed: {str(e)}")
+    
+    # Test accessory filtering
+    print("\n7. Testing accessory filtering...")
+    
+    # Test accessory search filter
+    acc_search_url = f"{BASE_URL}/api/v1/accessories?search=mouse&limit=5"
+    try:
+        acc_search_response = requests.get(acc_search_url, headers=headers, timeout=10)
+        if acc_search_response.status_code == 200:
+            acc_search_data = acc_search_response.json()
+            acc_search_results = acc_search_data.get('data', [])
+            print(f"✓ Accessory search filter test successful")
+            print(f"  Search results: {len(acc_search_results)} accessories")
+        else:
+            print(f"✗ Accessory search filter test failed: {acc_search_response.status_code}")
+    except requests.RequestException as e:
+        print(f"✗ Accessory search filter test failed: {str(e)}")
+    
+    # Test accessory status filter
+    acc_status_url = f"{BASE_URL}/api/v1/accessories?status=available&limit=5"
+    try:
+        acc_status_response = requests.get(acc_status_url, headers=headers, timeout=10)
+        if acc_status_response.status_code == 200:
+            acc_status_data = acc_status_response.json()
+            acc_status_results = acc_status_data.get('data', [])
+            print(f"✓ Accessory status filter test successful")
+            print(f"  Available accessories: {len(acc_status_results)} accessories")
+        else:
+            print(f"✗ Accessory status filter test failed: {acc_status_response.status_code}")
+    except requests.RequestException as e:
+        print(f"✗ Accessory status filter test failed: {str(e)}")
+    
     print("\n" + "=" * 60)
     print("API Testing Complete")
     print("=" * 60)
@@ -223,16 +337,32 @@ if __name__ == "__main__":
         if success:
             print("\n🎉 All tests completed successfully!")
             print("\nThe enhanced inventory API endpoints are ready to use:")
+            
+            print("\n📦 Asset Endpoints:")
             print("  - GET /api/v1/inventory (list all assets with complete info)")
             print("  - GET /api/v1/inventory/{id} (get single asset with complete info)")
+            
+            print("\n🔧 Accessory Endpoints:")
+            print("  - GET /api/v1/accessories (list all accessories with complete info)")
+            print("  - GET /api/v1/accessories/{id} (get single accessory with complete info)")
+            
+            print("\n❤️ Health Check:")
             print("  - GET /api/v1/inventory/health (health check)")
             
-            print("\nSupported query parameters:")
+            print("\nSupported query parameters (for both assets and accessories):")
             print("  - page: Page number (default: 1)")
             print("  - limit: Items per page (default: 20, max: 100)")
-            print("  - search: Search term for name, serial, model, etc.")
-            print("  - status: Filter by status (available, deployed, etc.)")
-            print("  - category: Filter by asset category/type")
+            print("  - search: Search term for name, serial, model, category, etc.")
+            print("  - status: Filter by status (varies by type)")
+            print("  - category: Filter by asset/accessory category/type")
+            
+            print("\n📋 Key Features:")
+            print("  ✓ Complete asset specifications (CPU, memory, storage, etc.)")
+            print("  ✓ Complete accessory inventory tracking (quantities, availability)")
+            print("  ✓ Authentication and permission-based access")
+            print("  ✓ Country-based restrictions for regional admins")
+            print("  ✓ Advanced filtering and search capabilities")
+            print("  ✓ Comprehensive field coverage as requested")
             
         else:
             print("\n⚠️  Some tests failed. Check the output above for details.")

@@ -2,11 +2,12 @@
 
 ## Overview
 
-The enhanced inventory API provides comprehensive access to asset information with complete hardware specifications, condition details, and location/assignment information.
+The enhanced inventory API provides comprehensive access to both assets and accessories with complete specifications, condition details, and location/assignment information.
 
-## Base URL
+## Base URLs
 ```
-/api/v1/inventory
+/api/v1/inventory    (for assets)
+/api/v1/accessories  (for accessories)
 ```
 
 ## Authentication
@@ -158,7 +159,110 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 }
 ```
 
-### 3. Health Check
+## Accessory Endpoints
+
+### 3. List All Accessories
+
+Get a paginated list of all inventory accessories with complete information.
+
+```http
+GET /api/v1/accessories
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+- `page` (integer, optional): Page number (default: 1)
+- `limit` (integer, optional): Items per page (default: 20, max: 100)
+- `search` (string, optional): Search term for name, category, manufacturer, model
+- `status` (string, optional): Filter by status (`available`, `checked_out`, `unavailable`, `maintenance`, `retired`)
+- `category` (string, optional): Filter by accessory category
+
+**Example Request:**
+```http
+GET /api/v1/accessories?page=1&limit=20&search=mouse&status=available
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 45,
+      "name": "Wireless Mouse",
+      "category": "Computer Accessories",
+      "manufacturer": "Logitech",
+      "model": "MX Master 3",
+      "status": "available",
+      "total_quantity": 50,
+      "available_quantity": 35,
+      "checked_out_quantity": 15,
+      "country": "Singapore",
+      "current_customer": null,
+      "customer_email": null,
+      "is_available": true,
+      "checkout_date": null,
+      "return_date": null,
+      "description": "Wireless ergonomic mouse with USB-C charging",
+      "notes": "Wireless ergonomic mouse with USB-C charging",
+      "created_at": "2025-08-11T09:04:27.257649",
+      "updated_at": "2025-08-12T10:15:33.445522",
+      "item_type": "accessory"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 85,
+    "pages": 5
+  }
+}
+```
+
+### 4. Get Single Accessory
+
+Get complete information for a specific accessory by ID.
+
+```http
+GET /api/v1/accessories/{id}
+Authorization: Bearer <token>
+```
+
+**Example Request:**
+```http
+GET /api/v1/accessories/45
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "id": 45,
+    "name": "Wireless Mouse",
+    "category": "Computer Accessories",
+    "manufacturer": "Logitech",
+    "model": "MX Master 3",
+    "status": "available",
+    "total_quantity": 50,
+    "available_quantity": 35,
+    "checked_out_quantity": 15,
+    "country": "Singapore",
+    "current_customer": null,
+    "customer_email": null,
+    "is_available": true,
+    "checkout_date": null,
+    "return_date": null,
+    "description": "Wireless ergonomic mouse with USB-C charging",
+    "notes": "Wireless ergonomic mouse with USB-C charging",
+    "created_at": "2025-08-11T09:04:27.257649",
+    "updated_at": "2025-08-12T10:15:33.445522",
+    "item_type": "accessory"
+  }
+}
+```
+
+### 5. Health Check
 
 Check API status and availability.
 
@@ -174,14 +278,18 @@ GET /api/v1/inventory/health
   "version": "v1",
   "endpoints": [
     "/api/v1/inventory",
-    "/api/v1/inventory/{id}"
+    "/api/v1/inventory/{id}",
+    "/api/v1/accessories",
+    "/api/v1/accessories/{id}"
   ]
 }
 ```
 
 ## Response Fields
 
-### Core Asset Information
+### Asset Response Fields
+
+#### Core Asset Information
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | integer | Unique asset identifier |
@@ -230,7 +338,51 @@ GET /api/v1/inventory/health
 | `created_at` | string (ISO 8601) | Record creation timestamp |
 | `updated_at` | string (ISO 8601) | Last update timestamp |
 
+### Accessory Response Fields
+
+#### Core Accessory Information
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Unique accessory identifier |
+| `name` | string | Accessory name/title |
+| `category` | string | Accessory category |
+| `manufacturer` | string | Device manufacturer |
+| `model` | string | Model number/identifier |
+| `status` | string | Current accessory status |
+| `item_type` | string | Always "accessory" for accessories |
+
+#### Inventory Details
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_quantity` | integer | Total quantity in inventory |
+| `available_quantity` | integer | Currently available quantity |
+| `checked_out_quantity` | integer | Currently checked out quantity |
+| `is_available` | boolean | Whether any units are available |
+
+#### Assignment and Status Details
+| Field | Type | Description |
+|-------|------|-------------|
+| `current_customer` | string | Currently assigned customer name |
+| `customer_email` | string | Customer email address |
+| `checkout_date` | string (ISO 8601) | Date when checked out |
+| `return_date` | string (ISO 8601) | Date when returned |
+
+#### Location Details
+| Field | Type | Description |
+|-------|------|-------------|
+| `country` | string | Accessory location country |
+
+#### Additional Information
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Accessory notes/description |
+| `notes` | string | Additional notes |
+| `created_at` | string (ISO 8601) | Record creation timestamp |
+| `updated_at` | string (ISO 8601) | Last update timestamp |
+
 ## Status Values
+
+### Asset Status Values
 
 | Status | Description |
 |--------|-------------|
@@ -241,6 +393,16 @@ GET /api/v1/inventory/health
 | `repair` | Under repair |
 | `archived` | Archived/inactive |
 | `disposed` | Disposed of |
+
+### Accessory Status Values
+
+| Status | Description |
+|--------|-------------|
+| `available` | Available for checkout |
+| `checked_out` | Currently checked out |
+| `unavailable` | Not available |
+| `maintenance` | Under maintenance |
+| `retired` | Retired from service |
 
 ## Error Responses
 
@@ -299,6 +461,20 @@ asset_response = requests.get(
     headers=headers
 )
 asset_details = asset_response.json()['data']
+
+# Get accessories with filtering
+accessories_response = requests.get(
+    'http://localhost:5000/api/v1/accessories?search=mouse&status=available&limit=10',
+    headers=headers
+)
+accessories = accessories_response.json()['data']
+
+# Get specific accessory
+accessory_response = requests.get(
+    f'http://localhost:5000/api/v1/accessories/{accessories[0]["id"]}',
+    headers=headers
+)
+accessory_details = accessory_response.json()['data']
 ```
 
 ### JavaScript Example
@@ -325,6 +501,18 @@ const assetResponse = await fetch(`/api/v1/inventory/${assets[0].id}`, {
   headers: { 'Authorization': `Bearer ${token}` }
 });
 const { data: asset } = await assetResponse.json();
+
+// Get accessories
+const accessoriesResponse = await fetch('/api/v1/accessories?page=1&limit=20&status=available', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const { data: accessories } = await accessoriesResponse.json();
+
+// Get specific accessory
+const accessoryResponse = await fetch(`/api/v1/accessories/${accessories[0].id}`, {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const { data: accessory } = await accessoryResponse.json();
 ```
 
 ## Testing
@@ -345,14 +533,26 @@ The test script will:
 
 If you're migrating from the existing mobile API endpoints:
 
-### Old Endpoint (Limited Fields)
+### Assets
+**Old Endpoint (Limited Fields)**
 ```
 GET /api/mobile/v1/inventory
 ```
 
-### New Endpoint (Complete Fields)
+**New Endpoint (Complete Fields)**
 ```
 GET /api/v1/inventory
 ```
 
-The new endpoint includes all fields from the old endpoint plus the additional hardware specifications, condition details, and location information as specified in your requirements.
+### Accessories
+**New Endpoints (Complete Fields)**
+```
+GET /api/v1/accessories        (list all accessories)
+GET /api/v1/accessories/{id}   (get single accessory)
+```
+
+The new endpoints include comprehensive information:
+- **Assets**: All hardware specifications, condition details, and location information
+- **Accessories**: Complete inventory tracking with quantities, availability, and assignment details
+
+Both asset and accessory endpoints support the same authentication, filtering, and pagination capabilities.

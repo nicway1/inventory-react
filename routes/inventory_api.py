@@ -16,6 +16,7 @@ import logging
 
 from models.user import User, UserType
 from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
 from utils.db_manager import DatabaseManager
 from routes.mobile_api import mobile_auth_required
 
@@ -25,6 +26,59 @@ logger = logging.getLogger(__name__)
 # Create Inventory API blueprint
 inventory_api_bp = Blueprint('inventory_api', __name__, url_prefix='/api/v1')
 db_manager = DatabaseManager()
+
+def format_accessory_complete(accessory):
+    """Format accessory with complete information"""
+    # Handle string fields
+    def safe_str(value):
+        if value is None:
+            return None
+        return str(value).strip() if str(value).strip() else None
+    
+    # Handle numeric fields
+    def safe_int(value):
+        if value is None or value == '':
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+    
+    return {
+        # Basic identification
+        "id": accessory.id,
+        "name": safe_str(accessory.name),
+        "category": safe_str(accessory.category),
+        "manufacturer": safe_str(accessory.manufacturer),
+        "model": safe_str(accessory.model_no),
+        "status": safe_str(accessory.status) or "available",
+        
+        # Inventory details
+        "total_quantity": safe_int(accessory.total_quantity) or 0,
+        "available_quantity": safe_int(accessory.available_quantity) or 0,
+        "checked_out_quantity": (safe_int(accessory.total_quantity) or 0) - (safe_int(accessory.available_quantity) or 0),
+        
+        # Location and assignment details
+        "country": safe_str(accessory.country),
+        "current_customer": accessory.customer_user.name if accessory.customer_user else None,
+        "customer_email": accessory.customer_user.email if accessory.customer_user else None,
+        
+        # Status details
+        "is_available": (accessory.available_quantity or 0) > 0,
+        "checkout_date": accessory.checkout_date.isoformat() if accessory.checkout_date else None,
+        "return_date": accessory.return_date.isoformat() if accessory.return_date else None,
+        
+        # Additional information
+        "description": safe_str(accessory.notes),
+        "notes": safe_str(accessory.notes),
+        
+        # Standard timestamps
+        "created_at": accessory.created_at.isoformat() if accessory.created_at else None,
+        "updated_at": accessory.updated_at.isoformat() if accessory.updated_at else None,
+        
+        # Type identifier
+        "item_type": "accessory"
+    }
 
 def format_asset_complete(asset):
     """Format asset with complete information as specified"""
@@ -312,6 +366,214 @@ def get_complete_asset(asset_id):
             'error': 'Failed to get asset'
         }), 500
 
+@inventory_api_bp.route('/accessories', methods=['GET'])
+@mobile_auth_required
+def get_complete_accessories():
+    """
+    Get comprehensive accessories listing with all details
+    
+    GET /api/v1/accessories?page=1&limit=20&search=mouse&status=available
+    Headers: Authorization: Bearer <token>
+    
+    Returns complete accessory information including:
+    - Basic identification (name, category, manufacturer, model)
+    - Inventory details (quantities, availability)
+    - Assignment information (current customer, checkout dates)
+    - Location details (country)
+    
+    Response: {
+        "data": [
+            {
+                "id": 45,
+                "name": "Wireless Mouse",
+                "category": "Computer Accessories",
+                "manufacturer": "Logitech",
+                "model": "MX Master 3",
+                "status": "available",
+                "total_quantity": 50,
+                "available_quantity": 35,
+                "checked_out_quantity": 15,
+                "country": "Singapore",
+                "current_customer": null,
+                "is_available": true,
+                "checkout_date": null,
+                "return_date": null,
+                "description": "Wireless ergonomic mouse",
+                "created_at": "2025-08-11T09:04:27.257649",
+                "updated_at": "2025-08-11T09:04:27.257649",
+                "item_type": "accessory"
+            }
+        ],
+        "pagination": {
+            "page": 1,
+            "limit": 20,
+            "total": 85,
+            "pages": 5
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Check permissions - using same permission check as assets
+        if not user.permissions or not user.permissions.can_view_assets:
+            return jsonify({
+                'error': 'No permission to view accessories'
+            }), 403
+        
+        # Get parameters
+        page = request.args.get('page', 1, type=int)
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        search = request.args.get('search', None)
+        status_filter = request.args.get('status', None)
+        category_filter = request.args.get('category', None)
+        
+        db_session = db_manager.get_session()
+        try:
+            # Build query based on user permissions
+            query = db_session.query(Accessory)
+            
+            # Apply country restrictions for COUNTRY_ADMIN
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                query = query.filter(Accessory.country == user.assigned_country.value)
+            
+            # Apply status filter
+            if status_filter:
+                # Map common status values
+                status_map = {
+                    'available': 'Available',
+                    'checked_out': 'Checked Out',
+                    'unavailable': 'Unavailable',
+                    'maintenance': 'Maintenance',
+                    'retired': 'Retired'
+                }
+                
+                if status_filter.lower() in status_map:
+                    query = query.filter(Accessory.status == status_map[status_filter.lower()])
+                else:
+                    # Direct status matching
+                    query = query.filter(Accessory.status.ilike(f"%{status_filter}%"))
+            
+            # Apply category filter
+            if category_filter:
+                query = query.filter(Accessory.category.ilike(f"%{category_filter}%"))
+            
+            # Apply search filter
+            if search:
+                search_term = f"%{search}%"
+                query = query.filter(
+                    (Accessory.name.ilike(search_term)) |
+                    (Accessory.category.ilike(search_term)) |
+                    (Accessory.manufacturer.ilike(search_term)) |
+                    (Accessory.model_no.ilike(search_term))
+                )
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            offset = (page - 1) * limit
+            accessories = query.order_by(Accessory.created_at.desc()).offset(offset).limit(limit).all()
+            
+            # Format accessories with complete information
+            accessories_data = [format_accessory_complete(accessory) for accessory in accessories]
+            
+            pages = (total + limit - 1) // limit
+            
+            return jsonify({
+                'data': accessories_data,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'pages': pages
+                }
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Get complete accessories error: {str(e)}")
+        return jsonify({
+            'error': 'Failed to get accessories'
+        }), 500
+
+@inventory_api_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
+@mobile_auth_required
+def get_complete_accessory(accessory_id):
+    """
+    Get single accessory with complete information
+    
+    GET /api/v1/accessories/45
+    Headers: Authorization: Bearer <token>
+    
+    Returns complete accessory information including all details
+    
+    Response: {
+        "data": {
+            "id": 45,
+            "name": "Wireless Mouse",
+            "category": "Computer Accessories",
+            "manufacturer": "Logitech",
+            "model": "MX Master 3",
+            "status": "available",
+            "total_quantity": 50,
+            "available_quantity": 35,
+            "checked_out_quantity": 15,
+            "country": "Singapore",
+            "current_customer": null,
+            "is_available": true,
+            "checkout_date": null,
+            "return_date": null,
+            "description": "Wireless ergonomic mouse",
+            "created_at": "2025-08-11T09:04:27.257649",
+            "updated_at": "2025-08-11T09:04:27.257649",
+            "item_type": "accessory"
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Check permissions
+        if not user.permissions or not user.permissions.can_view_assets:
+            return jsonify({
+                'error': 'No permission to view accessories'
+            }), 403
+        
+        db_session = db_manager.get_session()
+        try:
+            # Build query based on user permissions
+            query = db_session.query(Accessory).filter(Accessory.id == accessory_id)
+            
+            # Apply country restrictions for COUNTRY_ADMIN
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                query = query.filter(Accessory.country == user.assigned_country.value)
+            
+            accessory = query.first()
+            
+            if not accessory:
+                return jsonify({
+                    'error': 'Accessory not found or access denied'
+                }), 404
+            
+            # Format accessory with complete information
+            accessory_data = format_accessory_complete(accessory)
+            
+            return jsonify({
+                'data': accessory_data
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Get complete accessory error: {str(e)}")
+        return jsonify({
+            'error': 'Failed to get accessory'
+        }), 500
+
 @inventory_api_bp.route('/inventory/health', methods=['GET'])
 def inventory_health_check():
     """
@@ -331,6 +593,8 @@ def inventory_health_check():
         'version': 'v1',
         'endpoints': [
             '/api/v1/inventory',
-            '/api/v1/inventory/{id}'
+            '/api/v1/inventory/{id}',
+            '/api/v1/accessories',
+            '/api/v1/accessories/{id}'
         ]
     }), 200
