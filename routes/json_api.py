@@ -22,8 +22,8 @@ from flask import current_app
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Create JSON API blueprint
-json_api_bp = Blueprint('json_api', __name__)
+# Create JSON API blueprint - using different routes to avoid conflicts with existing api_simple.py
+json_api_bp = Blueprint('json_api', __name__, url_prefix='/mobile')
 db_manager = DatabaseManager()
 
 # API Key for authentication
