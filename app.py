@@ -1,6 +1,7 @@
-from flask import Flask, redirect, url_for, render_template, session, jsonify
+from flask import Flask, redirect, url_for, render_template, session, jsonify, request
 from flask_cors import CORS
 from flask_login import LoginManager, current_user
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from dotenv import load_dotenv
 import logging
 
@@ -113,6 +114,16 @@ def create_app():
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
+        # Check if this is an API request
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'error': {
+                    'code': 'CSRF_ERROR',
+                    'message': 'CSRF token validation failed',
+                    'details': str(e)
+                }
+            }), 400
+        
         logging.error(f"CSRF Error: {str(e)}")
         return render_template('error.html', 
                              error="CSRF token validation failed. Please try again.",
@@ -169,6 +180,9 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp)
+    
+    # Exempt API blueprint from CSRF protection
+    csrf.exempt(api_bp)
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(documents_bp)

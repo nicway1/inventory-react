@@ -1,0 +1,5 @@
+# Requirements for API testing scripts
+requests>=2.28.0
+colorama>=0.4.4
+beautifulsoup4>=4.11.0
+PyJWT>=2.6.0

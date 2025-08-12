@@ -182,6 +182,18 @@ class TicketStore:
         finally:
             db_session.close()
 
+    def get_all_tickets(self):
+        """Get all tickets from the database"""
+        db_session = self.db_manager.get_session()
+        try:
+            return db_session.query(Ticket).all()
+        finally:
+            db_session.close()
+
+    def get_ticket_by_id(self, ticket_id):
+        """Get a specific ticket by ID (alias for get_ticket)"""
+        return self.get_ticket(ticket_id)
+
     def get_user_tickets(self, user_id, user_type):
         """Get tickets based on user's role and ID"""
         db_session = self.db_manager.get_session()
