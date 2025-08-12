@@ -285,7 +285,7 @@ def list_tickets():
                 'id': ticket.id,
                 'subject': ticket.subject,
                 'description': ticket.description,
-                'status': ticket.status,
+                'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                 'priority': ticket.priority.name if ticket.priority else None,
                 'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
@@ -333,7 +333,7 @@ def get_ticket(ticket_id):
             'id': ticket.id,
             'subject': ticket.subject,
             'description': ticket.description,
-            'status': ticket.status,
+            'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
             'priority': ticket.priority.name if ticket.priority else None,
             'category': ticket.category.name if ticket.category else None,
             'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
