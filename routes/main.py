@@ -642,3 +642,79 @@ def debug_supervisor_tickets():
     except Exception as e:
         logger.error(f"Error in debug_supervisor_tickets: {str(e)}")
         return jsonify({'error': str(e)})
+
+@main_bp.route('/api/customers/search')
+@login_required
+def search_customers():
+    """Customer search endpoint for ticket creation form"""
+    db_session = db_manager.get_session()
+    try:
+        search_term = request.args.get('q', '').strip()
+        
+        # Get current user and apply company filtering
+        user = db_session.query(User).get(session['user_id'])
+        if not user:
+            return jsonify([]), 401
+            
+        customers_query = db_session.query(CustomerUser)
+        
+        # Apply the same filtering logic as get_filtered_customers
+        from models.company_customer_permission import CompanyCustomerPermission
+        
+        # SUPER_ADMIN users can see all customers
+        if user.user_type != UserType.SUPER_ADMIN:
+            # For other users, apply permission-based filtering
+            if user.company_id:
+                # Get companies this user's company has permission to view customers from
+                permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                    .filter(
+                        CompanyCustomerPermission.company_id == user.company_id,
+                        CompanyCustomerPermission.can_view == True
+                    ).subquery()
+                
+                # Users can always see their own company's customers, plus any permitted ones
+                customers_query = customers_query.filter(
+                    or_(
+                        CustomerUser.company_id == user.company_id,  # Own company customers
+                        CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+                    )
+                )
+        
+        # Apply search filter if provided
+        if search_term:
+            search_filter = or_(
+                CustomerUser.name.ilike(f'%{search_term}%'),
+                CustomerUser.email.ilike(f'%{search_term}%'),
+                CustomerUser.contact_number.ilike(f'%{search_term}%'),
+                CustomerUser.address.ilike(f'%{search_term}%')
+            )
+            customers_query = customers_query.filter(search_filter)
+        
+        # Get results with limit for performance
+        customers = customers_query.order_by(CustomerUser.name).limit(50).all()
+        
+        # Format response for Select2 frontend
+        results = []
+        for customer in customers:
+            # Create display text combining name and company
+            display_text = customer.name
+            if customer.company:
+                display_text += f" ({customer.company.name})"
+            
+            results.append({
+                'id': customer.id,
+                'text': display_text,  # This is what Select2 displays
+                'name': customer.name,
+                'email': customer.email,
+                'company': customer.company.name if customer.company else None,
+                'address': customer.address,
+                'contact_number': customer.contact_number
+            })
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        logger.error(f"Customer search error: {str(e)}")
+        return jsonify([]), 500
+    finally:
+        db_session.close()
