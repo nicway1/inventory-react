@@ -18,7 +18,8 @@ from models.user import User, UserType
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from utils.db_manager import DatabaseManager
-from routes.mobile_api import mobile_auth_required
+from routes.mobile_api import mobile_auth_required, verify_mobile_token
+from functools import wraps
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -26,6 +27,68 @@ logger = logging.getLogger(__name__)
 # Create Inventory API blueprint
 inventory_api_bp = Blueprint('inventory_api', __name__, url_prefix='/api/v1')
 db_manager = DatabaseManager()
+
+# Support for JSON API key system for backward compatibility
+JSON_API_KEY = 'xAQhm3__ZH6MvRIPMIBSDRAsIa1w2Slh5uaCtc4NurM'
+
+def dual_auth_required(f):
+    """
+    Enhanced authentication decorator that supports both:
+    1. Mobile JWT authentication (preferred)
+    2. JSON API key + JWT authentication (backward compatibility)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = None
+        
+        # Method 1: Try JSON API key + JWT authentication first
+        api_key = request.headers.get('X-API-Key')
+        if api_key == JSON_API_KEY:
+            # JSON API key authentication - also needs JWT token
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                from routes.json_api import verify_jwt_token
+                user_id = verify_jwt_token(token)
+                
+                if user_id:
+                    # Get user from database
+                    db_session = db_manager.get_session()
+                    try:
+                        user = db_session.query(User).filter(User.id == user_id).first()
+                        if user:
+                            logger.info(f"JSON API authentication successful for user: {user.username}")
+                    finally:
+                        db_session.close()
+        
+        # Method 2: Try mobile JWT authentication (no API key needed)
+        if not user:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                user = verify_mobile_token(token)
+                if user:
+                    logger.info(f"Mobile JWT authentication successful for user: {user.username}")
+        
+        # If no valid authentication found
+        if not user:
+            return jsonify({
+                'error': 'Authentication required',
+                'message': 'Please provide either: (1) Mobile JWT token in Authorization header, or (2) JSON API key in X-API-Key header plus JWT token in Authorization header'
+            }), 401
+        
+        # Check permissions
+        if not user.permissions or not user.permissions.can_view_assets:
+            return jsonify({
+                'error': 'Insufficient permissions',
+                'message': 'User does not have permission to view assets and accessories'
+            }), 403
+        
+        # Set current user for the request
+        request.current_mobile_user = user
+        return f(*args, **kwargs)
+    
+    return decorated_function
 
 def format_accessory_complete(accessory):
     """Format accessory with complete information"""
@@ -208,7 +271,7 @@ def format_asset_complete(asset):
     }
 
 @inventory_api_bp.route('/inventory', methods=['GET'])
-@mobile_auth_required
+@dual_auth_required
 def get_complete_inventory():
     """
     Get comprehensive inventory listing with all asset details
@@ -355,7 +418,7 @@ def get_complete_inventory():
         }), 500
 
 @inventory_api_bp.route('/inventory/<int:asset_id>', methods=['GET'])
-@mobile_auth_required
+@dual_auth_required
 def get_complete_asset(asset_id):
     """
     Get single asset with complete information
@@ -415,7 +478,7 @@ def get_complete_asset(asset_id):
         }), 500
 
 @inventory_api_bp.route('/accessories', methods=['GET'])
-@mobile_auth_required
+@dual_auth_required
 def get_complete_accessories():
     """
     Get comprehensive accessories listing with all details
@@ -548,7 +611,7 @@ def get_complete_accessories():
         }), 500
 
 @inventory_api_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
-@mobile_auth_required
+@dual_auth_required
 def get_complete_accessory(accessory_id):
     """
     Get single accessory with complete information
