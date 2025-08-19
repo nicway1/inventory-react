@@ -646,19 +646,18 @@ def sync_tickets():
 def get_ticket_comments(ticket_id):
     """Get all comments for a specific ticket"""
     try:
-        # Get pagination parameters
+        # Get pagination parameters (match iOS app expectations)
         page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        limit = request.args.get('limit', 20, type=int)
+        per_page = min(limit, 100)  # Cap at 100 for performance
         
         # Get the ticket first to ensure it exists
         ticket = Ticket.query.get(ticket_id)
         if not ticket:
-            response, status_code = create_error_response(
-                "RESOURCE_NOT_FOUND",
-                f"Ticket with ID {ticket_id} not found",
-                404
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Ticket not found"
+            }), 404
         
         # Get paginated comments ordered by creation date (oldest first)
         from models.comment import Comment
@@ -669,45 +668,42 @@ def get_ticket_comments(ticket_id):
             error_out=False
         )
         
-        # Format comments data
+        # Format comments data to match iOS app expectations
         comments_data = []
         for comment in comments_paginated.items:
             comment_data = {
                 'id': comment.id,
+                'ticket_id': ticket_id,
                 'content': comment.content,
-                'user_id': comment.user_id,
-                'user_name': comment.user.username if comment.user else None,
-                'created_at': comment.created_at.isoformat() if comment.created_at else None,
-                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None,
-                'mentions': comment.mentions,
-                'user_mentions': comment.user_mentions,
-                'group_mentions': comment.group_mentions
+                'author_name': comment.user.username if comment.user else None,
+                'author_id': comment.user_id,
+                'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None,
+                'updated_at': comment.updated_at.isoformat() + 'Z' if comment.updated_at else None
             }
             comments_data.append(comment_data)
         
-        # Create success response with pagination info
-        response = create_success_response({
-            'comments': comments_data,
-            'pagination': {
-                'page': comments_paginated.page,
-                'per_page': comments_paginated.per_page,
-                'total': comments_paginated.total,
-                'pages': comments_paginated.pages,
-                'has_prev': comments_paginated.has_prev,
-                'has_next': comments_paginated.has_next
+        # Create response matching iOS app expectations
+        response = {
+            "data": comments_data,
+            "meta": {
+                "pagination": {
+                    "page": comments_paginated.page,
+                    "per_page": comments_paginated.per_page,
+                    "total": comments_paginated.total,
+                    "has_next": comments_paginated.has_next,
+                    "has_prev": comments_paginated.has_prev
+                }
             },
-            'ticket_id': ticket_id,
-            'ticket_subject': ticket.subject
-        })
+            "success": True,
+            "message": "Comments retrieved successfully"
+        }
         return jsonify(response), 200
         
     except Exception as e:
-        response, status_code = create_error_response(
-            "INTERNAL_ERROR",
-            f"Error retrieving comments: {str(e)}",
-            500
-        )
-        return jsonify(response), status_code
+        return jsonify({
+            "success": False,
+            "message": f"Error retrieving comments: {str(e)}"
+        }), 500
 
 @api_bp.route('/tickets/<int:ticket_id>/comments', methods=['POST'])
 @require_api_key(permissions=['tickets:write'])
@@ -717,51 +713,41 @@ def create_ticket_comment(ticket_id):
         # Get request data
         data = request.get_json()
         if not data:
-            response, status_code = create_error_response(
-                "INVALID_REQUEST",
-                "Request body must contain valid JSON",
-                400
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Request body must contain valid JSON"
+            }), 400
         
         # Validate required fields
         content = data.get('content', '').strip()
         if not content:
-            response, status_code = create_error_response(
-                "VALIDATION_ERROR",
-                "Comment content is required and cannot be empty",
-                400
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Comment content is required and cannot be empty"
+            }), 400
         
-        # Validate content length
+        # Validate content length (2000 characters as per iOS app)
         if len(content) > 2000:
-            response, status_code = create_error_response(
-                "VALIDATION_ERROR",
-                "Comment content cannot exceed 2000 characters",
-                400
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Comment content cannot exceed 2000 characters"
+            }), 400
         
         # Get the ticket to ensure it exists
         ticket = Ticket.query.get(ticket_id)
         if not ticket:
-            response, status_code = create_error_response(
-                "RESOURCE_NOT_FOUND",
-                f"Ticket with ID {ticket_id} not found",
-                404
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Ticket not found"
+            }), 404
         
         # Get the user from the API key context
         user_id = g.api_user.id if hasattr(g, 'api_user') else None
         if not user_id:
-            response, status_code = create_error_response(
-                "AUTHENTICATION_ERROR",
-                "Unable to identify user from API key",
-                401
-            )
-            return jsonify(response), status_code
+            return jsonify({
+                "success": False,
+                "message": "Unable to identify user from API key"
+            }), 401
         
         # Create the comment
         from models.comment import Comment
@@ -779,25 +765,23 @@ def create_ticket_comment(ticket_id):
             db_session.commit()
             db_session.refresh(comment)  # Get the updated comment with relationships
             
-            # Format comment data for response
+            # Format comment data for response (match iOS app expectations)
             comment_data = {
                 'id': comment.id,
+                'ticket_id': ticket_id,
                 'content': comment.content,
-                'user_id': comment.user_id,
-                'user_name': comment.user.username if comment.user else None,
-                'created_at': comment.created_at.isoformat() if comment.created_at else None,
-                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None,
-                'mentions': comment.mentions,
-                'user_mentions': comment.user_mentions,
-                'group_mentions': comment.group_mentions
+                'author_name': comment.user.username if comment.user else None,
+                'author_id': comment.user_id,
+                'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None,
+                'updated_at': comment.updated_at.isoformat() + 'Z' if comment.updated_at else None
             }
             
-            # Create success response
-            response = create_success_response({
-                'comment': comment_data,
-                'ticket_id': ticket_id,
-                'message': 'Comment created successfully'
-            })
+            # Create success response matching iOS app expectations
+            response = {
+                "data": comment_data,
+                "success": True,
+                "message": "Comment created successfully"
+            }
             return jsonify(response), 201
             
         except Exception as db_error:
@@ -807,12 +791,10 @@ def create_ticket_comment(ticket_id):
             db_session.close()
         
     except Exception as e:
-        response, status_code = create_error_response(
-            "INTERNAL_ERROR",
-            f"Error creating comment: {str(e)}",
-            500
-        )
-        return jsonify(response), status_code
+        return jsonify({
+            "success": False,
+            "message": f"Error creating comment: {str(e)}"
+        }), 500
 
 # Health Check Endpoint
 
