@@ -4967,3 +4967,197 @@ def api_documentation():
         current_app.logger.error(f"Error loading API documentation: {e}")
         flash(f'Error loading API documentation: {str(e)}', 'error')
         return redirect(url_for('admin.api_management'))
+
+@admin_bp.route('/company-grouping')
+@admin_required
+def manage_company_grouping():
+    """Manage company grouping and parent/child relationships"""
+    db_session = db_manager.get_session()
+    try:
+        # Get all companies from Company table
+        existing_companies = db_session.query(Company).order_by(Company.name).all()
+        
+        # Get distinct customer names from Asset table that don't exist as companies yet
+        asset_customers = db_session.query(Asset.customer).distinct().filter(
+            Asset.customer.isnot(None),
+            Asset.customer != ''
+        ).all()
+        
+        existing_company_names = {c.name for c in existing_companies}
+        
+        # Create missing Company records for asset customers
+        missing_companies = []
+        for customer_tuple in asset_customers:
+            customer_name = customer_tuple[0]
+            if customer_name and customer_name not in existing_company_names:
+                # Create a new Company record
+                new_company = Company(
+                    name=customer_name,
+                    is_parent_company=False,
+                    parent_company_id=None,
+                    display_name=None
+                )
+                db_session.add(new_company)
+                missing_companies.append(new_company)
+        
+        # Commit new companies
+        if missing_companies:
+            db_session.commit()
+            logger.info(f"Created {len(missing_companies)} new company records from asset customer field")
+        
+        # Get all companies again (including newly created ones)
+        companies = db_session.query(Company).order_by(Company.name).all()
+        
+        # Separate parent companies and standalone companies
+        parent_companies = [c for c in companies if c.is_parent_company or c.child_companies.count() > 0]
+        standalone_companies = [c for c in companies if not c.parent_company_id and not c.is_parent_company]
+        child_companies = [c for c in companies if c.parent_company_id]
+        
+        # Add information about which companies have assets
+        for company in companies:
+            asset_count = db_session.query(Asset).filter(Asset.customer == company.name).count()
+            company.asset_count = asset_count
+        
+        return render_template('admin/company_grouping.html',
+                              companies=companies,
+                              parent_companies=parent_companies,
+                              standalone_companies=standalone_companies,
+                              child_companies=child_companies)
+    except Exception as e:
+        flash(f'Error loading company grouping: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_companies'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/company-grouping/set-parent', methods=['POST'])
+@admin_required
+def set_company_parent():
+    """Set a parent company for a child company"""
+    child_company_id = request.form.get('child_company_id')
+    parent_company_id = request.form.get('parent_company_id')
+    
+    if not child_company_id:
+        flash('Child company is required', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+    
+    db_session = db_manager.get_session()
+    try:
+        child_company = db_session.query(Company).get(child_company_id)
+        
+        if not child_company:
+            flash('Child company not found', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+        
+        # Prevent circular relationships
+        if parent_company_id and int(parent_company_id) == child_company.id:
+            flash('A company cannot be its own parent', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+        
+        if parent_company_id:
+            parent_company = db_session.query(Company).get(parent_company_id)
+            if not parent_company:
+                flash('Parent company not found', 'error')
+                return redirect(url_for('admin.manage_company_grouping'))
+            
+            # Check for circular reference
+            if parent_company.parent_company_id == child_company.id:
+                flash('This would create a circular reference', 'error')
+                return redirect(url_for('admin.manage_company_grouping'))
+            
+            child_company.parent_company_id = parent_company.id
+            
+            # Mark parent company as parent
+            parent_company.is_parent_company = True
+            
+            flash(f'Successfully grouped {child_company.name} under {parent_company.name}', 'success')
+        else:
+            # Remove parent relationship
+            old_parent_name = child_company.parent_company.name if child_company.parent_company else None
+            child_company.parent_company_id = None
+            
+            if old_parent_name:
+                flash(f'Successfully removed {child_company.name} from {old_parent_name}', 'success')
+        
+        db_session.commit()
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating company grouping: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/set-display-name', methods=['POST'])
+@admin_required
+def set_company_display_name():
+    """Set a custom display name for a company"""
+    company_id = request.form.get('company_id')
+    display_name = request.form.get('display_name', '').strip()
+    
+    if not company_id:
+        flash('Company is required', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+    
+    db_session = db_manager.get_session()
+    try:
+        company = db_session.query(Company).get(company_id)
+        
+        if not company:
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+        
+        # Set display name (can be empty to use default name)
+        company.display_name = display_name if display_name else None
+        
+        db_session.commit()
+        
+        if display_name:
+            flash(f'Successfully set display name for {company.name} to "{display_name}"', 'success')
+        else:
+            flash(f'Successfully removed custom display name for {company.name}', 'success')
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating display name: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/toggle-parent', methods=['POST'])
+@admin_required
+def toggle_parent_company():
+    """Toggle parent company status"""
+    company_id = request.form.get('company_id')
+    
+    if not company_id:
+        flash('Company is required', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+    
+    db_session = db_manager.get_session()
+    try:
+        company = db_session.query(Company).get(company_id)
+        
+        if not company:
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+        
+        # Check if company has children before removing parent status
+        if company.is_parent_company and company.child_companies.count() > 0:
+            flash(f'Cannot remove parent status from {company.name} - it still has child companies', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+        
+        company.is_parent_company = not company.is_parent_company
+        db_session.commit()
+        
+        status = "enabled" if company.is_parent_company else "disabled"
+        flash(f'Successfully {status} parent status for {company.name}', 'success')
+        
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating parent status: {str(e)}', 'error')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin.manage_company_grouping'))

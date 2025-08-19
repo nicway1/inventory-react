@@ -199,10 +199,10 @@ def get_ticket(ticket_id):
             comment_data = {
                 'id': comment.id,
                 'content': comment.content,
-                'author_id': comment.author_id,
-                'author_name': comment.author.name if comment.author else None,
+                'user_id': comment.user_id,
+                'user_name': comment.user.username if comment.user else None,
                 'created_at': comment.created_at.isoformat() if comment.created_at else None,
-                'is_internal': comment.is_internal
+                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None
             }
             comments.append(comment_data)
         
@@ -635,6 +635,181 @@ def sync_tickets():
         response, status_code = create_error_response(
             "INTERNAL_ERROR",
             f"Error syncing tickets: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+# Comment Endpoints
+
+@api_bp.route('/tickets/<int:ticket_id>/comments', methods=['GET'])
+@require_api_key(permissions=['tickets:read'])
+def get_ticket_comments(ticket_id):
+    """Get all comments for a specific ticket"""
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        
+        # Get the ticket first to ensure it exists
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            response, status_code = create_error_response(
+                "RESOURCE_NOT_FOUND",
+                f"Ticket with ID {ticket_id} not found",
+                404
+            )
+            return jsonify(response), status_code
+        
+        # Get paginated comments ordered by creation date (oldest first)
+        from models.comment import Comment
+        comments_query = Comment.query.filter_by(ticket_id=ticket_id).order_by(Comment.created_at.asc())
+        comments_paginated = comments_query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        # Format comments data
+        comments_data = []
+        for comment in comments_paginated.items:
+            comment_data = {
+                'id': comment.id,
+                'content': comment.content,
+                'user_id': comment.user_id,
+                'user_name': comment.user.username if comment.user else None,
+                'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None,
+                'mentions': comment.mentions,
+                'user_mentions': comment.user_mentions,
+                'group_mentions': comment.group_mentions
+            }
+            comments_data.append(comment_data)
+        
+        # Create success response with pagination info
+        response = create_success_response({
+            'comments': comments_data,
+            'pagination': {
+                'page': comments_paginated.page,
+                'per_page': comments_paginated.per_page,
+                'total': comments_paginated.total,
+                'pages': comments_paginated.pages,
+                'has_prev': comments_paginated.has_prev,
+                'has_next': comments_paginated.has_next
+            },
+            'ticket_id': ticket_id,
+            'ticket_subject': ticket.subject
+        })
+        return jsonify(response), 200
+        
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving comments: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+@api_bp.route('/tickets/<int:ticket_id>/comments', methods=['POST'])
+@require_api_key(permissions=['tickets:write'])
+def create_ticket_comment(ticket_id):
+    """Create a new comment on a specific ticket"""
+    try:
+        # Get request data
+        data = request.get_json()
+        if not data:
+            response, status_code = create_error_response(
+                "INVALID_REQUEST",
+                "Request body must contain valid JSON",
+                400
+            )
+            return jsonify(response), status_code
+        
+        # Validate required fields
+        content = data.get('content', '').strip()
+        if not content:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Comment content is required and cannot be empty",
+                400
+            )
+            return jsonify(response), status_code
+        
+        # Validate content length
+        if len(content) > 2000:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Comment content cannot exceed 2000 characters",
+                400
+            )
+            return jsonify(response), status_code
+        
+        # Get the ticket to ensure it exists
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            response, status_code = create_error_response(
+                "RESOURCE_NOT_FOUND",
+                f"Ticket with ID {ticket_id} not found",
+                404
+            )
+            return jsonify(response), status_code
+        
+        # Get the user from the API key context
+        user_id = g.api_user.id if hasattr(g, 'api_user') else None
+        if not user_id:
+            response, status_code = create_error_response(
+                "AUTHENTICATION_ERROR",
+                "Unable to identify user from API key",
+                401
+            )
+            return jsonify(response), status_code
+        
+        # Create the comment
+        from models.comment import Comment
+        from database import SessionLocal
+        
+        db_session = SessionLocal()
+        try:
+            comment = Comment(
+                ticket_id=ticket_id,
+                user_id=user_id,
+                content=content
+            )
+            
+            db_session.add(comment)
+            db_session.commit()
+            db_session.refresh(comment)  # Get the updated comment with relationships
+            
+            # Format comment data for response
+            comment_data = {
+                'id': comment.id,
+                'content': comment.content,
+                'user_id': comment.user_id,
+                'user_name': comment.user.username if comment.user else None,
+                'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None,
+                'mentions': comment.mentions,
+                'user_mentions': comment.user_mentions,
+                'group_mentions': comment.group_mentions
+            }
+            
+            # Create success response
+            response = create_success_response({
+                'comment': comment_data,
+                'ticket_id': ticket_id,
+                'message': 'Comment created successfully'
+            })
+            return jsonify(response), 201
+            
+        except Exception as db_error:
+            db_session.rollback()
+            raise db_error
+        finally:
+            db_session.close()
+        
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error creating comment: {str(e)}",
             500
         )
         return jsonify(response), status_code

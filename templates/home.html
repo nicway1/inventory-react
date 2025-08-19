@@ -326,6 +326,15 @@
                     </div>
                     <span class="text-center text-xs">Manage Companies</span>
                 </a>
+                <a href="{{ url_for('admin.manage_company_grouping') }}" 
+                   class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200 hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md transition-all duration-200">
+                    <div class="bg-indigo-500 p-2 rounded-lg mb-2 group-hover:bg-indigo-600 transition-colors">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <span class="text-center text-xs">Company Grouping</span>
+                </a>
                 <a href="{{ url_for('admin.create_user') }}" 
                    class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 hover:from-green-100 hover:to-green-200 hover:shadow-md transition-all duration-200">
                     <div class="bg-green-500 p-2 rounded-lg mb-2 group-hover:bg-green-600 transition-colors">

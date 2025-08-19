@@ -38,7 +38,7 @@ class CustomerUser(Base):
             'email': self.email,
             'address': self.address,
             'company_id': self.company_id,
-            'company_name': self.company.name if self.company else None,
+            'company_name': self.company.grouped_display_name if self.company else None,
             'country': self.country.value if self.country else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

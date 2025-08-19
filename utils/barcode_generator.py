@@ -91,7 +91,7 @@ class AssetBarcodeGenerator:
             # Add company name at the top
             company_name = "Unknown Company"
             if hasattr(asset, 'company') and asset.company:
-                company_name = asset.company.name
+                company_name = asset.company.grouped_display_name
             elif hasattr(asset, 'customer') and asset.customer:
                 company_name = asset.customer
             

@@ -210,7 +210,7 @@ def format_asset_complete(asset):
         # Location and assignment details - COMPLETE SET
         "current_customer": safe_str(asset.customer),
         "country": safe_str(asset.country),
-        "asset_company": asset.company.name if asset.company else None,
+        "asset_company": asset.company.grouped_display_name if asset.company else None,
         "company_id": asset.company_id,
         "receiving_date": asset.receiving_date.isoformat() if asset.receiving_date else None,
         

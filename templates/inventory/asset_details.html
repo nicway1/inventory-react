@@ -406,8 +406,8 @@
                 <div>
                     <dt class="text-sm font-medium text-gray-500">Asset Company</dt>
                     <dd class="text-sm text-gray-900">
-                        {% if asset.customer %}
-                            {{ asset.customer }}
+                        {% if asset_company_display %}
+                            {{ asset_company_display }}
                         {% else %}
                             N/A
                         {% endif %}

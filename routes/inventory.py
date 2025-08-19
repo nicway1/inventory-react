@@ -26,7 +26,6 @@ import json
 import time
 import io
 import csv
-from sqlalchemy.orm import joinedload
 from models.company import Company
 from io import StringIO, BytesIO
 import logging
@@ -39,6 +38,23 @@ logger = logging.getLogger(__name__)
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 db_manager = DatabaseManager()
+
+def get_customer_display_name(db_session, customer_name):
+    """Get the grouped display name for a customer by looking up the company"""
+    if not customer_name:
+        return None
+    
+    try:
+        # Look up company by name
+        company = db_session.query(Company).filter(Company.name == customer_name).first()
+        if company:
+            return company.grouped_display_name
+        else:
+            # If no company found, return the original customer name
+            return customer_name
+    except Exception as e:
+        logger.error(f"Error getting customer display name for '{customer_name}': {e}")
+        return customer_name
 
 def get_filtered_customers(db_session, user):
     """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
@@ -300,7 +316,7 @@ def view_tech_assets():
                     'serial_num': asset.serial_num,
                     'model': asset.model,
                     'inventory': asset.status.value if asset.status else 'Unknown',
-                    'customer': asset.customer,
+                    'customer': get_customer_display_name(db_session, asset.customer),
                     'country': asset.country,
                     'cpu_type': asset.cpu_type,
                     'cpu_cores': asset.cpu_cores,
@@ -527,7 +543,7 @@ def filter_inventory():
                     'serial_num': asset.serial_num,
                     'model': asset.model,
                     'inventory': asset.status.value if asset.status else 'Unknown',
-                    'customer': asset.customer,
+                    'customer': get_customer_display_name(db_session, asset.customer),
                     'country': asset.country,
                     'cpu_type': asset.cpu_type,
                     'cpu_cores': asset.cpu_cores,
@@ -1166,10 +1182,14 @@ def view_asset(asset_id):
         # Get all customers for the deployment dropdown (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
         
+        # Get grouped display name for the asset company
+        asset_company_display = get_customer_display_name(db_session, asset.customer)
+        
         return render_template('inventory/asset_details.html', 
                              asset=asset, 
                              customers=customers,
-                             user=user)
+                             user=user,
+                             asset_company_display=asset_company_display)
     finally:
         db_session.close()
 
@@ -3961,7 +3981,7 @@ def get_maintenance_assets():
                 'memory': asset.memory,
                 'harddrive': asset.harddrive,
                 'inventory': asset.status.value if asset.status else 'Unknown',
-                'customer': asset.customer or customer_name,
+                'customer': get_customer_display_name(db_session, asset.customer or customer_name),
                 'customer_id': asset.customer_id,
                 'country': asset.country,
                 'erased': asset.erased

@@ -5435,6 +5435,7 @@ def get_customers():
     finally:
         db_session.close()
 
+
 @tickets_bp.route('/<int:ticket_id>/add_outbound_tracking', methods=['POST'])
 @login_required
 def add_outbound_tracking(ticket_id):
