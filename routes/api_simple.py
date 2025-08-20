@@ -869,52 +869,60 @@ def get_ticket_comments(ticket_id):
         limit = request.args.get('limit', 20, type=int)
         per_page = min(limit, 100)  # Cap at 100 for performance
         
-        # Get the ticket first to ensure it exists
-        ticket = Ticket.query.get(ticket_id)
-        if not ticket:
-            return jsonify({
-                "success": False,
-                "message": "Ticket not found"
-            }), 404
+        # Get database session
+        from database import SessionLocal
+        db_session = SessionLocal()
         
-        # Get paginated comments ordered by creation date (oldest first)
-        comments_query = Comment.query.filter_by(ticket_id=ticket_id).order_by(Comment.created_at.asc())
-        comments_paginated = comments_query.paginate(
-            page=page,
-            per_page=per_page,
-            error_out=False
-        )
+        try:
+            # Get the ticket first to ensure it exists
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if not ticket:
+                return jsonify({
+                    "success": False,
+                    "message": "Ticket not found"
+                }), 404
+            
+            # Get paginated comments ordered by creation date (oldest first)
+            comments_query = db_session.query(Comment).filter_by(ticket_id=ticket_id).order_by(Comment.created_at.asc())
+            comments_paginated = comments_query.paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
         
-        # Format comments data to match iOS app expectations
-        comments_data = []
-        for comment in comments_paginated.items:
-            comment_data = {
-                'id': comment.id,
-                'ticket_id': ticket_id,
-                'content': comment.content,
-                'author_name': comment.user.username if comment.user else None,
-                'author_id': comment.user_id,
-                'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None,
-                'updated_at': comment.updated_at.isoformat() + 'Z' if comment.updated_at else None
-            }
-            comments_data.append(comment_data)
-        
-        # Create response matching iOS app expectations
-        response = {
-            "data": comments_data,
-            "meta": {
-                "pagination": {
-                    "page": comments_paginated.page,
-                    "per_page": comments_paginated.per_page,
-                    "total": comments_paginated.total,
-                    "has_next": comments_paginated.has_next,
-                    "has_prev": comments_paginated.has_prev
+            # Format comments data to match iOS app expectations
+            comments_data = []
+            for comment in comments_paginated.items:
+                comment_data = {
+                    'id': comment.id,
+                    'ticket_id': ticket_id,
+                    'content': comment.content,
+                    'author_name': comment.user.username if comment.user else None,
+                    'author_id': comment.user_id,
+                    'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None,
+                    'updated_at': comment.updated_at.isoformat() + 'Z' if comment.updated_at else None
                 }
-            },
-            "success": True,
-            "message": "Comments retrieved successfully"
-        }
-        return jsonify(response), 200
+                comments_data.append(comment_data)
+            
+            # Create response matching iOS app expectations
+            response = {
+                "data": comments_data,
+                "meta": {
+                    "pagination": {
+                        "page": comments_paginated.page,
+                        "per_page": comments_paginated.per_page,
+                        "total": comments_paginated.total,
+                        "has_next": comments_paginated.has_next,
+                        "has_prev": comments_paginated.has_prev
+                    }
+                },
+                "success": True,
+                "message": "Comments retrieved successfully"
+            }
+            return jsonify(response), 200
+            
+        finally:
+            db_session.close()
         
     except Exception as e:
         return jsonify({
@@ -951,35 +959,37 @@ def create_ticket_comment(ticket_id):
                 "message": "User ID is required"
             }), 400
         
-        # Verify ticket exists
-        ticket = Ticket.query.get(ticket_id)
-        if not ticket:
-            return jsonify({
-                "success": False,
-                "message": "Ticket not found"
-            }), 404
-        
-        # Verify user exists
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "User not found"
-            }), 404
-        
-        # Create new comment
-        new_comment = Comment(
-            ticket_id=ticket_id,
-            user_id=user_id,
-            content=content,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        
-        # Add to database
+        # Get database session
         from database import SessionLocal
         db_session = SessionLocal()
+        
         try:
+            # Verify ticket exists
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if not ticket:
+                return jsonify({
+                    "success": False,
+                    "message": "Ticket not found"
+                }), 404
+            
+            # Verify user exists
+            user = db_session.query(User).get(user_id)
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "User not found"
+                }), 404
+        
+            # Create new comment
+            new_comment = Comment(
+                ticket_id=ticket_id,
+                user_id=user_id,
+                content=content,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            
+            # Add to database
             db_session.add(new_comment)
             db_session.commit()
             
