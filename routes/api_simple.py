@@ -10,6 +10,7 @@ from utils.db_manager import DatabaseManager
 from models.user import User
 from models.ticket import Ticket
 from models.asset import Asset
+from models.comment import Comment
 from werkzeug.security import check_password_hash
 import jwt
 import os
@@ -855,3 +856,156 @@ def get_inventory_item(item_id):
             500
         )
         return jsonify(response), status_code
+
+# Comment Endpoints
+
+@api_bp.route('/tickets/<int:ticket_id>/comments', methods=['GET'])
+@require_api_key(permissions=['tickets:read'])
+def get_ticket_comments(ticket_id):
+    """Get all comments for a specific ticket"""
+    try:
+        # Get pagination parameters (match iOS app expectations)
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 20, type=int)
+        per_page = min(limit, 100)  # Cap at 100 for performance
+        
+        # Get the ticket first to ensure it exists
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            return jsonify({
+                "success": False,
+                "message": "Ticket not found"
+            }), 404
+        
+        # Get paginated comments ordered by creation date (oldest first)
+        comments_query = Comment.query.filter_by(ticket_id=ticket_id).order_by(Comment.created_at.asc())
+        comments_paginated = comments_query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        # Format comments data to match iOS app expectations
+        comments_data = []
+        for comment in comments_paginated.items:
+            comment_data = {
+                'id': comment.id,
+                'ticket_id': ticket_id,
+                'content': comment.content,
+                'author_name': comment.user.username if comment.user else None,
+                'author_id': comment.user_id,
+                'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None,
+                'updated_at': comment.updated_at.isoformat() + 'Z' if comment.updated_at else None
+            }
+            comments_data.append(comment_data)
+        
+        # Create response matching iOS app expectations
+        response = {
+            "data": comments_data,
+            "meta": {
+                "pagination": {
+                    "page": comments_paginated.page,
+                    "per_page": comments_paginated.per_page,
+                    "total": comments_paginated.total,
+                    "has_next": comments_paginated.has_next,
+                    "has_prev": comments_paginated.has_prev
+                }
+            },
+            "success": True,
+            "message": "Comments retrieved successfully"
+        }
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error retrieving comments: {str(e)}"
+        }), 500
+
+@api_bp.route('/tickets/<int:ticket_id>/comments', methods=['POST'])
+@require_api_key(permissions=['tickets:write'])
+def create_ticket_comment(ticket_id):
+    """Create a new comment on a specific ticket"""
+    try:
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No JSON data provided"
+            }), 400
+        
+        # Validate required fields
+        content = data.get('content', '').strip()
+        user_id = data.get('user_id')
+        
+        if not content:
+            return jsonify({
+                "success": False,
+                "message": "Comment content is required"
+            }), 400
+        
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "User ID is required"
+            }), 400
+        
+        # Verify ticket exists
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            return jsonify({
+                "success": False,
+                "message": "Ticket not found"
+            }), 404
+        
+        # Verify user exists
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "User not found"
+            }), 404
+        
+        # Create new comment
+        new_comment = Comment(
+            ticket_id=ticket_id,
+            user_id=user_id,
+            content=content,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        # Add to database
+        from database import SessionLocal
+        db_session = SessionLocal()
+        try:
+            db_session.add(new_comment)
+            db_session.commit()
+            
+            # Format response to match iOS app expectations
+            comment_data = {
+                'id': new_comment.id,
+                'ticket_id': ticket_id,
+                'content': new_comment.content,
+                'author_name': user.username,
+                'author_id': user_id,
+                'created_at': new_comment.created_at.isoformat() + 'Z',
+                'updated_at': new_comment.updated_at.isoformat() + 'Z'
+            }
+            
+            response = {
+                "data": comment_data,
+                "success": True,
+                "message": "Comment created successfully"
+            }
+            return jsonify(response), 201
+            
+        finally:
+            db_session.close()
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error creating comment: {str(e)}"
+        }), 500
