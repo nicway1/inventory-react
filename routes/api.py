@@ -21,7 +21,7 @@ from models.queue import Queue
 from flask import current_app
 
 # Create API blueprint
-api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
+api_bp = Blueprint('main_api', __name__, url_prefix='/api/v1')
 
 # Helper functions
 def paginate_query(query, page: int = 1, per_page: int = 50, max_per_page: int = 100):
