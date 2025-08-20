@@ -884,15 +884,19 @@ def get_ticket_comments(ticket_id):
             
             # Get paginated comments ordered by creation date (oldest first)
             comments_query = db_session.query(Comment).filter_by(ticket_id=ticket_id).order_by(Comment.created_at.asc())
-            comments_paginated = comments_query.paginate(
-                page=page,
-                per_page=per_page,
-                error_out=False
-            )
+            
+            # Manual pagination
+            total_comments = comments_query.count()
+            offset = (page - 1) * per_page
+            comments_items = comments_query.offset(offset).limit(per_page).all()
+            
+            # Calculate pagination info
+            has_next = offset + per_page < total_comments
+            has_prev = page > 1
         
             # Format comments data to match iOS app expectations
             comments_data = []
-            for comment in comments_paginated.items:
+            for comment in comments_items:
                 comment_data = {
                     'id': comment.id,
                     'ticket_id': ticket_id,
@@ -909,11 +913,11 @@ def get_ticket_comments(ticket_id):
                 "data": comments_data,
                 "meta": {
                     "pagination": {
-                        "page": comments_paginated.page,
-                        "per_page": comments_paginated.per_page,
-                        "total": comments_paginated.total,
-                        "has_next": comments_paginated.has_next,
-                        "has_prev": comments_paginated.has_prev
+                        "page": page,
+                        "per_page": per_page,
+                        "total": total_comments,
+                        "has_next": has_next,
+                        "has_prev": has_prev
                     }
                 },
                 "success": True,
