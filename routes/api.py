@@ -162,12 +162,13 @@ def list_tickets():
             }
             tickets_data.append(ticket_data)
         
-            return jsonify(create_success_response(
-                tickets_data,
-                f"Retrieved {len(tickets_data)} tickets",
-                {"pagination": pagination}
-            ))
-        finally:
+        return jsonify(create_success_response(
+            tickets_data,
+            f"Retrieved {len(tickets_data)} tickets",
+            {"pagination": pagination}
+        ))
+        
+    finally:
             session.close()
         
     except Exception as e:
