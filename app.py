@@ -17,6 +17,7 @@ from routes.shipments import shipments_bp
 from routes.users import users_bp
 from routes.admin import admin_bp
 from routes.api_simple import api_bp
+from routes.api import api_bp as main_api_bp
 from routes.mobile_api import mobile_api_bp
 # from routes.json_api import json_api_bp  # Temporarily disabled to avoid conflicts
 from routes.inventory_api import inventory_api_bp
@@ -184,6 +185,7 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp)
+    app.register_blueprint(main_api_bp)
     app.register_blueprint(mobile_api_bp)
     app.register_blueprint(inventory_api_bp)
     app.register_blueprint(search_api_bp)
