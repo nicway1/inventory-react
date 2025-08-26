@@ -21,6 +21,7 @@ from models.user import UserType, User
 from sqlalchemy import func, or_
 from models.activity import Activity
 from models.permission import Permission
+from models.audit_session import AuditSession
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from flask_login import current_user
@@ -368,6 +369,13 @@ def index():
             'resolved': resolved_tickets
         }
 
+        # Check for active audit session
+        current_audit = None
+        if user.permissions and user.permissions.can_access_inventory_audit:
+            current_audit = db.session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+
         return render_template('home.html',
             queues=queues,
             queue_ticket_counts=queue_ticket_counts,
@@ -383,7 +391,8 @@ def index():
             open_tickets=open_tickets,
             recent_activities=recent_activities,
             user_count=user_count,
-            ticket_counts=ticket_counts
+            ticket_counts=ticket_counts,
+            current_audit=current_audit
         )
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}", exc_info=True)

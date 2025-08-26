@@ -11,9 +11,12 @@ from models.user import User
 from models.ticket import Ticket
 from models.asset import Asset
 from models.comment import Comment
+from models.audit_session import AuditSession
+from models.user import Country
 from werkzeug.security import check_password_hash
 import jwt
 import os
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1023,3 +1026,705 @@ def create_ticket_comment(ticket_id):
             "success": False,
             "message": f"Error creating comment: {str(e)}"
         }), 500
+
+
+# ============================================================================
+# AUDIT API ENDPOINTS
+# ============================================================================
+
+@api_bp.route('/audit/status', methods=['GET'])
+def audit_status():
+    """
+    Get current audit session status
+    
+    Returns:
+        - Active audit details if exists
+        - null if no active audit
+    """
+    try:
+        # Get JWT token from Authorization header
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]  # Remove 'Bearer ' prefix
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+            
+            if not user_id:
+                return jsonify(create_error_response(
+                    "INVALID_TOKEN",
+                    "Token does not contain valid user information",
+                    401
+                )), 401
+                
+        except jwt.ExpiredSignatureError:
+            return jsonify(create_error_response(
+                "TOKEN_EXPIRED",
+                "Token has expired",
+                401
+            )), 401
+        except jwt.InvalidTokenError:
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid token",
+                401
+            )), 401
+        
+        # Get user from database to check permissions
+        db_session = db_manager.get_session()
+        try:
+            user = db_session.query(User).get(user_id)
+            if not user:
+                return jsonify(create_error_response(
+                    "USER_NOT_FOUND",
+                    "User not found",
+                    404
+                )), 404
+            
+            # Check audit permissions
+            if not user.permissions or not user.permissions.can_access_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to access inventory audit",
+                    403
+                )), 403
+            
+            # Check for active audit session
+            current_audit = db_session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+            
+            if not current_audit:
+                return jsonify(create_success_response(
+                    {"current_audit": None},
+                    "No active audit session"
+                ))
+            
+            # Parse JSON data
+            audit_inventory = json.loads(current_audit.audit_inventory) if current_audit.audit_inventory else []
+            scanned_assets = json.loads(current_audit.scanned_assets) if current_audit.scanned_assets else []
+            missing_assets = json.loads(current_audit.missing_assets) if current_audit.missing_assets else []
+            unexpected_assets = json.loads(current_audit.unexpected_assets) if current_audit.unexpected_assets else []
+            
+            # Calculate completion percentage
+            completion_percentage = 0
+            if current_audit.total_assets > 0:
+                completion_percentage = round((len(scanned_assets) / current_audit.total_assets * 100), 2)
+            
+            audit_data = {
+                "id": current_audit.id,
+                "country": current_audit.country,
+                "total_assets": current_audit.total_assets,
+                "scanned_count": len(scanned_assets),
+                "missing_count": len(missing_assets),
+                "unexpected_count": len(unexpected_assets),
+                "completion_percentage": completion_percentage,
+                "started_at": current_audit.started_at.isoformat() + 'Z',
+                "started_by": current_audit.started_by,
+                "is_active": current_audit.is_active
+            }
+            
+            return jsonify(create_success_response(
+                {"current_audit": audit_data},
+                "Active audit session retrieved"
+            ))
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in audit status API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving audit status: {str(e)}",
+            500
+        )), 500
+
+
+@api_bp.route('/audit/countries', methods=['GET'])
+def audit_countries():
+    """
+    Get available countries for audit
+    
+    Returns list of countries the user can audit
+    """
+    try:
+        # Get JWT token and validate user
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid or expired token",
+                401
+            )), 401
+        
+        db_session = db_manager.get_session()
+        try:
+            user = db_session.query(User).get(user_id)
+            if not user or not user.permissions or not user.permissions.can_start_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to start inventory audit",
+                    403
+                )), 403
+            
+            # Get available countries based on user permissions
+            from models.user import UserType
+            if user.user_type == UserType.SUPER_ADMIN:
+                # Super admins can audit any country
+                countries = [country.value for country in Country]
+            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                # Country admins can only audit their assigned country
+                countries = [user.assigned_country.value]
+            elif user.user_type == UserType.SUPERVISOR:
+                # Supervisors can audit all countries
+                countries = [country.value for country in Country]
+            else:
+                countries = []
+            
+            return jsonify(create_success_response(
+                {"countries": countries},
+                "Available countries retrieved"
+            ))
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in audit countries API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving countries: {str(e)}",
+            500
+        )), 500
+
+
+@api_bp.route('/audit/start', methods=['POST'])
+def start_audit():
+    """
+    Start a new audit session
+    
+    Expects JSON: {"country": "SINGAPORE"}
+    """
+    try:
+        # Get JWT token and validate user
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid or expired token",
+                401
+            )), 401
+        
+        # Get request data
+        data = request.get_json()
+        if not data or 'country' not in data:
+            return jsonify(create_error_response(
+                "VALIDATION_ERROR",
+                "Country is required",
+                400
+            )), 400
+        
+        country = data['country']
+        
+        db_session = db_manager.get_session()
+        try:
+            # Validate user permissions
+            user = db_session.query(User).get(user_id)
+            if not user or not user.permissions or not user.permissions.can_start_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to start inventory audit",
+                    403
+                )), 403
+            
+            # Check if there's already an active audit
+            existing_audit = db_session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+            
+            if existing_audit:
+                return jsonify(create_error_response(
+                    "AUDIT_ALREADY_ACTIVE",
+                    "There is already an active audit session",
+                    400
+                )), 400
+            
+            # Validate country access
+            from models.user import UserType
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                if country != user.assigned_country.value:
+                    return jsonify(create_error_response(
+                        "INVALID_COUNTRY",
+                        "You can only audit your assigned country",
+                        403
+                    )), 403
+            
+            # Get assets for the selected country
+            assets_query = db_session.query(Asset).filter(Asset.country == country)
+            
+            # Apply company filtering for COUNTRY_ADMIN users
+            if user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
+                assets_query = assets_query.filter(Asset.company_id == user.company_id)
+            
+            assets = assets_query.all()
+            
+            if not assets:
+                return jsonify(create_error_response(
+                    "NO_ASSETS",
+                    f"No assets found for country: {country}",
+                    400
+                )), 400
+            
+            # Prepare inventory data
+            inventory_data = []
+            for asset in assets:
+                inventory_data.append({
+                    'id': asset.id,
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'name': asset.name,
+                    'model': asset.model,
+                    'status': asset.status.value if hasattr(asset.status, 'value') else str(asset.status),
+                    'location': asset.location.name if asset.location else None,
+                    'company': asset.company.name if asset.company else None
+                })
+            
+            # Create audit session
+            audit_id = f"audit_{int(datetime.utcnow().timestamp())}"
+            
+            audit_session = AuditSession(
+                id=audit_id,
+                country=country,
+                total_assets=len(assets),
+                started_at=datetime.utcnow(),
+                started_by=user_id,
+                is_active=True,
+                scanned_assets=json.dumps([]),
+                missing_assets=json.dumps([]),
+                unexpected_assets=json.dumps([]),
+                audit_inventory=json.dumps(inventory_data)
+            )
+            
+            db_session.add(audit_session)
+            db_session.commit()
+            
+            audit_data = {
+                "id": audit_session.id,
+                "country": audit_session.country,
+                "total_assets": audit_session.total_assets,
+                "scanned_count": 0,
+                "missing_count": 0,
+                "unexpected_count": 0,
+                "completion_percentage": 0,
+                "started_at": audit_session.started_at.isoformat() + 'Z',
+                "started_by": audit_session.started_by,
+                "is_active": audit_session.is_active
+            }
+            
+            return jsonify(create_success_response(
+                {"audit": audit_data},
+                f"Audit started successfully for {country}"
+            )), 201
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in start audit API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error starting audit: {str(e)}",
+            500
+        )), 500
+
+
+@api_bp.route('/audit/scan', methods=['POST'])
+def scan_asset():
+    """
+    Scan an asset during audit
+    
+    Expects JSON: {"identifier": "asset_tag_or_serial"}
+    """
+    try:
+        # Get JWT token and validate user
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid or expired token",
+                401
+            )), 401
+        
+        # Get request data
+        data = request.get_json()
+        if not data or 'identifier' not in data:
+            return jsonify(create_error_response(
+                "VALIDATION_ERROR",
+                "Asset identifier is required",
+                400
+            )), 400
+        
+        identifier = data['identifier'].strip()
+        
+        db_session = db_manager.get_session()
+        try:
+            # Validate user permissions
+            user = db_session.query(User).get(user_id)
+            if not user or not user.permissions or not user.permissions.can_access_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to access inventory audit",
+                    403
+                )), 403
+            
+            # Get active audit session
+            audit_session = db_session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+            
+            if not audit_session:
+                return jsonify(create_error_response(
+                    "NO_ACTIVE_AUDIT",
+                    "No active audit session found",
+                    400
+                )), 400
+            
+            # Parse audit data
+            audit_inventory = json.loads(audit_session.audit_inventory)
+            scanned_assets = json.loads(audit_session.scanned_assets)
+            unexpected_assets = json.loads(audit_session.unexpected_assets)
+            
+            # Check if asset is in expected inventory
+            found_asset = None
+            for asset in audit_inventory:
+                if (asset['asset_tag'] == identifier or asset['serial_num'] == identifier):
+                    found_asset = asset
+                    break
+            
+            if found_asset:
+                # Asset found in expected inventory
+                if found_asset['id'] in scanned_assets:
+                    return jsonify(create_error_response(
+                        "ALREADY_SCANNED",
+                        "This asset has already been scanned",
+                        400
+                    )), 400
+                
+                # Add to scanned assets
+                scanned_assets.append(found_asset['id'])
+                audit_session.scanned_assets = json.dumps(scanned_assets)
+                
+                scan_result = {
+                    "status": "found_expected",
+                    "message": f"Asset {identifier} scanned successfully",
+                    "asset": found_asset
+                }
+            else:
+                # Asset not in expected inventory - check if it's an unexpected asset
+                unexpected_asset_data = {
+                    'identifier': identifier,
+                    'scanned_at': datetime.utcnow().isoformat(),
+                    'type': 'unexpected'
+                }
+                
+                # Check if already in unexpected assets
+                already_unexpected = any(
+                    asset['identifier'] == identifier for asset in unexpected_assets
+                )
+                
+                if already_unexpected:
+                    return jsonify(create_error_response(
+                        "ALREADY_SCANNED",
+                        "This unexpected asset has already been recorded",
+                        400
+                    )), 400
+                
+                unexpected_assets.append(unexpected_asset_data)
+                audit_session.unexpected_assets = json.dumps(unexpected_assets)
+                
+                scan_result = {
+                    "status": "unexpected",
+                    "message": f"Asset {identifier} not found in expected inventory (recorded as unexpected)",
+                    "asset": unexpected_asset_data
+                }
+            
+            # Update audit session
+            db_session.commit()
+            
+            # Calculate updated progress
+            completion_percentage = 0
+            if audit_session.total_assets > 0:
+                completion_percentage = round((len(scanned_assets) / audit_session.total_assets * 100), 2)
+            
+            # Add progress info to response
+            scan_result["progress"] = {
+                "total_assets": audit_session.total_assets,
+                "scanned_count": len(scanned_assets),
+                "unexpected_count": len(unexpected_assets),
+                "completion_percentage": completion_percentage
+            }
+            
+            return jsonify(create_success_response(
+                scan_result,
+                "Asset scan processed"
+            ))
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in scan asset API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error scanning asset: {str(e)}",
+            500
+        )), 500
+
+
+@api_bp.route('/audit/end', methods=['POST'])
+def end_audit():
+    """
+    End the current audit session
+    """
+    try:
+        # Get JWT token and validate user
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid or expired token",
+                401
+            )), 401
+        
+        db_session = db_manager.get_session()
+        try:
+            # Validate user permissions
+            user = db_session.query(User).get(user_id)
+            if not user or not user.permissions or not user.permissions.can_access_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to access inventory audit",
+                    403
+                )), 403
+            
+            # Get active audit session
+            audit_session = db_session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+            
+            if not audit_session:
+                return jsonify(create_error_response(
+                    "NO_ACTIVE_AUDIT",
+                    "No active audit session found",
+                    400
+                )), 400
+            
+            # End the audit session
+            audit_session.is_active = False
+            audit_session.completed_at = datetime.utcnow()
+            
+            # Calculate final missing assets
+            audit_inventory = json.loads(audit_session.audit_inventory)
+            scanned_assets = json.loads(audit_session.scanned_assets)
+            
+            missing_assets = [asset for asset in audit_inventory if asset['id'] not in scanned_assets]
+            audit_session.missing_assets = json.dumps(missing_assets)
+            
+            db_session.commit()
+            
+            # Prepare final report data
+            final_report = {
+                "audit_id": audit_session.id,
+                "country": audit_session.country,
+                "started_at": audit_session.started_at.isoformat() + 'Z',
+                "completed_at": audit_session.completed_at.isoformat() + 'Z',
+                "summary": {
+                    "total_expected": audit_session.total_assets,
+                    "total_scanned": len(scanned_assets),
+                    "total_missing": len(missing_assets),
+                    "total_unexpected": len(json.loads(audit_session.unexpected_assets)),
+                    "completion_percentage": round((len(scanned_assets) / audit_session.total_assets * 100), 2) if audit_session.total_assets > 0 else 0
+                }
+            }
+            
+            return jsonify(create_success_response(
+                {"final_report": final_report},
+                "Audit session ended successfully"
+            ))
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in end audit API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error ending audit: {str(e)}",
+            500
+        )), 500
+
+
+@api_bp.route('/audit/details/<detail_type>', methods=['GET'])
+def audit_details(detail_type):
+    """
+    Get detailed asset lists from current audit
+    
+    detail_type can be: 'total', 'scanned', 'missing', 'unexpected'
+    """
+    try:
+        # Get JWT token and validate user
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(create_error_response(
+                "MISSING_TOKEN",
+                "Authorization header with Bearer token is required",
+                401
+            )), 401
+        
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify(create_error_response(
+                "INVALID_TOKEN",
+                "Invalid or expired token",
+                401
+            )), 401
+        
+        # Validate detail type
+        valid_types = ['total', 'scanned', 'missing', 'unexpected']
+        if detail_type not in valid_types:
+            return jsonify(create_error_response(
+                "INVALID_PARAMETER",
+                f"Invalid detail_type. Must be one of: {', '.join(valid_types)}",
+                400
+            )), 400
+        
+        db_session = db_manager.get_session()
+        try:
+            # Validate user permissions
+            user = db_session.query(User).get(user_id)
+            if not user or not user.permissions or not user.permissions.can_access_inventory_audit:
+                return jsonify(create_error_response(
+                    "INSUFFICIENT_PERMISSIONS",
+                    "User does not have permission to access inventory audit",
+                    403
+                )), 403
+            
+            # Get active audit session
+            audit_session = db_session.query(AuditSession).filter(
+                AuditSession.is_active == True
+            ).first()
+            
+            if not audit_session:
+                return jsonify(create_error_response(
+                    "NO_ACTIVE_AUDIT",
+                    "No active audit session found",
+                    400
+                )), 400
+            
+            # Parse audit data
+            audit_inventory = json.loads(audit_session.audit_inventory)
+            scanned_assets = json.loads(audit_session.scanned_assets)
+            unexpected_assets = json.loads(audit_session.unexpected_assets)
+            
+            # Get requested asset list
+            if detail_type == 'total':
+                assets_data = audit_inventory
+                title = f"All Expected Assets ({len(audit_inventory)})"
+            elif detail_type == 'scanned':
+                assets_data = [asset for asset in audit_inventory if asset['id'] in scanned_assets]
+                title = f"Scanned Assets ({len(assets_data)})"
+            elif detail_type == 'missing':
+                assets_data = [asset for asset in audit_inventory if asset['id'] not in scanned_assets]
+                title = f"Missing Assets ({len(assets_data)})"
+            elif detail_type == 'unexpected':
+                assets_data = unexpected_assets
+                title = f"Unexpected Assets ({len(unexpected_assets)})"
+            
+            response_data = {
+                "detail_type": detail_type,
+                "title": title,
+                "count": len(assets_data),
+                "assets": assets_data
+            }
+            
+            return jsonify(create_success_response(
+                response_data,
+                f"Retrieved {detail_type} asset details"
+            ))
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Error in audit details API: {str(e)}")
+        return jsonify(create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving audit details: {str(e)}",
+            500
+        )), 500
