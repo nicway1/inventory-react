@@ -105,7 +105,7 @@ def send_welcome_email(user_email, username, password):
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     <li style="margin-bottom: 10px;">
                         <strong>Website:</strong> 
-                        <a href="https://www.truelog.site" style="color: #2563eb; text-decoration: none;">truelog.site</a>
+                        <a href="https://inventory.truelog.com.sg" style="color: #2563eb; text-decoration: none;">inventory.truelog.com.sg</a>
                     </li>
                     <li style="margin-bottom: 10px;"><strong>Username:</strong> {username}</li>
                     <li style="margin-bottom: 10px;"><strong>Password:</strong> {password}</li>
@@ -113,7 +113,7 @@ def send_welcome_email(user_email, username, password):
             </div>
             
             <div style="text-align: center; margin-bottom: 25px;">
-                <a href="https://www.truelog.site" 
+                <a href="https://inventory.truelog.com.sg" 
                    style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                     Login to TrueLog
                 </a>
@@ -144,7 +144,7 @@ def send_welcome_email(user_email, username, password):
 Welcome to TrueLog! Your account has been created successfully.
 
 Access Details:
-- Website: https://www.truelog.site
+- Website: https://inventory.truelog.com.sg
 - Username: {username}
 - Password: {password}
 
@@ -187,7 +187,7 @@ def send_ticket_assignment_notification(assigned_user, assigner, ticket, previou
             return False
         
         # Create the ticket URL
-        ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
+        ticket_url = f"https://inventory.truelog.com.sg/tickets/{ticket.id}"
         
         # Determine the action type and message
         action_type = "Ticket Assignment Notification"
@@ -317,7 +317,7 @@ def send_ticket_assignment_notification(assigned_user, assigner, ticket, previou
                     </p>
                     <p style="color: #a0aec0; margin: 0; font-size: 12px;">
                         TrueLog Inventory Management System | 
-                        <a href="https://www.truelog.site" style="color: #667eea; text-decoration: none;">truelog.site</a>
+                        <a href="https://inventory.truelog.com.sg" style="color: #667eea; text-decoration: none;">inventory.truelog.com.sg</a>
                     </p>
                 </div>
             </div>
@@ -353,7 +353,7 @@ What's Next?
 This notification was sent because you were assigned to this ticket.
 
 TrueLog Inventory Management System
-https://www.truelog.site
+https://inventory.truelog.com.sg
         """
         
         result = _send_email_via_method(
@@ -397,7 +397,7 @@ def send_mention_notification_email(mentioned_user, commenter, ticket, comment_c
         content_preview = clean_content[:200] + "..." if len(clean_content) > 200 else clean_content
         
         # Create the ticket URL
-        ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
+        ticket_url = f"https://inventory.truelog.com.sg/tickets/{ticket.id}"
         
         # Salesforce-style HTML email template
         html_body = f"""
@@ -582,7 +582,7 @@ def send_queue_notification_email(user, ticket, queue, action_type="created"):
         status_value = get_display_value(ticket.status) if ticket.status else 'New'
         
         # Create the ticket URL
-        ticket_url = f"https://www.truelog.site/tickets/{ticket.id}"
+        ticket_url = f"https://inventory.truelog.com.sg/tickets/{ticket.id}"
         
         # Determine the action text
         if action_type == "created":
@@ -729,7 +729,7 @@ def send_queue_notification_email(user, ticket, queue, action_type="created"):
                     </p>
                     <p style="color: #a0aec0; margin: 0; font-size: 12px;">
                         TrueLog Inventory Management System | 
-                        <a href="https://www.truelog.site" style="color: #667eea; text-decoration: none;">truelog.site</a>
+                        <a href="https://inventory.truelog.com.sg" style="color: #667eea; text-decoration: none;">inventory.truelog.com.sg</a>
                     </p>
                 </div>
             </div>
@@ -767,7 +767,7 @@ You can manage your queue notification preferences in your account settings.
 This notification was sent because you subscribed to queue notifications.
 
 TrueLog Inventory Management System
-https://www.truelog.site
+https://inventory.truelog.com.sg
         """
         
         result = _send_email_via_method(
