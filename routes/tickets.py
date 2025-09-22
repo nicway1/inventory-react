@@ -1,4 +1,5 @@
 import datetime
+from utils.timezone_utils import singapore_now_as_utc
 import os
 import json
 import logging
@@ -572,7 +573,7 @@ Additional Notes:
                             
                             # Update the ticket's updated_at timestamp
                             from datetime import datetime
-                            created_ticket.updated_at = datetime.utcnow()
+                            created_ticket.updated_at = singapore_now_as_utc()
                             
                             # Commit the package changes
                             db_session.commit()
@@ -625,7 +626,7 @@ Additional Notes:
                             transaction_type='checkout',
                             customer_id=customer_id,
                             notes=f'Asset checkout via ticket #{ticket_id} - {shipping_method}',
-                            transaction_date=datetime.utcnow()
+                            transaction_date=singapore_now_as_utc()
                         )
                         # Set user_id manually since it's not in the constructor
                         transaction.user_id = user_id

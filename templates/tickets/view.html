@@ -1201,11 +1201,11 @@ body.dark-theme .sf-card-body .sf-field-label {
                     <div class="space-y-2">
                         <div class="sf-field-row">
                             <div class="sf-field-label">Created Date</div>
-                            <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else 'N/A' }}</div>
+                            <div class="sf-field-value">{{ ticket.created_at | singapore_time | default('N/A') }}</div>
                         </div>
                         <div class="sf-field-row">
                             <div class="sf-field-label">Last Modified</div>
-                            <div class="sf-field-value">{{ ticket.updated_at.strftime('%Y-%m-%d') if ticket.updated_at else 'N/A' }}</div>
+                            <div class="sf-field-value">{{ ticket.updated_at | singapore_time | default('N/A') }}</div>
                         </div>
                     </div>
                     <div class="space-y-2">
@@ -1254,7 +1254,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
                                 <span class="text-xs font-medium text-center">Case Created</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if ticket.created_at %}{{ ticket.created_at.strftime('%m/%d') }}{% else %}Pending{% endif %}
+                                    {% if ticket.created_at %}{{ ticket.created_at | singapore_time }}{% else %}Pending{% endif %}
                                 </span>
                             </div>
 
@@ -1401,7 +1401,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
                                 <span class="text-xs font-medium text-center">Case Created</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if ticket.created_at %}{{ ticket.created_at.strftime('%m/%d') }}{% else %}Pending{% endif %}
+                                    {% if ticket.created_at %}{{ ticket.created_at | singapore_time }}{% else %}Pending{% endif %}
                                 </span>
                             </div>
 
@@ -1863,7 +1863,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <div>
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Date/Time Opened</div>
-                                        <div class="sf-field-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}</div>
+                                        <div class="sf-field-value">{{ ticket.created_at | singapore_time | default('N/A') }}</div>
                                     </div>
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Date/Time Closed</div>
@@ -4131,7 +4131,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                         {{ comment.user.username if comment.user else 'Anonymous' }}
                                                     </span>
                                                     <span class="text-sm text-gray-500">
-                                                        {{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                                        {{ comment.created_at | singapore_time | default('N/A') }}
                                                     </span>
                                                     {% if comment.created_at != comment.updated_at %}
                                                     <span class="text-sm text-gray-400 italic">
@@ -4365,7 +4365,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         </div>
                                         {% endif %}
                                         <div class="text-xs text-gray-500 p-2">
-                                            <div>Uploaded {{ attachment.created_at.strftime('%Y-%m-%d %H:%M') if attachment.created_at else 'Unknown date' }}</div>
+                                            <div>Uploaded {{ attachment.created_at | singapore_time | default('Unknown date') }}</div>
                                             <div>{{ attachment.file_size | filesizeformat if attachment.file_size else 'Unknown size' }}</div>
                                         </div>
                                     </div>
