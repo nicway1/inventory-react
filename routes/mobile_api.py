@@ -304,7 +304,11 @@ def get_tickets():
                     'queue': {
                         'id': ticket.queue.id,
                         'name': ticket.queue.name
-                    } if ticket.queue else None
+                    } if ticket.queue else None,
+                    # Basic progress info for list view
+                    'has_assets': bool(ticket.assets and len(ticket.assets) > 0),
+                    'has_tracking': bool(ticket.shipping_tracking),
+                    'customer_name': ticket.customer.name if ticket.customer else None
                 }
                 ticket_list.append(ticket_data)
             
@@ -329,6 +333,162 @@ def get_tickets():
         return jsonify({
             'success': False,
             'error': 'Failed to get tickets'
+        }), 500
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>', methods=['GET'])
+@mobile_auth_required
+def get_ticket_detail(ticket_id):
+    """
+    Get detailed ticket information including Case Progress, Customer Info, and Tech Assets
+
+    GET /api/mobile/v1/tickets/<ticket_id>
+    Headers: Authorization: Bearer <token>
+
+    Response: {
+        "success": true,
+        "ticket": {
+            "id": 123,
+            "display_id": "TIC-123",
+            "subject": "...",
+            "description": "...",
+            "status": "OPEN",
+            "priority": "MEDIUM",
+            "category": "ASSET_CHECKOUT_MAIN",
+            "created_at": "2023-10-01T10:00:00",
+            "updated_at": "2023-10-01T15:30:00",
+            "requester": {...},
+            "assigned_to": {...},
+            "queue": {...},
+            "customer": {...},
+            "assets": [...],
+            "case_progress": {
+                "case_created": true,
+                "assets_assigned": false,
+                "tracking_added": false,
+                "delivered": false
+            },
+            "tracking": {...},
+            "comments": [...]
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            # Get ticket with proper permissions check
+            if user.user_type == UserType.SUPER_ADMIN:
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            else:
+                # Users can only see tickets they created or are assigned to
+                ticket = db_session.query(Ticket).filter(
+                    Ticket.id == ticket_id,
+                    (Ticket.requester_id == user.id) | (Ticket.assigned_to_id == user.id)
+                ).first()
+
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found or access denied'
+                }), 404
+
+            # Build comprehensive ticket data
+            ticket_data = {
+                'id': ticket.id,
+                'display_id': ticket.display_id,
+                'subject': ticket.subject,
+                'description': ticket.description,
+                'status': ticket.status.value if ticket.status else None,
+                'priority': ticket.priority.value if ticket.priority else None,
+                'category': ticket.category.value if ticket.category else None,
+                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
+                'notes': ticket.notes,
+                'requester': {
+                    'id': ticket.requester.id,
+                    'name': f"{ticket.requester.first_name} {ticket.requester.last_name}",
+                    'email': ticket.requester.email,
+                    'username': ticket.requester.username
+                } if ticket.requester else None,
+                'assigned_to': {
+                    'id': ticket.assigned_to.id,
+                    'name': f"{ticket.assigned_to.first_name} {ticket.assigned_to.last_name}",
+                    'email': ticket.assigned_to.email,
+                    'username': ticket.assigned_to.username
+                } if ticket.assigned_to else None,
+                'queue': {
+                    'id': ticket.queue.id,
+                    'name': ticket.queue.name
+                } if ticket.queue else None,
+
+                # Customer Information
+                'customer': {
+                    'id': ticket.customer.id,
+                    'name': ticket.customer.name,
+                    'email': ticket.customer.email,
+                    'phone': ticket.customer.phone,
+                    'address': ticket.customer.address,
+                    'company': {
+                        'id': ticket.customer.company.id,
+                        'name': ticket.customer.company.name
+                    } if ticket.customer and ticket.customer.company else None
+                } if ticket.customer else None,
+
+                # Tech Assets
+                'assets': [{
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model,
+                    'manufacturer': asset.manufacturer,
+                    'status': asset.status.value if asset.status else None
+                } for asset in ticket.assets] if ticket.assets else [],
+
+                # Case Progress - determine based on ticket state
+                'case_progress': {
+                    'case_created': bool(ticket.created_at),
+                    'assets_assigned': bool(ticket.assets and len(ticket.assets) > 0),
+                    'tracking_added': bool(ticket.shipping_tracking),
+                    'delivered': bool(ticket.shipping_status and 'delivered' in ticket.shipping_status.lower())
+                },
+
+                # Tracking Information
+                'tracking': {
+                    'shipping_tracking': ticket.shipping_tracking,
+                    'shipping_carrier': ticket.shipping_carrier,
+                    'shipping_status': ticket.shipping_status,
+                    'shipping_address': ticket.shipping_address,
+                    'return_tracking': ticket.return_tracking,
+                    'return_status': ticket.return_status
+                },
+
+                # Comments
+                'comments': [{
+                    'id': comment.id,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                    'user': {
+                        'id': comment.user.id,
+                        'name': f"{comment.user.first_name} {comment.user.last_name}",
+                        'username': comment.user.username
+                    } if comment.user else None
+                } for comment in ticket.comments] if hasattr(ticket, 'comments') and ticket.comments else []
+            }
+
+            return jsonify({
+                'success': True,
+                'ticket': ticket_data
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting ticket detail: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get ticket detail'
         }), 500
 
 @mobile_api_bp.route('/inventory', methods=['GET'])
