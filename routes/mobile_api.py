@@ -105,9 +105,8 @@ def mobile_login():
         "token": "jwt_token_here",
         "user": {
             "id": 1,
-            "username": "user@example.com", 
-            "first_name": "John",
-            "last_name": "Doe",
+            "username": "user@example.com",
+            "name": "user@example.com",
             "user_type": "SUPERVISOR",
             "permissions": {...}
         }
@@ -151,8 +150,7 @@ def mobile_login():
                 'user': {
                     'id': user.id,
                     'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
+                    'name': user.username,  # Use username as display name
                     'user_type': user.user_type.value,
                     'email': user.email,
                     'is_admin': user.is_admin,
