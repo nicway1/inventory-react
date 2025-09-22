@@ -375,12 +375,24 @@ def get_ticket_detail(ticket_id):
 
         db_session = db_manager.get_session()
         try:
-            # Get ticket with proper permissions check
+            # Import joinedload for relationship loading
+            from sqlalchemy.orm import joinedload
+
+            # Get ticket with proper permissions check and load all relationships
+            base_query = db_session.query(Ticket).options(
+                joinedload(Ticket.requester),
+                joinedload(Ticket.assigned_to),
+                joinedload(Ticket.queue),
+                joinedload(Ticket.customer),
+                joinedload(Ticket.assets),
+                joinedload(Ticket.comments)
+            )
+
             if user.user_type == UserType.SUPER_ADMIN:
-                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                ticket = base_query.filter(Ticket.id == ticket_id).first()
             else:
                 # Users can only see tickets they created or are assigned to
-                ticket = db_session.query(Ticket).filter(
+                ticket = base_query.filter(
                     Ticket.id == ticket_id,
                     (Ticket.requester_id == user.id) | (Ticket.assigned_to_id == user.id)
                 ).first()
@@ -430,7 +442,7 @@ def get_ticket_detail(ticket_id):
                     'company': {
                         'id': ticket.customer.company.id,
                         'name': ticket.customer.company.name
-                    } if ticket.customer and ticket.customer.company else None
+                    } if ticket.customer.company else None
                 } if ticket.customer else None,
 
                 # Tech Assets
@@ -448,7 +460,7 @@ def get_ticket_detail(ticket_id):
                     'case_created': bool(ticket.created_at),
                     'assets_assigned': bool(ticket.assets and len(ticket.assets) > 0),
                     'tracking_added': bool(ticket.shipping_tracking),
-                    'delivered': bool(ticket.shipping_status and 'delivered' in ticket.shipping_status.lower())
+                    'delivered': bool(ticket.shipping_status and 'delivered' in str(ticket.shipping_status).lower()) if ticket.shipping_status else False
                 },
 
                 # Tracking Information
@@ -483,10 +495,14 @@ def get_ticket_detail(ticket_id):
             db_session.close()
 
     except Exception as e:
-        logger.error(f"Error getting ticket detail: {str(e)}")
+        logger.error(f"Error getting ticket detail for ticket {ticket_id}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': 'Failed to get ticket detail'
+            'error': 'Failed to get ticket detail',
+            'debug_info': str(e) if logger.level <= logging.DEBUG else None
         }), 500
 
 @mobile_api_bp.route('/inventory', methods=['GET'])
