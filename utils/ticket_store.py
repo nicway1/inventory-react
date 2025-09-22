@@ -186,7 +186,7 @@ class TicketStore:
         """Get all tickets from the database"""
         db_session = self.db_manager.get_session()
         try:
-            return db_session.query(Ticket).all()
+            return db_session.query(Ticket).order_by(Ticket.created_at.desc()).all()
         finally:
             db_session.close()
 
@@ -203,13 +203,13 @@ class TicketStore:
             
             # Super admin can see all tickets
             if user_type == UserType.SUPER_ADMIN:
-                return query.all()
-            
+                return query.order_by(Ticket.created_at.desc()).all()
+
             # Country admin and regular users only see their own tickets
             return query.filter(
-                (Ticket.requester_id == user_id) | 
+                (Ticket.requester_id == user_id) |
                 (Ticket.assigned_to_id == user_id)
-            ).all()
+            ).order_by(Ticket.created_at.desc()).all()
         finally:
             db_session.close()
 
@@ -321,7 +321,7 @@ class TicketStore:
         """Get all tickets in a specific queue"""
         db_session = self.db_manager.get_session()
         try:
-            tickets = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).all()
+            tickets = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).order_by(Ticket.created_at.desc()).all()
             return tickets
         finally:
             db_session.close()
