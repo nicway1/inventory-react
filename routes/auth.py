@@ -50,7 +50,11 @@ def login():
                     
                     # Update last login time
                     user.last_login = datetime.utcnow()
-                    
+
+                    # Redirect to the next URL if provided, otherwise go to main index
+                    next_url = request.args.get('next')
+                    if next_url:
+                        return redirect(next_url)
                     return redirect(url_for('main.index'))
                 
                 flash('Invalid username or password')

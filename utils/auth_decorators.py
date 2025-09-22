@@ -7,7 +7,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('auth.login'))
+            # Preserve the current URL so user can be redirected back after login
+            return redirect(url_for('auth.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -15,7 +16,7 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('user_id'):
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.login', next=request.url))
         user_type = session.get('user_type')
         admin_types = [UserType.SUPER_ADMIN.value, UserType.COUNTRY_ADMIN.value]
         if not user_type or user_type not in admin_types:
@@ -55,7 +56,7 @@ def permission_required(permission_name):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
-                return redirect(url_for('auth.login'))
+                return redirect(url_for('auth.login', next=request.url))
             
             # Check if user has the required permission
             if not hasattr(current_user, 'permissions') or not current_user.permissions:
