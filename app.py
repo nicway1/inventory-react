@@ -210,6 +210,13 @@ def create_app():
         """Make current_user available in all templates"""
         return dict(current_user=current_user)
 
+    # Add timezone filter for templates
+    @app.template_filter('singapore_time')
+    def singapore_time_filter(dt):
+        """Template filter to convert UTC datetime to Singapore time"""
+        from utils.timezone_utils import format_singapore_time
+        return format_singapore_time(dt)
+
     @app.route('/activity/<int:activity_id>/read', methods=['POST'])
     @login_required
     def mark_activity_read(activity_id):

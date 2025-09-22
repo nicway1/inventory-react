@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for, send_file, abort, Response, current_app
 from datetime import datetime
+from utils.timezone_utils import singapore_now_as_utc
 from utils.auth_decorators import login_required, admin_required, permission_required
 from utils.store_instances import inventory_store, db_manager
 from models.asset import Asset, AssetStatus
@@ -609,7 +610,7 @@ def checkout_accessory(id):
         else:
             accessory.status = 'Available'
             
-        accessory.checkout_date = datetime.utcnow()
+        accessory.checkout_date = singapore_now_as_utc()
         accessory.customer_id = customer_id
         accessory.customer_user = customer
 
@@ -617,7 +618,7 @@ def checkout_accessory(id):
         transaction = AccessoryTransaction(
             accessory_id=id,
             customer_id=customer_id,
-            transaction_date=datetime.utcnow(),
+            transaction_date=singapore_now_as_utc(),
             transaction_type='Checkout',
             quantity=quantity,
             notes=f"Checked out {quantity} item(s) to {customer.name}"
@@ -2673,7 +2674,7 @@ def export_inventory(item_type):
             bio,
             mimetype='text/csv',
             as_attachment=True,
-            download_name=f'inventory_{item_type}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+            download_name=f'inventory_{item_type}_{singapore_now_as_utc().strftime("%Y%m%d_%H%M%S")}.csv'
         )
     
     finally:
@@ -3034,7 +3035,7 @@ def bulk_delete_large():
                 'total_items': total_items,
                 'processed': 0,
                 'status': 'starting',
-                'start_time': datetime.utcnow().isoformat()
+                'start_time': singapore_now_as_utc().isoformat()
             }
             
             return jsonify({
@@ -3156,7 +3157,7 @@ def _process_bulk_delete_job(job):
         job['status'] = 'completed'
         job['deleted_assets'] = deleted_assets
         job['deleted_accessories'] = deleted_accessories
-        job['end_time'] = datetime.utcnow().isoformat()
+        job['end_time'] = singapore_now_as_utc().isoformat()
         session['bulk_delete_job'] = job
         
         # Add activity log
@@ -4222,7 +4223,7 @@ def start_audit():
             'scanned_assets': [],
             'missing_assets': [],
             'unexpected_assets': [],
-            'started_at': datetime.utcnow().isoformat(),
+            'started_at': singapore_now_as_utc().isoformat(),
             'started_by': user_id
         }
         
@@ -4491,7 +4492,7 @@ def scan_asset():
             # Asset not found in expected inventory - might be unexpected
             unexpected_asset = {
                 'identifier': scanned_identifier,
-                'scanned_at': datetime.utcnow().isoformat()
+                'scanned_at': singapore_now_as_utc().isoformat()
             }
             
             unexpected_assets = json.loads(audit_session_db.unexpected_assets)
@@ -4591,7 +4592,7 @@ def upload_audit_csv():
                 # Unexpected asset
                 unexpected_asset = {
                     'identifier': scanned_identifier,
-                    'scanned_at': datetime.utcnow().isoformat()
+                    'scanned_at': singapore_now_as_utc().isoformat()
                 }
                 
                 if unexpected_asset not in unexpected_assets:
@@ -4763,7 +4764,7 @@ def export_audit_report():
         unexpected_assets = json.loads(audit_session_db.unexpected_assets)
         
         # Write header
-        writer.writerow(['Audit Report - Generated at', datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow(['Audit Report - Generated at', singapore_now_as_utc().strftime('%Y-%m-%d %H:%M:%S')])
         writer.writerow(['Country', audit_session_db.country])
         writer.writerow(['Started at', audit_session_db.started_at.isoformat()])
         writer.writerow([])

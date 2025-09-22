@@ -5,6 +5,7 @@ from utils.snipeit_client import SnipeITClient
 from utils.db_manager import DatabaseManager
 from flask_login import login_required, current_user, login_user, logout_user
 from datetime import datetime
+from utils.timezone_utils import singapore_now_as_utc
 from models.user import User
 from models.permission import Permission
 import logging
@@ -49,7 +50,7 @@ def login():
                     session['user_theme'] = user.theme_preference or 'light'
                     
                     # Update last login time
-                    user.last_login = datetime.utcnow()
+                    user.last_login = singapore_now_as_utc()
 
                     # Redirect to the next URL if provided, otherwise go to main index
                     next_url = request.form.get('next') or request.args.get('next')
