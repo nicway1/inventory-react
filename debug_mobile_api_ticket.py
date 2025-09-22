@@ -123,7 +123,7 @@ def test_ticket_detail_logic(ticket_id):
                     'id': ticket.customer.id,
                     'name': ticket.customer.name,
                     'email': ticket.customer.email,
-                    'phone': ticket.customer.phone,
+                    'phone': ticket.customer.contact_number,  # Fixed: use contact_number field
                     'address': ticket.customer.address,
                     'company': company_data
                 }

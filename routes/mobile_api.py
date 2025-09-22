@@ -437,7 +437,7 @@ def get_ticket_detail(ticket_id):
                     'id': ticket.customer.id,
                     'name': ticket.customer.name,
                     'email': ticket.customer.email,
-                    'phone': ticket.customer.phone,
+                    'phone': ticket.customer.contact_number,  # Fixed: use contact_number field
                     'address': ticket.customer.address,
                     'company': {
                         'id': ticket.customer.company.id,
