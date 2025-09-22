@@ -293,12 +293,12 @@ def get_tickets():
                     'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
                     'requester': {
                         'id': ticket.requester.id,
-                        'name': f"{ticket.requester.first_name} {ticket.requester.last_name}",
+                        'name': ticket.requester.username,  # Use username as display name
                         'email': ticket.requester.email
                     } if ticket.requester else None,
                     'assigned_to': {
                         'id': ticket.assigned_to.id,
-                        'name': f"{ticket.assigned_to.first_name} {ticket.assigned_to.last_name}",
+                        'name': ticket.assigned_to.username,  # Use username as display name
                         'email': ticket.assigned_to.email
                     } if ticket.assigned_to else None,
                     'queue': {
@@ -407,13 +407,13 @@ def get_ticket_detail(ticket_id):
                 'notes': ticket.notes,
                 'requester': {
                     'id': ticket.requester.id,
-                    'name': f"{ticket.requester.first_name} {ticket.requester.last_name}",
+                    'name': ticket.requester.username,  # Use username as display name
                     'email': ticket.requester.email,
                     'username': ticket.requester.username
                 } if ticket.requester else None,
                 'assigned_to': {
                     'id': ticket.assigned_to.id,
-                    'name': f"{ticket.assigned_to.first_name} {ticket.assigned_to.last_name}",
+                    'name': ticket.assigned_to.username,  # Use username as display name
                     'email': ticket.assigned_to.email,
                     'username': ticket.assigned_to.username
                 } if ticket.assigned_to else None,
@@ -470,7 +470,7 @@ def get_ticket_detail(ticket_id):
                     'created_at': comment.created_at.isoformat() if comment.created_at else None,
                     'user': {
                         'id': comment.user.id,
-                        'name': f"{comment.user.first_name} {comment.user.last_name}",
+                        'name': comment.user.username,  # Use username as display name
                         'username': comment.user.username
                     } if comment.user else None
                 } for comment in ticket.comments] if hasattr(ticket, 'comments') and ticket.comments else []
