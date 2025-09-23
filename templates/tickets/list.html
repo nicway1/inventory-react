@@ -502,14 +502,47 @@
         <div class="sf-card mb-6">
             <div class="sf-card-header">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex flex-1 items-center gap-2">
+                    <!-- Single Search -->
+                    <div id="singleSearchSection" class="flex flex-1 items-center gap-2">
                         <div class="sf-search max-w-md">
                             <svg class="sf-search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <input type="text" id="searchInput" placeholder="Search tickets..." oninput="searchTickets()">
+                            <input type="text" id="searchInput" placeholder="Search tickets, descriptions, notes..." oninput="searchTickets()">
                         </div>
+                        <button class="sf-button" onclick="toggleBulkSearch()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                            Bulk Search
+                        </button>
                         <button class="sf-button" onclick="clearFilters()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+
+                    <!-- Bulk Search -->
+                    <div id="bulkSearchSection" class="flex flex-1 items-center gap-2 hidden">
+                        <div class="flex-1 max-w-lg">
+                            <textarea id="bulkSearchInput"
+                                      placeholder="Enter multiple search terms (one per line or comma-separated)&#10;Can search: Ticket IDs, Order IDs, descriptions, notes&#10;Example:&#10;T001&#10;T002, T003&#10;ORD-12345&#10;repair device&#10;customer complaint"
+                                      class="w-full h-20 px-3 py-2 text-sm border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      oninput="bulkSearchTickets()"></textarea>
+                            <div class="mt-1 text-xs text-gray-500">
+                                <span id="bulkSearchCount">0</span> search terms entered
+                                <span id="bulkSearchMatches" class="ml-2 text-blue-600 font-medium hidden"></span>
+                            </div>
+                        </div>
+                        <button class="sf-button" onclick="toggleBulkSearch()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            Single Search
+                        </button>
+                        <button class="sf-button" onclick="clearBulkSearch()">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -580,12 +613,16 @@
                         </thead>
                         <tbody>
                             {% for ticket in tickets %}
-                            <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}">
+                            <tr data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}" data-description="{{ (ticket.description or '')|e }}" data-notes="{{ (ticket.notes or '')|e }}" data-return-description="{{ (ticket.return_description or '')|e }}">
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
-                                    <a href="javascript:void(0)" onclick="openTicketInTab({{ ticket.id }}, '{{ ticket.subject|e }}')" class="text-blue-600 hover:text-blue-900 font-medium">
-                                        {{ ticket.subject }}
+                                    {% if ticket.id %}
+                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" onclick="openTicketInTab({{ ticket.id }}, '{{ (ticket.subject or 'Untitled')|e|replace("'", "\\'") }}'); return false;" class="text-blue-600 hover:text-blue-900 font-medium">
+                                        {{ ticket.subject or 'Untitled' }}
                                     </a>
+                                    {% else %}
+                                    <span class="text-gray-500">{{ ticket.subject or 'Untitled' }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <span class="sf-badge 
@@ -662,7 +699,11 @@
                                             </svg>
                                         </button>
                                         <div class="sf-action-dropdown">
-                                            <a href="javascript:void(0)" onclick="openTicketInTab({{ ticket.id }}, '{{ ticket.subject|e }}')" class="sf-action-item">Edit</a>
+                                            {% if ticket.id %}
+                                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" onclick="openTicketInTab({{ ticket.id }}, '{{ (ticket.subject or 'Untitled')|e|replace("'", "\\'") }}'); return false;" class="sf-action-item">Edit</a>
+                                            {% else %}
+                                            <span class="sf-action-item text-gray-400">Edit (No ID)</span>
+                                            {% endif %}
                                             <a href="#" class="sf-action-item">Close</a>
                                             {% if current_user.is_super_admin or current_user.permissions.can_delete_tickets or (current_user.permissions.can_delete_own_tickets and current_user.id == ticket.requester_id) %}
                                             <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" 
@@ -791,9 +832,38 @@
             const matchesStatus = !statusFilter || status === statusFilter;
             const matchesPriority = !priorityFilter || priority === priorityFilter;
             const matchesCategory = !categoryFilter || category === categoryFilter;
-            const matchesSearch = !searchText || 
-                                subject.includes(searchText) || 
-                                caseNumber.includes(searchText);
+            // Handle search logic - either single search or bulk search
+            let matchesSearch = true;
+            if (isBulkSearchMode && bulkSearchIds.length > 0) {
+                // Bulk search mode: check if ticket ID matches any in the list
+                const ticketId = caseNumber.toUpperCase();
+                const description = row.getAttribute('data-description').toUpperCase();
+                const notes = row.getAttribute('data-notes').toUpperCase();
+                const returnDescription = row.getAttribute('data-return-description').toUpperCase();
+
+                matchesSearch = bulkSearchIds.some(searchId => {
+                    // Exact match or partial match in all searchable fields
+                    return ticketId === searchId ||
+                           ticketId.includes(searchId) ||
+                           searchId.includes(ticketId) ||
+                           // Also search in subject, description, notes, and return description
+                           subject.toUpperCase().includes(searchId) ||
+                           description.includes(searchId) ||
+                           notes.includes(searchId) ||
+                           returnDescription.includes(searchId);
+                });
+            } else if (searchText) {
+                // Single search mode: enhanced logic to search in multiple fields
+                const description = row.getAttribute('data-description').toLowerCase();
+                const notes = row.getAttribute('data-notes').toLowerCase();
+                const returnDescription = row.getAttribute('data-return-description').toLowerCase();
+
+                matchesSearch = subject.includes(searchText) ||
+                               caseNumber.includes(searchText) ||
+                               description.includes(searchText) ||
+                               notes.includes(searchText) ||
+                               returnDescription.includes(searchText);
+            }
             
             // Apply tab filter logic
             let matchesTab = true;
@@ -826,7 +896,17 @@
         } else {
             emptyState.classList.add('hidden');
         }
-        
+
+        // Update bulk search match indicator
+        if (isBulkSearchMode && bulkSearchIds.length > 0) {
+            const matchesElement = document.getElementById('bulkSearchMatches');
+            matchesElement.textContent = `${filteredItems.length} matches found`;
+            matchesElement.classList.remove('hidden');
+        } else {
+            const matchesElement = document.getElementById('bulkSearchMatches');
+            matchesElement.classList.add('hidden');
+        }
+
         // Reset to first page and update pagination
         currentPage = 1;
         updatePagination();
@@ -838,17 +918,79 @@
         document.getElementById('priorityFilter').value = '';
         document.getElementById('categoryFilter').value = '';
         document.getElementById('searchInput').value = '';
-        
+
+        // Clear bulk search as well
+        document.getElementById('bulkSearchInput').value = '';
+        bulkSearchIds = [];
+        updateBulkSearchCount();
+
         // Reset tab selection
         document.querySelectorAll('.sf-tab').forEach(tab => {
             tab.classList.remove('active');
         });
         document.querySelector('.sf-tab[href="#all"]').classList.add('active');
-        
+
         filterTickets();
     }
     
     function searchTickets() {
+        filterTickets();
+    }
+
+    // Bulk search functionality
+    let isBulkSearchMode = false;
+    let bulkSearchIds = [];
+
+    function toggleBulkSearch() {
+        isBulkSearchMode = !isBulkSearchMode;
+        const singleSection = document.getElementById('singleSearchSection');
+        const bulkSection = document.getElementById('bulkSearchSection');
+
+        if (isBulkSearchMode) {
+            singleSection.classList.add('hidden');
+            bulkSection.classList.remove('hidden');
+            // Clear single search when switching to bulk
+            document.getElementById('searchInput').value = '';
+        } else {
+            bulkSection.classList.add('hidden');
+            singleSection.classList.remove('hidden');
+            // Clear bulk search when switching to single
+            document.getElementById('bulkSearchInput').value = '';
+            bulkSearchIds = [];
+            updateBulkSearchCount();
+        }
+        filterTickets();
+    }
+
+    function parseBulkSearchInput(input) {
+        if (!input.trim()) return [];
+
+        // Split by newlines and commas, then clean up
+        const ids = input
+            .split(/[\n,]+/)
+            .map(id => id.trim())
+            .filter(id => id.length > 0)
+            .map(id => id.toUpperCase()); // Convert to uppercase for consistent matching
+
+        return [...new Set(ids)]; // Remove duplicates
+    }
+
+    function updateBulkSearchCount() {
+        const count = bulkSearchIds.length;
+        document.getElementById('bulkSearchCount').textContent = count;
+    }
+
+    function bulkSearchTickets() {
+        const input = document.getElementById('bulkSearchInput').value;
+        bulkSearchIds = parseBulkSearchInput(input);
+        updateBulkSearchCount();
+        filterTickets();
+    }
+
+    function clearBulkSearch() {
+        document.getElementById('bulkSearchInput').value = '';
+        bulkSearchIds = [];
+        updateBulkSearchCount();
         filterTickets();
     }
     
@@ -994,14 +1136,27 @@
 
     // Tab system integration
     function openTicketInTab(ticketId, ticketSubject) {
-        if (window.tabSystem) {
-            window.tabSystem.openTicket(ticketId, ticketSubject);
-            // Navigate to the ticket
-            window.location.href = `/tickets/${ticketId}`;
-        } else {
-            // Fallback if tab system isn't loaded
+        // Validate input
+        if (!ticketId) {
+            console.error('No ticket ID provided');
+            return false;
+        }
+
+        try {
+            if (window.tabSystem) {
+                window.tabSystem.openTicket(ticketId, ticketSubject || 'Untitled');
+                // Navigate to the ticket
+                window.location.href = `/tickets/${ticketId}`;
+            } else {
+                // Fallback if tab system isn't loaded
+                window.location.href = `/tickets/${ticketId}`;
+            }
+        } catch (error) {
+            console.error('Error opening ticket:', error);
+            // Fallback navigation
             window.location.href = `/tickets/${ticketId}`;
         }
+        return true;
     }
 
     // Initialize current page as home tab
