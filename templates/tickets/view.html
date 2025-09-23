@@ -778,6 +778,40 @@ body.dark-theme .text-gray-500 {
     color: #9ca3af !important;
 }
 
+/* Address formatting improvements */
+.sf-field-value .bg-gray-50 {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+body.dark-theme .sf-field-value .bg-gray-50 {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #e5e7eb !important;
+}
+
+body.dark-theme .sf-field-value .bg-gray-50 div {
+    color: #e5e7eb !important;
+}
+
+/* Country badge styling */
+.bg-blue-100 {
+    background-color: #dbeafe;
+}
+
+.text-blue-800 {
+    color: #1e40af;
+}
+
+body.dark-theme .bg-blue-100 {
+    background-color: #1e3a8a !important;
+    color: #93c5fd !important;
+}
+
+body.dark-theme .text-blue-800 {
+    color: #93c5fd !important;
+}
+
 /* Specific fixes for ticket view elements */
 body.dark-theme .space-y-2 {
     color: #e5e7eb;
@@ -1234,8 +1268,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                 </div>
             </div>
 
-            <!-- Case Progression Bar for Asset Checkout (claw) -->
-            {% if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW' %}
+            <!-- Case Progression Bar -->
+            {% if ticket and ticket.category and ticket.category.name != 'ASSET_RETURN_CLAW' %}
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
                     <div class="sf-card-title">Case Progress</div>
@@ -1992,8 +2026,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <!-- Address Details -->
                                 <div class="space-y-4 lg:col-span-2">
                                     {% if ticket.customer.address or ticket.shipping_address %}
-                                    <div class="flex items-start gap-4">
-                                        <div class="sf-field-label flex-shrink-0 w-24">
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">
                                             {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
                                                 Return Address
                                             {% elif ticket.shipping_address %}
@@ -2002,21 +2036,37 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                 Address
                                             {% endif %}
                                         </div>
-                                        <div class="sf-field-value whitespace-pre-wrap break-words leading-relaxed flex-1" style="text-align: left !important;">
-                                            {% if ticket.shipping_address %}
-                                            {{ ticket.shipping_address }}
-                                            {% elif ticket.customer.address %}
-                                            {{ ticket.customer.address }}
-                                            {% else %}
-                                            <span class="text-gray-500">Not provided</span>
-                                            {% endif %}
+                                        <div class="sf-field-value">
+                                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm leading-relaxed">
+                                                {% if ticket.shipping_address %}
+                                                    {% set address_lines = ticket.shipping_address.split('\n') %}
+                                                    {% for line in address_lines %}
+                                                        {% if line.strip() %}
+                                                            <div class="mb-1">{{ line.strip() }}</div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% elif ticket.customer.address %}
+                                                    {% set address_lines = ticket.customer.address.split('\n') %}
+                                                    {% for line in address_lines %}
+                                                        {% if line.strip() %}
+                                                            <div class="mb-1">{{ line.strip() }}</div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="text-gray-500">Not provided</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                     {% endif %}
                                     {% if ticket.customer.country %}
-                                    <div class="flex items-start gap-4">
-                                        <div class="sf-field-label flex-shrink-0 w-24">Country</div>
-                                        <div class="sf-field-value flex-1" style="text-align: left !important;">{{ ticket.customer.country.value if ticket.customer.country else 'Unknown' }}</div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Country</div>
+                                        <div class="sf-field-value">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ ticket.customer.country.value if ticket.customer.country else 'Unknown' }}
+                                            </span>
+                                        </div>
                                     </div>
                                     {% endif %}
                                     {% if ticket.customer.timezone %}
