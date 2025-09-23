@@ -5153,11 +5153,303 @@ def toggle_parent_company():
         
         status = "enabled" if company.is_parent_company else "disabled"
         flash(f'Successfully {status} parent status for {company.name}', 'success')
-        
+
     except Exception as e:
         db_session.rollback()
         flash(f'Error updating parent status: {str(e)}', 'error')
     finally:
         db_session.close()
-    
+
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/remove-parent', methods=['POST'])
+@admin_required
+def remove_parent_company():
+    """Remove parent status from a company and make all its children standalone"""
+    company_id = request.form.get('company_id')
+
+    if not company_id:
+        flash('Company is required', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+
+    db_session = db_manager.get_session()
+    try:
+        company = db_session.query(Company).get(company_id)
+
+        if not company:
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+
+        if not company.is_parent_company:
+            flash(f'{company.name} is not a parent company', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+
+        # Get list of child companies for the flash message
+        child_names = [child.name for child in company.child_companies]
+
+        # Remove parent relationship from all child companies
+        for child in company.child_companies:
+            child.parent_company_id = None
+
+        # Remove parent status from the company
+        company.is_parent_company = False
+
+        db_session.commit()
+
+        child_count = len(child_names)
+        if child_count > 0:
+            flash(f'Successfully removed parent status from {company.name}. {child_count} child companies are now standalone: {", ".join(child_names)}', 'success')
+        else:
+            flash(f'Successfully removed parent status from {company.name}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing parent status: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/remove-child', methods=['POST'])
+@admin_required
+def remove_child_company():
+    """Remove a company from its parent and make it standalone"""
+    company_id = request.form.get('company_id')
+
+    if not company_id:
+        flash('Company is required', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+
+    db_session = db_manager.get_session()
+    try:
+        company = db_session.query(Company).get(company_id)
+
+        if not company:
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+
+        if not company.parent_company_id:
+            flash(f'{company.name} is not a child company', 'error')
+            return redirect(url_for('admin.manage_company_grouping'))
+
+        parent_name = company.parent_company.name
+        parent_company = company.parent_company
+
+        # Remove the child from parent
+        company.parent_company_id = None
+
+        # Check if parent company still has other children
+        remaining_children = db_session.query(Company).filter(
+            Company.parent_company_id == parent_company.id,
+            Company.id != company.id
+        ).count()
+
+        # If parent has no more children, remove its parent status
+        if remaining_children == 0:
+            parent_company.is_parent_company = False
+
+        db_session.commit()
+
+        if remaining_children == 0:
+            flash(f'Successfully removed {company.name} from {parent_name}. {parent_name} is no longer a parent company as it has no remaining children.', 'success')
+        else:
+            flash(f'Successfully removed {company.name} from parent {parent_name}. It is now a standalone company.', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing child company: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/bulk-remove-child', methods=['POST'])
+@admin_required
+def bulk_remove_child_companies():
+    """Remove multiple companies from their parents and make them standalone"""
+    child_company_ids = request.form.getlist('child_company_ids')
+
+    if not child_company_ids:
+        flash('Please select at least one company to remove', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+
+    db_session = db_manager.get_session()
+    try:
+        removed_companies = []
+        parent_companies_to_check = set()
+
+        for company_id in child_company_ids:
+            company = db_session.query(Company).get(company_id)
+
+            if not company:
+                continue
+
+            if not company.parent_company_id:
+                continue
+
+            parent_companies_to_check.add(company.parent_company_id)
+            removed_companies.append({
+                'name': company.name,
+                'parent_name': company.parent_company.name
+            })
+
+            # Remove the child from parent
+            company.parent_company_id = None
+
+        # Check each affected parent company and remove parent status if no children remain
+        parent_status_removed = []
+        for parent_id in parent_companies_to_check:
+            parent_company = db_session.query(Company).get(parent_id)
+            if parent_company:
+                remaining_children = db_session.query(Company).filter(
+                    Company.parent_company_id == parent_id
+                ).count()
+
+                if remaining_children == 0:
+                    parent_company.is_parent_company = False
+                    parent_status_removed.append(parent_company.name)
+
+        db_session.commit()
+
+        # Create success message
+        if removed_companies:
+            company_names = [comp['name'] for comp in removed_companies]
+            message = f'Successfully removed {len(removed_companies)} companies from their parents: {", ".join(company_names)}'
+
+            if parent_status_removed:
+                message += f'. Parent status removed from: {", ".join(parent_status_removed)} (no remaining children)'
+
+            flash(message, 'success')
+        else:
+            flash('No valid child companies were selected for removal', 'warning')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing child companies: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/company-grouping/bulk-set-parent', methods=['POST'])
+@admin_required
+def bulk_set_company_parent():
+    """Set a parent company for multiple child companies"""
+    child_company_ids = request.form.getlist('child_company_ids')
+    parent_company_id = request.form.get('parent_company_id')
+
+    if not child_company_ids:
+        flash('Please select at least one company to group', 'error')
+        return redirect(url_for('admin.manage_company_grouping'))
+
+    db_session = db_manager.get_session()
+    try:
+        grouped_companies = []
+        ungrouped_companies = []
+        errors = []
+
+        # Get parent company if specified
+        parent_company = None
+        if parent_company_id:
+            parent_company = db_session.query(Company).get(parent_company_id)
+            if not parent_company:
+                flash('Parent company not found', 'error')
+                return redirect(url_for('admin.manage_company_grouping'))
+
+        for company_id in child_company_ids:
+            try:
+                child_company = db_session.query(Company).get(company_id)
+
+                if not child_company:
+                    errors.append(f'Company with ID {company_id} not found')
+                    continue
+
+                # Prevent circular relationships
+                if parent_company_id and int(parent_company_id) == child_company.id:
+                    errors.append(f'{child_company.name} cannot be its own parent')
+                    continue
+
+                # Check for circular reference
+                if parent_company and parent_company.parent_company_id == child_company.id:
+                    errors.append(f'Setting {child_company.name} under {parent_company.name} would create a circular reference')
+                    continue
+
+                # Store old parent info for messaging
+                old_parent_name = child_company.parent_company.name if child_company.parent_company else None
+
+                if parent_company_id:
+                    # Set new parent
+                    child_company.parent_company_id = parent_company.id
+                    grouped_companies.append({
+                        'name': child_company.name,
+                        'old_parent': old_parent_name,
+                        'new_parent': parent_company.name
+                    })
+                else:
+                    # Remove parent relationship
+                    child_company.parent_company_id = None
+                    ungrouped_companies.append({
+                        'name': child_company.name,
+                        'old_parent': old_parent_name
+                    })
+
+            except Exception as e:
+                errors.append(f'Error processing {child_company.name if "child_company" in locals() else f"company {company_id}"}: {str(e)}')
+
+        # Mark parent company as parent if grouping companies under it
+        if parent_company and grouped_companies:
+            parent_company.is_parent_company = True
+
+        # Check if any previous parent companies should lose parent status
+        if ungrouped_companies or grouped_companies:
+            # Get all affected old parent companies
+            old_parent_ids = set()
+            for comp in grouped_companies:
+                if comp['old_parent']:
+                    old_parent = db_session.query(Company).filter(Company.name == comp['old_parent']).first()
+                    if old_parent:
+                        old_parent_ids.add(old_parent.id)
+
+            for comp in ungrouped_companies:
+                if comp['old_parent']:
+                    old_parent = db_session.query(Company).filter(Company.name == comp['old_parent']).first()
+                    if old_parent:
+                        old_parent_ids.add(old_parent.id)
+
+            # Check each old parent and remove parent status if no children remain
+            for old_parent_id in old_parent_ids:
+                remaining_children = db_session.query(Company).filter(
+                    Company.parent_company_id == old_parent_id
+                ).count()
+                if remaining_children == 0:
+                    old_parent = db_session.query(Company).get(old_parent_id)
+                    if old_parent:
+                        old_parent.is_parent_company = False
+
+        db_session.commit()
+
+        # Create success messages
+        messages = []
+        if grouped_companies:
+            company_names = [comp['name'] for comp in grouped_companies]
+            messages.append(f'Successfully grouped {len(grouped_companies)} companies under {parent_company.name}: {", ".join(company_names)}')
+
+        if ungrouped_companies:
+            company_names = [comp['name'] for comp in ungrouped_companies]
+            messages.append(f'Successfully removed {len(ungrouped_companies)} companies from their parents: {", ".join(company_names)}')
+
+        if errors:
+            flash(f'Completed with some errors: {"; ".join(errors)}', 'warning')
+
+        if messages:
+            flash('. '.join(messages), 'success')
+        elif not errors:
+            flash('No changes were made', 'info')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating company grouping: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
     return redirect(url_for('admin.manage_company_grouping'))

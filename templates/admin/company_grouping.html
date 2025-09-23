@@ -34,6 +34,16 @@
                             • {{ child.name }} ({{ child.asset_count or 0 }} assets){% if not loop.last %}<br>{% endif %}
                             {% endfor %}
                         </div>
+                        <div class="mt-2">
+                            <form method="POST" action="{{ url_for('admin.remove_parent_company') }}" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="company_id" value="{{ company.id }}"/>
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-medium"
+                                        onclick="return confirm('Remove parent status from {{ company.name }}? All child companies will become standalone.')">
+                                    Remove Parent Status
+                                </button>
+                            </form>
+                        </div>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -45,24 +55,62 @@
 
             <!-- Child Companies -->
             <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 class="text-lg font-semibold text-green-900 mb-3">Child Companies</h3>
-                <div class="space-y-2">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-lg font-semibold text-green-900">Child Companies</h3>
+                    {% if child_companies %}
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="selectAllChildren" class="rounded border-green-300 text-green-600 focus:ring-green-500">
+                        <label for="selectAllChildren" class="text-xs text-green-700 font-medium">Select All</label>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if child_companies %}
+                <form id="bulkRemoveChildForm" method="POST" action="{{ url_for('admin.bulk_remove_child_companies') }}" class="space-y-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
                     {% for company in child_companies %}
                     <div class="bg-white rounded p-3 border border-green-200">
-                        <div class="font-medium text-green-900">{{ company.name }}</div>
-                        <div class="text-xs text-green-600 mt-1">{{ company.asset_count or 0 }} assets</div>
-                        <div class="text-sm text-green-700 mt-1">
-                            Parent: {{ company.parent_company.name }}
-                        </div>
-                        <div class="text-xs text-green-600 mt-1">
-                            Display: {{ company.grouped_display_name }}
+                        <div class="flex items-start space-x-3">
+                            <input type="checkbox" name="child_company_ids" value="{{ company.id }}"
+                                   class="mt-1 rounded border-green-300 text-green-600 focus:ring-green-500 child-checkbox">
+                            <div class="flex-1">
+                                <div class="font-medium text-green-900">{{ company.name }}</div>
+                                <div class="text-xs text-green-600 mt-1">{{ company.asset_count or 0 }} assets</div>
+                                <div class="text-sm text-green-700 mt-1">
+                                    Parent: {{ company.parent_company.name }}
+                                </div>
+                                <div class="text-xs text-green-600 mt-1">
+                                    Display: {{ company.grouped_display_name }}
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <form method="POST" action="{{ url_for('admin.remove_child_company') }}" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <input type="hidden" name="company_id" value="{{ company.id }}"/>
+                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-medium"
+                                            onclick="return confirm('Remove {{ company.name }} from parent {{ company.parent_company.name }}? It will become a standalone company.')">
+                                        Remove
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
-                    {% if not child_companies %}
+
+                    <div class="pt-3 border-t border-green-200">
+                        <button type="submit" id="bulkRemoveBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled onclick="return confirm('Remove selected companies from their parents? They will become standalone companies.')">
+                            Remove Selected from Parents
+                        </button>
+                        <span id="selectedCount" class="ml-3 text-sm text-green-700">0 selected</span>
+                    </div>
+                </form>
+                {% else %}
+                <div class="space-y-2">
                     <p class="text-green-700 text-sm">No child companies defined</p>
-                    {% endif %}
                 </div>
+                {% endif %}
             </div>
 
             <!-- Standalone Companies -->
@@ -89,36 +137,103 @@
 
         <!-- Set Parent Company Form -->
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-            <h3 class="text-lg font-semibold text-yellow-900 mb-4">Group Company Under Parent</h3>
-            <form method="POST" action="{{ url_for('admin.set_company_parent') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Child Company</label>
-                    <select name="child_company_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                        <option value="">Select company to group...</option>
-                        {% for company in companies %}
-                        <option value="{{ company.id }}">{{ company.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Parent Company (optional)</label>
-                    <select name="parent_company_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                        <option value="">No parent (remove grouping)</option>
-                        {% for company in companies %}
-                        <option value="{{ company.id }}">{{ company.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="flex items-end">
-                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                        Set Parent
+            <h3 class="text-lg font-semibold text-yellow-900 mb-4">Group Companies Under Parent</h3>
+
+            <!-- Single Company Form -->
+            <div id="singleGroupForm">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-medium text-yellow-800">Single Company Grouping</span>
+                    <button type="button" id="switchToBulkBtn" class="text-yellow-700 hover:text-yellow-900 text-sm font-medium underline">
+                        Switch to Bulk Selection
                     </button>
                 </div>
-            </form>
+                <form method="POST" action="{{ url_for('admin.set_company_parent') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Child Company</label>
+                        <select name="child_company_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="">Select company to group...</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Parent Company (optional)</label>
+                        <select name="parent_company_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="">No parent (remove grouping)</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
+                            Set Parent
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Bulk Grouping Form -->
+            <div id="bulkGroupForm" class="hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-medium text-yellow-800">Bulk Company Grouping</span>
+                    <button type="button" id="switchToSingleBtn" class="text-yellow-700 hover:text-yellow-900 text-sm font-medium underline">
+                        Switch to Single Selection
+                    </button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.bulk_set_company_parent') }}" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Child Companies</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" id="selectAllBulkChildren" class="rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500">
+                                    <label for="selectAllBulkChildren" class="text-xs text-yellow-700 font-medium">Select All</label>
+                                </div>
+                            </div>
+                            <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                                {% for company in companies %}
+                                <div class="flex items-center space-x-2 py-1">
+                                    <input type="checkbox" name="child_company_ids" value="{{ company.id }}"
+                                           class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 bulk-child-checkbox">
+                                    <label class="text-sm text-gray-700">{{ company.name }}</label>
+                                    {% if company.parent_company_id %}
+                                    <span class="text-xs text-gray-500">(currently child of {{ company.parent_company.name }})</span>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-2 text-sm text-yellow-700">
+                                <span id="bulkSelectedCount">0</span> companies selected
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Parent Company (optional)</label>
+                            <select name="parent_company_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <option value="">No parent (remove grouping)</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" id="bulkSetParentBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled onclick="return confirm('Group selected companies under the chosen parent? This will override any existing parent relationships.')">
+                            Group Selected Companies
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- Set Display Name Form -->
@@ -160,7 +275,12 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" id="selectAllTable" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span>Company Name</span>
+                                </div>
+                            </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Company</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -172,10 +292,20 @@
                         {% for company in companies %}
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="font-medium text-gray-900">{{ company.name }}</div>
-                                {% if company.child_companies.count() > 0 %}
-                                <div class="text-sm text-blue-600">{{ company.child_companies.count() }} children</div>
-                                {% endif %}
+                                <div class="flex items-center space-x-3">
+                                    {% if company.parent_company_id %}
+                                    <input type="checkbox" name="table_child_company_ids" value="{{ company.id }}"
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 table-child-checkbox">
+                                    {% else %}
+                                    <div class="w-4"></div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ company.name }}</div>
+                                        {% if company.child_companies.count() > 0 %}
+                                        <div class="text-sm text-blue-600">{{ company.child_companies.count() }} children</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 {{ company.display_name or '-' }}
@@ -200,22 +330,54 @@
                                 <div class="font-medium text-gray-900">{{ company.grouped_display_name }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                {% if not company.child_companies.count() %}
-                                <form method="POST" action="{{ url_for('admin.toggle_parent_company') }}" class="inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <input type="hidden" name="company_id" value="{{ company.id }}"/>
-                                    <button type="submit" class="text-blue-600 hover:text-blue-900">
-                                        {% if company.is_parent_company %}Remove Parent{% else %}Make Parent{% endif %}
-                                    </button>
-                                </form>
-                                {% else %}
-                                <span class="text-gray-400">Has children</span>
-                                {% endif %}
+                                <div class="flex flex-col space-y-1">
+                                    {% if not company.child_companies.count() %}
+                                    <form method="POST" action="{{ url_for('admin.toggle_parent_company') }}" class="inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="hidden" name="company_id" value="{{ company.id }}"/>
+                                        <button type="submit" class="text-blue-600 hover:text-blue-900">
+                                            {% if company.is_parent_company %}Remove Parent{% else %}Make Parent{% endif %}
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('admin.remove_parent_company') }}" class="inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="hidden" name="company_id" value="{{ company.id }}"/>
+                                        <button type="submit" class="text-red-600 hover:text-red-800"
+                                                onclick="return confirm('Remove parent status from {{ company.name }}? All child companies will become standalone.')">
+                                            Remove Parent Status
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if company.parent_company_id %}
+                                    <form method="POST" action="{{ url_for('admin.remove_child_company') }}" class="inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <input type="hidden" name="company_id" value="{{ company.id }}"/>
+                                        <button type="submit" class="text-orange-600 hover:text-orange-800"
+                                                onclick="return confirm('Remove {{ company.name }} from parent {{ company.parent_company.name }}? It will become a standalone company.')">
+                                            Remove from Parent
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <form id="tableBulkRemoveForm" method="POST" action="{{ url_for('admin.bulk_remove_child_companies') }}" class="flex items-center justify-between">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div id="tableSelectedInfo" class="text-sm text-gray-600">
+                        <span id="tableSelectedCount">0</span> child companies selected
+                    </div>
+                    <button type="submit" id="tableBulkRemoveBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled onclick="return confirm('Remove selected companies from their parents? They will become standalone companies.')">
+                        Remove Selected from Parents
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -233,6 +395,197 @@
 </div>
 
 <script>
+// Bulk selection functionality for child companies
+document.addEventListener('DOMContentLoaded', function() {
+    // Child companies section
+    const selectAllCheckbox = document.getElementById('selectAllChildren');
+    const childCheckboxes = document.querySelectorAll('.child-checkbox');
+    const bulkRemoveBtn = document.getElementById('bulkRemoveBtn');
+    const selectedCount = document.getElementById('selectedCount');
+
+    // Table section
+    const selectAllTableCheckbox = document.getElementById('selectAllTable');
+    const tableChildCheckboxes = document.querySelectorAll('.table-child-checkbox');
+    const tableBulkRemoveBtn = document.getElementById('tableBulkRemoveBtn');
+    const tableSelectedCount = document.getElementById('tableSelectedCount');
+    const tableBulkRemoveForm = document.getElementById('tableBulkRemoveForm');
+
+    // Function to update selected count and button state for child companies section
+    function updateChildSelectionState() {
+        const checkedBoxes = document.querySelectorAll('.child-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        if (selectedCount) {
+            selectedCount.textContent = `${count} selected`;
+        }
+        if (bulkRemoveBtn) {
+            bulkRemoveBtn.disabled = count === 0;
+        }
+
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
+            if (count === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (count === childCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+                selectAllCheckbox.checked = false;
+            }
+        }
+    }
+
+    // Function to update selected count and button state for table section
+    function updateTableSelectionState() {
+        const checkedBoxes = document.querySelectorAll('.table-child-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        if (tableSelectedCount) {
+            tableSelectedCount.textContent = count;
+        }
+        if (tableBulkRemoveBtn) {
+            tableBulkRemoveBtn.disabled = count === 0;
+        }
+
+        // Update select all checkbox state
+        if (selectAllTableCheckbox) {
+            if (count === 0) {
+                selectAllTableCheckbox.indeterminate = false;
+                selectAllTableCheckbox.checked = false;
+            } else if (count === tableChildCheckboxes.length) {
+                selectAllTableCheckbox.indeterminate = false;
+                selectAllTableCheckbox.checked = true;
+            } else {
+                selectAllTableCheckbox.indeterminate = true;
+                selectAllTableCheckbox.checked = false;
+            }
+        }
+    }
+
+    // Select all functionality for child companies section
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            childCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateChildSelectionState();
+        });
+    }
+
+    // Select all functionality for table section
+    if (selectAllTableCheckbox) {
+        selectAllTableCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            tableChildCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateTableSelectionState();
+        });
+    }
+
+    // Individual checkbox change for child companies section
+    childCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateChildSelectionState);
+    });
+
+    // Individual checkbox change for table section
+    tableChildCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateTableSelectionState);
+    });
+
+    // Handle form submission for table bulk remove
+    if (tableBulkRemoveForm) {
+        tableBulkRemoveForm.addEventListener('submit', function(e) {
+            const checkedBoxes = document.querySelectorAll('.table-child-checkbox:checked');
+
+            // Add selected checkboxes to the form
+            checkedBoxes.forEach(checkbox => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'child_company_ids';
+                hiddenInput.value = checkbox.value;
+                this.appendChild(hiddenInput);
+            });
+        });
+    }
+
+    // Bulk grouping form functionality
+    const switchToBulkBtn = document.getElementById('switchToBulkBtn');
+    const switchToSingleBtn = document.getElementById('switchToSingleBtn');
+    const singleGroupForm = document.getElementById('singleGroupForm');
+    const bulkGroupForm = document.getElementById('bulkGroupForm');
+    const selectAllBulkChildren = document.getElementById('selectAllBulkChildren');
+    const bulkChildCheckboxes = document.querySelectorAll('.bulk-child-checkbox');
+    const bulkSetParentBtn = document.getElementById('bulkSetParentBtn');
+    const bulkSelectedCount = document.getElementById('bulkSelectedCount');
+
+    // Switch between single and bulk forms
+    if (switchToBulkBtn) {
+        switchToBulkBtn.addEventListener('click', function() {
+            singleGroupForm.classList.add('hidden');
+            bulkGroupForm.classList.remove('hidden');
+        });
+    }
+
+    if (switchToSingleBtn) {
+        switchToSingleBtn.addEventListener('click', function() {
+            bulkGroupForm.classList.add('hidden');
+            singleGroupForm.classList.remove('hidden');
+        });
+    }
+
+    // Function to update bulk grouping selection state
+    function updateBulkGroupingState() {
+        const checkedBoxes = document.querySelectorAll('.bulk-child-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        if (bulkSelectedCount) {
+            bulkSelectedCount.textContent = count;
+        }
+        if (bulkSetParentBtn) {
+            bulkSetParentBtn.disabled = count === 0;
+        }
+
+        // Update select all checkbox state
+        if (selectAllBulkChildren) {
+            if (count === 0) {
+                selectAllBulkChildren.indeterminate = false;
+                selectAllBulkChildren.checked = false;
+            } else if (count === bulkChildCheckboxes.length) {
+                selectAllBulkChildren.indeterminate = false;
+                selectAllBulkChildren.checked = true;
+            } else {
+                selectAllBulkChildren.indeterminate = true;
+                selectAllBulkChildren.checked = false;
+            }
+        }
+    }
+
+    // Select all functionality for bulk grouping
+    if (selectAllBulkChildren) {
+        selectAllBulkChildren.addEventListener('change', function() {
+            const isChecked = this.checked;
+            bulkChildCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateBulkGroupingState();
+        });
+    }
+
+    // Individual checkbox change for bulk grouping
+    bulkChildCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkGroupingState);
+    });
+
+    // Initial state update
+    updateChildSelectionState();
+    updateTableSelectionState();
+    updateBulkGroupingState();
+});
+
 // Auto-refresh the page every 30 seconds to show updates
 setTimeout(function() {
     window.location.reload();
