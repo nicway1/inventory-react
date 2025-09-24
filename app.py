@@ -194,6 +194,7 @@ def create_app():
     csrf.exempt(mobile_api_bp)
     csrf.exempt(search_api_bp)
     csrf.exempt(inventory_api_bp)
+    csrf.exempt(reports_bp)  # Exempt reports API endpoints
     # csrf.exempt(json_api_bp)  # Temporarily disabled
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)

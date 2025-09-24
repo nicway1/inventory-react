@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
-from flask_wtf.csrf import exempt
 from utils.auth_decorators import permission_required
+
+# CSRF exemption will be handled at the app level for API routes
 from sqlalchemy import func, extract, and_, or_, case
 from datetime import datetime, timedelta
 import json
@@ -462,7 +463,6 @@ def case_reports_builder():
 @reports_bp.route('/api/filters')
 @login_required
 @permission_required('can_view_reports')
-@exempt
 def get_available_filters():
     """Get all available filter options with counts"""
     db = SessionLocal()
@@ -546,7 +546,6 @@ def get_available_filters():
 @reports_bp.route('/api/case-data', methods=['POST'])
 @login_required
 @permission_required('can_view_reports')
-@exempt
 def get_case_data():
     """Get filtered case data for dynamic reporting"""
     try:
