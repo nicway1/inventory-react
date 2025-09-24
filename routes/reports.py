@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
+from flask_wtf.csrf import exempt
 from utils.auth_decorators import permission_required
 from sqlalchemy import func, extract, and_, or_, case
 from datetime import datetime, timedelta
@@ -461,6 +462,7 @@ def case_reports_builder():
 @reports_bp.route('/api/filters')
 @login_required
 @permission_required('can_view_reports')
+@exempt
 def get_available_filters():
     """Get all available filter options with counts"""
     db = SessionLocal()
@@ -473,7 +475,7 @@ def get_available_filters():
             if hasattr(current_user, 'user_type') and current_user.user_type:
                 if current_user.user_type.value == 'COUNTRY_ADMIN':
                     # Only join CustomerUser if we need country filtering
-                    query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True)
+                    query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
                     if hasattr(current_user, 'country') and current_user.country:
                         query = query.filter(CustomerUser.country == current_user.country)
                 elif current_user.user_type.value == 'CLIENT':
@@ -513,8 +515,8 @@ def get_available_filters():
                 # Country (if available)
                 if hasattr(ticket, 'country') and ticket.country:
                     countries[ticket.country] = countries.get(ticket.country, 0) + 1
-                elif ticket.customer_user and hasattr(ticket.customer_user, 'country') and ticket.customer_user.country:
-                    countries[ticket.customer_user.country] = countries.get(ticket.customer_user.country, 0) + 1
+                elif ticket.customer and hasattr(ticket.customer, 'country') and ticket.customer.country:
+                    countries[ticket.customer.country] = countries.get(ticket.customer.country, 0) + 1
             except Exception as e:
                 logger.error(f"Error processing ticket {ticket.id}: {e}")
                 continue
@@ -544,6 +546,7 @@ def get_available_filters():
 @reports_bp.route('/api/case-data', methods=['POST'])
 @login_required
 @permission_required('can_view_reports')
+@exempt
 def get_case_data():
     """Get filtered case data for dynamic reporting"""
     try:
@@ -560,7 +563,7 @@ def get_case_data():
             try:
                 if hasattr(current_user, 'user_type') and current_user.user_type:
                     if current_user.user_type.value == 'COUNTRY_ADMIN':
-                        query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True)
+                        query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
                         if hasattr(current_user, 'country') and current_user.country:
                             query = query.filter(CustomerUser.country == current_user.country)
                     elif current_user.user_type.value == 'CLIENT':
