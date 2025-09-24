@@ -328,6 +328,9 @@
 
             <!-- Apply Filters Button -->
             <div class="filter-group">
+                <button onclick="testAPI()" class="apply-filters-btn" style="background: #f59e0b; margin-bottom: 0.5rem;">
+                    🔧 Test API
+                </button>
                 <button onclick="generatePreview()" class="apply-filters-btn" style="background: #10b981; margin-bottom: 0.5rem;">
                     🔍 Preview Data
                 </button>
@@ -481,9 +484,12 @@ function toggleAllFilters(containerId, selectAllCheckbox) {
 
 async function generatePreview() {
     try {
+        console.log('generatePreview() called');
         const filters = getSelectedFilters();
+        console.log('Filters:', filters);
         showDebugInfo(`Preview filters: ${JSON.stringify(filters, null, 2)}`);
 
+        showDebugInfo('Making API call to /reports/api/case-data...');
         const response = await fetch('/reports/api/case-data', {
             method: 'POST',
             headers: {
@@ -492,7 +498,18 @@ async function generatePreview() {
             body: JSON.stringify(filters)
         });
 
+        showDebugInfo(`Response status: ${response.status}`);
+        showDebugInfo(`Response headers: ${JSON.stringify([...response.headers])}`);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            showError(`API Error: ${response.status} ${response.statusText}\n${errorText}`);
+            showDebugInfo(`Error response body: ${errorText}`);
+            return;
+        }
+
         const data = await response.json();
+        console.log('API Response:', data);
 
         if (!data.success && data.error) {
             showError(`Preview failed: ${data.error}`);
@@ -538,6 +555,7 @@ async function generatePreview() {
         console.error('Failed to generate preview:', error);
         showError(`Network error during preview: ${error.message}`);
         showDebugInfo(`Network Error: ${error.message}`);
+        showDebugInfo(`Error stack: ${error.stack}`);
     }
 }
 
@@ -545,9 +563,12 @@ async function generateReport() {
     showLoading();
 
     try {
+        console.log('generateReport() called');
         const filters = getSelectedFilters();
+        console.log('Report filters:', filters);
         showDebugInfo(`Generating report with filters: ${JSON.stringify(filters, null, 2)}`);
 
+        showDebugInfo('Making API call for full report...');
         const response = await fetch('/reports/api/case-data', {
             method: 'POST',
             headers: {
@@ -556,7 +577,18 @@ async function generateReport() {
             body: JSON.stringify(filters)
         });
 
+        showDebugInfo(`Report response status: ${response.status}`);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            showError(`Report API Error: ${response.status} ${response.statusText}\n${errorText}`);
+            showDebugInfo(`Report error response body: ${errorText}`);
+            hideLoading();
+            return;
+        }
+
         reportData = await response.json();
+        console.log('Report API Response:', reportData);
 
         showDebugInfo(`API Response: ${JSON.stringify(reportData, null, 2)}`);
 
@@ -948,6 +980,70 @@ function showDebugInfo(message) {
 function toggleDebug() {
     const debugInfo = document.getElementById('debugInfo');
     debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+}
+
+async function testAPI() {
+    console.log('testAPI() called');
+    showDebugInfo('Testing API endpoints...');
+
+    // Test 1: Check if filters API works
+    try {
+        showDebugInfo('Testing /reports/api/filters...');
+        const filtersResponse = await fetch('/reports/api/filters');
+        showDebugInfo(`Filters API status: ${filtersResponse.status}`);
+
+        if (filtersResponse.ok) {
+            const filtersData = await filtersResponse.json();
+            showDebugInfo(`Filters API success: Found ${filtersData.statuses?.length || 0} statuses, ${filtersData.categories?.length || 0} categories`);
+        } else {
+            const errorText = await filtersResponse.text();
+            showDebugInfo(`Filters API error: ${errorText}`);
+        }
+    } catch (error) {
+        showDebugInfo(`Filters API error: ${error.message}`);
+    }
+
+    // Test 2: Check if case-data API works with minimal data
+    try {
+        showDebugInfo('Testing /reports/api/case-data...');
+        const testFilters = {
+            startDate: '2024-01-01',
+            endDate: '2024-12-31',
+            statuses: [],
+            priorities: [],
+            categories: [],
+            assignedTo: [],
+            countries: [],
+            groupBy: 'status'
+        };
+
+        const response = await fetch('/reports/api/case-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testFilters)
+        });
+
+        showDebugInfo(`Case-data API status: ${response.status}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            showDebugInfo(`Case-data API success: Found ${data.total || 0} tickets`);
+            console.log('Case-data response:', data);
+        } else {
+            const errorText = await response.text();
+            showDebugInfo(`Case-data API error: ${errorText}`);
+            console.error('Case-data error:', errorText);
+        }
+    } catch (error) {
+        showDebugInfo(`Case-data API error: ${error.message}`);
+        console.error('Case-data error:', error);
+    }
+
+    // Show debug info automatically
+    document.getElementById('debugInfo').style.display = 'block';
+    showDebugInfo('API tests completed. Check console for more details.');
 }
 
 function resetFilters() {
