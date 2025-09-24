@@ -588,93 +588,93 @@ def get_case_data():
             tickets = query.all()
             logger.info(f"Found {len(tickets)} tickets before additional filtering")
 
-        # Apply additional filters
-        filtered_tickets = []
-        for ticket in tickets:
-            # Status filter
-            if filters.get('statuses') and len(filters['statuses']) > 0:
-                ticket_status = ticket.status.value if ticket.status else 'No Status'
-                if ticket_status not in filters['statuses']:
-                    continue
-
-            # Priority filter
-            if filters.get('priorities') and len(filters['priorities']) > 0:
-                ticket_priority = ticket.priority.value if ticket.priority else 'No Priority'
-                if ticket_priority not in filters['priorities']:
-                    continue
-
-            # Category filter
-            if filters.get('categories') and len(filters['categories']) > 0:
-                ticket_category = ticket.get_category_display_name() if ticket.category else 'No Category'
-                if ticket_category not in filters['categories']:
-                    continue
-
-            # Assigned to filter
-            if filters.get('assignedTo') and len(filters['assignedTo']) > 0:
-                ticket_user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
-                if ticket_user not in filters['assignedTo']:
-                    continue
-
-            # Country filter (if applicable)
-            if filters.get('countries') and len(filters['countries']) > 0:
-                if hasattr(ticket, 'country') and ticket.country:
-                    if ticket.country not in filters['countries']:
+            # Apply additional filters
+            filtered_tickets = []
+            for ticket in tickets:
+                # Status filter
+                if filters.get('statuses') and len(filters['statuses']) > 0:
+                    ticket_status = ticket.status.value if ticket.status else 'No Status'
+                    if ticket_status not in filters['statuses']:
                         continue
 
-            filtered_tickets.append(ticket)
+                # Priority filter
+                if filters.get('priorities') and len(filters['priorities']) > 0:
+                    ticket_priority = ticket.priority.value if ticket.priority else 'No Priority'
+                    if ticket_priority not in filters['priorities']:
+                        continue
 
-        # Generate grouped data based on groupBy parameter
-        group_by = filters.get('groupBy', 'status')
-        grouped_data = {}
+                # Category filter
+                if filters.get('categories') and len(filters['categories']) > 0:
+                    ticket_category = ticket.get_category_display_name() if ticket.category else 'No Category'
+                    if ticket_category not in filters['categories']:
+                        continue
 
-        for ticket in filtered_tickets:
-            group_key = get_group_key(ticket, group_by)
-            grouped_data[group_key] = grouped_data.get(group_key, 0) + 1
+                # Assigned to filter
+                if filters.get('assignedTo') and len(filters['assignedTo']) > 0:
+                    ticket_user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+                    if ticket_user not in filters['assignedTo']:
+                        continue
 
-        # Generate timeline data (cases created over time)
-        timeline_data = {}
-        for ticket in filtered_tickets:
-            date_key = ticket.created_at.strftime('%Y-%m-%d')
-            timeline_data[date_key] = timeline_data.get(date_key, 0) + 1
+                # Country filter (if applicable)
+                if filters.get('countries') and len(filters['countries']) > 0:
+                    if hasattr(ticket, 'country') and ticket.country:
+                        if ticket.country not in filters['countries']:
+                            continue
 
-        # Generate table data
-        table_data = []
-        for ticket in filtered_tickets[:100]:  # Limit to first 100 for performance
-            table_data.append({
-                'case_id': ticket.display_id if hasattr(ticket, 'display_id') and ticket.display_id else str(ticket.id),
-                'subject': ticket.subject or 'Untitled',
-                'status': ticket.status.value if ticket.status else 'No Status',
-                'priority': ticket.priority.value if ticket.priority else 'No Priority',
-                'category': ticket.get_category_display_name() if ticket.category else 'No Category',
-                'created_at': ticket.created_at.isoformat(),
-                'assigned_to': ticket.assigned_to.username if ticket.assigned_to else None
+                filtered_tickets.append(ticket)
+
+            # Generate grouped data based on groupBy parameter
+            group_by = filters.get('groupBy', 'status')
+            grouped_data = {}
+
+            for ticket in filtered_tickets:
+                group_key = get_group_key(ticket, group_by)
+                grouped_data[group_key] = grouped_data.get(group_key, 0) + 1
+
+            # Generate timeline data (cases created over time)
+            timeline_data = {}
+            for ticket in filtered_tickets:
+                date_key = ticket.created_at.strftime('%Y-%m-%d')
+                timeline_data[date_key] = timeline_data.get(date_key, 0) + 1
+
+            # Generate table data
+            table_data = []
+            for ticket in filtered_tickets[:100]:  # Limit to first 100 for performance
+                table_data.append({
+                    'case_id': ticket.display_id if hasattr(ticket, 'display_id') and ticket.display_id else str(ticket.id),
+                    'subject': ticket.subject or 'Untitled',
+                    'status': ticket.status.value if ticket.status else 'No Status',
+                    'priority': ticket.priority.value if ticket.priority else 'No Priority',
+                    'category': ticket.get_category_display_name() if ticket.category else 'No Category',
+                    'created_at': ticket.created_at.isoformat(),
+                    'assigned_to': ticket.assigned_to.username if ticket.assigned_to else None
+                })
+
+            # Calculate summary statistics
+            total_tickets = len(filtered_tickets)
+            open_tickets = len([t for t in filtered_tickets if t.status and t.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED']])
+            resolved_tickets = total_tickets - open_tickets
+            resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
+
+            logger.info(f"Returning data for {total_tickets} tickets")
+            return jsonify({
+                'success': True,
+                'total': total_tickets,
+                'summary': {
+                    'total': total_tickets,
+                    'open': open_tickets,
+                    'resolved': resolved_tickets,
+                    'resolution_rate': round(resolution_rate, 1)
+                },
+                'groupedData': {
+                    group_by: grouped_data
+                },
+                'timelineData': timeline_data,
+                'tableData': table_data
             })
 
-        # Calculate summary statistics
-        total_tickets = len(filtered_tickets)
-        open_tickets = len([t for t in filtered_tickets if t.status and t.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED']])
-        resolved_tickets = total_tickets - open_tickets
-        resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
-
-        logger.info(f"Returning data for {total_tickets} tickets")
-        return jsonify({
-            'success': True,
-            'total': total_tickets,
-            'summary': {
-                'total': total_tickets,
-                'open': open_tickets,
-                'resolved': resolved_tickets,
-                'resolution_rate': round(resolution_rate, 1)
-            },
-            'groupedData': {
-                group_by: grouped_data
-            },
-            'timelineData': timeline_data,
-            'tableData': table_data
-        })
-
-    finally:
-        db.close()
+        finally:
+            db.close()
 
     except Exception as e:
         logger.error(f"Error in get_case_data: {e}")
