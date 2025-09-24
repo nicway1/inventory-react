@@ -328,6 +328,9 @@
 
             <!-- Apply Filters Button -->
             <div class="filter-group">
+                <button onclick="generatePreview()" class="apply-filters-btn" style="background: #10b981; margin-bottom: 0.5rem;">
+                    🔍 Preview Data
+                </button>
                 <button onclick="generateReport()" class="apply-filters-btn">
                     Generate Report
                 </button>
@@ -336,6 +339,12 @@
                     <button onclick="exportExcel()" class="export-btn">Excel</button>
                     <button onclick="exportPDF()" class="export-btn">PDF</button>
                 </div>
+            </div>
+
+            <!-- Debug Info -->
+            <div class="filter-group" id="debugInfo" style="display: none;">
+                <div class="filter-title">Debug Information</div>
+                <div class="text-xs text-gray-600" id="debugDetails"></div>
             </div>
         </div>
 
@@ -380,7 +389,11 @@ const colorSchemes = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeDateRange();
     loadAvailableFilters();
-    generateReport();
+
+    // Auto-generate preview on load
+    setTimeout(() => {
+        generatePreview();
+    }, 1000);
 });
 
 function initializeDateRange() {
@@ -404,15 +417,26 @@ function setDateRange(days) {
 async function loadAvailableFilters() {
     try {
         const response = await fetch('/reports/api/filters');
-        availableFilters = await response.json();
+        const data = await response.json();
+
+        if (!data.success && data.error) {
+            showError(`Failed to load filters: ${data.error}`);
+            showDebugInfo(`Filter API Error: ${data.error}`);
+        }
+
+        availableFilters = data;
 
         populateFilterOptions('statusFilters', availableFilters.statuses || []);
         populateFilterOptions('priorityFilters', availableFilters.priorities || []);
         populateFilterOptions('categoryFilters', availableFilters.categories || []);
         populateFilterOptions('assignedToFilters', availableFilters.users || []);
         populateFilterOptions('countryFilters', availableFilters.countries || []);
+
+        showDebugInfo(`Loaded filters successfully. Statuses: ${availableFilters.statuses?.length}, Categories: ${availableFilters.categories?.length}`);
     } catch (error) {
         console.error('Failed to load filter options:', error);
+        showError(`Network error loading filters: ${error.message}`);
+        showDebugInfo(`Network Error: ${error.message}`);
     }
 }
 
@@ -455,11 +479,75 @@ function toggleAllFilters(containerId, selectAllCheckbox) {
     });
 }
 
+async function generatePreview() {
+    try {
+        const filters = getSelectedFilters();
+        showDebugInfo(`Preview filters: ${JSON.stringify(filters, null, 2)}`);
+
+        const response = await fetch('/reports/api/case-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(filters)
+        });
+
+        const data = await response.json();
+
+        if (!data.success && data.error) {
+            showError(`Preview failed: ${data.error}`);
+            showDebugInfo(`API Error: ${data.error}`);
+            return;
+        }
+
+        showDebugInfo(`Preview successful! Found ${data.total} tickets. Summary: ${JSON.stringify(data.summary)}`);
+
+        // Show a preview of the data in the charts area
+        const chartsArea = document.getElementById('chartsArea');
+        chartsArea.innerHTML = `
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">🔍 Data Preview</h3>
+                </div>
+                <div class="chart-body" style="padding: 2rem;">
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-600">${data.total}</div>
+                            <div class="text-sm text-blue-800">Total Tickets Found</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">${data.summary.resolution_rate}%</div>
+                            <div class="text-sm text-green-800">Resolution Rate</div>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <p><strong>Open:</strong> ${data.summary.open} tickets</p>
+                        <p><strong>Resolved:</strong> ${data.summary.resolved} tickets</p>
+                        <p><strong>Sample data available:</strong> ${data.tableData?.length || 0} records</p>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="generateReport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            ✨ Generate Full Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Failed to generate preview:', error);
+        showError(`Network error during preview: ${error.message}`);
+        showDebugInfo(`Network Error: ${error.message}`);
+    }
+}
+
 async function generateReport() {
     showLoading();
 
     try {
         const filters = getSelectedFilters();
+        showDebugInfo(`Generating report with filters: ${JSON.stringify(filters, null, 2)}`);
+
         const response = await fetch('/reports/api/case-data', {
             method: 'POST',
             headers: {
@@ -470,6 +558,14 @@ async function generateReport() {
 
         reportData = await response.json();
 
+        showDebugInfo(`API Response: ${JSON.stringify(reportData, null, 2)}`);
+
+        if (!reportData.success && reportData.error) {
+            showError(`Report generation failed: ${reportData.error}`);
+            hideLoading();
+            return;
+        }
+
         if (reportData.total === 0) {
             showNoData();
             return;
@@ -477,10 +573,12 @@ async function generateReport() {
 
         renderCharts();
         hideLoading();
+        showDebugInfo(`Report generated successfully with ${reportData.total} tickets`);
     } catch (error) {
         console.error('Failed to generate report:', error);
         hideLoading();
-        showError('Failed to generate report. Please try again.');
+        showError(`Network error: ${error.message}`);
+        showDebugInfo(`Network Error: ${error.message}`);
     }
 }
 
@@ -810,7 +908,46 @@ function showNoData() {
 
 function showError(message) {
     hideLoading();
-    alert(message);
+
+    // Create a more user-friendly error display
+    const chartsArea = document.getElementById('chartsArea');
+    chartsArea.innerHTML = `
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">❌ Error</h3>
+            </div>
+            <div class="chart-body" style="padding: 2rem; text-align: center;">
+                <div class="text-red-600 mb-4">
+                    <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
+                    <p class="text-gray-600">${message}</p>
+                </div>
+                <div class="flex gap-2 justify-center">
+                    <button onclick="generatePreview()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        🔍 Try Preview
+                    </button>
+                    <button onclick="resetFilters()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        🔄 Reset Filters
+                    </button>
+                    <button onclick="toggleDebug()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                        🐛 Show Debug
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showDebugInfo(message) {
+    console.log('DEBUG:', message);
+    document.getElementById('debugDetails').innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+}
+
+function toggleDebug() {
+    const debugInfo = document.getElementById('debugInfo');
+    debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
 }
 
 function resetFilters() {

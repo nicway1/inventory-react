@@ -468,13 +468,22 @@ def get_available_filters():
         # Base query with permissions
         query = db.query(Ticket)
 
-        # Apply permission filters
-        if current_user.user_type.value == 'COUNTRY_ADMIN':
-            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
-        elif current_user.user_type.value == 'CLIENT':
-            query = query.filter(Ticket.requester_id == current_user.id)
+        # Apply permission filters more safely
+        try:
+            if hasattr(current_user, 'user_type') and current_user.user_type:
+                if current_user.user_type.value == 'COUNTRY_ADMIN':
+                    # Only join CustomerUser if we need country filtering
+                    query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True)
+                    if hasattr(current_user, 'country') and current_user.country:
+                        query = query.filter(CustomerUser.country == current_user.country)
+                elif current_user.user_type.value == 'CLIENT':
+                    query = query.filter(Ticket.requester_id == current_user.id)
+        except Exception as e:
+            logger.error(f"Error applying user permissions: {e}")
+            # Continue without user-specific filtering
 
         tickets = query.all()
+        logger.info(f"Found {len(tickets)} tickets for filter options")
 
         # Get unique values with counts
         statuses = {}
@@ -484,33 +493,51 @@ def get_available_filters():
         countries = {}
 
         for ticket in tickets:
-            # Status
-            status = ticket.status.value if ticket.status else 'No Status'
-            statuses[status] = statuses.get(status, 0) + 1
+            try:
+                # Status
+                status = ticket.status.value if ticket.status else 'No Status'
+                statuses[status] = statuses.get(status, 0) + 1
 
-            # Priority
-            priority = ticket.priority.value if ticket.priority else 'No Priority'
-            priorities[priority] = priorities.get(priority, 0) + 1
+                # Priority
+                priority = ticket.priority.value if ticket.priority else 'No Priority'
+                priorities[priority] = priorities.get(priority, 0) + 1
 
-            # Category
-            category = ticket.get_category_display_name() if ticket.category else 'No Category'
-            categories[category] = categories.get(category, 0) + 1
+                # Category
+                category = ticket.get_category_display_name() if ticket.category else 'No Category'
+                categories[category] = categories.get(category, 0) + 1
 
-            # Assigned user
-            user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
-            users[user] = users.get(user, 0) + 1
+                # Assigned user
+                user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+                users[user] = users.get(user, 0) + 1
 
-            # Country (if available)
-            if hasattr(ticket, 'country') and ticket.country:
-                countries[ticket.country] = countries.get(ticket.country, 0) + 1
+                # Country (if available)
+                if hasattr(ticket, 'country') and ticket.country:
+                    countries[ticket.country] = countries.get(ticket.country, 0) + 1
+                elif ticket.customer_user and hasattr(ticket.customer_user, 'country') and ticket.customer_user.country:
+                    countries[ticket.customer_user.country] = countries.get(ticket.customer_user.country, 0) + 1
+            except Exception as e:
+                logger.error(f"Error processing ticket {ticket.id}: {e}")
+                continue
 
         return jsonify({
-            'statuses': [{'value': k, 'label': k, 'count': v} for k, v in statuses.items()],
-            'priorities': [{'value': k, 'label': k, 'count': v} for k, v in priorities.items()],
-            'categories': [{'value': k, 'label': k, 'count': v} for k, v in categories.items()],
-            'users': [{'value': k, 'label': k, 'count': v} for k, v in users.items()],
-            'countries': [{'value': k, 'label': k, 'count': v} for k, v in countries.items()]
+            'success': True,
+            'statuses': [{'value': k, 'label': k, 'count': v} for k, v in sorted(statuses.items())],
+            'priorities': [{'value': k, 'label': k, 'count': v} for k, v in sorted(priorities.items())],
+            'categories': [{'value': k, 'label': k, 'count': v} for k, v in sorted(categories.items())],
+            'users': [{'value': k, 'label': k, 'count': v} for k, v in sorted(users.items())],
+            'countries': [{'value': k, 'label': k, 'count': v} for k, v in sorted(countries.items())]
         })
+    except Exception as e:
+        logger.error(f"Error in get_available_filters: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'statuses': [{'value': 'New', 'label': 'New', 'count': 0}, {'value': 'In Progress', 'label': 'In Progress', 'count': 0}],
+            'priorities': [{'value': 'Medium', 'label': 'Medium', 'count': 0}, {'value': 'High', 'label': 'High', 'count': 0}],
+            'categories': [{'value': 'PIN Request', 'label': 'PIN Request', 'count': 0}, {'value': 'Asset Repair', 'label': 'Asset Repair', 'count': 0}],
+            'users': [{'value': 'Unassigned', 'label': 'Unassigned', 'count': 0}],
+            'countries': []
+        }), 500
     finally:
         db.close()
 
@@ -519,31 +546,47 @@ def get_available_filters():
 @permission_required('can_view_reports')
 def get_case_data():
     """Get filtered case data for dynamic reporting"""
-    filters = request.get_json()
-    db = SessionLocal()
-
     try:
-        # Base query with permissions
-        query = db.query(Ticket)
+        filters = request.get_json() or {}
+        logger.info(f"Received filters: {filters}")
 
-        # Apply permission filters
-        if current_user.user_type.value == 'COUNTRY_ADMIN':
-            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
-        elif current_user.user_type.value == 'CLIENT':
-            query = query.filter(Ticket.requester_id == current_user.id)
+        db = SessionLocal()
 
-        # Apply date range filter
-        if filters.get('startDate'):
-            start_date = datetime.fromisoformat(filters['startDate'])
-            query = query.filter(Ticket.created_at >= start_date)
+        try:
+            # Base query with permissions
+            query = db.query(Ticket)
 
-        if filters.get('endDate'):
-            end_date = datetime.fromisoformat(filters['endDate'])
-            # Add one day to include the end date
-            end_date = end_date + timedelta(days=1)
-            query = query.filter(Ticket.created_at < end_date)
+            # Apply permission filters more safely
+            try:
+                if hasattr(current_user, 'user_type') and current_user.user_type:
+                    if current_user.user_type.value == 'COUNTRY_ADMIN':
+                        query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True)
+                        if hasattr(current_user, 'country') and current_user.country:
+                            query = query.filter(CustomerUser.country == current_user.country)
+                    elif current_user.user_type.value == 'CLIENT':
+                        query = query.filter(Ticket.requester_id == current_user.id)
+            except Exception as e:
+                logger.error(f"Error applying user permissions: {e}")
 
-        tickets = query.all()
+            # Apply date range filter
+            if filters.get('startDate'):
+                try:
+                    start_date = datetime.fromisoformat(filters['startDate'])
+                    query = query.filter(Ticket.created_at >= start_date)
+                except ValueError as e:
+                    logger.error(f"Invalid start date format: {e}")
+
+            if filters.get('endDate'):
+                try:
+                    end_date = datetime.fromisoformat(filters['endDate'])
+                    # Add one day to include the end date
+                    end_date = end_date + timedelta(days=1)
+                    query = query.filter(Ticket.created_at < end_date)
+                except ValueError as e:
+                    logger.error(f"Invalid end date format: {e}")
+
+            tickets = query.all()
+            logger.info(f"Found {len(tickets)} tickets before additional filtering")
 
         # Apply additional filters
         filtered_tickets = []
@@ -613,7 +656,9 @@ def get_case_data():
         resolved_tickets = total_tickets - open_tickets
         resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
 
+        logger.info(f"Returning data for {total_tickets} tickets")
         return jsonify({
+            'success': True,
             'total': total_tickets,
             'summary': {
                 'total': total_tickets,
@@ -630,6 +675,23 @@ def get_case_data():
 
     finally:
         db.close()
+
+    except Exception as e:
+        logger.error(f"Error in get_case_data: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'total': 0,
+            'summary': {
+                'total': 0,
+                'open': 0,
+                'resolved': 0,
+                'resolution_rate': 0
+            },
+            'groupedData': {},
+            'timelineData': {},
+            'tableData': []
+        }), 500
 
 def get_group_key(ticket, group_by):
     """Get the grouping key for a ticket based on the group_by parameter"""
