@@ -397,17 +397,17 @@ def debug_unknown_models():
     try:
         # Use the EXACT same logic as the main chart and assets_by_model route
         query = db.query(Asset)
-        
+
         # Apply permission filters
         if current_user.user_type.value == 'COUNTRY_ADMIN':
             query = query.filter(Asset.country == current_user.country)
         elif current_user.user_type.value == 'CLIENT':
             query = query.filter(Asset.customer_id == current_user.id)
-        
+
         # Get all assets and filter using the same logic as the main chart
         all_assets = query.all()
         unknown_model_assets = []
-        
+
         for asset in all_assets:
             # Use the EXACT same logic as the main chart
             if asset.model is None:
@@ -419,15 +419,15 @@ def debug_unknown_models():
                 # If it's still empty after stripping, mark as unknown
                 if not model:
                     model = 'Unknown Model'
-            
+
             # If this asset would be classified as Unknown Model, include it
             if model == 'Unknown Model':
                 unknown_model_assets.append(asset)
-        
+
         # Show first 50 for debugging, but report the actual total
         debug_info = []
         sample_assets = unknown_model_assets[:50]  # First 50 for debugging
-        
+
         for asset in sample_assets:
             debug_info.append({
                 'id': asset.id,
@@ -440,11 +440,222 @@ def debug_unknown_models():
                 'name': asset.name,
                 'asset_type': asset.asset_type
             })
-        
+
         return jsonify({
             'total_unknown_models': len(unknown_model_assets),
             'sample_assets': debug_info,
             'message': f'Found {len(unknown_model_assets)} assets with Unknown Model (showing first {len(sample_assets)} for debugging)'
         })
     finally:
-        db.close() 
+        db.close()
+
+# New API endpoints for dynamic report builder
+
+@reports_bp.route('/builder')
+@login_required
+@permission_required('can_view_reports')
+def case_reports_builder():
+    """Advanced case reports builder with dynamic filtering"""
+    return render_template('reports/case_reports_builder.html')
+
+@reports_bp.route('/api/filters')
+@login_required
+@permission_required('can_view_reports')
+def get_available_filters():
+    """Get all available filter options with counts"""
+    db = SessionLocal()
+    try:
+        # Base query with permissions
+        query = db.query(Ticket)
+
+        # Apply permission filters
+        if current_user.user_type.value == 'COUNTRY_ADMIN':
+            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
+        elif current_user.user_type.value == 'CLIENT':
+            query = query.filter(Ticket.requester_id == current_user.id)
+
+        tickets = query.all()
+
+        # Get unique values with counts
+        statuses = {}
+        priorities = {}
+        categories = {}
+        users = {}
+        countries = {}
+
+        for ticket in tickets:
+            # Status
+            status = ticket.status.value if ticket.status else 'No Status'
+            statuses[status] = statuses.get(status, 0) + 1
+
+            # Priority
+            priority = ticket.priority.value if ticket.priority else 'No Priority'
+            priorities[priority] = priorities.get(priority, 0) + 1
+
+            # Category
+            category = ticket.get_category_display_name() if ticket.category else 'No Category'
+            categories[category] = categories.get(category, 0) + 1
+
+            # Assigned user
+            user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+            users[user] = users.get(user, 0) + 1
+
+            # Country (if available)
+            if hasattr(ticket, 'country') and ticket.country:
+                countries[ticket.country] = countries.get(ticket.country, 0) + 1
+
+        return jsonify({
+            'statuses': [{'value': k, 'label': k, 'count': v} for k, v in statuses.items()],
+            'priorities': [{'value': k, 'label': k, 'count': v} for k, v in priorities.items()],
+            'categories': [{'value': k, 'label': k, 'count': v} for k, v in categories.items()],
+            'users': [{'value': k, 'label': k, 'count': v} for k, v in users.items()],
+            'countries': [{'value': k, 'label': k, 'count': v} for k, v in countries.items()]
+        })
+    finally:
+        db.close()
+
+@reports_bp.route('/api/case-data', methods=['POST'])
+@login_required
+@permission_required('can_view_reports')
+def get_case_data():
+    """Get filtered case data for dynamic reporting"""
+    filters = request.get_json()
+    db = SessionLocal()
+
+    try:
+        # Base query with permissions
+        query = db.query(Ticket)
+
+        # Apply permission filters
+        if current_user.user_type.value == 'COUNTRY_ADMIN':
+            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
+        elif current_user.user_type.value == 'CLIENT':
+            query = query.filter(Ticket.requester_id == current_user.id)
+
+        # Apply date range filter
+        if filters.get('startDate'):
+            start_date = datetime.fromisoformat(filters['startDate'])
+            query = query.filter(Ticket.created_at >= start_date)
+
+        if filters.get('endDate'):
+            end_date = datetime.fromisoformat(filters['endDate'])
+            # Add one day to include the end date
+            end_date = end_date + timedelta(days=1)
+            query = query.filter(Ticket.created_at < end_date)
+
+        tickets = query.all()
+
+        # Apply additional filters
+        filtered_tickets = []
+        for ticket in tickets:
+            # Status filter
+            if filters.get('statuses') and len(filters['statuses']) > 0:
+                ticket_status = ticket.status.value if ticket.status else 'No Status'
+                if ticket_status not in filters['statuses']:
+                    continue
+
+            # Priority filter
+            if filters.get('priorities') and len(filters['priorities']) > 0:
+                ticket_priority = ticket.priority.value if ticket.priority else 'No Priority'
+                if ticket_priority not in filters['priorities']:
+                    continue
+
+            # Category filter
+            if filters.get('categories') and len(filters['categories']) > 0:
+                ticket_category = ticket.get_category_display_name() if ticket.category else 'No Category'
+                if ticket_category not in filters['categories']:
+                    continue
+
+            # Assigned to filter
+            if filters.get('assignedTo') and len(filters['assignedTo']) > 0:
+                ticket_user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+                if ticket_user not in filters['assignedTo']:
+                    continue
+
+            # Country filter (if applicable)
+            if filters.get('countries') and len(filters['countries']) > 0:
+                if hasattr(ticket, 'country') and ticket.country:
+                    if ticket.country not in filters['countries']:
+                        continue
+
+            filtered_tickets.append(ticket)
+
+        # Generate grouped data based on groupBy parameter
+        group_by = filters.get('groupBy', 'status')
+        grouped_data = {}
+
+        for ticket in filtered_tickets:
+            group_key = get_group_key(ticket, group_by)
+            grouped_data[group_key] = grouped_data.get(group_key, 0) + 1
+
+        # Generate timeline data (cases created over time)
+        timeline_data = {}
+        for ticket in filtered_tickets:
+            date_key = ticket.created_at.strftime('%Y-%m-%d')
+            timeline_data[date_key] = timeline_data.get(date_key, 0) + 1
+
+        # Generate table data
+        table_data = []
+        for ticket in filtered_tickets[:100]:  # Limit to first 100 for performance
+            table_data.append({
+                'case_id': ticket.display_id if hasattr(ticket, 'display_id') and ticket.display_id else str(ticket.id),
+                'subject': ticket.subject or 'Untitled',
+                'status': ticket.status.value if ticket.status else 'No Status',
+                'priority': ticket.priority.value if ticket.priority else 'No Priority',
+                'category': ticket.get_category_display_name() if ticket.category else 'No Category',
+                'created_at': ticket.created_at.isoformat(),
+                'assigned_to': ticket.assigned_to.username if ticket.assigned_to else None
+            })
+
+        # Calculate summary statistics
+        total_tickets = len(filtered_tickets)
+        open_tickets = len([t for t in filtered_tickets if t.status and t.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED']])
+        resolved_tickets = total_tickets - open_tickets
+        resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
+
+        return jsonify({
+            'total': total_tickets,
+            'summary': {
+                'total': total_tickets,
+                'open': open_tickets,
+                'resolved': resolved_tickets,
+                'resolution_rate': round(resolution_rate, 1)
+            },
+            'groupedData': {
+                group_by: grouped_data
+            },
+            'timelineData': timeline_data,
+            'tableData': table_data
+        })
+
+    finally:
+        db.close()
+
+def get_group_key(ticket, group_by):
+    """Get the grouping key for a ticket based on the group_by parameter"""
+    if group_by == 'status':
+        return ticket.status.value if ticket.status else 'No Status'
+    elif group_by == 'priority':
+        return ticket.priority.value if ticket.priority else 'No Priority'
+    elif group_by == 'category':
+        return ticket.get_category_display_name() if ticket.category else 'No Category'
+    elif group_by == 'assigned_to':
+        return ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+    elif group_by == 'country':
+        return getattr(ticket, 'country', 'Unknown') or 'Unknown'
+    elif group_by == 'created_date':
+        return ticket.created_at.strftime('%Y-%m-%d')
+    elif group_by == 'resolution_time':
+        if ticket.status and ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED']:
+            hours = (ticket.updated_at - ticket.created_at).total_seconds() / 3600
+            if hours < 24:
+                return '< 1 day'
+            elif hours < 72:
+                return '1-3 days'
+            elif hours < 168:  # 7 days
+                return '3-7 days'
+            else:
+                return '> 7 days'
+        return 'Not Resolved'
+    else:
+        return 'Unknown' 

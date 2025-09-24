@@ -1,0 +1,900 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+    .report-builder-container {
+        display: flex;
+        height: calc(100vh - 120px);
+        gap: 1rem;
+    }
+
+    .builder-panel {
+        width: 320px;
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    .charts-area {
+        flex: 1;
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    .filter-group {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1rem;
+    }
+
+    .filter-group:last-child {
+        border-bottom: none;
+    }
+
+    .filter-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .filter-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+    }
+
+    .filter-checkbox {
+        margin-right: 0.5rem;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .chart-header {
+        background: #f9fafb;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chart-title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .chart-body {
+        padding: 1.5rem;
+        height: 400px;
+    }
+
+    .chart-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    .chart-type-selector {
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        padding: 0.375rem;
+        font-size: 0.75rem;
+    }
+
+    .date-range-picker {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .date-input {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+    }
+
+    .apply-filters-btn {
+        width: 100%;
+        background: #3b82f6;
+        color: white;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        cursor: pointer;
+        margin-top: 1rem;
+    }
+
+    .apply-filters-btn:hover {
+        background: #2563eb;
+    }
+
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+
+    .export-options {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .export-btn {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        background: white;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+
+    .export-btn:hover {
+        background: #f3f4f6;
+    }
+
+    .drag-handle {
+        cursor: move;
+        color: #9ca3af;
+        margin-right: 0.5rem;
+    }
+
+    .chart-options {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .chart-option-btn {
+        padding: 0.25rem 0.5rem;
+        border: 1px solid #d1d5db;
+        background: white;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+
+    .chart-option-btn:hover {
+        background: #f3f4f6;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Advanced Case Reports</h1>
+                    <p class="text-gray-600">Build custom reports with flexible filtering and visualization options</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="resetFilters()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Reset All
+                </button>
+                <button onclick="saveReport()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Save Report
+                </button>
+                <button onclick="exportReport()" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
+                    Export Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Builder Interface -->
+    <div class="report-builder-container">
+        <!-- Builder Panel -->
+        <div class="builder-panel">
+            <!-- Date Range -->
+            <div class="filter-group">
+                <div class="filter-title">Date Range</div>
+                <div class="date-range-picker">
+                    <input type="date" id="startDate" class="date-input" />
+                    <input type="date" id="endDate" class="date-input" />
+                </div>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="setDateRange(7)" class="text-xs px-2 py-1 border rounded">7d</button>
+                    <button onclick="setDateRange(30)" class="text-xs px-2 py-1 border rounded">30d</button>
+                    <button onclick="setDateRange(90)" class="text-xs px-2 py-1 border rounded">90d</button>
+                    <button onclick="setDateRange(365)" class="text-xs px-2 py-1 border rounded">1y</button>
+                </div>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="filter-group">
+                <div class="filter-title">Status</div>
+                <div id="statusFilters"></div>
+            </div>
+
+            <!-- Priority Filter -->
+            <div class="filter-group">
+                <div class="filter-title">Priority</div>
+                <div id="priorityFilters"></div>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="filter-group">
+                <div class="filter-title">Category</div>
+                <div id="categoryFilters"></div>
+            </div>
+
+            <!-- Assigned To Filter -->
+            <div class="filter-group">
+                <div class="filter-title">Assigned To</div>
+                <div id="assignedToFilters"></div>
+            </div>
+
+            <!-- Country Filter (if applicable) -->
+            <div class="filter-group">
+                <div class="filter-title">Country</div>
+                <div id="countryFilters"></div>
+            </div>
+
+            <!-- Group By Options -->
+            <div class="filter-group">
+                <div class="filter-title">Group By</div>
+                <select id="groupBy" class="w-full p-2 border rounded">
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="category">Category</option>
+                    <option value="assigned_to">Assigned To</option>
+                    <option value="country">Country</option>
+                    <option value="created_date">Created Date</option>
+                    <option value="resolution_time">Resolution Time</option>
+                </select>
+            </div>
+
+            <!-- Chart Types -->
+            <div class="filter-group">
+                <div class="filter-title">Visualizations</div>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showSummary" checked class="filter-checkbox">
+                        <span class="text-sm">Summary Metrics</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showPieChart" checked class="filter-checkbox">
+                        <span class="text-sm">Pie Chart</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showBarChart" checked class="filter-checkbox">
+                        <span class="text-sm">Bar Chart</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showLineChart" class="filter-checkbox">
+                        <span class="text-sm">Trend Line</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showHeatmap" class="filter-checkbox">
+                        <span class="text-sm">Time Heatmap</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="showTable" class="filter-checkbox">
+                        <span class="text-sm">Data Table</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Apply Filters Button -->
+            <div class="filter-group">
+                <button onclick="generateReport()" class="apply-filters-btn">
+                    Generate Report
+                </button>
+                <div class="export-options">
+                    <button onclick="exportCSV()" class="export-btn">CSV</button>
+                    <button onclick="exportExcel()" class="export-btn">Excel</button>
+                    <button onclick="exportPDF()" class="export-btn">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Area -->
+        <div class="charts-area" id="chartsArea">
+            <div class="loading-spinner" id="loadingSpinner">
+                <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating report...
+            </div>
+
+            <div class="no-data" id="noDataMessage" style="display: none;">
+                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No data available</h3>
+                <p class="text-gray-500">Try adjusting your filters or date range to see results.</p>
+                <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentCharts = {};
+let reportData = {};
+let availableFilters = {};
+
+// Color schemes
+const colorSchemes = {
+    salesforce: ['#1B96FF', '#032D60', '#0176D3', '#57A4FB', '#78B8FD', '#FF538A', '#CB2039', '#E34850', '#FF7A8A', '#FFA0B4'],
+    tableau: ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948', '#AF7AA1', '#FF9DA7', '#9C755F', '#BAB0AC'],
+    material: ['#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107']
+};
+
+// Initialize the report builder
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDateRange();
+    loadAvailableFilters();
+    generateReport();
+});
+
+function initializeDateRange() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+}
+
+function setDateRange(days) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+}
+
+async function loadAvailableFilters() {
+    try {
+        const response = await fetch('/reports/api/filters');
+        availableFilters = await response.json();
+
+        populateFilterOptions('statusFilters', availableFilters.statuses || []);
+        populateFilterOptions('priorityFilters', availableFilters.priorities || []);
+        populateFilterOptions('categoryFilters', availableFilters.categories || []);
+        populateFilterOptions('assignedToFilters', availableFilters.users || []);
+        populateFilterOptions('countryFilters', availableFilters.countries || []);
+    } catch (error) {
+        console.error('Failed to load filter options:', error);
+    }
+}
+
+function populateFilterOptions(containerId, options) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    // Add "Select All" option
+    const selectAllDiv = document.createElement('div');
+    selectAllDiv.className = 'filter-item';
+    selectAllDiv.innerHTML = `
+        <label class="flex items-center text-sm">
+            <input type="checkbox" class="filter-checkbox select-all" onchange="toggleAllFilters('${containerId}', this)">
+            <span class="font-medium">Select All</span>
+        </label>
+    `;
+    container.appendChild(selectAllDiv);
+
+    // Add individual options
+    options.forEach(option => {
+        const div = document.createElement('div');
+        div.className = 'filter-item';
+        div.innerHTML = `
+            <label class="flex items-center text-sm">
+                <input type="checkbox" class="filter-checkbox" value="${option.value || option}" checked>
+                <span>${option.label || option}</span>
+            </label>
+            <span class="text-xs text-gray-500">${option.count || ''}</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function toggleAllFilters(containerId, selectAllCheckbox) {
+    const container = document.getElementById(containerId);
+    const checkboxes = container.querySelectorAll('.filter-checkbox:not(.select-all)');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+async function generateReport() {
+    showLoading();
+
+    try {
+        const filters = getSelectedFilters();
+        const response = await fetch('/reports/api/case-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(filters)
+        });
+
+        reportData = await response.json();
+
+        if (reportData.total === 0) {
+            showNoData();
+            return;
+        }
+
+        renderCharts();
+        hideLoading();
+    } catch (error) {
+        console.error('Failed to generate report:', error);
+        hideLoading();
+        showError('Failed to generate report. Please try again.');
+    }
+}
+
+function getSelectedFilters() {
+    return {
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        statuses: getCheckedValues('statusFilters'),
+        priorities: getCheckedValues('priorityFilters'),
+        categories: getCheckedValues('categoryFilters'),
+        assignedTo: getCheckedValues('assignedToFilters'),
+        countries: getCheckedValues('countryFilters'),
+        groupBy: document.getElementById('groupBy').value
+    };
+}
+
+function getCheckedValues(containerId) {
+    const container = document.getElementById(containerId);
+    const checkboxes = container.querySelectorAll('.filter-checkbox:not(.select-all):checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function renderCharts() {
+    const chartsArea = document.getElementById('chartsArea');
+    chartsArea.innerHTML = '';
+
+    // Clear existing charts
+    Object.values(currentCharts).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+            chart.destroy();
+        }
+    });
+    currentCharts = {};
+
+    // Render based on selected visualizations
+    if (document.getElementById('showSummary').checked) {
+        renderSummaryMetrics();
+    }
+
+    if (document.getElementById('showPieChart').checked) {
+        renderPieChart();
+    }
+
+    if (document.getElementById('showBarChart').checked) {
+        renderBarChart();
+    }
+
+    if (document.getElementById('showLineChart').checked) {
+        renderLineChart();
+    }
+
+    if (document.getElementById('showHeatmap').checked) {
+        renderHeatmap();
+    }
+
+    if (document.getElementById('showTable').checked) {
+        renderDataTable();
+    }
+}
+
+function renderSummaryMetrics() {
+    const container = createChartContainer('Summary Metrics', '');
+    container.querySelector('.chart-body').innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 h-full">
+            <div class="metric-card bg-gradient-to-br from-blue-500 to-blue-600">
+                <div class="metric-value">${reportData.summary.total}</div>
+                <div class="metric-label">Total Cases</div>
+            </div>
+            <div class="metric-card bg-gradient-to-br from-green-500 to-green-600">
+                <div class="metric-value">${reportData.summary.resolved}</div>
+                <div class="metric-label">Resolved Cases</div>
+            </div>
+            <div class="metric-card bg-gradient-to-br from-orange-500 to-orange-600">
+                <div class="metric-value">${reportData.summary.open}</div>
+                <div class="metric-label">Open Cases</div>
+            </div>
+            <div class="metric-card bg-gradient-to-br from-purple-500 to-purple-600">
+                <div class="metric-value">${reportData.summary.resolution_rate}%</div>
+                <div class="metric-label">Resolution Rate</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPieChart() {
+    const groupBy = document.getElementById('groupBy').value;
+    const data = reportData.groupedData[groupBy] || {};
+
+    const container = createChartContainer(`Distribution by ${groupBy.replace('_', ' ').toUpperCase()}`, 'pie');
+    const canvas = container.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+    currentCharts.pie = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(data),
+            datasets: [{
+                data: Object.values(data),
+                backgroundColor: colorSchemes.salesforce,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderBarChart() {
+    const groupBy = document.getElementById('groupBy').value;
+    const data = reportData.groupedData[groupBy] || {};
+
+    const container = createChartContainer(`Count by ${groupBy.replace('_', ' ').toUpperCase()}`, 'bar');
+    const canvas = container.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+    currentCharts.bar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(data),
+            datasets: [{
+                label: 'Number of Cases',
+                data: Object.values(data),
+                backgroundColor: colorSchemes.tableau[0],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderLineChart() {
+    const data = reportData.timelineData || {};
+
+    const container = createChartContainer('Cases Over Time', 'line');
+    const canvas = container.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const labels = Object.keys(data).sort();
+    const values = labels.map(label => data[label]);
+
+    currentCharts.line = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cases Created',
+                data: values,
+                borderColor: colorSchemes.material[0],
+                backgroundColor: colorSchemes.material[0] + '20',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderHeatmap() {
+    const container = createChartContainer('Activity Heatmap', '');
+    container.querySelector('.chart-body').innerHTML = `
+        <div class="h-full flex items-center justify-center text-gray-500">
+            <div class="text-center">
+                <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p>Heatmap visualization coming soon</p>
+            </div>
+        </div>
+    `;
+}
+
+function renderDataTable() {
+    const data = reportData.tableData || [];
+
+    const container = createChartContainer('Detailed Data', '');
+
+    let tableHTML = `
+        <div class="h-full overflow-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Case ID</th>
+                        <th class="px-4 py-2 text-left">Subject</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                        <th class="px-4 py-2 text-left">Priority</th>
+                        <th class="px-4 py-2 text-left">Category</th>
+                        <th class="px-4 py-2 text-left">Created</th>
+                        <th class="px-4 py-2 text-left">Assigned To</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.forEach(row => {
+        tableHTML += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-2 font-mono">${row.case_id}</td>
+                <td class="px-4 py-2">${row.subject}</td>
+                <td class="px-4 py-2">
+                    <span class="px-2 py-1 text-xs rounded-full bg-${getStatusColor(row.status)}-100 text-${getStatusColor(row.status)}-800">
+                        ${row.status}
+                    </span>
+                </td>
+                <td class="px-4 py-2">
+                    <span class="px-2 py-1 text-xs rounded-full bg-${getPriorityColor(row.priority)}-100 text-${getPriorityColor(row.priority)}-800">
+                        ${row.priority}
+                    </span>
+                </td>
+                <td class="px-4 py-2">${row.category}</td>
+                <td class="px-4 py-2">${new Date(row.created_at).toLocaleDateString()}</td>
+                <td class="px-4 py-2">${row.assigned_to || 'Unassigned'}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += '</tbody></table></div>';
+    container.querySelector('.chart-body').innerHTML = tableHTML;
+}
+
+function createChartContainer(title, chartType) {
+    const chartsArea = document.getElementById('chartsArea');
+    const container = document.createElement('div');
+    container.className = 'chart-container';
+    container.innerHTML = `
+        <div class="chart-header">
+            <h3 class="chart-title">${title}</h3>
+            <div class="chart-options">
+                ${chartType ? `
+                    <select class="chart-type-selector" onchange="changeChartType(this, '${chartType}')">
+                        <option value="pie" ${chartType === 'pie' ? 'selected' : ''}>Pie</option>
+                        <option value="bar" ${chartType === 'bar' ? 'selected' : ''}>Bar</option>
+                        <option value="line" ${chartType === 'line' ? 'selected' : ''}>Line</option>
+                        <option value="doughnut" ${chartType === 'doughnut' ? 'selected' : ''}>Donut</option>
+                    </select>
+                ` : ''}
+                <button class="chart-option-btn" onclick="exportChartImage(this)">📷</button>
+                <button class="chart-option-btn" onclick="removeChart(this)">✕</button>
+            </div>
+        </div>
+        <div class="chart-body">
+            ${chartType ? '<canvas class="chart-canvas"></canvas>' : ''}
+        </div>
+    `;
+    chartsArea.appendChild(container);
+    return container;
+}
+
+// Utility functions
+function getStatusColor(status) {
+    const colors = {
+        'New': 'blue',
+        'In Progress': 'yellow',
+        'Resolved': 'green',
+        'On Hold': 'orange'
+    };
+    return colors[status] || 'gray';
+}
+
+function getPriorityColor(priority) {
+    const colors = {
+        'Low': 'green',
+        'Medium': 'yellow',
+        'High': 'orange',
+        'Critical': 'red'
+    };
+    return colors[priority] || 'gray';
+}
+
+function showLoading() {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('noDataMessage').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loadingSpinner').style.display = 'none';
+}
+
+function showNoData() {
+    hideLoading();
+    document.getElementById('noDataMessage').style.display = 'block';
+}
+
+function showError(message) {
+    hideLoading();
+    alert(message);
+}
+
+function resetFilters() {
+    // Reset all checkboxes
+    document.querySelectorAll('.filter-checkbox:not(.select-all)').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.select-all').forEach(cb => cb.checked = true);
+
+    // Reset date range
+    initializeDateRange();
+
+    // Reset group by
+    document.getElementById('groupBy').value = 'status';
+
+    // Reset visualizations
+    document.getElementById('showSummary').checked = true;
+    document.getElementById('showPieChart').checked = true;
+    document.getElementById('showBarChart').checked = true;
+    document.getElementById('showLineChart').checked = false;
+    document.getElementById('showHeatmap').checked = false;
+    document.getElementById('showTable').checked = false;
+
+    generateReport();
+}
+
+function exportCSV() {
+    if (!reportData.tableData) {
+        alert('No data available to export');
+        return;
+    }
+
+    const csv = convertToCSV(reportData.tableData);
+    downloadFile(csv, 'case_report.csv', 'text/csv');
+}
+
+function exportExcel() {
+    alert('Excel export feature coming soon');
+}
+
+function exportPDF() {
+    alert('PDF export feature coming soon');
+}
+
+function convertToCSV(data) {
+    if (!data.length) return '';
+
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+        headers.join(','),
+        ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    ].join('\n');
+
+    return csvContent;
+}
+
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function saveReport() {
+    const filters = getSelectedFilters();
+    const reportConfig = {
+        filters: filters,
+        visualizations: {
+            showSummary: document.getElementById('showSummary').checked,
+            showPieChart: document.getElementById('showPieChart').checked,
+            showBarChart: document.getElementById('showBarChart').checked,
+            showLineChart: document.getElementById('showLineChart').checked,
+            showHeatmap: document.getElementById('showHeatmap').checked,
+            showTable: document.getElementById('showTable').checked
+        }
+    };
+
+    localStorage.setItem('savedCaseReport', JSON.stringify(reportConfig));
+    alert('Report configuration saved!');
+}
+
+function exportReport() {
+    exportCSV();
+}
+</script>
+{% endblock %}
