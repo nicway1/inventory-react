@@ -7,6 +7,7 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app, abort, Response, make_response
 from utils.auth_decorators import login_required, admin_required
 from models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus, RMAStatus, RepairStatus, TicketAccessory
+from models.comment import Comment
 from models.ticket_category_config import TicketCategoryConfig
 from utils.store_instances import (
     ticket_store,
@@ -156,7 +157,7 @@ def export_tickets_csv():
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
             joinedload(Ticket.tracking_histories),
-            joinedload(Ticket.comments).joinedload('user')
+            joinedload(Ticket.comments).joinedload(Comment.user)
         )
 
         # Apply user permission filters
@@ -395,7 +396,7 @@ def export_single_ticket_csv(ticket_id):
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
             joinedload(Ticket.tracking_histories),
-            joinedload(Ticket.comments).joinedload('user')
+            joinedload(Ticket.comments).joinedload(Comment.user)
         ).filter(Ticket.id == ticket_id)
 
         # Apply user permission filters
