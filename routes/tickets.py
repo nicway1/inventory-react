@@ -1,4 +1,5 @@
 import datetime
+from datetime import datetime as dt
 from utils.timezone_utils import singapore_now_as_utc
 import os
 import json
@@ -153,7 +154,8 @@ def export_tickets_csv():
             joinedload(Ticket.customer),
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
-            joinedload(Ticket.assets)
+            joinedload(Ticket.assets),
+            joinedload(Ticket.tracking_histories)
         )
 
         # Apply user permission filters
@@ -200,7 +202,11 @@ def export_tickets_csv():
             'Updated Date',
             'Assets',
             'Shipping Tracking',
-            'Queue'
+            'Queue',
+            'Package Journey - Latest Status',
+            'Package Journey - Carrier',
+            'Package Journey - Last Update',
+            'Package Journey - Full History'
         ]
         writer.writerow(headers)
 
@@ -253,6 +259,52 @@ def export_tickets_csv():
             except Exception as e:
                 logger.warning(f"Error accessing queue for ticket {ticket.id}: {e}")
 
+            # Get tracking information safely (bulk export)
+            latest_status = ''
+            latest_carrier = ''
+            latest_update = ''
+            full_history = ''
+
+            try:
+                if ticket.tracking_histories:
+                    # Get the most recent tracking history
+                    latest_tracking = max(ticket.tracking_histories, key=lambda t: t.last_updated or dt.min)
+
+                    if latest_tracking:
+                        latest_status = latest_tracking.status or ''
+                        latest_carrier = latest_tracking.carrier or ''
+                        latest_update = latest_tracking.last_updated.strftime('%Y-%m-%d %H:%M:%S') if latest_tracking.last_updated else ''
+
+                        # Build full history from tracking events
+                        history_entries = []
+                        for tracking in ticket.tracking_histories:
+                            tracking_events = tracking.events
+                            if tracking_events:
+                                for event in tracking_events:
+                                    # Extract event information
+                                    event_date = event.get('date', '')
+                                    event_status = event.get('status', '')
+                                    event_location = event.get('location', '')
+                                    event_description = event.get('description', '')
+
+                                    if event_date or event_status:
+                                        history_entries.append(f"{event_date} - {event_status}")
+                                        if event_location:
+                                            history_entries[-1] += f" ({event_location})"
+                                        if event_description:
+                                            history_entries[-1] += f" - {event_description}"
+
+                        # If no events found, show basic tracking info
+                        if not history_entries and latest_tracking:
+                            basic_info = f"{latest_update} - {latest_status}"
+                            if latest_carrier:
+                                basic_info += f" via {latest_carrier}"
+                            history_entries.append(basic_info)
+
+                        full_history = ' | '.join(history_entries[:10])  # Limit to 10 most recent events
+            except Exception as e:
+                logger.warning(f"Error accessing tracking histories for ticket {ticket.id}: {e}")
+
             row = [
                 ticket.id,
                 getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
@@ -270,7 +322,11 @@ def export_tickets_csv():
                 ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
                 assets_str,
                 getattr(ticket, 'shipping_tracking', '') or '',
-                queue_name
+                queue_name,
+                latest_status,
+                latest_carrier,
+                latest_update,
+                full_history
             ]
             writer.writerow(row)
 
@@ -304,7 +360,8 @@ def export_single_ticket_csv(ticket_id):
             joinedload(Ticket.customer),
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
-            joinedload(Ticket.assets)
+            joinedload(Ticket.assets),
+            joinedload(Ticket.tracking_histories)
         ).filter(Ticket.id == ticket_id)
 
         # Apply user permission filters
@@ -350,7 +407,11 @@ def export_single_ticket_csv(ticket_id):
             'Updated Date',
             'Assets',
             'Shipping Tracking',
-            'Queue'
+            'Queue',
+            'Package Journey - Latest Status',
+            'Package Journey - Carrier',
+            'Package Journey - Last Update',
+            'Package Journey - Full History'
         ]
         writer.writerow(headers)
 
@@ -401,6 +462,52 @@ def export_single_ticket_csv(ticket_id):
         except Exception as e:
             logger.warning(f"Error accessing queue for ticket {ticket.id}: {e}")
 
+        # Get tracking information safely
+        latest_status = ''
+        latest_carrier = ''
+        latest_update = ''
+        full_history = ''
+
+        try:
+            if ticket.tracking_histories:
+                # Get the most recent tracking history
+                latest_tracking = max(ticket.tracking_histories, key=lambda t: t.last_updated or dt.min)
+
+                if latest_tracking:
+                    latest_status = latest_tracking.status or ''
+                    latest_carrier = latest_tracking.carrier or ''
+                    latest_update = latest_tracking.last_updated.strftime('%Y-%m-%d %H:%M:%S') if latest_tracking.last_updated else ''
+
+                    # Build full history from tracking events
+                    history_entries = []
+                    for tracking in ticket.tracking_histories:
+                        tracking_events = tracking.events
+                        if tracking_events:
+                            for event in tracking_events:
+                                # Extract event information
+                                event_date = event.get('date', '')
+                                event_status = event.get('status', '')
+                                event_location = event.get('location', '')
+                                event_description = event.get('description', '')
+
+                                if event_date or event_status:
+                                    history_entries.append(f"{event_date} - {event_status}")
+                                    if event_location:
+                                        history_entries[-1] += f" ({event_location})"
+                                    if event_description:
+                                        history_entries[-1] += f" - {event_description}"
+
+                    # If no events found, show basic tracking info
+                    if not history_entries and latest_tracking:
+                        basic_info = f"{latest_update} - {latest_status}"
+                        if latest_carrier:
+                            basic_info += f" via {latest_carrier}"
+                        history_entries.append(basic_info)
+
+                    full_history = ' | '.join(history_entries[:10])  # Limit to 10 most recent events
+        except Exception as e:
+            logger.warning(f"Error accessing tracking histories for ticket {ticket.id}: {e}")
+
         row = [
             ticket.id,
             getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
@@ -418,7 +525,11 @@ def export_single_ticket_csv(ticket_id):
             ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
             assets_str,
             getattr(ticket, 'shipping_tracking', '') or '',
-            queue_name
+            queue_name,
+            latest_status,
+            latest_carrier,
+            latest_update,
+            full_history
         ]
         writer.writerow(row)
 
