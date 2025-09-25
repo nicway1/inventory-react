@@ -587,8 +587,17 @@ def get_case_data():
                 except ValueError as e:
                     logger.error(f"Invalid end date format: {e}")
 
+            # Debug: Check total tickets without date filter
+            total_tickets_query = db.query(Ticket)
+            total_count = total_tickets_query.count()
+            logger.info(f"Total tickets in database: {total_count}")
+
             tickets = query.all()
             logger.info(f"Found {len(tickets)} tickets before additional filtering")
+
+            # Debug: Log the date filters being applied
+            if filters.get('startDate') or filters.get('endDate'):
+                logger.info(f"Date range filter - Start: {filters.get('startDate')}, End: {filters.get('endDate')}")
 
             # Apply additional filters
             filtered_tickets = []
