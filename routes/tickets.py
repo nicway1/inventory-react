@@ -288,6 +288,154 @@ def export_tickets_csv():
     finally:
         db_session.close()
 
+@tickets_bp.route('/<int:ticket_id>/export/csv')
+@login_required
+def export_single_ticket_csv(ticket_id):
+    """Export a single ticket to CSV format"""
+    user_id = session['user_id']
+    user = db_manager.get_user(user_id)
+
+    # Create a new database session for this operation
+    db_session = db_manager.get_session()
+
+    try:
+        # Build query with eager loading for the specific ticket
+        query = db_session.query(Ticket).options(
+            joinedload(Ticket.customer),
+            joinedload(Ticket.assigned_to),
+            joinedload(Ticket.queue),
+            joinedload(Ticket.assets)
+        ).filter(Ticket.id == ticket_id)
+
+        # Apply user permission filters
+        if user.user_type == UserType.CLIENT:
+            # For CLIENT users, only show tickets they requested
+            query = query.filter(Ticket.requester_id == user_id)
+        elif user.user_type == UserType.COUNTRY_ADMIN:
+            # Country admins see tickets from their country
+            query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
+                CustomerUser.country == user.country
+            )
+
+        ticket = query.first()
+
+        if not ticket:
+            flash('Ticket not found or you do not have permission to view it.', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        # Check queue access permissions
+        if not user.is_super_admin and ticket.queue_id and not user.can_access_queue(ticket.queue_id):
+            flash('You do not have permission to access this ticket.', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # CSV headers
+        headers = [
+            'Ticket ID',
+            'Display ID',
+            'Subject',
+            'Description',
+            'Status',
+            'Priority',
+            'Category',
+            'Assigned To',
+            'Customer',
+            'Customer Email',
+            'Customer Phone',
+            'Country',
+            'Created Date',
+            'Updated Date',
+            'Assets',
+            'Shipping Tracking',
+            'Queue'
+        ]
+        writer.writerow(headers)
+
+        # Get asset info
+        assets_info = []
+        try:
+            if ticket.assets:
+                for asset in ticket.assets:
+                    if asset.model:
+                        assets_info.append(f"{asset.serial_num} ({asset.model})")
+                    else:
+                        assets_info.append(asset.serial_num)
+        except Exception as e:
+            logger.warning(f"Error accessing assets for ticket {ticket.id}: {e}")
+        assets_str = '; '.join(assets_info) if assets_info else ''
+
+        # Get customer info safely
+        customer_name = ''
+        customer_email = ''
+        customer_phone = ''
+        customer_country = ''
+
+        try:
+            if ticket.customer:
+                if hasattr(ticket.customer, 'name'):
+                    customer_name = ticket.customer.name or ''
+                    customer_email = getattr(ticket.customer, 'email', '') or ''
+                    customer_phone = getattr(ticket.customer, 'phone', '') or ''
+                    customer_country = getattr(ticket.customer, 'country', '') or ''
+                else:
+                    customer_name = str(ticket.customer) if ticket.customer else ''
+        except Exception as e:
+            logger.warning(f"Error accessing customer for ticket {ticket.id}: {e}")
+
+        # Get assigned user info safely
+        assigned_to = 'Unassigned'
+        try:
+            if ticket.assigned_to:
+                assigned_to = ticket.assigned_to.username
+        except Exception as e:
+            logger.warning(f"Error accessing assigned_to for ticket {ticket.id}: {e}")
+
+        # Get queue name safely
+        queue_name = ''
+        try:
+            if ticket.queue:
+                queue_name = ticket.queue.name
+        except Exception as e:
+            logger.warning(f"Error accessing queue for ticket {ticket.id}: {e}")
+
+        row = [
+            ticket.id,
+            getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+            ticket.subject or '',
+            ticket.description or '',
+            ticket.status.value if ticket.status else '',
+            ticket.priority.value if ticket.priority else '',
+            ticket.get_category_display_name() if ticket.category else '',
+            assigned_to,
+            customer_name,
+            customer_email,
+            customer_phone,
+            customer_country,
+            ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+            ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+            assets_str,
+            getattr(ticket, 'shipping_tracking', '') or '',
+            queue_name
+        ]
+        writer.writerow(row)
+
+        # Create response with CSV file
+        output.seek(0)
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'ticket_{ticket_id}_{timestamp}.csv'
+
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+
+        return response
+
+    finally:
+        db_session.close()
+
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_ticket():
