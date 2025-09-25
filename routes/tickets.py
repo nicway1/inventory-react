@@ -186,7 +186,7 @@ def export_tickets_csv():
         headers = [
             'Ticket ID',
             'Display ID',
-            'Title',
+            'Subject',
             'Description',
             'Status',
             'Priority',
@@ -199,7 +199,7 @@ def export_tickets_csv():
             'Created Date',
             'Updated Date',
             'Assets',
-            'Tracking Number',
+            'Shipping Tracking',
             'Queue'
         ]
         writer.writerow(headers)
@@ -255,8 +255,8 @@ def export_tickets_csv():
 
             row = [
                 ticket.id,
-                getattr(ticket, 'display_id', '') or '',
-                ticket.title or '',
+                getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                ticket.subject or '',
                 ticket.description or '',
                 ticket.status.value if ticket.status else '',
                 ticket.priority.value if ticket.priority else '',
@@ -269,7 +269,7 @@ def export_tickets_csv():
                 ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
                 ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
                 assets_str,
-                getattr(ticket, 'tracking_number', '') or '',
+                getattr(ticket, 'shipping_tracking', '') or '',
                 queue_name
             ]
             writer.writerow(row)
