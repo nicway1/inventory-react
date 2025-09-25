@@ -634,38 +634,5 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTableSelectionState();
     updateBulkGroupingState();
 });
-
-// Auto-refresh the page every 30 seconds to show updates, but preserve form state and selections
-setTimeout(function() {
-    // Save the current form state before refresh
-    const isBulkFormVisible = !document.getElementById('bulkGroupForm').classList.contains('hidden');
-    if (isBulkFormVisible) {
-        sessionStorage.setItem('companyGroupingFormState', 'bulk');
-
-        // Save bulk form checkbox selections
-        const checkedBulkBoxes = [];
-        document.querySelectorAll('.bulk-child-checkbox:checked').forEach(checkbox => {
-            checkedBulkBoxes.push(checkbox.value);
-        });
-        sessionStorage.setItem('bulkCheckboxSelections', JSON.stringify(checkedBulkBoxes));
-    } else {
-        sessionStorage.setItem('companyGroupingFormState', 'single');
-    }
-
-    // Save other checkbox selections
-    const checkedChildBoxes = [];
-    document.querySelectorAll('.child-checkbox:checked').forEach(checkbox => {
-        checkedChildBoxes.push(checkbox.value);
-    });
-    sessionStorage.setItem('childCheckboxSelections', JSON.stringify(checkedChildBoxes));
-
-    const checkedTableBoxes = [];
-    document.querySelectorAll('.table-child-checkbox:checked').forEach(checkbox => {
-        checkedTableBoxes.push(checkbox.value);
-    });
-    sessionStorage.setItem('tableCheckboxSelections', JSON.stringify(checkedTableBoxes));
-
-    window.location.reload();
-}, 30000);
 </script>
 {% endblock %}
