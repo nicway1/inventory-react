@@ -580,14 +580,30 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.addEventListener('change', updateBulkGroupingState);
     });
 
+    // Restore form state from previous session (before auto-refresh)
+    const savedState = sessionStorage.getItem('companyGroupingFormState');
+    if (savedState === 'bulk') {
+        singleGroupForm.classList.add('hidden');
+        bulkGroupForm.classList.remove('hidden');
+    }
+    // Clear the saved state after restoring
+    sessionStorage.removeItem('companyGroupingFormState');
+
     // Initial state update
     updateChildSelectionState();
     updateTableSelectionState();
     updateBulkGroupingState();
 });
 
-// Auto-refresh the page every 30 seconds to show updates
+// Auto-refresh the page every 30 seconds to show updates, but preserve form state
 setTimeout(function() {
+    // Save the current form state before refresh
+    const isBulkFormVisible = !document.getElementById('bulkGroupForm').classList.contains('hidden');
+    if (isBulkFormVisible) {
+        sessionStorage.setItem('companyGroupingFormState', 'bulk');
+    } else {
+        sessionStorage.setItem('companyGroupingFormState', 'single');
+    }
     window.location.reload();
 }, 30000);
 </script>
