@@ -155,7 +155,8 @@ def export_tickets_csv():
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
-            joinedload(Ticket.tracking_histories)
+            joinedload(Ticket.tracking_histories),
+            joinedload(Ticket.comments).joinedload('user')
         )
 
         # Apply user permission filters
@@ -206,7 +207,9 @@ def export_tickets_csv():
             'Package Journey - Latest Status',
             'Package Journey - Carrier',
             'Package Journey - Last Update',
-            'Package Journey - Full History'
+            'Package Journey - Full History',
+            'Comments Count',
+            'Comments'
         ]
         writer.writerow(headers)
 
@@ -305,6 +308,34 @@ def export_tickets_csv():
             except Exception as e:
                 logger.warning(f"Error accessing tracking histories for ticket {ticket.id}: {e}")
 
+            # Get comments information safely (bulk export)
+            comments_count = 0
+            comments_text = ''
+
+            try:
+                if ticket.comments:
+                    comments_count = len(ticket.comments)
+                    # Sort comments by creation date
+                    sorted_comments = sorted(ticket.comments, key=lambda c: c.created_at or dt.min)
+
+                    comment_entries = []
+                    for comment in sorted_comments:
+                        # Format: [Date] Username: Comment text
+                        comment_date = comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'Unknown date'
+                        username = comment.user.username if comment.user else 'Unknown user'
+                        content = comment.content or ''
+
+                        # Clean content (remove newlines and extra spaces for CSV)
+                        cleaned_content = ' '.join(content.strip().split())
+                        if len(cleaned_content) > 100:  # Limit comment length in CSV
+                            cleaned_content = cleaned_content[:97] + '...'
+
+                        comment_entries.append(f"[{comment_date}] {username}: {cleaned_content}")
+
+                    comments_text = ' | '.join(comment_entries)
+            except Exception as e:
+                logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
+
             row = [
                 ticket.id,
                 getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
@@ -326,7 +357,9 @@ def export_tickets_csv():
                 latest_status,
                 latest_carrier,
                 latest_update,
-                full_history
+                full_history,
+                comments_count,
+                comments_text
             ]
             writer.writerow(row)
 
@@ -361,7 +394,8 @@ def export_single_ticket_csv(ticket_id):
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
-            joinedload(Ticket.tracking_histories)
+            joinedload(Ticket.tracking_histories),
+            joinedload(Ticket.comments).joinedload('user')
         ).filter(Ticket.id == ticket_id)
 
         # Apply user permission filters
@@ -411,7 +445,9 @@ def export_single_ticket_csv(ticket_id):
             'Package Journey - Latest Status',
             'Package Journey - Carrier',
             'Package Journey - Last Update',
-            'Package Journey - Full History'
+            'Package Journey - Full History',
+            'Comments Count',
+            'Comments'
         ]
         writer.writerow(headers)
 
@@ -508,6 +544,34 @@ def export_single_ticket_csv(ticket_id):
         except Exception as e:
             logger.warning(f"Error accessing tracking histories for ticket {ticket.id}: {e}")
 
+        # Get comments information safely (single export)
+        comments_count = 0
+        comments_text = ''
+
+        try:
+            if ticket.comments:
+                comments_count = len(ticket.comments)
+                # Sort comments by creation date
+                sorted_comments = sorted(ticket.comments, key=lambda c: c.created_at or dt.min)
+
+                comment_entries = []
+                for comment in sorted_comments:
+                    # Format: [Date] Username: Comment text
+                    comment_date = comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else 'Unknown date'
+                    username = comment.user.username if comment.user else 'Unknown user'
+                    content = comment.content or ''
+
+                    # Clean content (remove newlines and extra spaces for CSV)
+                    cleaned_content = ' '.join(content.strip().split())
+                    if len(cleaned_content) > 100:  # Limit comment length in CSV
+                        cleaned_content = cleaned_content[:97] + '...'
+
+                    comment_entries.append(f"[{comment_date}] {username}: {cleaned_content}")
+
+                comments_text = ' | '.join(comment_entries)
+        except Exception as e:
+            logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
+
         row = [
             ticket.id,
             getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
@@ -529,7 +593,9 @@ def export_single_ticket_csv(ticket_id):
             latest_status,
             latest_carrier,
             latest_update,
-            full_history
+            full_history,
+            comments_count,
+            comments_text
         ]
         writer.writerow(row)
 
