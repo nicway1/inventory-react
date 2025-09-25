@@ -45,6 +45,8 @@ from models.accessory import Accessory
 from models.accessory_transaction import AccessoryTransaction
 from models.queue import Queue
 import time
+import csv
+import io
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 # Set up logging for this module
@@ -133,6 +135,112 @@ def list_tickets():
         tickets = filtered_tickets
         
     return render_template('tickets/list.html', tickets=tickets, user=user)
+
+@tickets_bp.route('/export/csv')
+@login_required
+def export_tickets_csv():
+    """Export tickets to CSV format"""
+    user_id = session['user_id']
+    user = db_manager.get_user(user_id)
+    user_type = session['user_type']
+
+    # Get tickets using the same logic as list_tickets
+    if user.user_type == UserType.CLIENT:
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+    else:
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+
+    # Filter tickets based on queue access permissions (same as list_tickets)
+    if not user.is_super_admin:
+        filtered_tickets = []
+        for ticket in tickets:
+            if ticket.queue_id and user.can_access_queue(ticket.queue_id):
+                filtered_tickets.append(ticket)
+            elif not ticket.queue_id:
+                filtered_tickets.append(ticket)
+        tickets = filtered_tickets
+
+    # Create CSV content
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # CSV headers
+    headers = [
+        'Ticket ID',
+        'Display ID',
+        'Title',
+        'Description',
+        'Status',
+        'Priority',
+        'Category',
+        'Assigned To',
+        'Customer',
+        'Customer Email',
+        'Customer Phone',
+        'Country',
+        'Created Date',
+        'Updated Date',
+        'Assets',
+        'Tracking Number',
+        'Queue'
+    ]
+    writer.writerow(headers)
+
+    # Write ticket data
+    for ticket in tickets:
+        # Get asset info
+        assets_info = []
+        if hasattr(ticket, 'assets') and ticket.assets:
+            for asset in ticket.assets:
+                assets_info.append(f"{asset.serial_num} ({asset.model})" if asset.model else asset.serial_num)
+        assets_str = '; '.join(assets_info) if assets_info else ''
+
+        # Get customer info safely
+        customer_name = ''
+        customer_email = ''
+        customer_phone = ''
+        customer_country = ''
+
+        if ticket.customer:
+            if hasattr(ticket.customer, 'name'):
+                customer_name = ticket.customer.name or ''
+                customer_email = getattr(ticket.customer, 'email', '') or ''
+                customer_phone = getattr(ticket.customer, 'phone', '') or ''
+                customer_country = getattr(ticket.customer, 'country', '') or ''
+            else:
+                customer_name = str(ticket.customer) if ticket.customer else ''
+
+        row = [
+            ticket.id,
+            getattr(ticket, 'display_id', '') or '',
+            ticket.title or '',
+            ticket.description or '',
+            ticket.status.value if ticket.status else '',
+            ticket.priority.value if ticket.priority else '',
+            ticket.get_category_display_name() if ticket.category else '',
+            ticket.assigned_to.username if ticket.assigned_to else 'Unassigned',
+            customer_name,
+            customer_email,
+            customer_phone,
+            customer_country,
+            ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+            ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+            assets_str,
+            getattr(ticket, 'tracking_number', '') or '',
+            ticket.queue.name if ticket.queue else ''
+        ]
+        writer.writerow(row)
+
+    # Create response with CSV file
+    output.seek(0)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'tickets_export_{timestamp}.csv'
+
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+
+    return response
 
 @tickets_bp.route('/new', methods=['GET', 'POST'])
 @login_required

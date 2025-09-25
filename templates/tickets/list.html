@@ -263,6 +263,16 @@
         border-color: #2e844a;
         color: white;
     }
+    .secondary-button {
+        background: #6b7280;
+        color: white;
+        border-color: #6b7280;
+    }
+    .secondary-button:hover {
+        background: #4b5563;
+        border-color: #4b5563;
+        color: white;
+    }
 
     .sf-search {
         display: flex;
@@ -472,19 +482,26 @@
                 <a href="#recently-viewed" class="sf-tab" onclick="filterTickets('recent'); return false;">Recently Viewed</a>
             </div>
             <div class="sf-page-actions" style="margin-right: 1rem;">
-                <a href="{{ url_for('tickets.create_ticket') }}" 
+                <a href="{{ url_for('tickets.create_ticket') }}"
                    class="sf-button primary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     New Ticket
                 </a>
-                <a href="{{ url_for('inventory.add_customer_user') }}" 
+                <a href="{{ url_for('inventory.add_customer_user') }}"
                    class="sf-button success-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
                     </svg>
                     Add Customer
+                </a>
+                <a href="{{ url_for('tickets.export_tickets_csv') }}"
+                   class="sf-button secondary-button">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export CSV
                 </a>
                 {% if current_user.is_admin %}
                 <a href="{{ url_for('admin.csv_import') }}" 

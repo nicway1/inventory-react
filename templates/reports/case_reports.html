@@ -7,7 +7,12 @@
 <style>
     .sf-chart-container {
         position: relative;
-        height: 300px;
+        height: 500px;
+        margin-bottom: 2rem;
+    }
+    .sf-chart-container-large {
+        position: relative;
+        height: 600px;
         margin-bottom: 2rem;
     }
     .sf-stat-card {
@@ -148,56 +153,74 @@
         </div>
     </div>
 
-    <!-- Charts Row 1 -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <!-- Status Distribution (Pie Chart) -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Case Status Distribution</h3>
-            </div>
-            <div class="p-6">
-                <div class="sf-chart-container">
-                    <canvas id="statusChart"></canvas>
-                </div>
-            </div>
+    <!-- Chart 1: Status Distribution -->
+    <div class="bg-white sf-chart-card mb-8">
+        <div class="sf-chart-header">
+            <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Case Status Distribution
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Overview of all case statuses in the system</p>
         </div>
-
-        <!-- Priority Breakdown (Donut Chart) -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Priority Breakdown</h3>
-            </div>
-            <div class="p-6">
-                <div class="sf-chart-container">
-                    <canvas id="priorityChart"></canvas>
-                </div>
+        <div class="p-8">
+            <div class="sf-chart-container-large">
+                <canvas id="statusChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <!-- Category Distribution (Bar Chart) -->
-        <div class="bg-white sf-chart-card lg:col-span-2">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Cases by Category</h3>
-            </div>
-            <div class="p-6">
-                <div class="sf-chart-container">
-                    <canvas id="categoryChart"></canvas>
-                </div>
+    <!-- Chart 2: Priority Breakdown -->
+    <div class="bg-white sf-chart-card mb-8">
+        <div class="sf-chart-header">
+            <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                <svg class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.833-1.732-.833-2.464 0L3.268 16.5C2.498 18.333 3.46 20 5 20z"/>
+                </svg>
+                Priority Breakdown
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Distribution of cases by priority level</p>
+        </div>
+        <div class="p-8">
+            <div class="sf-chart-container-large">
+                <canvas id="priorityChart"></canvas>
             </div>
         </div>
+    </div>
 
-        <!-- Top Customers (Horizontal Bar) -->
-        <div class="bg-white sf-chart-card">
-            <div class="sf-chart-header">
-                <h3 class="text-lg font-semibold text-gray-900">Top Customers</h3>
+    <!-- Chart 3: Category Distribution -->
+    <div class="bg-white sf-chart-card mb-8">
+        <div class="sf-chart-header">
+            <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                <svg class="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                Cases by Category
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Breakdown of cases by category type</p>
+        </div>
+        <div class="p-8">
+            <div class="sf-chart-container-large">
+                <canvas id="categoryChart"></canvas>
             </div>
-            <div class="p-6">
-                <div class="sf-chart-container">
-                    <canvas id="customerChart"></canvas>
-                </div>
+        </div>
+    </div>
+
+    <!-- Chart 4: Top Customers -->
+    <div class="bg-white sf-chart-card mb-8">
+        <div class="sf-chart-header">
+            <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                Top Customers by Case Volume
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Customers with the highest number of cases</p>
+        </div>
+        <div class="p-8">
+            <div class="sf-chart-container-large">
+                <canvas id="customerChart"></canvas>
             </div>
         </div>
     </div>
@@ -234,7 +257,7 @@ new Chart(statusCtx, {
         datasets: [{
             data: Object.values(statusData),
             backgroundColor: salesforceColors,
-            borderWidth: 2,
+            borderWidth: 3,
             borderColor: '#fff'
         }]
     },
@@ -245,8 +268,19 @@ new Chart(statusCtx, {
             legend: {
                 position: 'right',
                 labels: {
-                    padding: 15,
-                    usePointStyle: true
+                    padding: 20,
+                    usePointStyle: true,
+                    font: {
+                        size: 14
+                    }
+                }
+            },
+            tooltip: {
+                titleFont: {
+                    size: 16
+                },
+                bodyFont: {
+                    size: 14
                 }
             }
         }
@@ -262,20 +296,31 @@ new Chart(priorityCtx, {
         datasets: [{
             data: Object.values(priorityData),
             backgroundColor: ['#E34850', '#FF7A8A', '#FFA500', '#4B4CDB', '#9EA0E7'],
-            borderWidth: 2,
+            borderWidth: 3,
             borderColor: '#fff'
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '60%',
+        cutout: '50%',
         plugins: {
             legend: {
                 position: 'right',
                 labels: {
-                    padding: 15,
-                    usePointStyle: true
+                    padding: 20,
+                    usePointStyle: true,
+                    font: {
+                        size: 14
+                    }
+                }
+            },
+            tooltip: {
+                titleFont: {
+                    size: 16
+                },
+                bodyFont: {
+                    size: 14
                 }
             }
         }
@@ -292,7 +337,9 @@ new Chart(categoryCtx, {
             label: 'Number of Cases',
             data: Object.values(categoryData),
             backgroundColor: '#1B96FF',
-            borderRadius: 4
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: '#0176D3'
         }]
     },
     options: {
@@ -300,19 +347,43 @@ new Chart(categoryCtx, {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: false
+                display: true,
+                labels: {
+                    font: {
+                        size: 14
+                    }
+                }
+            },
+            tooltip: {
+                titleFont: {
+                    size: 16
+                },
+                bodyFont: {
+                    size: 14
+                }
             }
         },
         scales: {
             x: {
                 grid: {
                     display: false
+                },
+                ticks: {
+                    font: {
+                        size: 12
+                    }
                 }
             },
             y: {
                 beginAtZero: true,
                 ticks: {
-                    precision: 0
+                    precision: 0,
+                    font: {
+                        size: 12
+                    }
+                },
+                grid: {
+                    color: '#f3f4f6'
                 }
             }
         }
@@ -326,10 +397,12 @@ new Chart(customerCtx, {
     data: {
         labels: topCustomers.map(c => c[0]),
         datasets: [{
-            label: 'Cases',
+            label: 'Number of Cases',
             data: topCustomers.map(c => c[1]),
             backgroundColor: '#7F8DE1',
-            borderRadius: 4
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: '#4B4CDB'
         }]
     },
     options: {
@@ -338,19 +411,43 @@ new Chart(customerCtx, {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: false
+                display: true,
+                labels: {
+                    font: {
+                        size: 14
+                    }
+                }
+            },
+            tooltip: {
+                titleFont: {
+                    size: 16
+                },
+                bodyFont: {
+                    size: 14
+                }
             }
         },
         scales: {
             x: {
                 beginAtZero: true,
                 ticks: {
-                    precision: 0
+                    precision: 0,
+                    font: {
+                        size: 12
+                    }
+                },
+                grid: {
+                    color: '#f3f4f6'
                 }
             },
             y: {
                 grid: {
                     display: false
+                },
+                ticks: {
+                    font: {
+                        size: 12
+                    }
                 }
             }
         }

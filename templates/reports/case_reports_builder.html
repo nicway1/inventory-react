@@ -9,6 +9,7 @@
         display: flex;
         height: calc(100vh - 120px);
         gap: 1rem;
+        transition: all 0.3s ease;
     }
 
     .builder-panel {
@@ -17,6 +18,7 @@
         border-radius: 0.5rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         overflow-y: auto;
+        transition: all 0.3s ease;
     }
 
     .charts-area {
@@ -25,6 +27,125 @@
         border-radius: 0.5rem;
         padding: 1rem;
         overflow-y: auto;
+        transition: all 0.3s ease;
+    }
+
+    /* Sidebar Hidden Mode */
+    .sidebar-hidden .builder-panel {
+        width: 0;
+        overflow: hidden;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    .sidebar-hidden .charts-area {
+        flex: 1;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 0;
+        padding: 0;
+    }
+
+    /* Full-width dashboard charts */
+    .sidebar-hidden .chart-container {
+        margin-bottom: 0;
+        border-radius: 0;
+        box-shadow: none;
+        border-bottom: 2px solid #f3f4f6;
+        width: 100%;
+    }
+
+    .sidebar-hidden .chart-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 2rem 3rem 1rem 3rem;
+    }
+
+    .sidebar-hidden .chart-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .sidebar-hidden .chart-body {
+        height: 700px;
+        padding: 2rem 3rem 3rem 3rem;
+    }
+
+    /* Collapsible sidebar - minimal width when collapsed */
+    .sidebar-collapsed .builder-panel {
+        width: 60px;
+        overflow: visible;
+        position: relative;
+    }
+
+    .sidebar-collapsed .filter-title,
+    .sidebar-collapsed .filter-item span,
+    .sidebar-collapsed .apply-filters-btn,
+    .sidebar-collapsed .date-range-picker,
+    .sidebar-collapsed select {
+        display: none;
+    }
+
+    .sidebar-collapsed .filter-group {
+        padding: 0.5rem;
+        text-align: center;
+    }
+
+    /* Toggle button */
+    .dashboard-toggle {
+        position: fixed;
+        top: 120px;
+        right: 20px;
+        z-index: 1000;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .dashboard-toggle:hover {
+        background: #2563eb;
+        transform: scale(1.1);
+    }
+
+    /* Full-width chart styling */
+    .full-width-chart {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 2rem 4rem;
+    }
+
+    .full-width-chart .chart-header {
+        background: transparent;
+        border-bottom: 2px solid #f3f4f6;
+        padding: 1rem 0 2rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .full-width-chart .chart-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .full-width-chart .chart-subtitle {
+        font-size: 1rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .full-width-chart .chart-body {
+        height: 700px;
+        padding: 0;
     }
 
     .filter-group {
@@ -201,6 +322,108 @@
         padding: 3rem;
         color: #6b7280;
     }
+
+    /* Toggle buttons */
+    .sidebar-toggle {
+        position: fixed;
+        top: 140px;
+        left: 20px;
+        z-index: 1000;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transition: all 0.3s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .sidebar-toggle:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+    }
+
+    .sidebar-hidden .sidebar-toggle {
+        left: 20px;
+    }
+
+    .fullscreen-toggle {
+        position: fixed;
+        top: 140px;
+        right: 20px;
+        z-index: 1000;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        transition: all 0.3s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .fullscreen-toggle:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Fullscreen Charts Mode */
+    .fullscreen-charts .report-builder-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+        background: white;
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    .fullscreen-charts .builder-panel {
+        display: none;
+    }
+
+    .fullscreen-charts .charts-area {
+        width: 100%;
+        height: 100vh;
+        padding: 0;
+        background: white;
+        border-radius: 0;
+    }
+
+    .fullscreen-charts .chart-container {
+        border-radius: 0;
+        margin-bottom: 0;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    .fullscreen-charts .chart-header {
+        padding: 2rem 4rem 1rem 4rem;
+        background: white;
+    }
+
+    .fullscreen-charts .chart-title {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .fullscreen-charts .chart-body {
+        height: 80vh;
+        padding: 2rem 4rem 4rem 4rem;
+    }
+
+    .fullscreen-charts .sidebar-toggle,
+    .fullscreen-charts .fullscreen-toggle {
+        z-index: 1001;
+    }
 </style>
 {% endblock %}
 
@@ -232,8 +455,21 @@
         </div>
     </div>
 
+    <!-- Toggle Buttons -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+    </button>
+    
+    <button class="fullscreen-toggle" onclick="toggleFullscreen()" title="Toggle Fullscreen Charts">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+        </svg>
+    </button>
+
     <!-- Report Builder Interface -->
-    <div class="report-builder-container">
+    <div class="report-builder-container" id="reportContainer">
         <!-- Builder Panel -->
         <div class="builder-panel">
             <!-- Date Range -->
@@ -559,37 +795,41 @@ function displayPreviewResults(data) {
                     </div>
                 </div>
 
-                <!-- Preview Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Preview Charts - Full Width Dashboard Style -->
+                <div class="space-y-0 mb-8">
                     <!-- Grouped Data Chart -->
-                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 600px;">
-                        <h4 class="font-semibold mb-6 text-xl">Distribution by ${getSelectedGroupBy()}</h4>
-                        <div style="height: 500px; position: relative;">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="flex items-center">
+                                <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                <div>
+                                    <h4 class="chart-title">Distribution by ${getSelectedGroupBy()}</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Breakdown of tickets by selected grouping</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-body">
                             <canvas id="previewChart1"></canvas>
                         </div>
                     </div>
 
                     <!-- Timeline Chart -->
-                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 600px;">
-                        <h4 class="font-semibold mb-6 text-xl">Tickets Over Time</h4>
-                        <div style="height: 500px; position: relative;">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="flex items-center">
+                                <svg class="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                                </svg>
+                                <div>
+                                    <h4 class="chart-title">Tickets Over Time</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Timeline showing ticket creation trends</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-body">
                             <canvas id="previewChart2"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Single Chart View for Mobile -->
-                <div class="lg:hidden">
-                    <div class="bg-white p-8 rounded-lg border shadow-sm mb-6" style="min-height: 500px;">
-                        <h4 class="font-semibold mb-6 text-xl">Distribution by ${getSelectedGroupBy()}</h4>
-                        <div style="height: 400px; position: relative;">
-                            <canvas id="previewChart1Mobile"></canvas>
-                        </div>
-                    </div>
-                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 500px;">
-                        <h4 class="font-semibold mb-6 text-xl">Tickets Over Time</h4>
-                        <div style="height: 400px; position: relative;">
-                            <canvas id="previewChart2Mobile"></canvas>
                         </div>
                     </div>
                 </div>
@@ -626,7 +866,9 @@ function createPreviewCharts(data) {
                 backgroundColor: [
                     '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
                     '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
-                ]
+                ],
+                borderWidth: 3,
+                borderColor: '#ffffff'
             }]
         },
         options: {
@@ -634,30 +876,38 @@ function createPreviewCharts(data) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'right',
                     labels: {
-                        boxWidth: 20,
-                        fontSize: 14,
-                        padding: 20,
+                        boxWidth: 25,
+                        padding: 25,
                         font: {
-                            size: 14
-                        }
+                            size: 16
+                        },
+                        usePointStyle: true
                     }
+                },
+                tooltip: {
+                    titleFont: {
+                        size: 18
+                    },
+                    bodyFont: {
+                        size: 16
+                    },
+                    padding: 15
+                }
+            },
+            elements: {
+                arc: {
+                    borderWidth: 3
                 }
             }
         }
     };
 
-    // Chart 1: Grouped Data (Desktop)
+    // Chart 1: Grouped Data
     const ctx1 = document.getElementById('previewChart1');
     if (ctx1) {
         new Chart(ctx1, pieChartConfig);
-    }
-
-    // Chart 1: Grouped Data (Mobile)
-    const ctx1Mobile = document.getElementById('previewChart1Mobile');
-    if (ctx1Mobile) {
-        new Chart(ctx1Mobile, pieChartConfig);
     }
 
     // Timeline Chart Configuration
@@ -1326,5 +1576,83 @@ function saveReport() {
 function exportReport() {
     exportCSV();
 }
+
+// Toggle Functions for Dashboard Mode
+function toggleSidebar() {
+    const container = document.getElementById('reportContainer');
+    const toggle = document.querySelector('.sidebar-toggle');
+    
+    if (container.classList.contains('sidebar-hidden')) {
+        container.classList.remove('sidebar-hidden');
+        toggle.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        `;
+        toggle.title = "Hide Sidebar";
+    } else {
+        container.classList.add('sidebar-hidden');
+        toggle.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        `;
+        toggle.title = "Show Sidebar";
+    }
+}
+
+function toggleFullscreen() {
+    const container = document.getElementById('reportContainer');
+    const body = document.body;
+    const toggle = document.querySelector('.fullscreen-toggle');
+    
+    if (body.classList.contains('fullscreen-charts')) {
+        body.classList.remove('fullscreen-charts');
+        toggle.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+        `;
+        toggle.title = "Enter Fullscreen";
+    } else {
+        body.classList.add('fullscreen-charts');
+        container.classList.add('sidebar-hidden');
+        toggle.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        `;
+        toggle.title = "Exit Fullscreen";
+    }
+}
+
+// Auto-hide sidebar when charts are generated for better viewing
+function autoOptimizeView() {
+    const container = document.getElementById('reportContainer');
+    const chartsArea = document.getElementById('chartsArea');
+    
+    // If charts are visible and sidebar is still showing, suggest hiding it
+    if (chartsArea && chartsArea.children.length > 1 && !container.classList.contains('sidebar-hidden')) {
+        // Show a subtle notification
+        setTimeout(() => {
+            if (confirm('Hide sidebar for better chart viewing?')) {
+                toggleSidebar();
+            }
+        }, 2000);
+    }
+}
+
+// Call auto-optimize after generating reports
+const originalGenerateReport = generateReport;
+generateReport = function() {
+    originalGenerateReport.apply(this, arguments);
+    setTimeout(autoOptimizeView, 1000);
+};
+
+const originalGeneratePreview = generatePreview;
+generatePreview = function() {
+    originalGeneratePreview.apply(this, arguments);
+    setTimeout(autoOptimizeView, 1000);
+};
 </script>
 {% endblock %}
