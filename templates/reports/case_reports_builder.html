@@ -452,7 +452,7 @@ function populateFilterOptions(containerId, options) {
     selectAllDiv.className = 'filter-item';
     selectAllDiv.innerHTML = `
         <label class="flex items-center text-sm">
-            <input type="checkbox" class="filter-checkbox select-all" onchange="toggleAllFilters('${containerId}', this)">
+            <input type="checkbox" class="filter-checkbox select-all" onchange="toggleAllFilters('${containerId}', this); autoPreview();">
             <span class="font-medium">Select All</span>
         </label>
     `;
@@ -464,7 +464,7 @@ function populateFilterOptions(containerId, options) {
         div.className = 'filter-item';
         div.innerHTML = `
             <label class="flex items-center text-sm">
-                <input type="checkbox" class="filter-checkbox" value="${option.value || option}" checked>
+                <input type="checkbox" class="filter-checkbox" value="${option.value || option}" checked onchange="autoPreview();">
                 <span>${option.label || option}</span>
             </label>
             <span class="text-xs text-gray-500">${option.count || ''}</span>
@@ -520,36 +520,7 @@ async function generatePreview() {
         showDebugInfo(`Preview successful! Found ${data.total} tickets. Summary: ${JSON.stringify(data.summary)}`);
 
         // Show a preview of the data in the charts area
-        const chartsArea = document.getElementById('chartsArea');
-        chartsArea.innerHTML = `
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h3 class="chart-title">🔍 Data Preview</h3>
-                </div>
-                <div class="chart-body" style="padding: 2rem;">
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <div class="text-2xl font-bold text-blue-600">${data.total}</div>
-                            <div class="text-sm text-blue-800">Total Tickets Found</div>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <div class="text-2xl font-bold text-green-600">${data.summary.resolution_rate}%</div>
-                            <div class="text-sm text-green-800">Resolution Rate</div>
-                        </div>
-                    </div>
-                    <div class="text-sm text-gray-600">
-                        <p><strong>Open:</strong> ${data.summary.open} tickets</p>
-                        <p><strong>Resolved:</strong> ${data.summary.resolved} tickets</p>
-                        <p><strong>Sample data available:</strong> ${data.tableData?.length || 0} records</p>
-                    </div>
-                    <div class="mt-4">
-                        <button onclick="generateReport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                            ✨ Generate Full Report
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
+        displayPreviewResults(data);
 
     } catch (error) {
         console.error('Failed to generate preview:', error);
@@ -558,6 +529,176 @@ async function generatePreview() {
         showDebugInfo(`Error stack: ${error.stack}`);
     }
 }
+
+function displayPreviewResults(data) {
+    const chartsArea = document.getElementById('chartsArea');
+    chartsArea.innerHTML = `
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">🔍 Data Preview</h3>
+                <p class="chart-subtitle">Found ${data.total} tickets with your current filters</p>
+            </div>
+            <div class="chart-body" style="padding: 2rem;">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600">${data.total || 0}</div>
+                        <div class="text-sm text-blue-800">Total Tickets</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-green-600">${data.summary?.resolved || 0}</div>
+                        <div class="text-sm text-green-800">Resolved</div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-yellow-600">${data.summary?.open || 0}</div>
+                        <div class="text-sm text-yellow-800">Open</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-purple-600">${data.summary?.resolution_rate || 0}%</div>
+                        <div class="text-sm text-purple-800">Resolution Rate</div>
+                    </div>
+                </div>
+
+                <!-- Preview Charts -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Grouped Data Chart -->
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h4 class="font-semibold mb-3">Distribution by ${getSelectedGroupBy()}</h4>
+                        <canvas id="previewChart1" width="300" height="200"></canvas>
+                    </div>
+
+                    <!-- Timeline Chart -->
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h4 class="font-semibold mb-3">Tickets Over Time</h4>
+                        <canvas id="previewChart2" width="300" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="text-center">
+                    <button onclick="generateReport()" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 mr-3">
+                        ✨ Generate Full Report
+                    </button>
+                    <button onclick="generatePreview()" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                        🔄 Refresh Preview
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Create charts
+    setTimeout(() => {
+        createPreviewCharts(data);
+    }, 100);
+}
+
+function createPreviewCharts(data) {
+    // Chart 1: Grouped Data (Pie Chart)
+    const ctx1 = document.getElementById('previewChart1');
+    if (ctx1) {
+        const groupBy = getSelectedGroupBy();
+        const groupedData = data.groupedData && data.groupedData[groupBy] ? data.groupedData[groupBy] : {};
+
+        new Chart(ctx1, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(groupedData),
+                datasets: [{
+                    data: Object.values(groupedData),
+                    backgroundColor: [
+                        '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
+                        '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            fontSize: 11
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 2: Timeline (Line Chart)
+    const ctx2 = document.getElementById('previewChart2');
+    if (ctx2 && data.timelineData) {
+        const labels = Object.keys(data.timelineData).sort();
+        const values = labels.map(date => data.timelineData[date]);
+
+        new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Tickets Created',
+                    data: values,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 7
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+}
+
+function getSelectedGroupBy() {
+    return document.getElementById('groupBy').value || 'status';
+}
+
+// Auto-preview with debouncing to avoid too many API calls
+let autoPreviewTimeout;
+function autoPreview() {
+    clearTimeout(autoPreviewTimeout);
+    autoPreviewTimeout = setTimeout(() => {
+        generatePreview();
+    }, 1000); // Wait 1 second after last change before auto-previewing
+}
+
+// Add listeners for date and groupBy changes
+document.addEventListener('DOMContentLoaded', function() {
+    // Add listeners after elements are loaded
+    setTimeout(() => {
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        const groupBy = document.getElementById('groupBy');
+
+        if (startDate) startDate.addEventListener('change', autoPreview);
+        if (endDate) endDate.addEventListener('change', autoPreview);
+        if (groupBy) groupBy.addEventListener('change', autoPreview);
+
+        // Generate initial preview
+        setTimeout(autoPreview, 2000);
+    }, 1000);
+});
 
 async function generateReport() {
     showLoading();
