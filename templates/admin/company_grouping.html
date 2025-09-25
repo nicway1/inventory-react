@@ -580,12 +580,52 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.addEventListener('change', updateBulkGroupingState);
     });
 
-    // Restore form state from previous session (before auto-refresh)
+    // Restore form state and selections from previous session (before auto-refresh)
     const savedState = sessionStorage.getItem('companyGroupingFormState');
     if (savedState === 'bulk') {
         singleGroupForm.classList.add('hidden');
         bulkGroupForm.classList.remove('hidden');
+
+        // Restore bulk form checkbox selections
+        const savedBulkSelections = sessionStorage.getItem('bulkCheckboxSelections');
+        if (savedBulkSelections) {
+            const selectedIds = JSON.parse(savedBulkSelections);
+            selectedIds.forEach(id => {
+                const checkbox = document.querySelector(`.bulk-child-checkbox[value="${id}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            sessionStorage.removeItem('bulkCheckboxSelections');
+        }
     }
+
+    // Restore child checkbox selections
+    const savedChildSelections = sessionStorage.getItem('childCheckboxSelections');
+    if (savedChildSelections) {
+        const selectedIds = JSON.parse(savedChildSelections);
+        selectedIds.forEach(id => {
+            const checkbox = document.querySelector(`.child-checkbox[value="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        sessionStorage.removeItem('childCheckboxSelections');
+    }
+
+    // Restore table checkbox selections
+    const savedTableSelections = sessionStorage.getItem('tableCheckboxSelections');
+    if (savedTableSelections) {
+        const selectedIds = JSON.parse(savedTableSelections);
+        selectedIds.forEach(id => {
+            const checkbox = document.querySelector(`.table-child-checkbox[value="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        sessionStorage.removeItem('tableCheckboxSelections');
+    }
+
     // Clear the saved state after restoring
     sessionStorage.removeItem('companyGroupingFormState');
 
@@ -595,15 +635,36 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBulkGroupingState();
 });
 
-// Auto-refresh the page every 30 seconds to show updates, but preserve form state
+// Auto-refresh the page every 30 seconds to show updates, but preserve form state and selections
 setTimeout(function() {
     // Save the current form state before refresh
     const isBulkFormVisible = !document.getElementById('bulkGroupForm').classList.contains('hidden');
     if (isBulkFormVisible) {
         sessionStorage.setItem('companyGroupingFormState', 'bulk');
+
+        // Save bulk form checkbox selections
+        const checkedBulkBoxes = [];
+        document.querySelectorAll('.bulk-child-checkbox:checked').forEach(checkbox => {
+            checkedBulkBoxes.push(checkbox.value);
+        });
+        sessionStorage.setItem('bulkCheckboxSelections', JSON.stringify(checkedBulkBoxes));
     } else {
         sessionStorage.setItem('companyGroupingFormState', 'single');
     }
+
+    // Save other checkbox selections
+    const checkedChildBoxes = [];
+    document.querySelectorAll('.child-checkbox:checked').forEach(checkbox => {
+        checkedChildBoxes.push(checkbox.value);
+    });
+    sessionStorage.setItem('childCheckboxSelections', JSON.stringify(checkedChildBoxes));
+
+    const checkedTableBoxes = [];
+    document.querySelectorAll('.table-child-checkbox:checked').forEach(checkbox => {
+        checkedTableBoxes.push(checkbox.value);
+    });
+    sessionStorage.setItem('tableCheckboxSelections', JSON.stringify(checkedTableBoxes));
+
     window.location.reload();
 }, 30000);
 </script>
