@@ -560,20 +560,36 @@ function displayPreviewResults(data) {
                 </div>
 
                 <!-- Preview Charts -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     <!-- Grouped Data Chart -->
-                    <div class="bg-white p-6 rounded-lg border" style="min-height: 400px;">
-                        <h4 class="font-semibold mb-4 text-lg">Distribution by ${getSelectedGroupBy()}</h4>
-                        <div style="height: 320px; position: relative;">
+                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 600px;">
+                        <h4 class="font-semibold mb-6 text-xl">Distribution by ${getSelectedGroupBy()}</h4>
+                        <div style="height: 500px; position: relative;">
                             <canvas id="previewChart1"></canvas>
                         </div>
                     </div>
 
                     <!-- Timeline Chart -->
-                    <div class="bg-white p-6 rounded-lg border" style="min-height: 400px;">
-                        <h4 class="font-semibold mb-4 text-lg">Tickets Over Time</h4>
-                        <div style="height: 320px; position: relative;">
+                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 600px;">
+                        <h4 class="font-semibold mb-6 text-xl">Tickets Over Time</h4>
+                        <div style="height: 500px; position: relative;">
                             <canvas id="previewChart2"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Single Chart View for Mobile -->
+                <div class="lg:hidden">
+                    <div class="bg-white p-8 rounded-lg border shadow-sm mb-6" style="min-height: 500px;">
+                        <h4 class="font-semibold mb-6 text-xl">Distribution by ${getSelectedGroupBy()}</h4>
+                        <div style="height: 400px; position: relative;">
+                            <canvas id="previewChart1Mobile"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-lg border shadow-sm" style="min-height: 500px;">
+                        <h4 class="font-semibold mb-6 text-xl">Tickets Over Time</h4>
+                        <div style="height: 400px; position: relative;">
+                            <canvas id="previewChart2Mobile"></canvas>
                         </div>
                     </div>
                 </div>
@@ -598,93 +614,115 @@ function displayPreviewResults(data) {
 }
 
 function createPreviewCharts(data) {
-    // Chart 1: Grouped Data (Pie Chart)
+    const groupBy = getSelectedGroupBy();
+    const groupedData = data.groupedData && data.groupedData[groupBy] ? data.groupedData[groupBy] : {};
+
+    const pieChartConfig = {
+        type: 'pie',
+        data: {
+            labels: Object.keys(groupedData),
+            datasets: [{
+                data: Object.values(groupedData),
+                backgroundColor: [
+                    '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
+                    '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 20,
+                        fontSize: 14,
+                        padding: 20,
+                        font: {
+                            size: 14
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Chart 1: Grouped Data (Desktop)
     const ctx1 = document.getElementById('previewChart1');
     if (ctx1) {
-        const groupBy = getSelectedGroupBy();
-        const groupedData = data.groupedData && data.groupedData[groupBy] ? data.groupedData[groupBy] : {};
-
-        new Chart(ctx1, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(groupedData),
-                datasets: [{
-                    data: Object.values(groupedData),
-                    backgroundColor: [
-                        '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
-                        '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            boxWidth: 15,
-                            fontSize: 12,
-                            padding: 15
-                        }
-                    }
-                }
-            }
-        });
+        new Chart(ctx1, pieChartConfig);
     }
 
-    // Chart 2: Timeline (Line Chart)
-    const ctx2 = document.getElementById('previewChart2');
-    if (ctx2 && data.timelineData) {
-        const labels = Object.keys(data.timelineData).sort();
-        const values = labels.map(date => data.timelineData[date]);
+    // Chart 1: Grouped Data (Mobile)
+    const ctx1Mobile = document.getElementById('previewChart1Mobile');
+    if (ctx1Mobile) {
+        new Chart(ctx1Mobile, pieChartConfig);
+    }
 
-        new Chart(ctx2, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Tickets Created',
-                    data: values,
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        display: true,
-                        ticks: {
-                            maxTicksLimit: 7,
-                            fontSize: 11
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            fontSize: 11
+    // Timeline Chart Configuration
+    const timelineConfig = {
+        type: 'line',
+        data: {
+            labels: data.timelineData ? Object.keys(data.timelineData).sort() : [],
+            datasets: [{
+                label: 'Tickets Created',
+                data: data.timelineData ? Object.keys(data.timelineData).sort().map(date => data.timelineData[date]) : [],
+                borderColor: '#3B82F6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxTicksLimit: 8,
+                        font: {
+                            size: 12
                         }
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 4,
-                        hoverRadius: 6
-                    },
-                    line: {
-                        borderWidth: 3
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
                     }
                 }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            elements: {
+                point: {
+                    radius: 5,
+                    hoverRadius: 8
+                },
+                line: {
+                    borderWidth: 4
+                }
             }
-        });
+        }
+    };
+
+    // Chart 2: Timeline (Desktop)
+    const ctx2 = document.getElementById('previewChart2');
+    if (ctx2 && data.timelineData) {
+        new Chart(ctx2, timelineConfig);
+    }
+
+    // Chart 2: Timeline (Mobile)
+    const ctx2Mobile = document.getElementById('previewChart2Mobile');
+    if (ctx2Mobile && data.timelineData) {
+        new Chart(ctx2Mobile, timelineConfig);
     }
 }
 
