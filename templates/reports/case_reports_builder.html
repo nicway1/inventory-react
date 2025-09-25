@@ -562,15 +562,19 @@ function displayPreviewResults(data) {
                 <!-- Preview Charts -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <!-- Grouped Data Chart -->
-                    <div class="bg-white p-4 rounded-lg border">
-                        <h4 class="font-semibold mb-3">Distribution by ${getSelectedGroupBy()}</h4>
-                        <canvas id="previewChart1" width="300" height="200"></canvas>
+                    <div class="bg-white p-6 rounded-lg border" style="min-height: 400px;">
+                        <h4 class="font-semibold mb-4 text-lg">Distribution by ${getSelectedGroupBy()}</h4>
+                        <div style="height: 320px; position: relative;">
+                            <canvas id="previewChart1"></canvas>
+                        </div>
                     </div>
 
                     <!-- Timeline Chart -->
-                    <div class="bg-white p-4 rounded-lg border">
-                        <h4 class="font-semibold mb-3">Tickets Over Time</h4>
-                        <canvas id="previewChart2" width="300" height="200"></canvas>
+                    <div class="bg-white p-6 rounded-lg border" style="min-height: 400px;">
+                        <h4 class="font-semibold mb-4 text-lg">Tickets Over Time</h4>
+                        <div style="height: 320px; position: relative;">
+                            <canvas id="previewChart2"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -617,10 +621,11 @@ function createPreviewCharts(data) {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom',
                         labels: {
-                            boxWidth: 12,
-                            fontSize: 11
+                            boxWidth: 15,
+                            fontSize: 12,
+                            padding: 15
                         }
                     }
                 }
@@ -653,16 +658,29 @@ function createPreviewCharts(data) {
                     x: {
                         display: true,
                         ticks: {
-                            maxTicksLimit: 7
+                            maxTicksLimit: 7,
+                            fontSize: 11
                         }
                     },
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            fontSize: 11
+                        }
                     }
                 },
                 plugins: {
                     legend: {
                         display: false
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 4,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        borderWidth: 3
                     }
                 }
             }
