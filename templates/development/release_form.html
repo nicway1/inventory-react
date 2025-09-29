@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">
+                {% if release %}Edit Release{% else %}New Release{% endif %}
+            </h1>
+            <a href="{{ url_for('development.releases') }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Releases
+            </a>
+        </div>
+
+        <form method="POST" class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Release Information</h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Version and Name -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="version" class="block text-sm font-medium text-gray-700 mb-2">
+                            Version <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               name="version"
+                               id="version"
+                               required
+                               value="{{ release.version if release else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                               placeholder="1.0.0">
+                    </div>
+
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Release Name
+                        </label>
+                        <input type="text"
+                               name="name"
+                               id="name"
+                               value="{{ release.name if release else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                               placeholder="Winter Release">
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              rows="3"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              placeholder="Brief description of this release">{{ release.description if release else '' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Release Type -->
+                    <div>
+                        <label for="release_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            Release Type <span class="text-red-500">*</span>
+                        </label>
+                        <select name="release_type"
+                                id="release_type"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            {% for rtype in ReleaseType %}
+                            <option value="{{ rtype.value }}"
+                                    {% if release and release.release_type == rtype %}selected
+                                    {% elif not release and rtype.value == 'Minor' %}selected{% endif %}>
+                                {{ rtype.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Planned Date -->
+                    <div>
+                        <label for="planned_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Planned Date
+                        </label>
+                        <input type="date"
+                               name="planned_date"
+                               id="planned_date"
+                               value="{{ release.planned_date.strftime('%Y-%m-%d') if release and release.planned_date else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Release Manager -->
+                    <div>
+                        <label for="release_manager_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Release Manager
+                        </label>
+                        <select name="release_manager_id"
+                                id="release_manager_id"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="">No manager assigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}"
+                                    {% if release and release.release_manager_id == user.id %}selected{% endif %}>
+                                {{ user.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Release Options -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Release Options</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox"
+                                       name="is_pre_release"
+                                       {% if release and release.is_pre_release %}checked{% endif %}
+                                       class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                <span class="ml-2 text-sm text-gray-700">Pre-release (alpha, beta, rc)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox"
+                                       name="is_hotfix"
+                                       {% if release and release.is_hotfix %}checked{% endif %}
+                                       class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                <span class="ml-2 text-sm text-gray-700">Hotfix release</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="deployment_environment" class="block text-sm font-medium text-gray-700 mb-2">
+                            Deployment Environment
+                        </label>
+                        <select name="deployment_environment"
+                                id="deployment_environment"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="">Not specified</option>
+                            {% for env in ['staging', 'production'] %}
+                            <option value="{{ env }}"
+                                    {% if release and release.deployment_environment == env %}selected{% endif %}>
+                                {{ env.title() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Release Notes -->
+                <div>
+                    <label for="release_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Release Notes
+                    </label>
+                    <textarea name="release_notes"
+                              id="release_notes"
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              placeholder="What's new in this release?">{{ release.release_notes if release else '' }}</textarea>
+                </div>
+
+                <!-- Breaking Changes -->
+                <div>
+                    <label for="breaking_changes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Breaking Changes
+                        <span class="text-red-500 text-xs ml-1">(Important: Document any breaking changes)</span>
+                    </label>
+                    <textarea name="breaking_changes"
+                              id="breaking_changes"
+                              rows="3"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder="List any breaking changes that require user action...">{{ release.breaking_changes if release else '' }}</textarea>
+                </div>
+
+                {% if release %}
+                <!-- Status (only for editing) -->
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                    </label>
+                    <select name="status"
+                            id="status"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        {% for status in ReleaseStatus %}
+                        <option value="{{ status.value }}"
+                                {% if release.status == status %}selected{% endif %}>
+                            {{ status.value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <a href="{{ url_for('development.releases') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md">
+                    {% if release %}Update Release{% else %}Create Release{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

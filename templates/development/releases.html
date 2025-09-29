@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Releases</h1>
+        <a href="{{ url_for('development.new_release') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+            <i class="fas fa-rocket mr-2"></i>New Release
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow mb-6 p-4">
+        <form method="GET" class="flex items-center space-x-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" onchange="this.form.submit()"
+                        class="rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Releases</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Releases</option>
+                    {% for status in ReleaseStatus %}
+                        <option value="{{ status.value }}" {% if status_filter == status.value %}selected{% endif %}>
+                            {{ status.value }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="text-sm text-gray-500">
+                {{ releases | length }} release{% if releases | length != 1 %}s{% endif %} found
+            </div>
+        </form>
+    </div>
+
+    <!-- Releases List -->
+    {% if releases %}
+        <div class="space-y-6">
+            {% for release in releases %}
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6">
+                        <!-- Release Header -->
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-2">
+                                    <h2 class="text-2xl font-bold">
+                                        <a href="{{ url_for('development.view_release', id=release.id) }}"
+                                           class="text-gray-900 hover:text-green-600">
+                                            {{ release.display_version }}
+                                        </a>
+                                    </h2>
+                                    <span class="inline-flex px-3 py-1 text-sm rounded-full {{ release.get_status_color() }}">
+                                        {{ release.status.value }}
+                                    </span>
+                                    <span class="inline-flex px-3 py-1 text-sm rounded-full {{ release.get_type_color() }}">
+                                        {{ release.release_type.value }}
+                                    </span>
+                                    {% if release.is_pre_release %}
+                                        <span class="inline-flex px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                                            Pre-release
+                                        </span>
+                                    {% endif %}
+                                    {% if release.is_hotfix %}
+                                        <span class="inline-flex px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                                            Hotfix
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                {% if release.name %}
+                                    <h3 class="text-lg text-gray-700 mb-2">{{ release.name }}</h3>
+                                {% endif %}
+                                {% if release.description %}
+                                    <p class="text-gray-600 mb-4">{{ release.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="text-right">
+                                <a href="{{ url_for('development.edit_release', id=release.id) }}"
+                                   class="text-gray-600 hover:text-gray-800">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Release Metrics -->
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600">{{ release.features | length }}</div>
+                                <div class="text-sm text-gray-600">Features</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-red-600">{{ release.fixed_bugs | length }}</div>
+                                <div class="text-sm text-gray-600">Bug Fixes</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-600">{{ release.completion_percentage }}%</div>
+                                <div class="text-sm text-gray-600">Complete</div>
+                            </div>
+                            <div class="text-center">
+                                {% if release.planned_date %}
+                                    <div class="text-lg font-bold {% if release.days_until_release is not none and release.days_until_release < 0 %}text-red-600{% elif release.days_until_release is not none and release.days_until_release < 7 %}text-orange-600{% else %}text-gray-900{% endif %}">
+                                        {% if release.days_until_release is not none %}
+                                            {% if release.days_until_release < 0 %}
+                                                {{ release.days_until_release * -1 }} days ago
+                                            {% elif release.days_until_release == 0 %}
+                                                Today
+                                            {% else %}
+                                                {{ release.days_until_release }} days
+                                            {% endif %}
+                                        {% else %}
+                                            {{ release.planned_date.strftime('%m/%d/%Y') }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-gray-600">Target Date</div>
+                                {% else %}
+                                    <div class="text-lg font-bold text-gray-400">Not set</div>
+                                    <div class="text-sm text-gray-600">Target Date</div>
+                                {% endif %}
+                            </div>
+                            <div class="text-center">
+                                {% if release.release_manager %}
+                                    <div class="text-lg font-bold text-gray-900">{{ release.release_manager.name.split()[0] }}</div>
+                                    <div class="text-sm text-gray-600">Manager</div>
+                                {% else %}
+                                    <div class="text-lg font-bold text-gray-400">Unassigned</div>
+                                    <div class="text-sm text-gray-600">Manager</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        {% if release.completion_percentage > 0 %}
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-sm text-gray-600">Progress</span>
+                                    <span class="text-sm text-gray-600">{{ release.completion_percentage }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full" style="width: {{ release.completion_percentage }}%"></div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Release Actions -->
+                        <div class="flex justify-between items-center">
+                            <div class="flex space-x-4">
+                                <a href="{{ url_for('development.view_release', id=release.id) }}"
+                                   class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-eye mr-1"></i>View Details
+                                </a>
+                                {% if release.features | length > 0 or release.fixed_bugs | length > 0 %}
+                                    <a href="{{ url_for('development.release_changelog', id=release.id) }}"
+                                       class="text-green-600 hover:text-green-800 text-sm">
+                                        <i class="fas fa-list mr-1"></i>Changelog
+                                    </a>
+                                {% endif %}
+                                {% if release.status.value in ['Planning', 'In Development'] %}
+                                    <a href="{{ url_for('development.edit_release', id=release.id) }}"
+                                       class="text-gray-600 hover:text-gray-800 text-sm">
+                                        <i class="fas fa-edit mr-1"></i>Edit
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                {% if release.release_date %}
+                                    Released {{ release.release_date.strftime('%B %d, %Y') }}
+                                {% else %}
+                                    Created {{ release.created_at.strftime('%m/%d/%Y') }}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Recent Items Preview -->
+                        {% if release.features | length > 0 or release.fixed_bugs | length > 0 %}
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {% if release.features | length > 0 %}
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900 mb-2">Recent Features</h4>
+                                            <div class="space-y-1">
+                                                {% for feature in release.features[:3] %}
+                                                    <div class="text-sm">
+                                                        <a href="{{ url_for('development.view_feature', id=feature.id) }}"
+                                                           class="text-blue-600 hover:text-blue-800">
+                                                            {{ feature.title[:50] }}{% if feature.title | length > 50 %}...{% endif %}
+                                                        </a>
+                                                        <span class="inline-flex px-1 py-0 text-xs rounded {{ feature.get_status_color() }} ml-2">
+                                                            {{ feature.status.value }}
+                                                        </span>
+                                                    </div>
+                                                {% endfor %}
+                                                {% if release.features | length > 3 %}
+                                                    <div class="text-xs text-gray-500">
+                                                        +{{ release.features | length - 3 }} more features
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if release.fixed_bugs | length > 0 %}
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900 mb-2">Recent Bug Fixes</h4>
+                                            <div class="space-y-1">
+                                                {% for bug in release.fixed_bugs[:3] %}
+                                                    <div class="text-sm">
+                                                        <a href="{{ url_for('development.view_bug', id=bug.id) }}"
+                                                           class="text-red-600 hover:text-red-800">
+                                                            {{ bug.title[:50] }}{% if bug.title | length > 50 %}...{% endif %}
+                                                        </a>
+                                                        <span class="inline-flex px-1 py-0 text-xs rounded {{ bug.get_severity_color() }} ml-2">
+                                                            {{ bug.severity.value }}
+                                                        </span>
+                                                    </div>
+                                                {% endfor %}
+                                                {% if release.fixed_bugs | length > 3 %}
+                                                    <div class="text-xs text-gray-500">
+                                                        +{{ release.fixed_bugs | length - 3 }} more bug fixes
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+            <i class="fas fa-rocket text-gray-300 text-6xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No releases found</h3>
+            <p class="text-gray-500 mb-4">
+                {% if status_filter == 'active' %}
+                    No active releases. Create your first release to get started.
+                {% else %}
+                    No releases match your current filter.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('development.new_release') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                <i class="fas fa-rocket mr-2"></i>Create First Release
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

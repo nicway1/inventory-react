@@ -141,10 +141,19 @@ def list_tickets():
 @tickets_bp.route('/export/csv')
 @login_required
 def export_tickets_csv():
-    """Export tickets to CSV format"""
+    """Export tickets to CSV format with filtering support"""
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
     user_type = session['user_type']
+
+    # Get filter parameters from request
+    export_mode = request.args.get('mode', 'all')  # all, filtered, selected
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    category_filter = request.args.get('category')
+    priority_filter = request.args.get('priority')
+    status_filter = request.args.get('status')
+    ticket_ids = request.args.get('ticket_ids')
 
     # Create a new database session for this operation
     db_session = db_manager.get_session()
@@ -169,6 +178,52 @@ def export_tickets_csv():
             query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
                 CustomerUser.country == user.country
             )
+
+        # Apply export mode filters
+        if export_mode == 'selected' and ticket_ids:
+            # Export only selected tickets
+            id_list = [int(tid.strip()) for tid in ticket_ids.split(',') if tid.strip().isdigit()]
+            if id_list:  # Only apply filter if we have valid IDs
+                query = query.filter(Ticket.id.in_(id_list))
+        elif export_mode == 'filtered':
+            # Apply date range filter
+            if date_from:
+                try:
+                    from_date = datetime.datetime.strptime(date_from, '%Y-%m-%d')
+                    query = query.filter(Ticket.created_at >= from_date)
+                except ValueError:
+                    pass
+
+            if date_to:
+                try:
+                    to_date = datetime.datetime.strptime(date_to, '%Y-%m-%d')
+                    # Add 23:59:59 to include the entire day
+                    to_date = to_date.replace(hour=23, minute=59, second=59)
+                    query = query.filter(Ticket.created_at <= to_date)
+                except ValueError:
+                    pass
+
+            # Apply category filter
+            if category_filter and category_filter != 'all':
+                query = query.filter(Ticket.category == category_filter)
+
+            # Apply priority filter
+            if priority_filter and priority_filter != 'all':
+                from models.ticket import TicketPriority
+                try:
+                    priority_enum = TicketPriority(priority_filter)
+                    query = query.filter(Ticket.priority == priority_enum)
+                except ValueError:
+                    pass
+
+            # Apply status filter
+            if status_filter and status_filter != 'all':
+                from models.ticket import TicketStatus
+                try:
+                    status_enum = TicketStatus(status_filter)
+                    query = query.filter(Ticket.status == status_enum)
+                except ValueError:
+                    pass
 
         tickets = query.all()
 
@@ -367,7 +422,28 @@ def export_tickets_csv():
         # Create response with CSV file
         output.seek(0)
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'tickets_export_{timestamp}.csv'
+
+        # Generate descriptive filename based on export mode
+        if export_mode == 'selected':
+            filename = f'tickets_selected_{len(tickets)}tickets_{timestamp}.csv'
+        elif export_mode == 'filtered':
+            filter_parts = []
+            if date_from or date_to:
+                date_part = f"from{date_from}" if date_from else ""
+                date_part += f"_to{date_to}" if date_to else ""
+                if date_part:
+                    filter_parts.append(date_part)
+            if category_filter and category_filter != 'all':
+                filter_parts.append(f"cat{category_filter}")
+            if priority_filter and priority_filter != 'all':
+                filter_parts.append(f"pri{priority_filter}")
+            if status_filter and status_filter != 'all':
+                filter_parts.append(f"status{status_filter}")
+
+            filter_desc = "_".join(filter_parts) if filter_parts else "filtered"
+            filename = f'tickets_{filter_desc}_{len(tickets)}results_{timestamp}.csv'
+        else:
+            filename = f'tickets_all_{len(tickets)}tickets_{timestamp}.csv'
 
         response = make_response(output.getvalue())
         response.headers['Content-Type'] = 'text/csv'
@@ -5491,6 +5567,23 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 # Update the specific package status field
                 setattr(fresh_ticket, status_field, latest_status)
                 fresh_ticket.updated_at = datetime.datetime.now()
+
+                # Check if all packages are delivered and update ticket status accordingly
+                if fresh_ticket.category and fresh_ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                    all_packages_delivered = True
+                    packages = fresh_ticket.get_all_packages()
+                    for package in packages:
+                        if not package.get('status') or 'delivered' not in package['status'].lower():
+                            all_packages_delivered = False
+                            break
+
+                    # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
+                    if all_packages_delivered:
+                        from models.ticket import TicketStatus
+                        if fresh_ticket.status != TicketStatus.RESOLVED_DELIVERED:
+                            fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
+                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
+
                 db_session.commit()
                 logger.info(f"Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
             else:
@@ -5613,6 +5706,23 @@ def generate_package_mock_tracking_data(tracking_number, ticket_id, package_numb
             # Update the specific package status field
             setattr(ticket, status_field, latest_status)
             ticket.updated_at = datetime.datetime.now()
+
+            # Check if all packages are delivered and update ticket status accordingly
+            if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                all_packages_delivered = True
+                packages = ticket.get_all_packages()
+                for package in packages:
+                    if not package.get('status') or 'delivered' not in package['status'].lower():
+                        all_packages_delivered = False
+                        break
+
+                # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
+                if all_packages_delivered:
+                    from models.ticket import TicketStatus
+                    if ticket.status != TicketStatus.RESOLVED_DELIVERED:
+                        ticket.status = TicketStatus.RESOLVED_DELIVERED
+                        logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
+
             db_session.commit()
             logger.info(f"Updated ticket {ticket_id} package {package_number} with mock status: {latest_status}")
         
@@ -6061,6 +6171,48 @@ def mark_replacement_received(ticket_id):
         traceback.print_exc()
         flash(f'Error marking replacement as received: {str(e)}', 'error')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/<int:ticket_id>/mark_item_packed', methods=['POST'])
+@login_required
+def mark_item_packed(ticket_id):
+    """Mark items as packed for case progress tracking"""
+    db_session = db_manager.get_session()
+    try:
+        # Get the ticket
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        # Check if items are already marked as packed
+        if ticket.item_packed:
+            return jsonify({'success': False, 'error': 'Items are already marked as packed'}), 400
+
+        # Mark items as packed
+        ticket.item_packed = True
+        ticket.item_packed_at = dt.now()
+
+        # Add a note to the ticket
+        current_time = dt.now().strftime('%Y-%m-%d %H:%M:%S')
+        note_text = f"\n[{current_time}] Items marked as packed by {current_user.username}"
+        if ticket.notes:
+            ticket.notes += note_text
+        else:
+            ticket.notes = note_text.strip()
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Items marked as packed successfully',
+            'item_packed_at': ticket.item_packed_at.isoformat() if ticket.item_packed_at else None
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error marking items as packed: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
 

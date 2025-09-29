@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">
+                {% if bug %}Edit Bug Report{% else %}New Bug Report{% endif %}
+            </h1>
+            <a href="{{ url_for('development.bugs') }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Bugs
+            </a>
+        </div>
+
+        <form method="POST" class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Bug Details</h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Title <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           name="title"
+                           id="title"
+                           required
+                           value="{{ bug.title if bug else '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           placeholder="Brief description of the bug">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              required
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder="Detailed description of the bug">{{ bug.description if bug else '' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Severity -->
+                    <div>
+                        <label for="severity" class="block text-sm font-medium text-gray-700 mb-2">
+                            Severity <span class="text-red-500">*</span>
+                        </label>
+                        <select name="severity"
+                                id="severity"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            {% for severity in BugSeverity %}
+                            <option value="{{ severity.value }}"
+                                    {% if bug and bug.severity == severity %}selected
+                                    {% elif not bug and severity.value == 'Medium' %}selected{% endif %}>
+                                {{ severity.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Priority -->
+                    <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">
+                            Priority <span class="text-red-500">*</span>
+                        </label>
+                        <select name="priority"
+                                id="priority"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            {% for priority in BugPriority %}
+                            <option value="{{ priority.value }}"
+                                    {% if bug and bug.priority == priority %}selected
+                                    {% elif not bug and priority.value == 'Medium' %}selected{% endif %}>
+                                {{ priority.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Assignee -->
+                    <div>
+                        <label for="assignee_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Assignee
+                        </label>
+                        <select name="assignee_id"
+                                id="assignee_id"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}"
+                                    {% if bug and bug.assignee_id == user.id %}selected{% endif %}>
+                                {{ user.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Environment Details -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-4">Environment Details</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="component" class="block text-sm font-medium text-gray-700 mb-2">
+                                Component
+                            </label>
+                            <input type="text"
+                                   name="component"
+                                   id="component"
+                                   value="{{ bug.component if bug else '' }}"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                   placeholder="e.g., inventory, tickets, reports">
+                        </div>
+
+                        <div>
+                            <label for="environment" class="block text-sm font-medium text-gray-700 mb-2">
+                                Environment
+                            </label>
+                            <select name="environment"
+                                    id="environment"
+                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="">Not specified</option>
+                                {% for env in ['production', 'staging', 'development', 'testing'] %}
+                                <option value="{{ env }}"
+                                        {% if bug and bug.environment == env %}selected{% endif %}>
+                                    {{ env.title() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="browser_version" class="block text-sm font-medium text-gray-700 mb-2">
+                                Browser Version
+                            </label>
+                            <input type="text"
+                                   name="browser_version"
+                                   id="browser_version"
+                                   value="{{ bug.browser_version if bug else '' }}"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                   placeholder="e.g., Chrome 120.0.6099.109">
+                        </div>
+
+                        <div>
+                            <label for="operating_system" class="block text-sm font-medium text-gray-700 mb-2">
+                                Operating System
+                            </label>
+                            <input type="text"
+                                   name="operating_system"
+                                   id="operating_system"
+                                   value="{{ bug.operating_system if bug else '' }}"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                   placeholder="e.g., Windows 11, macOS 14.2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bug Details -->
+                <div>
+                    <label for="steps_to_reproduce" class="block text-sm font-medium text-gray-700 mb-2">
+                        Steps to Reproduce
+                    </label>
+                    <textarea name="steps_to_reproduce"
+                              id="steps_to_reproduce"
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder="1. Navigate to...&#10;2. Click on...&#10;3. Enter...&#10;4. Bug occurs">{{ bug.steps_to_reproduce if bug else '' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="expected_behavior" class="block text-sm font-medium text-gray-700 mb-2">
+                            Expected Behavior
+                        </label>
+                        <textarea name="expected_behavior"
+                                  id="expected_behavior"
+                                  rows="3"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                  placeholder="What should happen">{{ bug.expected_behavior if bug else '' }}</textarea>
+                    </div>
+
+                    <div>
+                        <label for="actual_behavior" class="block text-sm font-medium text-gray-700 mb-2">
+                            Actual Behavior
+                        </label>
+                        <textarea name="actual_behavior"
+                                  id="actual_behavior"
+                                  rows="3"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                  placeholder="What actually happens">{{ bug.actual_behavior if bug else '' }}</textarea>
+                    </div>
+                </div>
+
+                {% if bug %}
+                <!-- Status (only for editing) -->
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                    </label>
+                    <select name="status"
+                            id="status"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        {% for status in BugStatus %}
+                        <option value="{{ status.value }}"
+                                {% if bug.status == status %}selected{% endif %}>
+                            {{ status.value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Resolution Notes (only when resolving) -->
+                <div id="resolution_section" class="{% if bug.status.value not in ['Resolved', 'Closed'] %}hidden{% endif %}">
+                    <label for="resolution_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Resolution Notes
+                    </label>
+                    <textarea name="resolution_notes"
+                              id="resolution_notes"
+                              rows="3"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder="How was this bug resolved?">{{ bug.resolution_notes if bug else '' }}</textarea>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <a href="{{ url_for('development.bugs') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+                    {% if bug %}Update Bug Report{% else %}Create Bug Report{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+{% if bug %}
+document.getElementById('status').addEventListener('change', function() {
+    const resolutionSection = document.getElementById('resolution_section');
+    const value = this.value;
+
+    if (value === 'Resolved' || value === 'Closed') {
+        resolutionSection.classList.remove('hidden');
+    } else {
+        resolutionSection.classList.add('hidden');
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

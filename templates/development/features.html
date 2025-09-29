@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Feature Requests</h1>
+        <a href="{{ url_for('development.new_feature') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+            <i class="fas fa-plus mr-2"></i>New Feature
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                    {% for status in FeatureStatus %}
+                    <option value="{{ status.value }}" {% if status_filter == status.value %}selected{% endif %}>
+                        {{ status.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <select name="priority" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>All Priorities</option>
+                    {% for priority in FeaturePriority %}
+                    <option value="{{ priority.value }}" {% if priority_filter == priority.value %}selected{% endif %}>
+                        {{ priority.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
+                <select name="assignee" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="all" {% if assignee_filter == 'all' %}selected{% endif %}>All Assignees</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if assignee_filter == user.id|string %}selected{% endif %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-end">
+                <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md w-full">
+                    <i class="fas fa-search mr-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Features List -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                Features ({{ total }} total)
+            </h3>
+        </div>
+
+        {% if features %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feature</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for feature in features %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <a href="{{ url_for('development.view_feature', id=feature.id) }}"
+                                   class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                                    {{ feature.title }}
+                                </a>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    {{ feature.display_id }} • {{ feature.requester.name }}
+                                    {% if feature.component %}
+                                        • {{ feature.component }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
+                                {{ feature.status.value }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_priority_color() }}">
+                                {{ feature.priority.value }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {% if feature.assignee %}
+                                {{ feature.assignee.name }}
+                            {% else %}
+                                <span class="text-gray-400">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {% if feature.target_release %}
+                                <a href="{{ url_for('development.view_release', id=feature.target_release.id) }}"
+                                   class="text-blue-600 hover:text-blue-800">
+                                    {{ feature.target_release.version }}
+                                </a>
+                            {% else %}
+                                <span class="text-gray-400">No release</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ feature.updated_at.strftime('%m/%d/%Y') if feature.updated_at else 'No date' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="{{ url_for('development.view_feature', id=feature.id) }}"
+                               class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="{{ url_for('development.edit_feature', id=feature.id) }}"
+                               class="text-green-600 hover:text-green-900">Edit</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total > per_page %}
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:justify-center">
+                <div class="flex space-x-1">
+                    {% set total_pages = (total + per_page - 1) // per_page %}
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == page %}
+                            <span class="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-300 rounded">
+                                {{ page_num }}
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('development.features', page=page_num, status=status_filter, priority=priority_filter, assignee=assignee_filter) }}"
+                               class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                                {{ page_num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <i class="fas fa-lightbulb text-gray-400 text-4xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No features found</h3>
+            <p class="text-gray-600 mb-4">Get started by creating your first feature request.</p>
+            <a href="{{ url_for('development.new_feature') }}"
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i>Create Feature Request
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

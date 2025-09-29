@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">
+                {% if feature %}Edit Feature Request{% else %}New Feature Request{% endif %}
+            </h1>
+            <a href="{{ url_for('development.features') }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Features
+            </a>
+        </div>
+
+        <form method="POST" class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Feature Details</h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Title <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           name="title"
+                           id="title"
+                           required
+                           value="{{ feature.title if feature else '' }}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Brief, descriptive title for the feature">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              required
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Detailed description of the feature and its purpose">{{ feature.description if feature else '' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Priority -->
+                    <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">
+                            Priority <span class="text-red-500">*</span>
+                        </label>
+                        <select name="priority"
+                                id="priority"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            {% for priority in FeaturePriority %}
+                            <option value="{{ priority.value }}"
+                                    {% if feature and feature.priority == priority %}selected
+                                    {% elif not feature and priority.value == 'Medium' %}selected{% endif %}>
+                                {{ priority.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Component -->
+                    <div>
+                        <label for="component" class="block text-sm font-medium text-gray-700 mb-2">
+                            Component
+                        </label>
+                        <input type="text"
+                               name="component"
+                               id="component"
+                               value="{{ feature.component if feature else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="e.g., inventory, tickets, reports">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Assignee -->
+                    <div>
+                        <label for="assignee_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Assignee
+                        </label>
+                        <select name="assignee_id"
+                                id="assignee_id"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}"
+                                    {% if feature and feature.assignee_id == user.id %}selected{% endif %}>
+                                {{ user.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Approver -->
+                    <div>
+                        <label for="approver_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Approver <span class="text-red-500">*</span>
+                            <span class="text-xs text-gray-500 ml-1">(Super Admin who will approve this request)</span>
+                        </label>
+                        <select name="approver_id"
+                                id="approver_id"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select an approver...</option>
+                            {% for admin in super_admins %}
+                            <option value="{{ admin.id }}"
+                                    {% if feature and feature.approver_id == admin.id %}selected{% endif %}>
+                                {{ admin.name }} ({{ admin.email }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Target Release -->
+                    <div>
+                        <label for="target_release_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Target Release
+                        </label>
+                        <select name="target_release_id"
+                                id="target_release_id"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">No specific release</option>
+                            {% for release in releases %}
+                            <option value="{{ release.id }}"
+                                    {% if feature and feature.target_release_id == release.id %}selected{% endif %}>
+                                {{ release.display_version }}
+                                {% if release.name %} - {{ release.name }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Target Date -->
+                    <div>
+                        <label for="target_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Target Date
+                        </label>
+                        <input type="date"
+                               name="target_date"
+                               id="target_date"
+                               value="{{ feature.target_date.strftime('%Y-%m-%d') if feature and feature.target_date else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Estimated Effort -->
+                    <div>
+                        <label for="estimated_effort" class="block text-sm font-medium text-gray-700 mb-2">
+                            Estimated Effort
+                        </label>
+                        <select name="estimated_effort"
+                                id="estimated_effort"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Not estimated</option>
+                            {% for effort in ['Small', 'Medium', 'Large', 'XL'] %}
+                            <option value="{{ effort }}"
+                                    {% if feature and feature.estimated_effort == effort %}selected{% endif %}>
+                                {{ effort }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Business Value -->
+                <div>
+                    <label for="business_value" class="block text-sm font-medium text-gray-700 mb-2">
+                        Business Value
+                    </label>
+                    <select name="business_value"
+                            id="business_value"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Not assessed</option>
+                        {% for value in ['Low', 'Medium', 'High', 'Critical'] %}
+                        <option value="{{ value }}"
+                                {% if feature and feature.business_value == value %}selected{% endif %}>
+                            {{ value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Acceptance Criteria -->
+                <div>
+                    <label for="acceptance_criteria" class="block text-sm font-medium text-gray-700 mb-2">
+                        Acceptance Criteria
+                    </label>
+                    <textarea name="acceptance_criteria"
+                              id="acceptance_criteria"
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Define what constitutes completion of this feature...">{{ feature.acceptance_criteria if feature else '' }}</textarea>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Use bullet points or numbered lists to define clear completion criteria
+                    </p>
+                </div>
+
+                {% if feature %}
+                <!-- Status (only for editing) -->
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                    </label>
+                    <select name="status"
+                            id="status"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        {% for status in FeatureStatus %}
+                        <option value="{{ status.value }}"
+                                {% if feature.status == status %}selected{% endif %}>
+                            {{ status.value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <a href="{{ url_for('development.features') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+                    {% if feature %}Update Feature{% else %}Create Feature{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

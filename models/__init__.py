@@ -35,6 +35,10 @@ from models.group import Group
 from models.group_membership import GroupMembership
 from models.api_key import APIKey
 from models.api_usage import APIUsage
+from models.feature_request import FeatureRequest, FeatureStatus, FeaturePriority, FeatureComment
+from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority, BugComment
+from models.release import Release, ReleaseStatus, ReleaseType
+from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 
 __all__ = [
     "Base",
@@ -82,5 +86,19 @@ __all__ = [
     "Group",
     "GroupMembership",
     "APIKey",
-    "APIUsage"
+    "APIUsage",
+    "FeatureRequest",
+    "FeatureStatus",
+    "FeaturePriority",
+    "FeatureComment",
+    "BugReport",
+    "BugStatus",
+    "BugSeverity",
+    "BugPriority",
+    "BugComment",
+    "Release",
+    "ReleaseStatus",
+    "ReleaseType",
+    "ChangelogEntry",
+    "ChangelogEntryType"
 ]

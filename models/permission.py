@@ -72,6 +72,19 @@ class Permission(Base):
     can_start_inventory_audit = Column(Boolean, default=False)
     can_view_audit_reports = Column(Boolean, default=False)
 
+    # Development Module Permissions
+    can_access_development = Column(Boolean, default=False)
+    can_view_features = Column(Boolean, default=False)
+    can_create_features = Column(Boolean, default=False)
+    can_edit_features = Column(Boolean, default=False)
+    can_approve_features = Column(Boolean, default=False)
+    can_view_bugs = Column(Boolean, default=False)
+    can_create_bugs = Column(Boolean, default=False)
+    can_edit_bugs = Column(Boolean, default=False)
+    can_view_releases = Column(Boolean, default=False)
+    can_create_releases = Column(Boolean, default=False)
+    can_edit_releases = Column(Boolean, default=False)
+
     @classmethod
     def permission_fields(cls):
         """Get all permission field names"""
@@ -125,7 +138,18 @@ class Permission(Base):
                 'can_view_restricted_articles': True,
                 'can_access_inventory_audit': True,
                 'can_start_inventory_audit': True,
-                'can_view_audit_reports': True
+                'can_view_audit_reports': True,
+                'can_access_development': True,
+                'can_view_features': True,
+                'can_create_features': True,
+                'can_edit_features': True,
+                'can_approve_features': True,
+                'can_view_bugs': True,
+                'can_create_bugs': True,
+                'can_edit_bugs': True,
+                'can_view_releases': True,
+                'can_create_releases': True,
+                'can_edit_releases': True
             }
         elif user_type == UserType.COUNTRY_ADMIN:
             return {
@@ -169,7 +193,18 @@ class Permission(Base):
                 'can_view_restricted_articles': False,
                 'can_access_inventory_audit': True,
                 'can_start_inventory_audit': True,
-                'can_view_audit_reports': True
+                'can_view_audit_reports': True,
+                'can_access_development': False,
+                'can_view_features': False,
+                'can_create_features': False,
+                'can_edit_features': False,
+                'can_approve_features': False,
+                'can_view_bugs': False,
+                'can_create_bugs': False,
+                'can_edit_bugs': False,
+                'can_view_releases': False,
+                'can_create_releases': False,
+                'can_edit_releases': False
             }
         elif user_type == UserType.CLIENT:
             return {
@@ -213,7 +248,18 @@ class Permission(Base):
                 'can_view_restricted_articles': False,
                 'can_access_inventory_audit': False,
                 'can_start_inventory_audit': False,
-                'can_view_audit_reports': False
+                'can_view_audit_reports': False,
+                'can_access_development': False,
+                'can_view_features': False,
+                'can_create_features': False,
+                'can_edit_features': False,
+                'can_approve_features': False,
+                'can_view_bugs': False,
+                'can_create_bugs': False,
+                'can_edit_bugs': False,
+                'can_view_releases': False,
+                'can_create_releases': False,
+                'can_edit_releases': False
             }
         else:  # Supervisor
             return {
@@ -257,5 +303,16 @@ class Permission(Base):
                 'can_view_restricted_articles': False,
                 'can_access_inventory_audit': True,
                 'can_start_inventory_audit': True,
-                'can_view_audit_reports': True
+                'can_view_audit_reports': True,
+                'can_access_development': False,
+                'can_view_features': False,
+                'can_create_features': False,
+                'can_edit_features': False,
+                'can_approve_features': False,
+                'can_view_bugs': False,
+                'can_create_bugs': False,
+                'can_edit_bugs': False,
+                'can_view_releases': False,
+                'can_create_releases': False,
+                'can_edit_releases': False
             } 

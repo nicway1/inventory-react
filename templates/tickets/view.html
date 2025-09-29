@@ -1293,21 +1293,29 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Progress Line 1 -->
-                            <div class="flex-1 h-1 mx-2 
-                                {% if ticket.assets and ticket.assets|length > 0 %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                            <div class="flex-1 h-1 mx-2
+                                {% if ticket.item_packed %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
                             <!-- Stage 2: Item Packed -->
                             <div class="flex flex-col items-center flex-1">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2 
-                                    {% if ticket.assets and ticket.assets|length > 0 %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
+                                    {% if ticket.item_packed %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001 1v-6a1 1 0 00-1-1h-2z"/>
                                     </svg>
                                 </div>
                                 <span class="text-xs font-medium text-center">Item Packed</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if ticket.assets and ticket.assets|length > 0 %}Complete{% else %}Pending{% endif %}
+                                    {% if ticket.item_packed %}
+                                        {% if ticket.item_packed_at %}{{ ticket.item_packed_at | singapore_time }}{% else %}Complete{% endif %}
+                                    {% else %}
+                                        <button id="markItemPackedBtn"
+                                                class="text-xs text-blue-600 hover:text-blue-800 underline"
+                                                onclick="markItemPacked({{ ticket.id }})">
+                                            Mark Packed
+                                        </button>
+                                    {% endif %}
                                 </span>
                             </div>
 
@@ -2279,12 +2287,21 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                                         {% if package.tracking_number %}
                                         <div class="mt-4 border-t pt-3">
+                                            {% if not (package.status and 'delivered' in package.status.lower()) %}
                                             <button class="text-sm text-blue-600 flex items-center" onclick="refreshPackageTracking({{ package.package_number }})">
                                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                                 </svg>
                                                 Refresh Package {{ package.package_number }} Tracking
                                             </button>
+                                            {% else %}
+                                            <div class="text-sm text-green-600 flex items-center">
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                Package {{ package.package_number }} Delivered - No refresh needed
+                                            </div>
+                                            {% endif %}
                                             <div id="trackingResults-{{ package.package_number }}" class="mt-6 hidden">
                                                 <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
                                                     <div class="flex items-center justify-between mb-6">
@@ -2522,12 +2539,21 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     </div>
                                 </div>
                                 <div class="mt-4 border-t pt-3">
+                                    {% if not (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}
                                     <button id="refreshShippingTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchShippingTracking()">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                         </svg>
                                         Refresh Tracking Information
                                     </button>
+                                    {% else %}
+                                    <div class="text-sm text-green-600 flex items-center">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        Package Delivered - No refresh needed
+                                    </div>
+                                    {% endif %}
                                     <div id="trackingResults" class="mt-4">
                                         <input type="hidden" id="trackingNumber" value="{{ ticket.shipping_tracking }}">
                                         <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
@@ -2602,12 +2628,21 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     </div>
                                 </div>
                                 <div class="mt-4 border-t pt-3">
+                                    {% if not (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}
                                     <button id="refreshShippingTrackingBtn" class="text-sm text-blue-600 flex items-center" onclick="fetchShippingTracking()">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                         </svg>
                                         Refresh Tracking Information
                                     </button>
+                                    {% else %}
+                                    <div class="text-sm text-green-600 flex items-center">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        Package Delivered - No refresh needed
+                                    </div>
+                                    {% endif %}
                                     <div id="trackingResults" class="mt-4">
                                         <input type="hidden" id="trackingNumber" value="{{ ticket.shipping_tracking }}">
                                         <h4 class="font-medium text-gray-700 mb-2">Tracking Events:</h4>
@@ -9809,6 +9844,57 @@ window.closeQueueChangeModal = closeQueueChangeModal;
 window.replyToComment = replyToComment;
 window.editComment = editComment;
 window.deleteComment = deleteComment;
+
+// Item Packed functionality
+function markItemPacked(ticketId) {
+    if (!confirm('Mark items as packed? This will update the case progress.')) {
+        return;
+    }
+
+    const btn = document.getElementById('markItemPackedBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Processing...';
+    }
+
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    fetch(`/tickets/${ticketId}/mark_item_packed`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Items marked as packed successfully', 'success');
+            // Reload the page to update the case progress
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showToast(data.error || 'Failed to mark items as packed', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Mark Packed';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while marking items as packed', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Mark Packed';
+        }
+    });
+}
+
+window.markItemPacked = markItemPacked;
 
 
 </script>

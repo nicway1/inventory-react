@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Development Dashboard</h1>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('development.new_feature') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                <i class="fas fa-plus mr-2"></i>New Feature
+            </a>
+            <a href="{{ url_for('development.new_bug') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                <i class="fas fa-bug mr-2"></i>Report Bug
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Features Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Features</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.features.total }}</p>
+                </div>
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <i class="fas fa-lightbulb text-blue-600 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-between text-sm">
+                <span class="text-orange-600">{{ stats.features.active }} Active</span>
+                <span class="text-green-600">{{ stats.features.completed }} Completed</span>
+            </div>
+        </div>
+
+        <!-- Bugs Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Bugs</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.bugs.total }}</p>
+                </div>
+                <div class="p-3 bg-red-100 rounded-full">
+                    <i class="fas fa-bug text-red-600 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-between text-sm">
+                <span class="text-red-600">{{ stats.bugs.open }} Open</span>
+                <span class="text-orange-600">{{ stats.bugs.critical }} Critical</span>
+            </div>
+        </div>
+
+        <!-- Releases Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Releases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.releases.total }}</p>
+                </div>
+                <div class="p-3 bg-green-100 rounded-full">
+                    <i class="fas fa-rocket text-green-600 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-between text-sm">
+                <span class="text-blue-600">{{ stats.releases.active }} Active</span>
+                <span class="text-gray-600">{{ stats.releases.released }} Released</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Recent Features -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Recent Features</h3>
+                <a href="{{ url_for('development.features') }}" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+            </div>
+            <div class="p-6">
+                {% if recent_features %}
+                    <div class="space-y-4">
+                        {% for feature in recent_features %}
+                        <div class="border-l-4 border-blue-400 pl-4">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <a href="{{ url_for('development.view_feature', id=feature.id) }}"
+                                       class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                                        {{ feature.title }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        {{ feature.display_id }} • {{ feature.requester.name if feature.requester else 'Unknown' }} • {{ feature.updated_at.strftime('%m/%d/%Y') if feature.updated_at else 'No date' }}
+                                    </p>
+                                </div>
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
+                                    {{ feature.status.value }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center">No features found</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Open Bugs -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Open Bugs</h3>
+                <a href="{{ url_for('development.bugs') }}" class="text-red-600 hover:text-red-800 text-sm">View All</a>
+            </div>
+            <div class="p-6">
+                {% if recent_bugs %}
+                    <div class="space-y-4">
+                        {% for bug in recent_bugs %}
+                        <div class="border-l-4 border-red-400 pl-4">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <a href="{{ url_for('development.view_bug', id=bug.id) }}"
+                                       class="text-sm font-medium text-gray-900 hover:text-red-600">
+                                        {{ bug.title }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        {{ bug.display_id }} • {{ bug.reporter.name if bug.reporter else 'Unknown' }} • {{ bug.updated_at.strftime('%m/%d/%Y') if bug.updated_at else 'No date' }}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_severity_color() }}">
+                                        {{ bug.severity.value }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center">No open bugs found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Releases -->
+    {% if active_releases %}
+    <div class="mt-8 bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">Active Releases</h3>
+            <a href="{{ url_for('development.releases') }}" class="text-green-600 hover:text-green-800 text-sm">View All</a>
+        </div>
+        <div class="p-6">
+            <div class="space-y-6">
+                {% for release in active_releases %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="text-lg font-medium">
+                                <a href="{{ url_for('development.view_release', id=release.id) }}"
+                                   class="text-gray-900 hover:text-blue-600">
+                                    {{ release.display_version }}
+                                </a>
+                            </h4>
+                            {% if release.name %}
+                                <p class="text-gray-600">{{ release.name }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ release.get_status_color() }}">
+                                {{ release.status.value }}
+                            </span>
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ release.get_type_color() }} ml-2">
+                                {{ release.release_type.value }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500">Planned Date:</span>
+                            <p class="font-medium">
+                                {% if release.planned_date %}
+                                    {{ release.planned_date.strftime('%m/%d/%Y') }}
+                                    {% if release.days_until_release is not none %}
+                                        ({{ release.days_until_release }} days)
+                                    {% endif %}
+                                {% else %}
+                                    Not set
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Completion:</span>
+                            <p class="font-medium">{{ release.completion_percentage }}%</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Items:</span>
+                            <p class="font-medium">{{ release.features|length + release.fixed_bugs|length }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

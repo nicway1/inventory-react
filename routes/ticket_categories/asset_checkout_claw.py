@@ -201,6 +201,21 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     fresh_ticket.shipping_status = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
                     logger.info("Updated ticket {ticket_id} with status: {latest_status}")
+
+                    # Check if all packages are delivered and update ticket status accordingly
+                    all_packages_delivered = True
+                    packages = fresh_ticket.get_all_packages()
+                    for package in packages:
+                        if not package.get('status') or 'delivered' not in package['status'].lower():
+                            all_packages_delivered = False
+                            break
+
+                    # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
+                    if all_packages_delivered:
+                        from models.ticket import TicketStatus
+                        if fresh_ticket.status != TicketStatus.RESOLVED_DELIVERED:
+                            fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
+                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(
@@ -417,6 +432,21 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                     fresh_ticket.shipping_status_2 = latest_status
                     fresh_ticket.updated_at = datetime.datetime.now()
                     logger.info("Updated ticket {ticket_id} with secondary status: {latest_status}")
+
+                    # Check if all packages are delivered and update ticket status accordingly
+                    all_packages_delivered = True
+                    packages = fresh_ticket.get_all_packages()
+                    for package in packages:
+                        if not package.get('status') or 'delivered' not in package['status'].lower():
+                            all_packages_delivered = False
+                            break
+
+                    # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
+                    if all_packages_delivered:
+                        from models.ticket import TicketStatus
+                        if fresh_ticket.status != TicketStatus.RESOLVED_DELIVERED:
+                            fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
+                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
                 
                 # Save to cache for future requests
                 TrackingCache.save_tracking_data(

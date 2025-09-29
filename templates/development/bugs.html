@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Bug Reports</h1>
+        <a href="{{ url_for('development.new_bug') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+            <i class="fas fa-bug mr-2"></i>Report Bug
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow mb-6 p-4">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open Issues</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                    {% for status in BugStatus %}
+                        <option value="{{ status.value }}" {% if status_filter == status.value %}selected{% endif %}>
+                            {{ status.value }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                <select name="severity" class="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                    <option value="all" {% if severity_filter == 'all' %}selected{% endif %}>All Severities</option>
+                    {% for severity in BugSeverity %}
+                        <option value="{{ severity.value }}" {% if severity_filter == severity.value %}selected{% endif %}>
+                            {{ severity.value }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+                <select name="assignee" class="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                    <option value="all" {% if assignee_filter == 'all' %}selected{% endif %}>All Assignees</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if assignee_filter == user.id|string %}selected{% endif %}>
+                            {{ user.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-end">
+                <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md w-full">
+                    <i class="fas fa-filter mr-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bugs List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                {{ total }} Bug{% if total != 1 %}s{% endif %} Found
+            </h3>
+        </div>
+
+        {% if bugs %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Bug Report
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Severity
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Priority
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Assignee
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Updated
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for bug in bugs %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-col">
+                                        <a href="{{ url_for('development.view_bug', id=bug.id) }}"
+                                           class="text-sm font-medium text-gray-900 hover:text-red-600">
+                                            {{ bug.title }}
+                                        </a>
+                                        <p class="text-xs text-gray-500">
+                                            {{ bug.display_id }} • {{ bug.reporter.name if bug.reporter else 'Unknown' }}
+                                            {% if bug.component %}• {{ bug.component }}{% endif %}
+                                            {% if bug.environment %}• {{ bug.environment }}{% endif %}
+                                        </p>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_status_color() }}">
+                                        {{ bug.status.value }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_severity_color() }}">
+                                        {{ bug.severity.value }}
+                                        {% if bug.severity.value == 'Critical' %}
+                                            <i class="fas fa-exclamation-triangle ml-1"></i>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_priority_color() }}">
+                                        {{ bug.priority.value }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if bug.assignee %}
+                                        {{ bug.assignee.name }}
+                                    {% else %}
+                                        <span class="text-gray-400">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ bug.updated_at.strftime('%m/%d/%Y') if bug.updated_at else 'No date' }}
+                                    {% if bug.resolution_time_days is not none %}
+                                        <div class="text-xs text-gray-400">
+                                            Resolved in {{ bug.resolution_time_days }} days
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if total > per_page %}
+                <div class="px-6 py-3 flex items-center justify-between border-t border-gray-200 bg-white">
+                    <div class="flex-1 flex justify-between sm:hidden">
+                        {% if page > 1 %}
+                            <a href="{{ url_for('development.bugs', page=page-1, status=status_filter, severity=severity_filter, assignee=assignee_filter) }}"
+                               class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Previous
+                            </a>
+                        {% endif %}
+                        {% if page * per_page < total %}
+                            <a href="{{ url_for('development.bugs', page=page+1, status=status_filter, severity=severity_filter, assignee=assignee_filter) }}"
+                               class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Next
+                            </a>
+                        {% endif %}
+                    </div>
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                Showing <span class="font-medium">{{ (page-1) * per_page + 1 }}</span>
+                                to <span class="font-medium">{{ [page * per_page, total] | min }}</span>
+                                of <span class="font-medium">{{ total }}</span> results
+                            </p>
+                        </div>
+                        <div>
+                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                {% if page > 1 %}
+                                    <a href="{{ url_for('development.bugs', page=page-1, status=status_filter, severity=severity_filter, assignee=assignee_filter) }}"
+                                       class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                {% endif %}
+                                {% if page * per_page < total %}
+                                    <a href="{{ url_for('development.bugs', page=page+1, status=status_filter, severity=severity_filter, assignee=assignee_filter) }}"
+                                       class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                {% endif %}
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="px-6 py-12 text-center">
+                <i class="fas fa-bug text-gray-300 text-6xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No bugs found</h3>
+                <p class="text-gray-500 mb-4">
+                    {% if status_filter == 'open' %}
+                        Great! No open bugs to display.
+                    {% else %}
+                        No bug reports match your current filters.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('development.new_bug') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-bug mr-2"></i>Report New Bug
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Summary Stats -->
+    {% if bugs %}
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-red-600">
+                {{ bugs | selectattr('severity.value', 'equalto', 'Critical') | list | length }}
+            </div>
+            <div class="text-sm text-gray-600">Critical Bugs</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-orange-600">
+                {{ bugs | selectattr('severity.value', 'equalto', 'High') | list | length }}
+            </div>
+            <div class="text-sm text-gray-600">High Severity</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-yellow-600">
+                {{ bugs | selectattr('assignee', 'none') | list | length }}
+            </div>
+            <div class="text-sm text-gray-600">Unassigned</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-green-600">
+                {{ bugs | selectattr('is_resolved') | list | length }}
+            </div>
+            <div class="text-sm text-gray-600">Resolved</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -119,6 +119,11 @@ class Ticket(Base):
     packing_list_path = Column(String(500))
     asset_csv_path = Column(String(500))
     notes = Column(String(2000))
+
+    # Case Progress fields
+    item_packed = Column(Boolean, default=False)
+    item_packed_at = Column(DateTime, nullable=True)
+    shipping_tracking_created_at = Column(DateTime, nullable=True)
     
     # Non-DB fields for tracking history
     def __init__(self, **kwargs):

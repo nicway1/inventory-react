@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <div class="flex items-center space-x-3 mb-2">
+                    <h1 class="text-3xl font-bold text-gray-900">{{ release.display_version }}</h1>
+                    <span class="inline-flex px-3 py-1 text-sm rounded-full {{ release.get_status_color() }}">
+                        {{ release.status.value }}
+                    </span>
+                    <span class="inline-flex px-3 py-1 text-sm rounded-full {{ release.get_type_color() }}">
+                        {{ release.release_type.value }}
+                    </span>
+                    {% if release.is_pre_release %}
+                        <span class="inline-flex px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                            Pre-release
+                        </span>
+                    {% endif %}
+                    {% if release.is_hotfix %}
+                        <span class="inline-flex px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                            Hotfix
+                        </span>
+                    {% endif %}
+                </div>
+                {% if release.name %}
+                    <h2 class="text-xl text-gray-700 mb-2">{{ release.name }}</h2>
+                {% endif %}
+                {% if release.description %}
+                    <p class="text-gray-600">{{ release.description }}</p>
+                {% endif %}
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('development.edit_release', id=release.id) }}"
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                <a href="{{ url_for('development.releases') }}"
+                   class="text-gray-600 hover:text-gray-800 px-4 py-2">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Releases
+                </a>
+            </div>
+        </div>
+
+        <!-- Release Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <div class="text-3xl font-bold text-blue-600">{{ release.features | length }}</div>
+                <div class="text-sm text-gray-600">Features</div>
+                <div class="text-xs text-gray-500 mt-1">
+                    {{ release.features | selectattr('is_completed') | list | length }} completed
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <div class="text-3xl font-bold text-red-600">{{ release.fixed_bugs | length }}</div>
+                <div class="text-sm text-gray-600">Bug Fixes</div>
+                <div class="text-xs text-gray-500 mt-1">
+                    {{ release.fixed_bugs | selectattr('is_resolved') | list | length }} resolved
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                <div class="text-3xl font-bold text-green-600">{{ release.completion_percentage }}%</div>
+                <div class="text-sm text-gray-600">Complete</div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div class="bg-green-600 h-2 rounded-full" style="width: {{ release.completion_percentage }}%"></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                {% if release.planned_date %}
+                    <div class="text-2xl font-bold {% if release.days_until_release is not none and release.days_until_release < 0 %}text-red-600{% elif release.days_until_release is not none and release.days_until_release < 7 %}text-orange-600{% else %}text-gray-900{% endif %}">
+                        {% if release.days_until_release is not none %}
+                            {% if release.days_until_release < 0 %}
+                                {{ release.days_until_release * -1 }}d overdue
+                            {% elif release.days_until_release == 0 %}
+                                Today
+                            {% else %}
+                                {{ release.days_until_release }}d left
+                            {% endif %}
+                        {% else %}
+                            {{ release.planned_date.strftime('%m/%d') }}
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-600">Target Date</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ release.planned_date.strftime('%B %d, %Y') }}</div>
+                {% else %}
+                    <div class="text-2xl font-bold text-gray-400">Not set</div>
+                    <div class="text-sm text-gray-600">Target Date</div>
+                {% endif %}
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 text-center">
+                {% if release.changelog_entries | length > 0 %}
+                    <div class="text-2xl font-bold text-purple-600">{{ release.changelog_entries | length }}</div>
+                    <div class="text-sm text-gray-600">Changelog</div>
+                    <div class="text-xs text-gray-500 mt-1">entries</div>
+                {% else %}
+                    <div class="text-2xl font-bold text-gray-400">0</div>
+                    <div class="text-sm text-gray-600">Changelog</div>
+                    <div class="text-xs text-gray-500 mt-1">entries</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Features -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Features ({{ release.features | length }})
+                        </h3>
+                        <a href="{{ url_for('development.add_feature_to_release', id=release.id) }}"
+                           class="text-blue-600 hover:text-blue-800 text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Feature
+                        </a>
+                    </div>
+                    <div class="p-6">
+                        {% if release.features %}
+                            <div class="space-y-4">
+                                {% for feature in release.features %}
+                                    <div class="border-l-4 border-blue-400 pl-4">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <a href="{{ url_for('development.view_feature', id=feature.id) }}"
+                                                   class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                                                    {{ feature.title }}
+                                                </a>
+                                                <p class="text-xs text-gray-500 mt-1">
+                                                    {{ feature.display_id }} • {{ feature.requester.name }}
+                                                    {% if feature.assignee %} → {{ feature.assignee.name }}{% endif %}
+                                                </p>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
+                                                    {{ feature.status.value }}
+                                                </span>
+                                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_priority_color() }} ml-1">
+                                                    {{ feature.priority.value }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-gray-500 text-center py-4">No features assigned to this release.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Bug Fixes -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Bug Fixes ({{ release.fixed_bugs | length }})
+                        </h3>
+                        <a href="{{ url_for('development.add_bug_to_release', id=release.id) }}"
+                           class="text-red-600 hover:text-red-800 text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Bug Fix
+                        </a>
+                    </div>
+                    <div class="p-6">
+                        {% if release.fixed_bugs %}
+                            <div class="space-y-4">
+                                {% for bug in release.fixed_bugs %}
+                                    <div class="border-l-4 border-red-400 pl-4">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <a href="{{ url_for('development.view_bug', id=bug.id) }}"
+                                                   class="text-sm font-medium text-gray-900 hover:text-red-600">
+                                                    {{ bug.title }}
+                                                </a>
+                                                <p class="text-xs text-gray-500 mt-1">
+                                                    {{ bug.display_id }} • {{ bug.reporter.name }}
+                                                    {% if bug.assignee %} → {{ bug.assignee.name }}{% endif %}
+                                                </p>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_severity_color() }}">
+                                                    {{ bug.severity.value }}
+                                                </span>
+                                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_status_color() }} ml-1">
+                                                    {{ bug.status.value }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-gray-500 text-center py-4">No bug fixes assigned to this release.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Generated Changelog -->
+                {% if release.features or release.fixed_bugs %}
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Generated Changelog</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <pre class="text-sm text-gray-700 whitespace-pre-wrap">{{ release.generate_changelog() }}</pre>
+                        </div>
+                        <div class="mt-4 flex space-x-3">
+                            <button onclick="copyChangelog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">
+                                <i class="fas fa-copy mr-2"></i>Copy Changelog
+                            </button>
+                            <a href="{{ url_for('development.export_changelog', id=release.id) }}"
+                               class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
+                                <i class="fas fa-download mr-2"></i>Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Release Details -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Release Details</h3>
+                    <dl class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Version</dt>
+                            <dd class="text-sm text-gray-900">{{ release.version }}</dd>
+                        </div>
+
+                        {% if release.release_manager %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Release Manager</dt>
+                            <dd class="text-sm text-gray-900">{{ release.release_manager.name }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if release.deployment_environment %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Environment</dt>
+                            <dd class="text-sm text-gray-900">{{ release.deployment_environment }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if release.git_tag %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Git Tag</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ release.git_tag }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if release.git_commit_hash %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Commit Hash</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ release.git_commit_hash[:8] }}...</dd>
+                        </div>
+                        {% endif %}
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Created</dt>
+                            <dd class="text-sm text-gray-900">{{ release.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="text-sm text-gray-900">{{ release.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+
+                        {% if release.release_date %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Released</dt>
+                            <dd class="text-sm text-gray-900">{{ release.release_date.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                <!-- Release Actions -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+                    <div class="space-y-3">
+                        {% if release.status.value != 'Released' and release.status.value != 'Cancelled' %}
+                            <form method="POST" action="{{ url_for('development.update_release_status', id=release.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <select name="status" onchange="this.form.submit()"
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                    <option value="">Change Status...</option>
+                                    {% for status in ['Planning', 'In Development', 'Testing', 'Ready', 'Released', 'Cancelled'] %}
+                                        {% if status != release.status.value %}
+                                            <option value="{{ status }}">{{ status }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        {% endif %}
+
+                        <a href="{{ url_for('development.edit_release', id=release.id) }}"
+                           class="block w-full text-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                            <i class="fas fa-edit mr-2"></i>Edit Release
+                        </a>
+
+                        {% if release.features or release.fixed_bugs %}
+                            <button onclick="generateChangelog()"
+                                    class="block w-full text-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-list mr-2"></i>Generate Changelog
+                            </button>
+                        {% endif %}
+
+                        {% if release.status.value == 'Ready' %}
+                            <button onclick="deployRelease()"
+                                    class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-rocket mr-2"></i>Deploy Release
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Release Notes -->
+                {% if release.release_notes %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Release Notes</h3>
+                    <div class="prose prose-sm max-w-none text-gray-700">
+                        {{ release.release_notes | nl2br | safe }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Breaking Changes -->
+                {% if release.breaking_changes %}
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+                    <h3 class="text-lg font-semibold text-red-800 mb-4">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Breaking Changes
+                    </h3>
+                    <div class="prose prose-sm max-w-none text-red-700">
+                        {{ release.breaking_changes | nl2br | safe }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyChangelog() {
+    const changelog = `{{ release.generate_changelog() | safe }}`.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    navigator.clipboard.writeText(changelog).then(() => {
+        // Show success message
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+    });
+}
+
+function generateChangelog() {
+    // This would trigger changelog generation/refresh
+    window.location.reload();
+}
+
+function deployRelease() {
+    if (confirm('Are you sure you want to deploy this release? This will mark it as Released.')) {
+        // Create and submit deploy form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("development.deploy_release", id=release.id) }}';
+
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+
+        form.appendChild(csrfToken);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

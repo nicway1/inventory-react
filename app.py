@@ -44,6 +44,7 @@ from utils.email_sender import mail
 # from utils.oauth2_email_sender import oauth2_mail
 import os
 from routes.main import main_bp
+from routes.development import development_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
@@ -201,6 +202,7 @@ def create_app():
     app.register_blueprint(documents_bp)
     app.register_blueprint(debug_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(development_bp, url_prefix='/development')
     # Register category blueprints
     app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
@@ -210,6 +212,15 @@ def create_app():
     def utility_processor():
         """Make current_user available in all templates"""
         return dict(current_user=current_user)
+
+    # Add custom template filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Template filter to convert newlines to <br> tags"""
+        if not text:
+            return ""
+        import re
+        return re.sub(r'\r?\n', '<br>', str(text))
 
     # Add timezone filter for templates
     @app.template_filter('singapore_time')
@@ -284,7 +295,7 @@ if __name__ == '__main__':
             db.close()
 
     # Try different ports if 5001 is in use
-    port = 5006
+    port = 5007
     while port < 5010:  # Try ports 5001-5009
         try:
             app.run(debug=True, host='127.0.0.1', port=port)

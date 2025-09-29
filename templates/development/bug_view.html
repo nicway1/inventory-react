@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <div class="flex items-center space-x-2 mb-2">
+                    <h1 class="text-3xl font-bold text-gray-900">{{ bug.title }}</h1>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_status_color() }}">
+                        {{ bug.status.value }}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_severity_color() }}">
+                        {{ bug.severity.value }}
+                        {% if bug.severity.value == 'Critical' %}
+                            <i class="fas fa-exclamation-triangle ml-1"></i>
+                        {% endif %}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_priority_color() }}">
+                        {{ bug.priority.value }}
+                    </span>
+                </div>
+                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{{ url_for('development.edit_bug', id=bug.id) }}"
+                   class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                <a href="{{ url_for('development.bugs') }}"
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-arrow-left mr-2"></i>Back
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Description -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Description</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.description|nl2br|safe }}
+                    </div>
+                </div>
+
+                <!-- Steps to Reproduce -->
+                {% if bug.steps_to_reproduce %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Steps to Reproduce</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.steps_to_reproduce|nl2br|safe }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Expected vs Actual Behavior -->
+                {% if bug.expected_behavior or bug.actual_behavior %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Expected vs Actual Behavior</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {% if bug.expected_behavior %}
+                        <div class="border-l-4 border-green-400 pl-4">
+                            <h4 class="text-sm font-medium text-green-800 mb-2">Expected Behavior</h4>
+                            <div class="text-sm text-gray-700">
+                                {{ bug.expected_behavior|nl2br|safe }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.actual_behavior %}
+                        <div class="border-l-4 border-red-400 pl-4">
+                            <h4 class="text-sm font-medium text-red-800 mb-2">Actual Behavior</h4>
+                            <div class="text-sm text-gray-700">
+                                {{ bug.actual_behavior|nl2br|safe }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Resolution Notes -->
+                {% if bug.resolution_notes %}
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                    <h3 class="text-lg font-medium text-green-800 mb-4">
+                        <i class="fas fa-check-circle mr-2"></i>Resolution
+                    </h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.resolution_notes|nl2br|safe }}
+                    </div>
+                    {% if bug.resolution_date %}
+                        <p class="text-sm text-gray-500 mt-4">
+                            Resolved on {{ bug.resolution_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Comments -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Comments ({{ bug.comments|length }})
+                        </h3>
+                        <button onclick="toggleCommentForm()"
+                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Comment
+                        </button>
+                    </div>
+
+                    <!-- Comment Form -->
+                    <div id="commentForm" class="hidden mb-6">
+                        <form method="POST" action="{{ url_for('development.add_bug_comment', id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-3">
+                                <select name="comment_type" class="border border-gray-300 rounded px-3 py-1 text-sm">
+                                    <option value="comment">General Comment</option>
+                                    <option value="workaround">Workaround</option>
+                                    <option value="resolution">Resolution Notes</option>
+                                </select>
+                            </div>
+                            <textarea name="content"
+                                      required
+                                      rows="3"
+                                      class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                      placeholder="Add your comment..."></textarea>
+                            <div class="flex justify-end space-x-2 mt-2">
+                                <button type="button"
+                                        onclick="toggleCommentForm()"
+                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
+                                    Add Comment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Comments List -->
+                    {% if bug.comments %}
+                        <div class="space-y-4">
+                            {% for comment in bug.comments|sort(attribute='created_at') %}
+                            <div class="border-l-4 {% if comment.comment_type == 'workaround' %}border-yellow-400{% elif comment.comment_type == 'resolution' %}border-green-400{% else %}border-red-400{% endif %} pl-4 py-2">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ comment.user.name }}
+                                        </div>
+                                        {% if comment.comment_type != 'comment' %}
+                                            <span class="inline-flex px-2 py-1 text-xs rounded-full
+                                                {% if comment.comment_type == 'workaround' %}bg-yellow-100 text-yellow-800
+                                                {% elif comment.comment_type == 'resolution' %}bg-green-100 text-green-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ comment.comment_type.title() }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') if comment.created_at else 'Unknown date' }}
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-700">
+                                    {{ comment.content|nl2br|safe }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No comments yet</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Details -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Details</h3>
+                    <dl class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_status_color() }}">
+                                    {{ bug.status.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Severity</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_severity_color() }}">
+                                    {{ bug.severity.value }}
+                                    {% if bug.severity.value == 'Critical' %}
+                                        <i class="fas fa-exclamation-triangle ml-1"></i>
+                                    {% endif %}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Priority</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_priority_color() }}">
+                                    {{ bug.priority.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Reporter</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.reporter.name }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Assignee</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if bug.assignee %}
+                                    {{ bug.assignee.name }}
+                                {% else %}
+                                    <span class="text-gray-400">Unassigned</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+
+                        {% if bug.component %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Component</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.component }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.environment %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Environment</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.environment }}</dd>
+                        </div>
+                        {% endif %}
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Reported</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.created_at.strftime('%B %d, %Y at %I:%M %p') if bug.created_at else 'Unknown' }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.updated_at.strftime('%B %d, %Y at %I:%M %p') if bug.updated_at else 'Not updated' }}</dd>
+                        </div>
+
+                        {% if bug.resolution_time_days is not none %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Resolution Time</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.resolution_time_days }} days</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                <!-- System Information -->
+                {% if bug.browser_version or bug.operating_system %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">System Information</h3>
+                    <dl class="space-y-3">
+                        {% if bug.browser_version %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Browser</dt>
+                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ bug.browser_version }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.operating_system %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Operating System</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.operating_system }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+                {% endif %}
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+                    <div class="space-y-2">
+                        {% if bug.status == 'OPEN' %}
+                        <form method="POST" action="{{ url_for('development.update_bug_status', id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="IN_PROGRESS">
+                            <button type="submit"
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm">
+                                <i class="fas fa-play mr-2"></i>Start Working
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if bug.status in ['OPEN', 'IN_PROGRESS'] %}
+                        <form method="POST" action="{{ url_for('development.update_bug_status', id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="RESOLVED">
+                            <button type="submit"
+                                    class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
+                                    onclick="return confirm('Mark this bug as resolved?')">
+                                <i class="fas fa-check mr-2"></i>Mark Resolved
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if bug.status == 'RESOLVED' %}
+                        <form method="POST" action="{{ url_for('development.update_bug_status', id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="CLOSED">
+                            <button type="submit"
+                                    class="w-full bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm">
+                                <i class="fas fa-archive mr-2"></i>Close Bug
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if bug.status in ['RESOLVED', 'CLOSED'] %}
+                        <form method="POST" action="{{ url_for('development.update_bug_status', id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="REOPENED">
+                            <button type="submit"
+                                    class="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm"
+                                    onclick="return confirm('Reopen this bug?')">
+                                <i class="fas fa-undo mr-2"></i>Reopen Bug
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Fixed In Release -->
+                {% if bug.fixed_in_release %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Fixed In Release</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <a href="{{ url_for('development.view_release', id=bug.fixed_in_release.id) }}"
+                               class="text-green-600 hover:text-green-800 font-medium">
+                                {{ bug.fixed_in_release.display_version }}
+                            </a>
+                            {% if bug.fixed_in_release.name %}
+                                <p class="text-sm text-gray-600 mt-1">{{ bug.fixed_in_release.name }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Status:</span>
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.fixed_in_release.get_status_color() }}">
+                                {{ bug.fixed_in_release.status.value }}
+                            </span>
+                        </div>
+
+                        {% if bug.fixed_in_release.release_date %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Released:</span>
+                            <span class="text-gray-900">{{ bug.fixed_in_release.release_date.strftime('%m/%d/%Y') }}</span>
+                        </div>
+                        {% elif bug.fixed_in_release.planned_date %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Planned:</span>
+                            <span class="text-gray-900">{{ bug.fixed_in_release.planned_date.strftime('%m/%d/%Y') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCommentForm() {
+    const form = document.getElementById('commentForm');
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) {
+        form.querySelector('textarea').focus();
+    }
+}
+</script>
+{% endblock %}

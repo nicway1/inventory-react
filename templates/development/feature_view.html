@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <div class="flex items-center space-x-2 mb-2">
+                    <h1 class="text-3xl font-bold text-gray-900">{{ feature.title }}</h1>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ feature.get_status_color() }}">
+                        {{ feature.status.value }}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ feature.get_priority_color() }}">
+                        {{ feature.priority.value }}
+                    </span>
+                </div>
+                <p class="text-gray-600">{{ feature.display_id }} • Created {{ feature.created_at.strftime('%B %d, %Y') }}</p>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{{ url_for('development.edit_feature', id=feature.id) }}"
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                <a href="{{ url_for('development.features') }}"
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-arrow-left mr-2"></i>Back
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Description -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Description</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ feature.description|nl2br|safe }}
+                    </div>
+                </div>
+
+                <!-- Acceptance Criteria -->
+                {% if feature.acceptance_criteria %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Acceptance Criteria</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ feature.acceptance_criteria|nl2br|safe }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Comments -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Comments ({{ feature.comments|length }})
+                        </h3>
+                        <button onclick="toggleCommentForm()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Comment
+                        </button>
+                    </div>
+
+                    <!-- Comment Form -->
+                    <div id="commentForm" class="hidden mb-6">
+                        <form method="POST" action="{{ url_for('development.add_feature_comment', id=feature.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <textarea name="content"
+                                      required
+                                      rows="3"
+                                      class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Add your comment..."></textarea>
+                            <div class="flex justify-end space-x-2 mt-2">
+                                <button type="button"
+                                        onclick="toggleCommentForm()"
+                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                                    Add Comment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Comments List -->
+                    {% if feature.comments %}
+                        <div class="space-y-4">
+                            {% for comment in feature.comments|sort(attribute='created_at') %}
+                            <div class="border-l-4 border-blue-400 pl-4 py-2">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ comment.user.name }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-700">
+                                    {{ comment.content|nl2br|safe }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No comments yet</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Details -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Details</h3>
+                    <dl class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
+                                    {{ feature.status.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Priority</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_priority_color() }}">
+                                    {{ feature.priority.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Requester</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.requester.name }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Assignee</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if feature.assignee %}
+                                    {{ feature.assignee.name }}
+                                {% else %}
+                                    <span class="text-gray-400">Unassigned</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+
+                        {% if feature.component %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Component</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.component }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if feature.estimated_effort %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Estimated Effort</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.estimated_effort }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if feature.business_value %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Business Value</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.business_value }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if feature.target_date %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Target Date</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.target_date.strftime('%B %d, %Y') }}</dd>
+                        </div>
+                        {% endif %}
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Created</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if feature.created_at %}
+                                    {{ feature.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                {% else %}
+                                    <span class="text-gray-400">Not specified</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if feature.updated_at %}
+                                    {{ feature.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                {% else %}
+                                    <span class="text-gray-400">Never updated</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Target Release -->
+                {% if feature.target_release %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Target Release</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <a href="{{ url_for('development.view_release', id=feature.target_release.id) }}"
+                               class="text-blue-600 hover:text-blue-800 font-medium">
+                                {{ feature.target_release.display_version }}
+                            </a>
+                            {% if feature.target_release.name %}
+                                <p class="text-sm text-gray-600 mt-1">{{ feature.target_release.name }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Status:</span>
+                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.target_release.get_status_color() }}">
+                                {{ feature.target_release.status.value }}
+                            </span>
+                        </div>
+
+                        {% if feature.target_release.planned_date %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Planned Date:</span>
+                            <span class="text-gray-900">{{ feature.target_release.planned_date.strftime('%m/%d/%Y') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+                    <div class="space-y-2">
+                        {% if feature.status != 'COMPLETED' %}
+                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="COMPLETED">
+                            <button type="submit"
+                                    class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
+                                    onclick="return confirm('Mark this feature as completed?')">
+                                <i class="fas fa-check mr-2"></i>Mark Complete
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if feature.status == 'REQUESTED' %}
+                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="IN_PLANNING">
+                            <button type="submit"
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm">
+                                <i class="fas fa-play mr-2"></i>Start Planning
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if feature.status in ['IN_PLANNING', 'IN_DEVELOPMENT'] %}
+                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="CANCELLED">
+                            <button type="submit"
+                                    class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm"
+                                    onclick="return confirm('Cancel this feature request?')">
+                                <i class="fas fa-times mr-2"></i>Cancel Feature
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCommentForm() {
+    const form = document.getElementById('commentForm');
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) {
+        form.querySelector('textarea').focus();
+    }
+}
+</script>
+{% endblock %}

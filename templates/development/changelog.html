@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Changelog</h1>
+                <p class="text-gray-600">{{ release.display_version }}{% if release.name %} - {{ release.name }}{% endif %}</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="copyChangelog()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-copy mr-2"></i>Copy
+                </button>
+                <a href="{{ url_for('development.export_changelog', id=release.id) }}"
+                   class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-download mr-2"></i>Download
+                </a>
+                <a href="{{ url_for('development.view_release', id=release.id) }}"
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-arrow-left mr-2"></i>Back
+                </a>
+            </div>
+        </div>
+
+        <!-- Release Info -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <div class="text-sm font-medium text-gray-500">Version</div>
+                    <div class="text-lg font-bold text-gray-900">{{ release.version }}</div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-gray-500">Type</div>
+                    <div class="text-lg font-bold">
+                        <span class="inline-flex px-2 py-1 text-sm rounded-full {{ release.get_type_color() }}">
+                            {{ release.release_type.value }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-gray-500">Status</div>
+                    <div class="text-lg font-bold">
+                        <span class="inline-flex px-2 py-1 text-sm rounded-full {{ release.get_status_color() }}">
+                            {{ release.status.value }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-gray-500">
+                        {% if release.release_date %}
+                            Released
+                        {% else %}
+                            Planned
+                        {% endif %}
+                    </div>
+                    <div class="text-lg font-bold text-gray-900">
+                        {% if release.release_date %}
+                            {{ release.release_date.strftime('%m/%d/%Y') }}
+                        {% elif release.planned_date %}
+                            {{ release.planned_date.strftime('%m/%d/%Y') }}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated Changelog -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Generated Changelog</h3>
+            </div>
+            <div class="p-6">
+                <div id="changelog-content" class="bg-gray-50 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">{{ changelog }}</div>
+            </div>
+        </div>
+
+        <!-- Raw Markdown Preview -->
+        <div class="mt-6 bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Markdown Source</h3>
+            </div>
+            <div class="p-6">
+                <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                    <code>{{ changelog }}</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Release Summary -->
+        <div class="mt-6 bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Release Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                    <div class="text-2xl font-bold text-blue-600">{{ release.features | length }}</div>
+                    <div class="text-sm text-gray-600">New Features</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-red-600">{{ release.fixed_bugs | length }}</div>
+                    <div class="text-sm text-gray-600">Bug Fixes</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-green-600">{{ release.completion_percentage }}%</div>
+                    <div class="text-sm text-gray-600">Complete</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-purple-600">{{ release.changelog_entries | length }}</div>
+                    <div class="text-sm text-gray-600">Manual Entries</div>
+                </div>
+            </div>
+        </div>
+
+        {% if release.breaking_changes %}
+        <!-- Breaking Changes Warning -->
+        <div class="mt-6 bg-red-50 border-l-4 border-red-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Breaking Changes</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        {{ release.breaking_changes | nl2br | safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function copyChangelog() {
+    const changelogContent = document.getElementById('changelog-content').textContent;
+
+    navigator.clipboard.writeText(changelogContent).then(() => {
+        // Show success message
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        button.classList.add('bg-green-600');
+
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy changelog to clipboard');
+    });
+}
+</script>
+{% endblock %}
