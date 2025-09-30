@@ -431,6 +431,34 @@
     letter-spacing: 0.05em;
 }
 
+.login-logo-title {
+    text-align: center;
+    color: #ffffff;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+.login-alert {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.18);
+    color: #fee2e2;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 18px 36px rgba(248, 113, 113, 0.18);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.login-alert span {
+    display: block;
+}
+
+.login-alert-error {
+    border-color: rgba(248, 113, 113, 0.45);
+}
+
 /* Enhanced animations */
 @keyframes logoFloat {
     0%, 100% { 
@@ -544,12 +572,26 @@ body.light-theme .liquid-glass-container {
     backdrop-filter: none;
 }
 
+body.light-theme .liquid-glass-container::after {
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.65) 0%,
+        rgba(226, 232, 240, 0.45) 50%,
+        rgba(148, 163, 184, 0.25) 100%
+    );
+}
+
 body.light-theme .liquid-glass-content {
     color: #1e293b;
 }
 
 body.light-theme .liquid-glass-title {
     color: #1e293b;
+    text-shadow: none;
+}
+
+body.light-theme .login-logo-title {
+    color: #0f172a;
     text-shadow: none;
 }
 
@@ -588,6 +630,10 @@ body.light-theme .form-label {
     color: #374151;
 }
 
+body.light-theme .liquid-glass-branding p {
+    color: #475569;
+}
+
 body.light-theme .theme-options {
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(0, 0, 0, 0.15);
@@ -607,6 +653,23 @@ body.light-theme .theme-btn.active {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+}
+
+body.light-theme .login-alert {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #7f1d1d;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+body.light-theme .login-alert span {
+    color: inherit;
+}
+
+body.light-theme .liquid-glass-logo img {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(148, 163, 184, 0.4);
+    box-shadow: 0 14px 28px rgba(148, 163, 184, 0.25);
 }
 
 /* Dark Theme */
