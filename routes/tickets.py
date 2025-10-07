@@ -83,8 +83,8 @@ def get_filtered_customers(db_session, user):
     
     customers_query = db_session.query(CustomerUser)
     
-    # SUPER_ADMIN users can see all customers
-    if user.user_type == UserType.SUPER_ADMIN:
+    # SUPER_ADMIN and DEVELOPER users can see all customers
+    if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
         return customers_query.order_by(CustomerUser.name).all()
     
     # For other users, apply permission-based filtering
@@ -126,7 +126,7 @@ def list_tickets():
         tickets = ticket_store.get_user_tickets(user_id, user_type)
     
     # Filter tickets based on queue access permissions
-    if not user.is_super_admin:
+    if not user.is_super_admin and not user.is_developer:
         filtered_tickets = []
         for ticket in tickets:
             if ticket.queue_id and user.can_access_queue(ticket.queue_id):
@@ -228,7 +228,7 @@ def export_tickets_csv():
         tickets = query.all()
 
         # Filter tickets based on queue access permissions (same as list_tickets)
-        if not user.is_super_admin:
+        if not user.is_super_admin and not user.is_developer:
             filtered_tickets = []
             for ticket in tickets:
                 if ticket.queue_id and user.can_access_queue(ticket.queue_id):
@@ -492,7 +492,7 @@ def export_single_ticket_csv(ticket_id):
             return redirect(url_for('tickets.list_tickets'))
 
         # Check queue access permissions
-        if not user.is_super_admin and ticket.queue_id and not user.can_access_queue(ticket.queue_id):
+        if not user.is_super_admin and not user.is_developer and ticket.queue_id and not user.can_access_queue(ticket.queue_id):
             flash('You do not have permission to access this ticket.', 'error')
             return redirect(url_for('tickets.list_tickets'))
 

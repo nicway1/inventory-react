@@ -12,7 +12,7 @@
         </div>
 
         <!-- Permissions Management Section -->
-        {% if user.is_super_admin %}
+        {% if user.is_super_admin or user.is_developer %}
         <div class="space-y-6">
             {% for permission in permissions %}
             <div class="bg-white shadow-md rounded-lg p-6">

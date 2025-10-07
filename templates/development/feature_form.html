@@ -94,7 +94,7 @@
                             {% for user in users %}
                             <option value="{{ user.id }}"
                                     {% if feature and feature.assignee_id == user.id %}selected{% endif %}>
-                                {{ user.name }}
+                                {{ user.username }} ({{ user.email }})
                             </option>
                             {% endfor %}
                         </select>
@@ -114,7 +114,7 @@
                             {% for admin in super_admins %}
                             <option value="{{ admin.id }}"
                                     {% if feature and feature.approver_id == admin.id %}selected{% endif %}>
-                                {{ admin.name }} ({{ admin.email }})
+                                {{ admin.username }} ({{ admin.email }})
                             </option>
                             {% endfor %}
                         </select>

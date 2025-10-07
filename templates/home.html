@@ -37,7 +37,7 @@
                 </svg>
                 <h2 class="text-xl font-semibold">Tickets</h2>
             </div>
-            {% if user.user_type.value == 'SUPER_ADMIN' %}
+            {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}
             <p class="text-3xl font-bold text-green-600">{{ ticket_counts.open }}</p>
             <p class="text-gray-600">Open Tickets</p>
             <p class="text-sm text-gray-500">Total: {{ ticket_counts.total }} | Resolved: {{ ticket_counts.resolved }}</p>
@@ -101,9 +101,6 @@
             <p class="text-gray-600">Feature & Bug Management</p>
             <div class="mt-4 space-y-2">
                 <a href="{{ url_for('development.dashboard') }}" class="block text-purple-600 hover:text-purple-800">Dashboard →</a>
-                <a href="{{ url_for('development.features') }}" class="block text-blue-600 hover:text-blue-800">Features →</a>
-                <a href="{{ url_for('development.bugs') }}" class="block text-red-600 hover:text-red-800">Bugs →</a>
-                <a href="{{ url_for('development.releases') }}" class="block text-green-600 hover:text-green-800">Releases →</a>
             </div>
         </div>
 
@@ -228,7 +225,7 @@
         {% endif %}
 
         <!-- Import Card -->
-        {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN'] %}
+        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-teal-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,7 +250,7 @@
 
 
         <!-- Ticket Import Card for Supervisors -->
-        {% if user.user_type.value in ['SUPER_ADMIN', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
+        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,7 +278,7 @@
         {% endif %}
 
         <!-- Billing Generator Card (Only for Admin) -->
-        {% if user.user_type.value in ['SUPER_ADMIN', 'ADMIN'] %}
+        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-emerald-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,8 +317,8 @@
         </div>
         {% endif %}
 
-        <!-- System Management Card (Only for Super Admin) -->
-        {% if user.user_type.value == 'SUPER_ADMIN' %}
+        <!-- System Management Card (Only for Super Admin and Developer) -->
+        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}
         <div class="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
             <div class="flex items-center mb-6">
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-2 rounded-lg mr-3">

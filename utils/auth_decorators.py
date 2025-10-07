@@ -18,7 +18,7 @@ def admin_required(f):
         if not session.get('user_id'):
             return redirect(url_for('auth.login', next=request.url))
         user_type = session.get('user_type')
-        admin_types = [UserType.SUPER_ADMIN.value, UserType.COUNTRY_ADMIN.value]
+        admin_types = [UserType.SUPER_ADMIN.value, UserType.DEVELOPER.value, UserType.COUNTRY_ADMIN.value]
         if not user_type or user_type not in admin_types:
             flash('You do not have permission to access this page')
             return redirect(url_for('main.index'))
@@ -28,7 +28,7 @@ def admin_required(f):
 def super_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.user_type != UserType.SUPER_ADMIN:
+        if not current_user.is_authenticated or current_user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
@@ -36,7 +36,7 @@ def super_admin_required(f):
 def check_country_access(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if current_user.user_type == UserType.SUPER_ADMIN:
+        if current_user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
             return f(*args, **kwargs)
         elif current_user.user_type == UserType.COUNTRY_ADMIN:
             # Add logic to check if the requested data belongs to the admin's country

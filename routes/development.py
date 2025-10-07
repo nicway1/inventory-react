@@ -230,7 +230,7 @@ def features():
             .limit(per_page).all()
 
         # Get filter options
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
 
         return render_template('development/features.html',
                              features=features,
@@ -297,7 +297,7 @@ def new_feature():
     # GET - show form
     db_session = SessionLocal()
     try:
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         super_admins = db_session.query(User).filter(User.user_type == UserType.SUPER_ADMIN).all()
         releases = db_session.query(Release).filter(
             Release.status.in_([ReleaseStatus.PLANNING, ReleaseStatus.IN_DEVELOPMENT])
@@ -379,7 +379,7 @@ def edit_feature(id):
                 flash(f'Error updating feature request: {str(e)}', 'error')
 
         # GET - show form
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         super_admins = db_session.query(User).filter(User.user_type == UserType.SUPER_ADMIN).all()
         releases = db_session.query(Release).filter(
             Release.status.in_([ReleaseStatus.PLANNING, ReleaseStatus.IN_DEVELOPMENT, ReleaseStatus.TESTING])
@@ -602,7 +602,7 @@ def bugs():
             .limit(per_page).all()
 
         # Get filter options
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
 
         return render_template('development/bugs.html',
                              bugs=bugs,
@@ -695,7 +695,7 @@ def new_bug():
     # GET - show form
     db_session = SessionLocal()
     try:
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         return render_template('development/bug_form.html',
                              users=users,
                              BugSeverity=BugSeverity,
@@ -770,7 +770,7 @@ def edit_bug(id):
                 flash(f'Error updating bug report: {str(e)}', 'error')
 
         # GET - show form
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         return render_template('development/bug_form.html',
                              bug=bug,
                              users=users,
@@ -872,7 +872,7 @@ def new_release():
     # GET - show form
     db_session = SessionLocal()
     try:
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         return render_template('development/release_form.html',
                              users=users,
                              ReleaseType=ReleaseType)
@@ -923,7 +923,7 @@ def edit_release(id):
                 flash(f'Error updating release: {str(e)}', 'error')
 
         # GET - show form
-        users = db_session.query(User).filter(User.user_type.in_(['Admin', 'Staff'])).all()
+        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
         return render_template('development/release_form.html',
                              release=release,
                              users=users,

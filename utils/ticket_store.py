@@ -201,8 +201,8 @@ class TicketStore:
             query = db_session.query(Ticket)\
                 .options(self.db_manager.joinedload(Ticket.assigned_to))
             
-            # Super admin can see all tickets
-            if user_type == UserType.SUPER_ADMIN:
+            # Super admin and developer can see all tickets
+            if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
                 return query.order_by(Ticket.created_at.desc()).all()
 
             # Country admin and regular users only see their own tickets

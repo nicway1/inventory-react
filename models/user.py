@@ -79,9 +79,14 @@ class User(Base, UserMixin):
         return self.user_type == UserType.SUPER_ADMIN
 
     @property
+    def is_developer(self):
+        """Check if user is a developer"""
+        return self.user_type == UserType.DEVELOPER
+
+    @property
     def is_admin(self):
         """Check if user is an admin"""
-        return self.user_type in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]
+        return self.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN]
 
     @property
     def is_country_admin(self):
@@ -99,8 +104,8 @@ class User(Base, UserMixin):
 
     def can_access_company(self, company_id):
         """Check if user has access to a specific company"""
-        # Super admins can access all companies
-        if self.is_super_admin:
+        # Super admins and developers can access all companies
+        if self.is_super_admin or self.is_developer:
             return True
             
         # Check user's company permissions
@@ -116,9 +121,9 @@ class User(Base, UserMixin):
         from database import engine
         from models.company_queue_permission import CompanyQueuePermission
         from models.queue import Queue
-        
-        # Super admins can access all queues
-        if self.is_super_admin:
+
+        # Super admins and developers can access all queues
+        if self.is_super_admin or self.is_developer:
             return True
         
         session = Session(engine)
@@ -155,9 +160,9 @@ class User(Base, UserMixin):
         from database import engine
         from models.company_queue_permission import CompanyQueuePermission
         from models.queue import Queue
-        
-        # Super admins can create tickets in all queues
-        if self.is_super_admin:
+
+        # Super admins and developers can create tickets in all queues
+        if self.is_super_admin or self.is_developer:
             return True
         
         session = Session(engine)
@@ -190,8 +195,8 @@ class User(Base, UserMixin):
 
     def can_edit_company_assets(self, company_id):
         """Check if user has edit permissions for a company's assets"""
-        # Super admins can edit all companies
-        if self.is_super_admin:
+        # Super admins and developers can edit all companies
+        if self.is_super_admin or self.is_developer:
             return True
             
         # Check user's company permissions
@@ -230,11 +235,11 @@ class User(Base, UserMixin):
         from sqlalchemy.orm import Session
         from database import engine
         from models.company import Company
-        
+
         session = Session(engine)
         try:
-            # Super admins can access all companies
-            if self.is_super_admin:
+            # Super admins and developers can access all companies
+            if self.is_super_admin or self.is_developer:
                 return session.query(Company).all()
                 
             # Get companies where user has view permission

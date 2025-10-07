@@ -85,6 +85,9 @@ class Permission(Base):
     can_create_releases = Column(Boolean, default=False)
     can_edit_releases = Column(Boolean, default=False)
 
+    # Debug Permissions
+    can_access_debug_logs = Column(Boolean, default=False)
+
     @classmethod
     def permission_fields(cls):
         """Get all permission field names"""
@@ -96,7 +99,7 @@ class Permission(Base):
     @staticmethod
     def get_default_permissions(user_type):
         """Get default permissions for a user type"""
-        if user_type == UserType.SUPER_ADMIN:
+        if user_type == UserType.SUPER_ADMIN or user_type == UserType.DEVELOPER:
             return {
                 'can_view_assets': True,
                 'can_edit_assets': True,
@@ -149,7 +152,8 @@ class Permission(Base):
                 'can_edit_bugs': True,
                 'can_view_releases': True,
                 'can_create_releases': True,
-                'can_edit_releases': True
+                'can_edit_releases': True,
+                'can_access_debug_logs': True
             }
         elif user_type == UserType.COUNTRY_ADMIN:
             return {

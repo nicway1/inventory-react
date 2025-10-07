@@ -2,6 +2,7 @@ from enum import Enum as PyEnum
 
 class UserType(str, PyEnum):
     SUPER_ADMIN = "SUPER_ADMIN"
+    DEVELOPER = "DEVELOPER"
     SUPERVISOR = "SUPERVISOR"
     COUNTRY_ADMIN = "COUNTRY_ADMIN"
     CLIENT = "CLIENT"

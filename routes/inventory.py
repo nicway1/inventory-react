@@ -63,8 +63,8 @@ def get_filtered_customers(db_session, user):
     
     customers_query = db_session.query(CustomerUser)
     
-    # SUPER_ADMIN users can see all customers
-    if user.user_type == UserType.SUPER_ADMIN:
+    # SUPER_ADMIN and DEVELOPER users can see all customers
+    if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
         return customers_query.order_by(CustomerUser.name).all()
     
     # For other users, apply permission-based filtering

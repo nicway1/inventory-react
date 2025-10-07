@@ -103,10 +103,10 @@ def index():
             import_type = request.form.get('import_type', 'asset')  # Default to asset import
             
             # Check permissions based on import type
-            if import_type == 'asset' and user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN]:
+            if import_type == 'asset' and user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN]:
                 flash('You do not have permission to import assets')
                 return redirect(url_for('main.index'))
-            elif import_type == 'ticket' and user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            elif import_type == 'ticket' and user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
                 flash('You do not have permission to import tickets')
                 return redirect(url_for('main.index'))
             
@@ -142,8 +142,8 @@ def index():
                 return redirect(request.url)
 
         # Get queues with filtering based on user permissions
-        if user.user_type == UserType.SUPER_ADMIN:
-            # Super admins can see all queues
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # Super admins and developers can see all queues
             queues = queue_store.get_all_queues()
         else:
             # For all other user types, filter queues based on company permissions
@@ -483,10 +483,10 @@ def preview_ticket_import(filename):
             return redirect(url_for('auth.login'))
         
         # Check permissions
-        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             flash('You do not have permission to import tickets')
             return redirect(url_for('main.index'))
-        
+
         # Get preview data
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
@@ -524,10 +524,10 @@ def import_tickets():
             return redirect(url_for('auth.login'))
         
         # Check permissions
-        if user.user_type not in [UserType.SUPER_ADMIN, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             flash('You do not have permission to import tickets')
             return redirect(url_for('main.index'))
-        
+
         filename = request.form.get('filename')
         if not filename:
             flash('No filename provided')
