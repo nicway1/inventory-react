@@ -395,8 +395,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedIds = Array.from(checkboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
-        document.getElementById('selectedIds').value = selectedIds.join(',');
-        
+        document.getElementById('selectedIds').value = JSON.stringify(selectedIds);
+
         // Update select all checkbox state
         const selectAllCheckbox = document.getElementById('selectAll');
         if (checkboxes.length > 0) {

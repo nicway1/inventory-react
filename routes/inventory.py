@@ -2632,12 +2632,29 @@ def export_inventory(item_type):
                 ])
         
         elif item_type == 'accessories':
-            # Get accessories based on user permissions
+            # Get accessories based on user permissions and selection
             query = db_session.query(Accessory)
+
+            # Handle selected accessories if POST request
+            if request.method == 'POST' and request.form.get('selected_ids'):
+                try:
+                    selected_ids = json.loads(request.form.get('selected_ids'))
+                    if selected_ids:
+                        query = query.filter(Accessory.id.in_(selected_ids))
+                except json.JSONDecodeError:
+                    flash('Invalid selection data', 'error')
+                    return redirect(url_for('inventory.view_accessories'))
+
+            # Apply user permission filters
             if not current_user.is_super_admin:
                 if current_user.is_country_admin and current_user.assigned_country:
                     query = query.filter(Accessory.country == current_user.assigned_country.value)
+
             accessories = query.all()
+
+            if not accessories:
+                flash('No accessories selected for export', 'error')
+                return redirect(url_for('inventory.view_accessories'))
             
             # Write header
             writer.writerow([
