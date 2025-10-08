@@ -830,17 +830,58 @@ def get_inventory_item(item_id):
                 )
                 return jsonify(response), status_code
             
+            # Get customer name
+            customer_name = None
+            try:
+                if item.customer_user:
+                    customer_name = item.customer_user.name
+            except:
+                pass
+
             item_data = {
+                # Basic Info
                 'id': item.id,
-                'name': item.name,
                 'asset_tag': item.asset_tag,
                 'serial_number': item.serial_num,
+                'name': item.name,
                 'model': item.model,
+                'manufacturer': getattr(item, 'manufacturer', None),
+                'category': getattr(item, 'category', None),
                 'status': item.status.value if hasattr(item.status, 'value') else str(item.status) if item.status else 'Unknown',
+
+                # Hardware Specs
+                'cpu_type': getattr(item, 'cpu_type', None),
+                'cpu_cores': getattr(item, 'cpu_cores', None),
+                'gpu_cores': getattr(item, 'gpu_cores', None),
+                'memory': getattr(item, 'memory', None),
+                'storage': getattr(item, 'harddrive', None),
+                'asset_type': getattr(item, 'asset_type', None),
+                'hardware_type': getattr(item, 'hardware_type', None),
+
+                # Condition Fields
+                'condition': getattr(item, 'condition', None),
+                'is_erased': getattr(item, 'erased', None),
+                'has_keyboard': getattr(item, 'keyboard', None),
+                'has_charger': getattr(item, 'charger', None),
+                'diagnostics_code': getattr(item, 'diag', None),
+
+                # Location/Assignment Fields
+                'current_customer': customer_name,
+                'customer': getattr(item, 'customer', None),
+                'country': getattr(item, 'country', None),
+                'asset_company': item.company.name if item.company else None,
+                'company_id': getattr(item, 'company_id', None),
                 'location_id': getattr(item, 'location_id', None),
+                'location_name': item.location.name if item.location else None,
+
+                # Additional Fields
                 'description': getattr(item, 'description', None),
                 'cost_price': getattr(item, 'cost_price', None),
-                'manufacturer': getattr(item, 'manufacturer', None),
+                'notes': getattr(item, 'notes', None),
+                'tech_notes': getattr(item, 'tech_notes', None),
+                'specifications': getattr(item, 'specifications', None),
+                'po': getattr(item, 'po', None),
+                'receiving_date': item.receiving_date.isoformat() if hasattr(item, 'receiving_date') and item.receiving_date else None,
                 'created_at': item.created_at.isoformat() if item.created_at else None,
                 'updated_at': item.updated_at.isoformat() if item.updated_at else None
             }
