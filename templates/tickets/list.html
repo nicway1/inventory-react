@@ -622,7 +622,8 @@
                                 <th onclick="sortTable(3)">Priority</th>
                                 <th onclick="sortTable(4)">Created</th>
                                 <th onclick="sortTable(5)">Category</th>
-                                <th onclick="sortTable(6)">Case Owner</th>
+                                <th onclick="sortTable(6)">Queue</th>
+                                <th onclick="sortTable(7)">Case Owner</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -673,7 +674,7 @@
                                     {{ ticket.created_at | singapore_time | default('N/A') }}
                                 </td>
                                 <td>
-                                    <span class="sf-badge 
+                                    <span class="sf-badge
                                         {% if ticket.category and ticket.category.value == 'PIN_REQUEST' %}
                                             bg-purple-100 text-purple-800
                                         {% elif ticket.category and ticket.category.value == 'ASSET_REPAIR' %}
@@ -694,6 +695,17 @@
                                         {% endif %}">
                                         {{ ticket.get_category_display_name() }}
                                     </span>
+                                </td>
+                                <td>
+                                    {% if ticket.queue %}
+                                        <span class="sf-badge bg-indigo-100 text-indigo-800">
+                                            {{ ticket.queue.name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="sf-badge bg-gray-100 text-gray-800">
+                                            No Queue
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if ticket.assigned_to %}
