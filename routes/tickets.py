@@ -135,8 +135,16 @@ def list_tickets():
             elif not ticket.queue_id:
                 filtered_tickets.append(ticket)
         tickets = filtered_tickets
-        
-    return render_template('tickets/list.html', tickets=tickets, user=user)
+
+    # Get all queues for the filter dropdown
+    from models.queue import Queue
+    db_session = db_manager.get_session()
+    try:
+        queues = db_session.query(Queue).order_by(Queue.name).all()
+    finally:
+        db_session.close()
+
+    return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues)
 
 @tickets_bp.route('/export/csv')
 @login_required

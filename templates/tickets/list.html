@@ -598,7 +598,15 @@
                             <option value="Asset Return (claw)">Asset Return</option>
                             <option value="Asset Intake">Asset Intake</option>
                         </select>
-                        
+
+                        <span class="sf-filter-label">Queue:</span>
+                        <select class="sf-filter-select" id="queueFilter" onchange="filterTickets()">
+                            <option value="">All</option>
+                            {% for queue in queues %}
+                            <option value="{{ queue.name }}">{{ queue.name }}</option>
+                            {% endfor %}
+                        </select>
+
                         <div class="flex items-center ml-auto">
                             <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -615,6 +623,16 @@
                 <div class="overflow-x-auto">
                     <table class="sf-data-table" id="ticketsTable">
                         <thead>
+                            <tr class="bg-gradient-to-r from-indigo-50 to-blue-50 border-b-2 border-indigo-200">
+                                <th colspan="9" class="text-left px-6 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                        </svg>
+                                        <span class="font-semibold text-indigo-900" id="currentQueueDisplay">Queue: <span id="currentQueueName">All Queues</span></span>
+                                    </div>
+                                </th>
+                            </tr>
                             <tr>
                                 <th onclick="sortTable(0)">Case Number</th>
                                 <th onclick="sortTable(1)">Subject</th>
@@ -823,7 +841,16 @@
         const statusFilter = document.getElementById('statusFilter').value;
         const priorityFilter = document.getElementById('priorityFilter').value;
         const categoryFilter = document.getElementById('categoryFilter').value;
+        const queueFilter = document.getElementById('queueFilter').value;
         const searchText = document.getElementById('searchInput').value.toLowerCase();
+
+        // Update queue display
+        const queueNameDisplay = document.getElementById('currentQueueName');
+        if (queueFilter) {
+            queueNameDisplay.textContent = queueFilter;
+        } else {
+            queueNameDisplay.textContent = 'All Queues';
+        }
         
         // Update active tab if specified
         if (tabFilter) {
@@ -852,13 +879,15 @@
             const status = row.getAttribute('data-status');
             const priority = row.getAttribute('data-priority');
             const category = row.getAttribute('data-category');
+            const queue = row.querySelector('td:nth-child(7)').textContent.trim(); // Queue is in column 7
             const subject = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
             const caseNumber = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
-            
+
             // Check if row matches all filters
             const matchesStatus = !statusFilter || status === statusFilter;
             const matchesPriority = !priorityFilter || priority === priorityFilter;
             const matchesCategory = !categoryFilter || category === categoryFilter;
+            const matchesQueue = !queueFilter || queue === queueFilter;
             // Handle search logic - either single search or bulk search
             let matchesSearch = true;
             if (isBulkSearchMode && bulkSearchIds.length > 0) {
@@ -908,7 +937,7 @@
                 matchesTab = ticketCreated >= sevenDaysAgo;
             }
             
-            if (matchesStatus && matchesPriority && matchesCategory && matchesSearch && matchesTab) {
+            if (matchesStatus && matchesPriority && matchesCategory && matchesQueue && matchesSearch && matchesTab) {
                 filteredItems.push(row);
                 row.style.display = '';
             } else {
