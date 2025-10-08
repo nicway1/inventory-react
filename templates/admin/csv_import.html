@@ -563,8 +563,11 @@ function displayCSVData(data) {
                 }
             </td>
             <td class="px-3 py-4 text-sm font-medium space-x-2">
-                <button onclick="previewTicket(${index}, ${row.is_grouped || false})"
-                        class="text-blue-600 hover:text-blue-900">👁️ Preview</button>
+                ${row.is_duplicate ?
+                    `<span class="text-gray-400 cursor-not-allowed opacity-60">👁️ Preview</span>` :
+                    `<button onclick="previewTicket(${index}, ${row.is_grouped || false})"
+                            class="text-blue-600 hover:text-blue-900">👁️ Preview</button>`
+                }
                 ${row.cannot_import ?
                     `<span class="text-red-500 cursor-not-allowed opacity-60">🚫 ${row.is_duplicate ? 'Imported' : 'Blocked'}</span>` :
                     `<button onclick="importSingleTicket(${index})"
