@@ -139,8 +139,15 @@ def list_tickets():
     # Get all queues for the filter dropdown
     from models.queue import Queue
     db_session = db_manager.get_session()
+    queues = []
     try:
         queues = db_session.query(Queue).order_by(Queue.name).all()
+        logging.info(f"Loaded {len(queues)} queues for filter dropdown")
+        for queue in queues:
+            logging.info(f"  Queue: {queue.name} (ID: {queue.id})")
+    except Exception as e:
+        logging.error(f"Error loading queues: {str(e)}")
+        queues = []
     finally:
         db_session.close()
 
