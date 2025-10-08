@@ -7,7 +7,7 @@
             <h2 class="text-2xl font-bold text-gray-900">Company Management</h2>
             <p class="mt-1 text-sm text-gray-600">
                 Showing parent companies and standalone companies only. Child companies are managed in
-                <a href="{{ url_for('admin.company_grouping') }}" class="text-blue-600 hover:underline">Company Grouping</a>.
+                <a href="{{ url_for('admin.manage_company_grouping') }}" class="text-blue-600 hover:underline">Company Grouping</a>.
             </p>
         </div>
         <a href="{{ url_for('admin.create_company') }}"
@@ -59,7 +59,7 @@
                         <a href="{{ url_for('admin.edit_company', company_id=company.id) }}"
                            class="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
                         {% if company.child_count > 0 %}
-                        <a href="{{ url_for('admin.company_grouping') }}"
+                        <a href="{{ url_for('admin.manage_company_grouping') }}"
                            class="text-purple-600 hover:text-purple-900 mr-4">View Children</a>
                         {% endif %}
                         <button onclick="deleteCompany('{{ company.id }}')"
