@@ -3445,15 +3445,50 @@ def get_assets_api():
                     customer_name = None
                 
                 assets_data.append({
+                    # Basic Info
                     'id': asset.id,
                     'asset_tag': asset.asset_tag,
                     'serial_num': asset.serial_num,
                     'name': asset.name,
                     'model': asset.model,
-                    'status': asset.status.value if asset.status else 'Unknown',
                     'manufacturer': asset.manufacturer,
-                    'customer': customer_name,
-                    'country': asset.country
+                    'category': asset.category,
+                    'status': asset.status.value if asset.status else 'Unknown',
+
+                    # Hardware Specs
+                    'cpu_type': asset.cpu_type,
+                    'cpu_cores': asset.cpu_cores,
+                    'gpu_cores': asset.gpu_cores,
+                    'memory': asset.memory,
+                    'storage': asset.harddrive,  # harddrive field is storage
+                    'asset_type': asset.asset_type,
+                    'hardware_type': asset.hardware_type,
+
+                    # Condition Fields
+                    'condition': asset.condition,
+                    'is_erased': asset.erased,
+                    'has_keyboard': asset.keyboard,
+                    'has_charger': asset.charger,
+                    'diagnostics_code': asset.diag,
+
+                    # Location/Assignment Fields
+                    'current_customer': customer_name,
+                    'customer': asset.customer,  # Legacy customer field
+                    'country': asset.country,
+                    'asset_company': asset.company.name if asset.company else None,
+                    'company_id': asset.company_id,
+                    'location_id': asset.location_id,
+                    'location': asset.location.name if asset.location else None,
+
+                    # Additional Fields
+                    'cost_price': asset.cost_price,
+                    'notes': asset.notes,
+                    'tech_notes': asset.tech_notes,
+                    'specifications': asset.specifications,
+                    'po': asset.po,
+                    'receiving_date': asset.receiving_date.isoformat() if asset.receiving_date else None,
+                    'created_at': asset.created_at.isoformat() if asset.created_at else None,
+                    'updated_at': asset.updated_at.isoformat() if asset.updated_at else None
                 })
             except Exception as asset_err:
                 logger.info("[ASSETS API] Error processing asset {asset.id}: {asset_err}")

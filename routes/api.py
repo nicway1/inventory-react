@@ -550,14 +550,57 @@ def get_inventory_item(asset_id):
             )
             return jsonify(response), status_code
         
+        # Get customer name
+        customer_name = None
+        try:
+            if asset.customer_user:
+                customer_name = asset.customer_user.name
+        except:
+            pass
+
         asset_data = {
+            # Basic Info
             'id': asset.id,
+            'asset_tag': asset.asset_tag,
+            'serial_number': asset.serial_num,
             'name': asset.name,
-            'serial_number': asset.serial_number,
             'model': asset.model,
+            'manufacturer': asset.manufacturer,
+            'category': asset.category,
             'status': asset.status.value if asset.status else None,
+
+            # Hardware Specs
+            'cpu_type': asset.cpu_type,
+            'cpu_cores': asset.cpu_cores,
+            'gpu_cores': asset.gpu_cores,
+            'memory': asset.memory,
+            'storage': asset.harddrive,
+            'asset_type': asset.asset_type,
+            'hardware_type': asset.hardware_type,
+
+            # Condition Fields
+            'condition': asset.condition,
+            'is_erased': asset.erased,
+            'has_keyboard': asset.keyboard,
+            'has_charger': asset.charger,
+            'diagnostics_code': asset.diag,
+
+            # Location/Assignment Fields
+            'current_customer': customer_name,
+            'customer': asset.customer,
+            'country': asset.country,
+            'asset_company': asset.company.name if asset.company else None,
+            'company_id': asset.company_id,
             'location_id': asset.location_id,
             'location_name': asset.location.name if asset.location else None,
+
+            # Additional Fields
+            'cost_price': asset.cost_price,
+            'notes': asset.notes,
+            'tech_notes': asset.tech_notes,
+            'specifications': asset.specifications,
+            'po': asset.po,
+            'receiving_date': asset.receiving_date.isoformat() if asset.receiving_date else None,
             'created_at': asset.created_at.isoformat() if asset.created_at else None,
             'updated_at': asset.updated_at.isoformat() if asset.updated_at else None
         }
