@@ -417,6 +417,18 @@ document.getElementById('csvUploadForm').addEventListener('submit', async functi
             if (result.grouped_orders > 0) {
                 statsText += ` (${result.grouped_orders} grouped orders, ${result.individual_rows} individual items)`;
             }
+            if (result.duplicate_count > 0 || result.processing_count > 0) {
+                statsText += ` - ${result.importable_count} can be imported, ${result.duplicate_count + result.processing_count} will be skipped`;
+                if (result.duplicate_count > 0) {
+                    statsText += ` (${result.duplicate_count} already imported`;
+                    if (result.processing_count > 0) {
+                        statsText += `, ${result.processing_count} processing`;
+                    }
+                    statsText += ')';
+                } else if (result.processing_count > 0) {
+                    statsText += ` (${result.processing_count} processing)`;
+                }
+            }
             document.getElementById('csvStats').textContent = statsText;
             
             // Display the actual CSV data instead of just preview options
@@ -478,12 +490,19 @@ function displayCSVData(data) {
     
     data.forEach((row, index) => {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        
+        // Highlight duplicates in orange, processing in red
+        if (row.is_duplicate) {
+            tr.className = 'hover:bg-orange-50 bg-orange-50';
+        } else if (row.is_processing) {
+            tr.className = 'hover:bg-red-50 bg-red-50';
+        } else {
+            tr.className = 'hover:bg-gray-50';
+        }
+
         tr.innerHTML = `
             <td class="px-3 py-4 whitespace-nowrap">
-                <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                       data-index="${index}" ${row.status === 'PROCESSING' ? 'disabled' : ''}>
+                <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                       data-index="${index}" ${row.cannot_import ? 'disabled' : ''}>
             </td>
             <td class="px-3 py-4">
                 ${row.is_grouped ? 
@@ -533,17 +552,22 @@ function displayCSVData(data) {
                 }
             </td>
             <td class="px-3 py-4">
-                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(row.status)}">
-                    ${row.status || 'Unknown'}
-                    ${row.status === 'PROCESSING' ? ' 🚫' : ''}
-                </span>
+                ${row.is_duplicate ?
+                    `<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                        ✓ ALREADY IMPORTED
+                    </span>` :
+                    `<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(row.status)}">
+                        ${row.status || 'Unknown'}
+                        ${row.is_processing ? ' 🚫' : ''}
+                    </span>`
+                }
             </td>
             <td class="px-3 py-4 text-sm font-medium space-x-2">
-                <button onclick="previewTicket(${index}, ${row.is_grouped || false})" 
+                <button onclick="previewTicket(${index}, ${row.is_grouped || false})"
                         class="text-blue-600 hover:text-blue-900">👁️ Preview</button>
-                ${row.status === 'PROCESSING' ? 
-                    `<span class="text-red-500 cursor-not-allowed opacity-60">🚫 Blocked</span>` :
-                    `<button onclick="importSingleTicket(${index})" 
+                ${row.cannot_import ?
+                    `<span class="text-red-500 cursor-not-allowed opacity-60">🚫 ${row.is_duplicate ? 'Imported' : 'Blocked'}</span>` :
+                    `<button onclick="importSingleTicket(${index})"
                             class="text-green-600 hover:text-green-900">📥 Import</button>`
                 }
             </td>

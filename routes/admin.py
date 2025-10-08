@@ -2279,9 +2279,38 @@ def csv_import_upload():
         
         # Group orders by order_id
         grouped_data, individual_data = group_orders_by_id(raw_data)
-        
+
         # Combine grouped and individual data for display
         display_data = grouped_data + individual_data
+
+        # Check for duplicates against existing database tickets
+        db_session = db_manager.get_session()
+        try:
+            existing_order_ids = set()
+            existing_tickets = db_session.query(Ticket.firstbaseorderid).filter(
+                Ticket.firstbaseorderid.isnot(None)
+            ).all()
+            existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+        except:
+            existing_order_ids = set()
+        finally:
+            db_session.close()
+
+        # Mark tickets as duplicate or processing
+        duplicate_count = 0
+        processing_count = 0
+        for row in display_data:
+            order_id = row.get('order_id', '').strip()
+            status = row.get('status', '').upper()
+
+            row['is_duplicate'] = order_id and order_id in existing_order_ids
+            row['is_processing'] = status == 'PROCESSING'
+            row['cannot_import'] = row['is_duplicate'] or row['is_processing']
+
+            if row['is_duplicate']:
+                duplicate_count += 1
+            if row['is_processing']:
+                processing_count += 1
         
         # Store in temporary file with file_id
         temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
@@ -2291,12 +2320,19 @@ def csv_import_upload():
         # Clean up old files (older than 1 hour)
         cleanup_old_csv_files()
         
+        # Calculate importable count
+        cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+        importable_count = len(display_data) - cannot_import_count
+
         return jsonify({
             'success': True,
             'file_id': file_id,
             'total_rows': len(display_data),
             'grouped_orders': len(grouped_data),
             'individual_rows': len(individual_data),
+            'duplicate_count': duplicate_count,
+            'processing_count': processing_count,
+            'importable_count': importable_count,
             'data': display_data,  # Include the actual data for display
             'message': f'Successfully processed {len(raw_data)} rows into {len(display_data)} tickets ({len(grouped_data)} grouped orders, {len(individual_data)} individual items)'
         })
@@ -3519,15 +3555,29 @@ def csv_import_bulk_import():
             if row_index >= len(csv_data):
                 results.append({'row_index': row_index, 'success': False, 'error': 'Invalid row index'})
                 continue
-            
-            # Check if the ticket has PROCESSING status and block import
+
             row = csv_data[row_index]
-            if row.get('status') == 'PROCESSING':
-                results.append({
-                    'row_index': row_index, 
-                    'success': False, 
-                    'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
-                })
+
+            # Check if ticket cannot be imported (processing or duplicate)
+            if row.get('cannot_import', False):
+                if row.get('is_duplicate', False):
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': f'Order ID {row.get("order_id")} already exists in database'
+                    })
+                elif row.get('is_processing', False):
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+                    })
+                else:
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': 'Ticket cannot be imported'
+                    })
                 continue
             
             # Import single ticket (reuse the logic)
@@ -3553,13 +3603,29 @@ def csv_import_bulk_import():
 
 def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_accessories=[], selected_assets=[], user_id=None):
     """Internal function to import a single ticket (used by bulk import)"""
-    
+
     # Check if the ticket has PROCESSING status and block import
     if row.get('status') == 'PROCESSING':
         return {
-            'success': False, 
+            'success': False,
             'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
         }
+
+    # Check if the ticket is already imported (duplicate Order ID)
+    order_id = row.get('order_id', '').strip()
+    if order_id:
+        db_session = db_manager.get_session()
+        try:
+            existing_ticket = db_session.query(Ticket).filter(
+                Ticket.firstbaseorderid == order_id
+            ).first()
+            if existing_ticket:
+                return {
+                    'success': False,
+                    'error': f'Order ID {order_id} already exists in database (Ticket #{existing_ticket.id})'
+                }
+        finally:
+            db_session.close()
     
     db_session = db_manager.get_session()
     
