@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 # Database path
 DB_PATH = 'inventory.db'
 
-def extract_order_id_from_description(description):
+def extract_order_id_from_text(text):
     """
-    Extract Order ID from ticket description
+    Extract Order ID from text (description or notes)
     Looks for patterns like:
     - Order ID: <uuid>
     - order_id: <uuid>
     - Order Id: <uuid>
     """
-    if not description:
+    if not text:
         return None
 
     # Pattern to match Order ID followed by a UUID or alphanumeric ID
@@ -38,7 +38,7 @@ def extract_order_id_from_description(description):
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, description, re.IGNORECASE)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
             order_id = match.group(1).strip()
             # Remove any trailing punctuation
@@ -59,9 +59,9 @@ def update_tickets_with_order_ids():
     cursor = conn.cursor()
 
     try:
-        # Get all tickets that don't have firstbaseorderid set
+        # Get all tickets that don't have firstbaseorderid set (check both description and notes)
         cursor.execute("""
-            SELECT id, subject, description, firstbaseorderid
+            SELECT id, subject, description, notes, firstbaseorderid
             FROM tickets
             WHERE firstbaseorderid IS NULL OR firstbaseorderid = ''
         """)
@@ -72,11 +72,19 @@ def update_tickets_with_order_ids():
         updated_count = 0
         skipped_count = 0
 
-        for ticket_id, subject, description, current_order_id in tickets:
-            order_id = extract_order_id_from_description(description)
+        for ticket_id, subject, description, notes, current_order_id in tickets:
+            # Try to extract from description first
+            order_id = extract_order_id_from_text(description)
+
+            # If not in description, try notes
+            if not order_id and notes:
+                order_id = extract_order_id_from_text(notes)
+                if order_id:
+                    logger.info(f"Ticket #{ticket_id}: Extracted Order ID from NOTES: {order_id}")
 
             if order_id:
-                logger.info(f"Ticket #{ticket_id}: Extracted Order ID: {order_id}")
+                if not notes or order_id not in (notes or ''):
+                    logger.info(f"Ticket #{ticket_id}: Extracted Order ID from description: {order_id}")
                 cursor.execute(
                     "UPDATE tickets SET firstbaseorderid = ? WHERE id = ?",
                     (order_id, ticket_id)
@@ -112,12 +120,12 @@ def preview_extraction():
     cursor = conn.cursor()
 
     try:
-        # Get all tickets that don't have firstbaseorderid set but have "Order" in description
+        # Get all tickets that don't have firstbaseorderid set but have "Order" in description OR notes
         cursor.execute("""
-            SELECT id, subject, description
+            SELECT id, subject, description, notes
             FROM tickets
             WHERE (firstbaseorderid IS NULL OR firstbaseorderid = '')
-            AND description LIKE '%Order%'
+            AND (description LIKE '%Order%' OR notes LIKE '%Order%')
             LIMIT 20
         """)
         tickets = cursor.fetchall()
@@ -128,15 +136,24 @@ def preview_extraction():
 
         found_count = 0
 
-        for ticket_id, subject, description in tickets:
-            order_id = extract_order_id_from_description(description)
+        for ticket_id, subject, description, notes in tickets:
+            # Try description first
+            order_id = extract_order_id_from_text(description)
+            source = "description"
+
+            # Try notes if not in description
+            if not order_id and notes:
+                order_id = extract_order_id_from_text(notes)
+                source = "notes"
 
             if order_id:
                 logger.info(f"\n--- Ticket #{ticket_id} ---")
                 logger.info(f"Subject: {subject[:80] if subject else 'N/A'}...")
-                logger.info(f"Extracted Order ID: {order_id}")
-                if description:
+                logger.info(f"Extracted Order ID from {source}: {order_id}")
+                if source == "description" and description:
                     logger.info(f"Description preview:\n{description[:200]}...\n")
+                elif source == "notes" and notes:
+                    logger.info(f"Notes preview:\n{notes[:200]}...\n")
                 found_count += 1
 
         logger.info(f"\n{'='*80}")
