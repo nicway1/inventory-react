@@ -3,8 +3,14 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="mb-6 flex justify-between items-center">
-        <h2 class="text-2xl">Company Management</h2>
-        <a href="{{ url_for('admin.create_company') }}" 
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">Company Management</h2>
+            <p class="mt-1 text-sm text-gray-600">
+                Showing parent companies and standalone companies only. Child companies are managed in
+                <a href="{{ url_for('admin.company_grouping') }}" class="text-blue-600 hover:underline">Company Grouping</a>.
+            </p>
+        </div>
+        <a href="{{ url_for('admin.create_company') }}"
            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
             Add New Company
         </a>
@@ -16,6 +22,7 @@
                 <tr class="bg-gray-50">
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact Email</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -25,13 +32,37 @@
                 {% for company in companies %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm text-gray-900">{{ company.id }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-900">{{ company.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                        <div class="flex items-center">
+                            {{ company.name }}
+                            {% if company.child_count > 0 %}
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                📁 {{ company.child_count }} child{% if company.child_count != 1 %}ren{% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if company.child_count > 0 %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Parent Company
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Standalone
+                        </span>
+                        {% endif %}
+                    </td>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ company.contact_name or 'N/A' }}</td>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ company.contact_email or 'N/A' }}</td>
                     <td class="px-6 py-4 text-sm text-center">
-                        <a href="{{ url_for('admin.edit_company', company_id=company.id) }}" 
+                        <a href="{{ url_for('admin.edit_company', company_id=company.id) }}"
                            class="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
-                        <button onclick="deleteCompany('{{ company.id }}')" 
+                        {% if company.child_count > 0 %}
+                        <a href="{{ url_for('admin.company_grouping') }}"
+                           class="text-purple-600 hover:text-purple-900 mr-4">View Children</a>
+                        {% endif %}
+                        <button onclick="deleteCompany('{{ company.id }}')"
                                 class="text-red-600 hover:text-red-900">Delete</button>
                     </td>
                 </tr>

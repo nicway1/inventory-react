@@ -142,9 +142,33 @@ def permission_management():
 @admin_bp.route('/companies')
 @admin_required
 def manage_companies():
-    """List all companies"""
-    companies = db_manager.get_all_companies()
-    return render_template('admin/companies/list.html', companies=companies)
+    """List all companies - only show parent companies and standalone companies"""
+    from sqlalchemy import func
+    from database import engine
+    from sqlalchemy.orm import Session
+
+    session = Session(engine)
+    try:
+        # Get all companies that are either:
+        # 1. Parent companies (is_parent_company = True OR have child companies)
+        # 2. Standalone companies (parent_company_id is NULL and is_parent_company = False)
+
+        # First, get all parent/standalone companies
+        parent_companies = session.query(Company).filter(
+            Company.parent_company_id.is_(None)  # Only show companies that are not children
+        ).order_by(Company.name).all()
+
+        # For each company, count its children
+        for company in parent_companies:
+            # Count child companies for this parent
+            child_count = session.query(Company).filter(
+                Company.parent_company_id == company.id
+            ).count()
+            company.child_count = child_count
+
+        return render_template('admin/companies/list.html', companies=parent_companies)
+    finally:
+        session.close()
 
 @admin_bp.route('/companies/create', methods=['GET', 'POST'])
 @admin_required

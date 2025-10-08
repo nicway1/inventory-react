@@ -1907,6 +1907,12 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <div class="sf-field-label">Case Origin</div>
                                         <div class="sf-field-value">Web</div>
                                     </div>
+                                    {% if ticket.firstbaseorderid %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Order ID</div>
+                                        <div class="sf-field-value">{{ ticket.firstbaseorderid }}</div>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 <div>
                                     <div class="sf-field-row">
