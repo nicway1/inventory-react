@@ -355,7 +355,9 @@ class TicketImportStore:
             # Count processing and duplicate tickets
             processing_count = sum(1 for ticket in tickets_preview if ticket.get('is_processing', False))
             duplicate_count = sum(1 for ticket in tickets_preview if ticket.get('is_duplicate', False))
-            importable_count = len(tickets_preview) - processing_count - duplicate_count
+            # Count tickets that cannot be imported (either processing OR duplicate, not both)
+            cannot_import_count = sum(1 for ticket in tickets_preview if ticket.get('cannot_import', False))
+            importable_count = len(tickets_preview) - cannot_import_count
             
             return {
                 'success': True,
