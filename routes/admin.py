@@ -3343,7 +3343,8 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 assigned_to_id=case_owner_id,  # Set case owner
                 queue_id=int(selected_queue_id) if selected_queue_id else None,  # Assign to selected queue
                 shipping_address=shipping_address,  # Shipping info goes to shipping_address field
-                notes=order_notes  # Order details go to Notes field
+                notes=order_notes,  # Order details go to Notes field
+                firstbaseorderid=primary_item.get('order_id', None)  # Store Order ID for duplicate prevention
             )
             
             db_session.add(ticket)
@@ -3846,7 +3847,8 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             category=category,
             priority=priority,
             status=TicketStatus.NEW,
-            requester_id=requester_id
+            requester_id=requester_id,
+            firstbaseorderid=row.get('order_id', None)  # Store Order ID for duplicate prevention
         )
         
         db_session.add(ticket)
