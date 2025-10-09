@@ -711,9 +711,9 @@ def get_dashboard():
 def health_check():
     """
     Health check endpoint
-    
+
     GET /api/mobile/v1/health
-    
+
     Response: {
         "success": true,
         "status": "healthy",
@@ -724,4 +724,28 @@ def health_check():
         'success': True,
         'status': 'healthy',
         'timestamp': datetime.utcnow().isoformat() + 'Z'
+    })
+
+@mobile_api_bp.route('/debug/routes', methods=['GET'])
+def debug_routes():
+    """
+    Debug endpoint to list all registered mobile API routes
+
+    GET /api/mobile/v1/debug/routes
+    """
+    from flask import current_app
+
+    routes = []
+    for rule in current_app.url_map.iter_rules():
+        if 'mobile' in rule.rule:
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'url': rule.rule
+            })
+
+    return jsonify({
+        'success': True,
+        'routes': routes,
+        'total': len(routes)
     })
