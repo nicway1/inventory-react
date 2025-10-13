@@ -276,6 +276,9 @@ def export_tickets_csv():
             'Country',
             'Created Date',
             'Updated Date',
+            'Package Number',
+            'Package Tracking Number',
+            'Package Items',
             'Assets',
             'Shipping Tracking',
             'Queue',
@@ -420,32 +423,101 @@ def export_tickets_csv():
             except Exception as e:
                 logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
 
-            row = [
-                ticket.id,
-                getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
-                ticket.subject or '',
-                ticket.description or '',
-                ticket.status.value if ticket.status else '',
-                ticket.priority.value if ticket.priority else '',
-                ticket.get_category_display_name() if ticket.category else '',
-                assigned_to,
-                customer_name,
-                customer_email,
-                customer_phone,
-                customer_country,
-                ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
-                ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
-                assets_str,
-                getattr(ticket, 'shipping_tracking', '') or '',
-                queue_name,
-                latest_status,
-                latest_carrier,
-                latest_update,
-                full_history,
-                comments_count,
-                comments_text
-            ]
-            writer.writerow(row)
+            # Check if ticket has multiple packages (Asset Checkout claw category)
+            packages = []
+            if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                packages = ticket.get_all_packages()
+
+            # If ticket has packages, create one row per package
+            if packages:
+                from models.package_item import PackageItem
+                for package in packages:
+                    # Get items for this package
+                    package_items = []
+                    try:
+                        items = db_session.query(PackageItem).filter_by(
+                            ticket_id=ticket.id,
+                            package_number=package['package_number']
+                        ).all()
+                        for item in items:
+                            if item.asset_id:
+                                asset = db_session.query(Asset).get(item.asset_id)
+                                if asset:
+                                    package_items.append(f"Asset: {asset.serial_num}")
+                            elif item.accessory_id:
+                                accessory = db_session.query(Accessory).get(item.accessory_id)
+                                if accessory:
+                                    package_items.append(f"Accessory: {accessory.name} (x{item.quantity})")
+                    except Exception as e:
+                        logger.warning(f"Error loading package items: {e}")
+
+                    package_items_str = '; '.join(package_items) if package_items else ''
+
+                    # Get tracking info for this specific package
+                    pkg_tracking_number = package.get('tracking_number', '')
+                    pkg_status = package.get('status', '')
+                    pkg_carrier = package.get('carrier', '')
+
+                    row = [
+                        ticket.id,
+                        getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                        ticket.subject or '',
+                        ticket.description or '',
+                        ticket.status.value if ticket.status else '',
+                        ticket.priority.value if ticket.priority else '',
+                        ticket.get_category_display_name() if ticket.category else '',
+                        assigned_to,
+                        customer_name,
+                        customer_email,
+                        customer_phone,
+                        customer_country,
+                        ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                        ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                        package['package_number'],
+                        pkg_tracking_number,
+                        package_items_str,
+                        assets_str,
+                        getattr(ticket, 'shipping_tracking', '') or '',
+                        queue_name,
+                        pkg_status,
+                        pkg_carrier,
+                        '',  # Latest update
+                        '',  # Full history
+                        comments_count,
+                        comments_text
+                    ]
+                    writer.writerow(row)
+            else:
+                # Original single-row format for tickets without packages
+                row = [
+                    ticket.id,
+                    getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                    ticket.subject or '',
+                    ticket.description or '',
+                    ticket.status.value if ticket.status else '',
+                    ticket.priority.value if ticket.priority else '',
+                    ticket.get_category_display_name() if ticket.category else '',
+                    assigned_to,
+                    customer_name,
+                    customer_email,
+                    customer_phone,
+                    customer_country,
+                    ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                    ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                    '',  # Package number
+                    '',  # Package tracking number
+                    '',  # Package items
+                    assets_str,
+                    getattr(ticket, 'shipping_tracking', '') or '',
+                    queue_name,
+                    latest_status,
+                    latest_carrier,
+                    latest_update,
+                    full_history,
+                    comments_count,
+                    comments_text
+                ]
+                writer.writerow(row)
 
         # Create response with CSV file
         output.seek(0)
@@ -528,7 +600,7 @@ def export_single_ticket_csv(ticket_id):
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # CSV headers
+        # CSV headers (updated to include package information)
         headers = [
             'Ticket ID',
             'Display ID',
@@ -544,6 +616,9 @@ def export_single_ticket_csv(ticket_id):
             'Country',
             'Created Date',
             'Updated Date',
+            'Package Number',
+            'Package Tracking Number',
+            'Package Items',
             'Assets',
             'Shipping Tracking',
             'Queue',
@@ -686,32 +761,101 @@ def export_single_ticket_csv(ticket_id):
         except Exception as e:
             logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
 
-        row = [
-            ticket.id,
-            getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
-            ticket.subject or '',
-            ticket.description or '',
-            ticket.status.value if ticket.status else '',
-            ticket.priority.value if ticket.priority else '',
-            ticket.get_category_display_name() if ticket.category else '',
-            assigned_to,
-            customer_name,
-            customer_email,
-            customer_phone,
-            customer_country,
-            ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
-            ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
-            assets_str,
-            getattr(ticket, 'shipping_tracking', '') or '',
-            queue_name,
-            latest_status,
-            latest_carrier,
-            latest_update,
-            full_history,
-            comments_count,
-            comments_text
-        ]
-        writer.writerow(row)
+        # Check if ticket has multiple packages (Asset Checkout claw category)
+        packages = []
+        if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+            packages = ticket.get_all_packages()
+
+        # If ticket has packages, create one row per package
+        if packages:
+            from models.package_item import PackageItem
+            for package in packages:
+                # Get items for this package
+                package_items = []
+                try:
+                    items = db_session.query(PackageItem).filter_by(
+                        ticket_id=ticket.id,
+                        package_number=package['package_number']
+                    ).all()
+                    for item in items:
+                        if item.asset_id:
+                            asset = db_session.query(Asset).get(item.asset_id)
+                            if asset:
+                                package_items.append(f"Asset: {asset.serial_num}")
+                        elif item.accessory_id:
+                            accessory = db_session.query(Accessory).get(item.accessory_id)
+                            if accessory:
+                                package_items.append(f"Accessory: {accessory.name} (x{item.quantity})")
+                except Exception as e:
+                    logger.warning(f"Error loading package items: {e}")
+
+                package_items_str = '; '.join(package_items) if package_items else ''
+
+                # Get tracking info for this specific package
+                pkg_tracking_number = package.get('tracking_number', '')
+                pkg_status = package.get('status', '')
+                pkg_carrier = package.get('carrier', '')
+
+                row = [
+                    ticket.id,
+                    getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                    ticket.subject or '',
+                    ticket.description or '',
+                    ticket.status.value if ticket.status else '',
+                    ticket.priority.value if ticket.priority else '',
+                    ticket.get_category_display_name() if ticket.category else '',
+                    assigned_to,
+                    customer_name,
+                    customer_email,
+                    customer_phone,
+                    customer_country,
+                    ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                    ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                    package['package_number'],
+                    pkg_tracking_number,
+                    package_items_str,
+                    assets_str,
+                    getattr(ticket, 'shipping_tracking', '') or '',
+                    queue_name,
+                    pkg_status,
+                    pkg_carrier,
+                    '',  # Latest update (can be enhanced later)
+                    '',  # Full history (can be enhanced later)
+                    comments_count,
+                    comments_text
+                ]
+                writer.writerow(row)
+        else:
+            # Original single-row format for tickets without packages
+            row = [
+                ticket.id,
+                getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                ticket.subject or '',
+                ticket.description or '',
+                ticket.status.value if ticket.status else '',
+                ticket.priority.value if ticket.priority else '',
+                ticket.get_category_display_name() if ticket.category else '',
+                assigned_to,
+                customer_name,
+                customer_email,
+                customer_phone,
+                customer_country,
+                ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                '',  # Package number
+                '',  # Package tracking number
+                '',  # Package items
+                assets_str,
+                getattr(ticket, 'shipping_tracking', '') or '',
+                queue_name,
+                latest_status,
+                latest_carrier,
+                latest_update,
+                full_history,
+                comments_count,
+                comments_text
+            ]
+            writer.writerow(row)
 
         # Create response with CSV file
         output.seek(0)
