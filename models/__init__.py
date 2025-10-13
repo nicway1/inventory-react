@@ -39,6 +39,7 @@ from models.feature_request import FeatureRequest, FeatureStatus, FeaturePriorit
 from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority, BugComment
 from models.release import Release, ReleaseStatus, ReleaseType
 from models.changelog_entry import ChangelogEntry, ChangelogEntryType
+from models.ticket_issue import TicketIssue
 
 __all__ = [
     "Base",
@@ -100,5 +101,6 @@ __all__ = [
     "ReleaseStatus",
     "ReleaseType",
     "ChangelogEntry",
-    "ChangelogEntryType"
+    "ChangelogEntryType",
+    "TicketIssue"
 ]

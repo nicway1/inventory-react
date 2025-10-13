@@ -220,7 +220,11 @@ def export_tickets_csv():
 
             # Apply category filter
             if category_filter and category_filter != 'all':
-                query = query.filter(Ticket.category == category_filter)
+                try:
+                    category_enum = TicketCategory(category_filter)
+                    query = query.filter(Ticket.category == category_enum)
+                except ValueError:
+                    pass
 
             # Apply priority filter
             if priority_filter and priority_filter != 'all':
@@ -307,13 +311,22 @@ def export_tickets_csv():
 
             try:
                 if ticket.customer:
-                    if hasattr(ticket.customer, 'name'):
-                        customer_name = ticket.customer.name or ''
-                        customer_email = getattr(ticket.customer, 'email', '') or ''
-                        customer_phone = getattr(ticket.customer, 'phone', '') or ''
-                        customer_country = getattr(ticket.customer, 'country', '') or ''
+                    customer = ticket.customer
+                    if hasattr(customer, 'name'):
+                        customer_name = customer.name or ''
                     else:
-                        customer_name = str(ticket.customer) if ticket.customer else ''
+                        customer_name = str(customer)
+                    customer_email = getattr(customer, 'email', '') or ''
+                    customer_phone = (
+                        getattr(customer, 'contact_number', None)
+                        or getattr(customer, 'phone', None)
+                        or ''
+                    )
+                    country_attr = getattr(customer, 'country', None)
+                    if hasattr(country_attr, 'value'):
+                        customer_country = country_attr.value or ''
+                    elif country_attr:
+                        customer_country = str(country_attr)
             except Exception as e:
                 logger.warning(f"Error accessing customer for ticket {ticket.id}: {e}")
 
@@ -564,13 +577,22 @@ def export_single_ticket_csv(ticket_id):
 
         try:
             if ticket.customer:
-                if hasattr(ticket.customer, 'name'):
-                    customer_name = ticket.customer.name or ''
-                    customer_email = getattr(ticket.customer, 'email', '') or ''
-                    customer_phone = getattr(ticket.customer, 'phone', '') or ''
-                    customer_country = getattr(ticket.customer, 'country', '') or ''
+                customer = ticket.customer
+                if hasattr(customer, 'name'):
+                    customer_name = customer.name or ''
                 else:
-                    customer_name = str(ticket.customer) if ticket.customer else ''
+                    customer_name = str(customer)
+                customer_email = getattr(customer, 'email', '') or ''
+                customer_phone = (
+                    getattr(customer, 'contact_number', None)
+                    or getattr(customer, 'phone', None)
+                    or ''
+                )
+                country_attr = getattr(customer, 'country', None)
+                if hasattr(country_attr, 'value'):
+                    customer_country = country_attr.value or ''
+                elif country_attr:
+                    customer_country = str(country_attr)
         except Exception as e:
             logger.warning(f"Error accessing customer for ticket {ticket.id}: {e}")
 
@@ -8209,3 +8231,178 @@ def test_notification():
             'success': False,
             'error': f'Failed to create test notification: {str(e)}'
         }), 500
+
+
+# ============================================================================
+# TICKET ISSUE MANAGEMENT ROUTES
+# ============================================================================
+
+@tickets_bp.route('/<int:ticket_id>/issues', methods=['GET'])
+@login_required
+def get_ticket_issues(ticket_id):
+    """Get all issues for a ticket"""
+    from models.ticket_issue import TicketIssue
+    
+    db_session = db_manager.get_session()
+    try:
+        # Check if ticket exists and user has permission
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+        
+        # Get all issues for this ticket
+        issues = db_session.query(TicketIssue).filter_by(ticket_id=ticket_id).order_by(TicketIssue.reported_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'issues': [issue.to_dict() for issue in issues]
+        })
+    except Exception as e:
+        logger.error(f"Error getting ticket issues: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/issues', methods=['POST'])
+@login_required
+def create_ticket_issue(ticket_id):
+    """Create a new issue for a ticket"""
+    from models.ticket_issue import TicketIssue
+    from models.notification import Notification
+    
+    db_session = db_manager.get_session()
+    try:
+        # Check if ticket exists
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+        
+        # Check if user is the ticket owner or has permission
+        if ticket.requester_id != session.get('user_id') and session.get('user_type') not in ['SUPER_ADMIN', 'ADMIN']:
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+        
+        # Get data from request
+        data = request.get_json()
+        issue_type = data.get('issue_type')
+        description = data.get('description')
+        notified_user_ids = data.get('notified_user_ids', [])  # List of user IDs to notify
+        
+        if not issue_type or not description:
+            return jsonify({'success': False, 'error': 'Issue type and description are required'}), 400
+        
+        # Create new issue
+        new_issue = TicketIssue(
+            ticket_id=ticket_id,
+            issue_type=issue_type,
+            description=description,
+            reported_by_id=session.get('user_id'),
+            reported_at=datetime.datetime.utcnow(),
+            notified_user_ids=','.join(map(str, notified_user_ids)) if notified_user_ids else ''
+        )
+        
+        db_session.add(new_issue)
+        db_session.commit()
+        
+        # Create notifications for specified users
+        reporter = db_session.query(User).get(session.get('user_id'))
+        for user_id in notified_user_ids:
+            notification = Notification(
+                user_id=int(user_id),
+                type='issue_reported',
+                title=f'Issue Reported on Ticket #{ticket.display_id}',
+                message=f'{reporter.username} reported: {issue_type} - {description[:100]}',
+                reference_type='ticket',
+                reference_id=ticket_id,
+                is_read=False,
+                created_at=datetime.datetime.utcnow()
+            )
+            db_session.add(notification)
+        
+        db_session.commit()
+        
+        logger.info(f"Issue created for ticket {ticket_id} by user {session.get('user_id')}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Issue reported successfully',
+            'issue': new_issue.to_dict()
+        })
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error creating ticket issue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/issues/<int:issue_id>/resolve', methods=['POST'])
+@login_required
+def resolve_ticket_issue(ticket_id, issue_id):
+    """Mark an issue as resolved"""
+    from models.ticket_issue import TicketIssue
+    from models.notification import Notification
+    
+    db_session = db_manager.get_session()
+    try:
+        # Get the issue
+        issue = db_session.query(TicketIssue).filter_by(id=issue_id, ticket_id=ticket_id).first()
+        if not issue:
+            return jsonify({'success': False, 'error': 'Issue not found'}), 404
+
+        # Get the ticket to check ownership
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        # Check permission - allow admins, ticket owner, or assigned user
+        current_user_id = session.get('user_id')
+        current_user_type = session.get('user_type')
+        is_admin = current_user_type in ['SUPER_ADMIN', 'ADMIN']
+        is_ticket_owner = ticket.requester_id == current_user_id
+        is_assigned = ticket.assigned_to_id == current_user_id
+
+        if not (is_admin or is_ticket_owner or is_assigned):
+            return jsonify({'success': False, 'error': 'Permission denied. Only admins, ticket owner, or assigned user can resolve issues.'}), 403
+        
+        # Get resolution notes from request
+        data = request.get_json()
+        resolution_notes = data.get('resolution_notes', '')
+        
+        # Update issue
+        issue.is_resolved = True
+        issue.resolution_notes = resolution_notes
+        issue.resolved_by_id = session.get('user_id')
+        issue.resolved_at = datetime.datetime.utcnow()
+        
+        db_session.commit()
+        
+        # Notify the reporter
+        resolver = db_session.query(User).get(session.get('user_id'))
+        # Ticket already fetched above, reuse it
+        notification = Notification(
+            user_id=issue.reported_by_id,
+            type='issue_resolved',
+            title=f'Issue Resolved on Ticket #{ticket.display_id}',
+            message=f'{resolver.username} resolved your issue: {issue.issue_type}',
+            reference_type='ticket',
+            reference_id=ticket_id,
+            is_read=False,
+            created_at=datetime.datetime.utcnow()
+        )
+        db_session.add(notification)
+        db_session.commit()
+        
+        logger.info(f"Issue {issue_id} resolved by user {session.get('user_id')}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Issue resolved successfully',
+            'issue': issue.to_dict()
+        })
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error resolving ticket issue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
