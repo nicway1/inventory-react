@@ -12,7 +12,7 @@
             </a>
         </div>
 
-        <form method="POST" class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <form method="POST" enctype="multipart/form-data" class="bg-white shadow-lg rounded-lg overflow-hidden">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="px-6 py-4 border-b border-gray-200">
@@ -45,6 +45,27 @@
                               rows="4"
                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                               placeholder="Detailed description of the bug">{{ bug.description if bug else '' }}</textarea>
+                </div>
+
+                <!-- Screenshot Upload -->
+                <div>
+                    <label for="screenshot" class="block text-sm font-medium text-gray-700 mb-2">
+                        Screenshot
+                    </label>
+                    {% if bug and bug.screenshot_path %}
+                    <div class="mb-3">
+                        <img src="{{ url_for('static', filename=bug.screenshot_path) }}"
+                             alt="Bug Screenshot"
+                             class="max-w-md border border-gray-300 rounded-md">
+                        <p class="text-sm text-gray-500 mt-2">Current screenshot (upload a new one to replace)</p>
+                    </div>
+                    {% endif %}
+                    <input type="file"
+                           name="screenshot"
+                           id="screenshot"
+                           accept="image/*"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">Upload a screenshot of the bug (PNG, JPG, GIF supported)</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">

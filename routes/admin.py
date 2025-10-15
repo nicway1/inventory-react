@@ -5720,3 +5720,77 @@ def bulk_assign_customers_to_company():
 
     return redirect(url_for('admin.manage_customer_company_grouping'))
 
+@admin_bp.route('/run-migration/add-screenshot-to-bugs')
+@super_admin_required
+def run_screenshot_migration():
+    """Run migration to add screenshot_path column to bug_reports table"""
+    from sqlalchemy import inspect
+    from database import engine
+
+    try:
+        # Get inspector to check existing columns
+        inspector = inspect(engine)
+
+        # Check if bug_reports table exists
+        if 'bug_reports' not in inspector.get_table_names():
+            flash('Bug reports table does not exist', 'error')
+            return redirect(url_for('admin.dashboard'))
+
+        # Get existing columns
+        columns = [col['name'] for col in inspector.get_columns('bug_reports')]
+
+        if 'screenshot_path' in columns:
+            flash('Screenshot column already exists in bug_reports table', 'info')
+            return redirect(url_for('admin.dashboard'))
+
+        # Determine database type
+        db_type = engine.dialect.name
+        logger.info(f"Running migration for database type: {db_type}")
+
+        # Add the screenshot_path column
+        db_session = SessionLocal()
+        try:
+            if db_type == 'mysql':
+                db_session.execute(text("""
+                    ALTER TABLE bug_reports
+                    ADD COLUMN screenshot_path VARCHAR(500) NULL
+                """))
+            elif db_type == 'sqlite':
+                db_session.execute(text("""
+                    ALTER TABLE bug_reports
+                    ADD COLUMN screenshot_path VARCHAR(500)
+                """))
+            elif db_type == 'postgresql':
+                db_session.execute(text("""
+                    ALTER TABLE bug_reports
+                    ADD COLUMN screenshot_path VARCHAR(500)
+                """))
+            else:
+                flash(f'Unsupported database type: {db_type}', 'error')
+                return redirect(url_for('admin.dashboard'))
+
+            db_session.commit()
+
+            # Verify the column was added
+            inspector = inspect(engine)
+            columns = [col['name'] for col in inspector.get_columns('bug_reports')]
+
+            if 'screenshot_path' in columns:
+                flash('Successfully added screenshot_path column to bug_reports table!', 'success')
+                logger.info('Screenshot migration completed successfully')
+            else:
+                flash('Failed to verify screenshot_path column addition', 'error')
+
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f'Error running migration: {str(e)}')
+            flash(f'Error running migration: {str(e)}', 'error')
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f'Error in migration route: {str(e)}')
+        flash(f'Error in migration route: {str(e)}', 'error')
+
+    return redirect(url_for('admin.dashboard'))
+

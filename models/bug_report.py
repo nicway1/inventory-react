@@ -68,6 +68,7 @@ class BugReport(Base):
     estimated_fix_time = Column(String(50), nullable=True)  # 1h, 4h, 1d, 1w, etc.
     regression_test_required = Column(String(10), default='No')  # Yes/No
     customer_impact = Column(String(50), nullable=True)  # None, Low, Medium, High, Critical
+    screenshot_path = Column(String(500), nullable=True)  # Path to uploaded screenshot
 
     # Relationships
     reporter = relationship('User', foreign_keys=[reporter_id], backref='reported_bugs')

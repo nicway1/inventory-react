@@ -46,6 +46,24 @@
                     </div>
                 </div>
 
+                <!-- Screenshot -->
+                {% if bug.screenshot_path %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-image mr-2"></i>Screenshot
+                    </h3>
+                    <div class="border border-gray-300 rounded-lg overflow-hidden">
+                        <img src="{{ url_for('static', filename=bug.screenshot_path) }}"
+                             alt="Bug Screenshot"
+                             class="w-full cursor-pointer hover:opacity-90 transition-opacity"
+                             onclick="openScreenshotModal(this.src)">
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>Click image to view full size
+                    </p>
+                </div>
+                {% endif %}
+
                 <!-- Steps to Reproduce -->
                 {% if bug.steps_to_reproduce %}
                 <div class="bg-white rounded-lg shadow p-6">
@@ -383,6 +401,41 @@ function toggleCommentForm() {
     if (!form.classList.contains('hidden')) {
         form.querySelector('textarea').focus();
     }
+}
+
+function openScreenshotModal(imageSrc) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4';
+    modal.onclick = function() {
+        document.body.removeChild(modal);
+    };
+
+    // Create image container
+    const imgContainer = document.createElement('div');
+    imgContainer.className = 'relative max-w-7xl max-h-full';
+    imgContainer.onclick = function(e) {
+        e.stopPropagation();
+    };
+
+    // Create close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    closeBtn.className = 'absolute top-4 right-4 bg-white text-gray-800 rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-200 shadow-lg z-10';
+    closeBtn.onclick = function() {
+        document.body.removeChild(modal);
+    };
+
+    // Create image
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.className = 'max-w-full max-h-screen rounded-lg shadow-2xl';
+    img.alt = 'Bug Screenshot Full Size';
+
+    imgContainer.appendChild(closeBtn);
+    imgContainer.appendChild(img);
+    modal.appendChild(imgContainer);
+    document.body.appendChild(modal);
 }
 </script>
 {% endblock %}

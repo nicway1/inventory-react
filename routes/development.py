@@ -15,6 +15,8 @@ from datetime import datetime, date
 import logging
 from flask_mail import Message
 from utils.email_sender import mail
+from werkzeug.utils import secure_filename
+import os
 
 logger = logging.getLogger(__name__)
 development_bp = Blueprint('development', __name__)
@@ -662,6 +664,25 @@ def new_bug():
     if request.method == 'POST':
         db_session = SessionLocal()
         try:
+            # Handle screenshot upload
+            screenshot_path = None
+            if 'screenshot' in request.files:
+                screenshot = request.files['screenshot']
+                if screenshot and screenshot.filename:
+                    # Secure the filename
+                    filename = secure_filename(screenshot.filename)
+                    # Create unique filename with timestamp
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    unique_filename = f"bug_{timestamp}_{filename}"
+                    # Create uploads/bugs directory if it doesn't exist
+                    os.makedirs('static/uploads/bugs', exist_ok=True)
+                    # Save the file
+                    file_path = os.path.join('static', 'uploads', 'bugs', unique_filename)
+                    screenshot.save(file_path)
+                    # Store relative path for database
+                    screenshot_path = f"uploads/bugs/{unique_filename}"
+                    logger.info(f"Screenshot saved to: {file_path}")
+
             bug = BugReport(
                 title=request.form['title'],
                 description=request.form['description'],
@@ -677,7 +698,8 @@ def new_bug():
                 reporter_id=current_user.id,
                 assignee_id=request.form.get('assignee_id') if request.form.get('assignee_id') else None,
                 estimated_fix_time=request.form.get('estimated_fix_time'),
-                customer_impact=request.form.get('customer_impact')
+                customer_impact=request.form.get('customer_impact'),
+                screenshot_path=screenshot_path
             )
 
             db_session.add(bug)
@@ -689,6 +711,7 @@ def new_bug():
         except Exception as e:
             db_session.rollback()
             flash(f'Error creating bug report: {str(e)}', 'error')
+            logger.error(f'Error creating bug report: {str(e)}')
         finally:
             db_session.close()
 
@@ -744,6 +767,24 @@ def edit_bug(id):
 
         if request.method == 'POST':
             try:
+                # Handle screenshot upload
+                if 'screenshot' in request.files:
+                    screenshot = request.files['screenshot']
+                    if screenshot and screenshot.filename:
+                        # Secure the filename
+                        filename = secure_filename(screenshot.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        unique_filename = f"bug_{bug.id}_{timestamp}_{filename}"
+                        # Create uploads/bugs directory if it doesn't exist
+                        os.makedirs('static/uploads/bugs', exist_ok=True)
+                        # Save the file
+                        file_path = os.path.join('static', 'uploads', 'bugs', unique_filename)
+                        screenshot.save(file_path)
+                        # Store relative path for database
+                        bug.screenshot_path = f"uploads/bugs/{unique_filename}"
+                        logger.info(f"Screenshot saved to: {file_path}")
+
                 bug.title = request.form['title']
                 bug.description = request.form['description']
                 bug.severity = BugSeverity(request.form['severity'])
@@ -768,6 +809,7 @@ def edit_bug(id):
             except Exception as e:
                 db_session.rollback()
                 flash(f'Error updating bug report: {str(e)}', 'error')
+                logger.error(f'Error updating bug report: {str(e)}')
 
         # GET - show form
         users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
