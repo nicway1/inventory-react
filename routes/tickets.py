@@ -168,6 +168,8 @@ def export_tickets_csv():
     category_filter = request.args.get('category')
     priority_filter = request.args.get('priority')
     status_filter = request.args.get('status')
+    country_filter = request.args.get('country')
+    company_filter = request.args.get('company')
     ticket_ids = request.args.get('ticket_ids')
 
     # Create a new database session for this operation
@@ -176,7 +178,9 @@ def export_tickets_csv():
     try:
         # Build query with eager loading to avoid DetachedInstanceError
         query = db_session.query(Ticket).options(
-            joinedload(Ticket.customer),
+            joinedload(Ticket.customer)
+                .joinedload(CustomerUser.company)
+                .joinedload(Company.parent_company),
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
@@ -244,6 +248,41 @@ def export_tickets_csv():
                 except ValueError:
                     pass
 
+            # Apply country filter
+            if country_filter and country_filter != 'all':
+                # Filter by customer's country
+                query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True).filter(
+                    or_(
+                        CustomerUser.country == country_filter,
+                        Ticket.country == country_filter
+                    )
+                )
+
+            # Apply company filter
+            if company_filter and company_filter != 'all':
+                try:
+                    company_id = int(company_filter)
+                    # Get the company to check if it's a parent
+                    company = db_session.query(Company).get(company_id)
+
+                    if company:
+                        if company.is_parent_company:
+                            # If parent company is selected, include all child companies
+                            child_company_ids = [c.id for c in company.child_companies.all()]
+                            all_company_ids = [company_id] + child_company_ids
+
+                            # Filter tickets where customer's company is parent or any child
+                            query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True).filter(
+                                CustomerUser.company_id.in_(all_company_ids)
+                            )
+                        else:
+                            # If child or standalone company, just filter by that company
+                            query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True).filter(
+                                CustomerUser.company_id == company_id
+                            )
+                except (ValueError, TypeError):
+                    pass
+
         tickets = query.all()
 
         # Filter tickets based on queue access permissions (same as list_tickets)
@@ -264,6 +303,7 @@ def export_tickets_csv():
         headers = [
             'Ticket ID',
             'Display ID',
+            'Order ID',
             'Subject',
             'Description',
             'Status',
@@ -273,6 +313,11 @@ def export_tickets_csv():
             'Customer',
             'Customer Email',
             'Customer Phone',
+            'Customer Company',
+            'Customer Parent Company',
+            'Customer Address',
+            'Customer Timezone',
+            'Customer Department',
             'Country',
             'Created Date',
             'Updated Date',
@@ -280,7 +325,8 @@ def export_tickets_csv():
             'Package Tracking Number',
             'Package Items',
             'Assets',
-            'Shipping Tracking',
+            'Return Shipping Tracking',
+            'Outbound Shipping Tracking',
             'Queue',
             'Package Journey - Latest Status',
             'Package Journey - Carrier',
@@ -310,6 +356,11 @@ def export_tickets_csv():
             customer_name = ''
             customer_email = ''
             customer_phone = ''
+            customer_company = ''
+            customer_parent_company = ''
+            customer_address = ''
+            customer_timezone = ''
+            customer_department = ''
             customer_country = ''
 
             try:
@@ -325,11 +376,28 @@ def export_tickets_csv():
                         or getattr(customer, 'phone', None)
                         or ''
                     )
+                    customer_timezone = getattr(customer, 'timezone', '') or ''
+                    customer_department = getattr(customer, 'department', '') or ''
                     country_attr = getattr(customer, 'country', None)
                     if hasattr(country_attr, 'value'):
                         customer_country = country_attr.value or ''
                     elif country_attr:
                         customer_country = str(country_attr)
+                    company = getattr(customer, 'company', None)
+                    if company:
+                        customer_company = getattr(company, 'grouped_display_name', None) or getattr(company, 'display_name', None) or company.name or ''
+                        parent_company = getattr(company, 'parent_company', None)
+                        if parent_company:
+                            parent_display = getattr(parent_company, 'effective_display_name', None)
+                            customer_parent_company = parent_display or getattr(parent_company, 'display_name', None) or parent_company.name or ''
+                    raw_address = ''
+                    if getattr(ticket, 'shipping_address', None):
+                        raw_address = ticket.shipping_address
+                    elif getattr(customer, 'address', None):
+                        raw_address = customer.address
+                    if raw_address:
+                        address_lines = [line.strip() for line in raw_address.splitlines() if line.strip()]
+                        customer_address = ', '.join(address_lines)
             except Exception as e:
                 logger.warning(f"Error accessing customer for ticket {ticket.id}: {e}")
 
@@ -423,9 +491,9 @@ def export_tickets_csv():
             except Exception as e:
                 logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
 
-            # Check if ticket has multiple packages (Asset Checkout claw category)
+            # Check if ticket has multiple packages (Asset Checkout/Return claw categories)
             packages = []
-            if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+            if ticket.category and ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_RETURN_CLAW']:
                 packages = ticket.get_all_packages()
 
             # If ticket has packages, create one row per package
@@ -458,9 +526,14 @@ def export_tickets_csv():
                     pkg_status = package.get('status', '')
                     pkg_carrier = package.get('carrier', '')
 
+                    # Get return and outbound shipping tracking
+                    return_shipping = getattr(ticket, 'return_tracking', '') or ''
+                    outbound_shipping = pkg_tracking_number  # For Asset Checkout, outbound is the package tracking
+
                     row = [
                         ticket.id,
                         getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                        getattr(ticket, 'firstbaseorderid', '') or '',
                         ticket.subject or '',
                         ticket.description or '',
                         ticket.status.value if ticket.status else '',
@@ -470,6 +543,11 @@ def export_tickets_csv():
                         customer_name,
                         customer_email,
                         customer_phone,
+                        customer_company,
+                        customer_parent_company,
+                        customer_address,
+                        customer_timezone,
+                        customer_department,
                         customer_country,
                         ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
                         ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
@@ -477,7 +555,8 @@ def export_tickets_csv():
                         pkg_tracking_number,
                         package_items_str,
                         assets_str,
-                        getattr(ticket, 'shipping_tracking', '') or '',
+                        return_shipping,
+                        outbound_shipping,
                         queue_name,
                         pkg_status,
                         pkg_carrier,
@@ -489,9 +568,14 @@ def export_tickets_csv():
                     writer.writerow(row)
             else:
                 # Original single-row format for tickets without packages
+                # For Asset Return (claw), get both return and outbound tracking
+                return_shipping = getattr(ticket, 'return_tracking', '') or ''
+                outbound_shipping = getattr(ticket, 'shipping_tracking', '') or ''
+
                 row = [
                     ticket.id,
                     getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                    getattr(ticket, 'firstbaseorderid', '') or '',
                     ticket.subject or '',
                     ticket.description or '',
                     ticket.status.value if ticket.status else '',
@@ -501,6 +585,11 @@ def export_tickets_csv():
                     customer_name,
                     customer_email,
                     customer_phone,
+                    customer_company,
+                    customer_parent_company,
+                    customer_address,
+                    customer_timezone,
+                    customer_department,
                     customer_country,
                     ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
                     ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
@@ -508,7 +597,8 @@ def export_tickets_csv():
                     '',  # Package tracking number
                     '',  # Package items
                     assets_str,
-                    getattr(ticket, 'shipping_tracking', '') or '',
+                    return_shipping,
+                    outbound_shipping,
                     queue_name,
                     latest_status,
                     latest_carrier,
@@ -539,6 +629,10 @@ def export_tickets_csv():
                 filter_parts.append(f"pri{priority_filter}")
             if status_filter and status_filter != 'all':
                 filter_parts.append(f"status{status_filter}")
+            if country_filter and country_filter != 'all':
+                filter_parts.append(f"country{country_filter}")
+            if company_filter and company_filter != 'all':
+                filter_parts.append(f"company{company_filter}")
 
             filter_desc = "_".join(filter_parts) if filter_parts else "filtered"
             filename = f'tickets_{filter_desc}_{len(tickets)}results_{timestamp}.csv'
@@ -567,7 +661,9 @@ def export_single_ticket_csv(ticket_id):
     try:
         # Build query with eager loading for the specific ticket
         query = db_session.query(Ticket).options(
-            joinedload(Ticket.customer),
+            joinedload(Ticket.customer)
+                .joinedload(CustomerUser.company)
+                .joinedload(Company.parent_company),
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
@@ -604,6 +700,7 @@ def export_single_ticket_csv(ticket_id):
         headers = [
             'Ticket ID',
             'Display ID',
+            'Order ID',
             'Subject',
             'Description',
             'Status',
@@ -613,6 +710,11 @@ def export_single_ticket_csv(ticket_id):
             'Customer',
             'Customer Email',
             'Customer Phone',
+            'Customer Company',
+            'Customer Parent Company',
+            'Customer Address',
+            'Customer Timezone',
+            'Customer Department',
             'Country',
             'Created Date',
             'Updated Date',
@@ -620,7 +722,8 @@ def export_single_ticket_csv(ticket_id):
             'Package Tracking Number',
             'Package Items',
             'Assets',
-            'Shipping Tracking',
+            'Return Shipping Tracking',
+            'Outbound Shipping Tracking',
             'Queue',
             'Package Journey - Latest Status',
             'Package Journey - Carrier',
@@ -648,6 +751,11 @@ def export_single_ticket_csv(ticket_id):
         customer_name = ''
         customer_email = ''
         customer_phone = ''
+        customer_company = ''
+        customer_parent_company = ''
+        customer_address = ''
+        customer_timezone = ''
+        customer_department = ''
         customer_country = ''
 
         try:
@@ -663,11 +771,28 @@ def export_single_ticket_csv(ticket_id):
                     or getattr(customer, 'phone', None)
                     or ''
                 )
+                customer_timezone = getattr(customer, 'timezone', '') or ''
+                customer_department = getattr(customer, 'department', '') or ''
                 country_attr = getattr(customer, 'country', None)
                 if hasattr(country_attr, 'value'):
                     customer_country = country_attr.value or ''
                 elif country_attr:
                     customer_country = str(country_attr)
+                company = getattr(customer, 'company', None)
+                if company:
+                    customer_company = getattr(company, 'grouped_display_name', None) or getattr(company, 'display_name', None) or company.name or ''
+                    parent_company = getattr(company, 'parent_company', None)
+                    if parent_company:
+                        parent_display = getattr(parent_company, 'effective_display_name', None)
+                        customer_parent_company = parent_display or getattr(parent_company, 'display_name', None) or parent_company.name or ''
+                raw_address = ''
+                if getattr(ticket, 'shipping_address', None):
+                    raw_address = ticket.shipping_address
+                elif getattr(customer, 'address', None):
+                    raw_address = customer.address
+                if raw_address:
+                    address_lines = [line.strip() for line in raw_address.splitlines() if line.strip()]
+                    customer_address = ', '.join(address_lines)
         except Exception as e:
             logger.warning(f"Error accessing customer for ticket {ticket.id}: {e}")
 
@@ -761,9 +886,9 @@ def export_single_ticket_csv(ticket_id):
         except Exception as e:
             logger.warning(f"Error accessing comments for ticket {ticket.id}: {e}")
 
-        # Check if ticket has multiple packages (Asset Checkout claw category)
+        # Check if ticket has multiple packages (Asset Checkout/Return claw categories)
         packages = []
-        if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+        if ticket.category and ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_RETURN_CLAW']:
             packages = ticket.get_all_packages()
 
         # If ticket has packages, create one row per package
@@ -796,9 +921,14 @@ def export_single_ticket_csv(ticket_id):
                 pkg_status = package.get('status', '')
                 pkg_carrier = package.get('carrier', '')
 
+                # Get return and outbound shipping tracking
+                return_shipping = getattr(ticket, 'return_tracking', '') or ''
+                outbound_shipping = pkg_tracking_number  # For Asset Checkout, outbound is the package tracking
+
                 row = [
                     ticket.id,
                     getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                    getattr(ticket, 'firstbaseorderid', '') or '',
                     ticket.subject or '',
                     ticket.description or '',
                     ticket.status.value if ticket.status else '',
@@ -808,6 +938,11 @@ def export_single_ticket_csv(ticket_id):
                     customer_name,
                     customer_email,
                     customer_phone,
+                    customer_company,
+                    customer_parent_company,
+                    customer_address,
+                    customer_timezone,
+                    customer_department,
                     customer_country,
                     ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
                     ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
@@ -815,7 +950,8 @@ def export_single_ticket_csv(ticket_id):
                     pkg_tracking_number,
                     package_items_str,
                     assets_str,
-                    getattr(ticket, 'shipping_tracking', '') or '',
+                    return_shipping,
+                    outbound_shipping,
                     queue_name,
                     pkg_status,
                     pkg_carrier,
@@ -827,9 +963,14 @@ def export_single_ticket_csv(ticket_id):
                 writer.writerow(row)
         else:
             # Original single-row format for tickets without packages
+            # For Asset Return (claw), get both return and outbound tracking
+            return_shipping = getattr(ticket, 'return_tracking', '') or ''
+            outbound_shipping = getattr(ticket, 'shipping_tracking', '') or ''
+
             row = [
                 ticket.id,
                 getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                getattr(ticket, 'firstbaseorderid', '') or '',
                 ticket.subject or '',
                 ticket.description or '',
                 ticket.status.value if ticket.status else '',
@@ -839,6 +980,11 @@ def export_single_ticket_csv(ticket_id):
                 customer_name,
                 customer_email,
                 customer_phone,
+                customer_company,
+                customer_parent_company,
+                customer_address,
+                customer_timezone,
+                customer_department,
                 customer_country,
                 ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
                 ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
@@ -846,7 +992,8 @@ def export_single_ticket_csv(ticket_id):
                 '',  # Package tracking number
                 '',  # Package items
                 assets_str,
-                getattr(ticket, 'shipping_tracking', '') or '',
+                return_shipping,
+                outbound_shipping,
                 queue_name,
                 latest_status,
                 latest_carrier,
@@ -1809,7 +1956,9 @@ def view_ticket(ticket_id):
         ticket = db_session.query(Ticket).options(
             joinedload(Ticket.requester),
             joinedload(Ticket.assigned_to),
-            joinedload(Ticket.customer),
+            joinedload(Ticket.customer)
+                .joinedload(CustomerUser.company)
+                .joinedload(Company.parent_company),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
             joinedload(Ticket.accessories),

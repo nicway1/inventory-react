@@ -1268,6 +1268,37 @@
         priorities.forEach(pri => {
             prioritySelect.innerHTML += `<option value="${pri}">${pri}</option>`;
         });
+
+        // Load companies dynamically
+        loadCompaniesForExport();
+    }
+
+    function loadCompaniesForExport() {
+        fetch('/api/v1/companies')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.companies) {
+                    const companySelect = document.getElementById('exportCompanyFilter');
+                    companySelect.innerHTML = '<option value="all">All Companies</option>';
+
+                    // Organize companies by parent/child relationship
+                    data.companies.forEach(company => {
+                        let displayName = company.grouped_display_name;
+
+                        // Add indentation for child companies
+                        if (company.parent_company_id && !company.is_parent_company) {
+                            displayName = '  ↳ ' + displayName;
+                        } else if (company.is_parent_company) {
+                            displayName = '📁 ' + displayName;
+                        }
+
+                        companySelect.innerHTML += `<option value="${company.id}">${displayName}</option>`;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading companies:', error);
+            });
     }
 
     function toggleExportMode() {
@@ -1356,6 +1387,8 @@
             if (formData.get('categoryFilter') !== 'all') params.append('category', formData.get('categoryFilter'));
             if (formData.get('priorityFilter') !== 'all') params.append('priority', formData.get('priorityFilter'));
             if (formData.get('statusFilter') !== 'all') params.append('status', formData.get('statusFilter'));
+            if (formData.get('countryFilter') !== 'all') params.append('country', formData.get('countryFilter'));
+            if (formData.get('companyFilter') !== 'all') params.append('company', formData.get('companyFilter'));
         } else if (mode === 'selected') {
             const selectedTickets = Array.from(form.querySelectorAll('input[name="selectedTickets"]:checked'))
                                         .map(cb => cb.value);
@@ -1650,6 +1683,39 @@
                             <option value="Waiting">Waiting</option>
                             <option value="Resolved">Resolved</option>
                             <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+
+                    <div class="export-filter-group">
+                        <label class="export-label">Country:</label>
+                        <select id="exportCountryFilter" name="countryFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                            <option value="all">All Countries</option>
+                            <option value="USA">USA</option>
+                            <option value="JAPAN">Japan</option>
+                            <option value="PHILIPPINES">Philippines</option>
+                            <option value="AUSTRALIA">Australia</option>
+                            <option value="ISRAEL">Israel</option>
+                            <option value="INDIA">India</option>
+                            <option value="TAIWAN">Taiwan</option>
+                            <option value="CHINA">China</option>
+                            <option value="HONG_KONG">Hong Kong</option>
+                            <option value="MALAYSIA">Malaysia</option>
+                            <option value="THAILAND">Thailand</option>
+                            <option value="VIETNAM">Vietnam</option>
+                            <option value="SOUTH_KOREA">South Korea</option>
+                            <option value="INDONESIA">Indonesia</option>
+                            <option value="CANADA">Canada</option>
+                            <option value="SINGAPORE">Singapore</option>
+                            <option value="IN">IN</option>
+                            <option value="SG">SG</option>
+                        </select>
+                    </div>
+
+                    <div class="export-filter-group">
+                        <label class="export-label">Company:</label>
+                        <select id="exportCompanyFilter" name="companyFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                            <option value="all">All Companies</option>
+                            <!-- Companies will be loaded dynamically -->
                         </select>
                     </div>
                 </div>

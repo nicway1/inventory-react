@@ -1769,3 +1769,50 @@ def audit_details(detail_type):
             f"Error retrieving audit details: {str(e)}",
             500
         )), 500
+
+@api_bp.route('/companies', methods=['GET'])
+def get_companies():
+    """
+    Get all companies with parent/child hierarchy
+    No authentication required for internal use
+    """
+    try:
+        from models.company import Company
+
+        db_session = db_manager.get_session()
+
+        try:
+            # Get all companies ordered by parent relationship
+            companies = db_session.query(Company).order_by(
+                Company.is_parent_company.desc(),
+                Company.parent_company_id.asc(),
+                Company.name.asc()
+            ).all()
+
+            companies_list = []
+            for company in companies:
+                company_data = {
+                    'id': company.id,
+                    'name': company.name,
+                    'display_name': company.effective_display_name,
+                    'grouped_display_name': company.grouped_display_name,
+                    'is_parent_company': company.is_parent_company,
+                    'parent_company_id': company.parent_company_id,
+                    'parent_company_name': company.parent_company.name if company.parent_company else None
+                }
+                companies_list.append(company_data)
+
+            return jsonify({
+                'success': True,
+                'companies': companies_list
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error fetching companies: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching companies: {str(e)}'
+        }), 500

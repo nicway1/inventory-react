@@ -1307,7 +1307,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                             <div class="sf-field-label">Company</div>
                             <div class="sf-field-value">
                                 {% if ticket.customer and ticket.customer.company %}
-                                    {{ ticket.customer.company.name }}
+                                    {{ ticket.customer.company.grouped_display_name }}
                                 {% else %}
                                     No Company
                                 {% endif %}
@@ -2207,12 +2207,20 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <div class="sf-field-label">Company</div>
                                         <div class="sf-field-value">
                                             {% if ticket.customer.company %}
-                                            {{ ticket.customer.company.name }}
+                                            {{ ticket.customer.company.grouped_display_name or ticket.customer.company.name }}
                                             {% else %}
                                             <span class="text-gray-500">No Company</span>
                                             {% endif %}
                                         </div>
                                     </div>
+                                    {% if ticket.customer.company and ticket.customer.company.parent_company %}
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Parent Company</div>
+                                        <div class="sf-field-value">
+                                            {{ ticket.customer.company.parent_company.effective_display_name or ticket.customer.company.parent_company.name }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                     {% if ticket.customer.company and ticket.customer.company.website %}
                                     <div class="sf-field-row">
                                         <div class="sf-field-label">Website</div>

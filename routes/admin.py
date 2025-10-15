@@ -5545,3 +5545,178 @@ def bulk_set_company_parent():
         db_session.close()
 
     return redirect(url_for('admin.manage_company_grouping'))
+
+@admin_bp.route('/customer-company-grouping')
+@admin_required
+def manage_customer_company_grouping():
+    """View all companies and their customer companies grouped together"""
+    db_session = db_manager.get_session()
+    try:
+        from models.customer_user import CustomerUser
+
+        # Get all companies with their customer users
+        companies = db_session.query(Company).order_by(
+            Company.is_parent_company.desc(),
+            Company.parent_company_id.asc(),
+            Company.name.asc()
+        ).all()
+
+        # Build company hierarchy with customer companies
+        company_data = []
+        for company in companies:
+            # Get all customer users (customer companies) for this company
+            customer_users = db_session.query(CustomerUser).filter(
+                CustomerUser.company_id == company.id
+            ).order_by(CustomerUser.name).all()
+
+            # Count assets for this company
+            asset_count = db_session.query(Asset).filter(Asset.customer == company.name).count()
+
+            company_info = {
+                'id': company.id,
+                'name': company.name,
+                'display_name': company.effective_display_name,
+                'is_parent_company': company.is_parent_company,
+                'parent_company_id': company.parent_company_id,
+                'parent_company_name': company.parent_company.name if company.parent_company else None,
+                'child_companies': [],
+                'customer_companies': customer_users,
+                'customer_company_count': len(customer_users),
+                'asset_count': asset_count
+            }
+
+            # Get child companies if this is a parent
+            if company.is_parent_company or company.child_companies.count() > 0:
+                for child in company.child_companies.all():
+                    child_customer_users = db_session.query(CustomerUser).filter(
+                        CustomerUser.company_id == child.id
+                    ).order_by(CustomerUser.name).all()
+
+                    child_asset_count = db_session.query(Asset).filter(Asset.customer == child.name).count()
+
+                    child_info = {
+                        'id': child.id,
+                        'name': child.name,
+                        'display_name': child.effective_display_name,
+                        'customer_companies': child_customer_users,
+                        'customer_company_count': len(child_customer_users),
+                        'asset_count': child_asset_count
+                    }
+                    company_info['child_companies'].append(child_info)
+
+            company_data.append(company_info)
+
+        # Separate into parent, child, and standalone companies
+        parent_companies = [c for c in company_data if c['is_parent_company'] or c['child_companies']]
+        standalone_companies = [c for c in company_data if not c['parent_company_id'] and not c['is_parent_company'] and not c['child_companies']]
+
+        # Get unassigned customer companies
+        unassigned_customers = db_session.query(CustomerUser).filter(
+            CustomerUser.company_id.is_(None)
+        ).order_by(CustomerUser.name).all()
+
+        # Get all companies for the dropdown (for bulk assignment)
+        all_companies_list = companies
+
+        return render_template('admin/customer_company_grouping.html',
+                              parent_companies=parent_companies,
+                              standalone_companies=standalone_companies,
+                              unassigned_customers=unassigned_customers,
+                              all_companies=all_companies_list)
+    except Exception as e:
+        logger.error(f'Error loading customer company grouping: {str(e)}')
+        flash(f'Error loading customer company grouping: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+    finally:
+        db_session.close()
+
+@admin_bp.route('/customer-company-grouping/assign', methods=['POST'])
+@admin_required
+def assign_customer_to_company():
+    """Assign a customer company to a different company"""
+    db_session = db_manager.get_session()
+    try:
+        from models.customer_user import CustomerUser
+
+        customer_id = request.form.get('customer_id')
+        new_company_id = request.form.get('company_id')
+
+        if not customer_id:
+            flash('Customer ID is required', 'error')
+            return redirect(url_for('admin.manage_customer_company_grouping'))
+
+        customer = db_session.query(CustomerUser).get(customer_id)
+        if not customer:
+            flash('Customer not found', 'error')
+            return redirect(url_for('admin.manage_customer_company_grouping'))
+
+        old_company_name = customer.company.name if customer.company else 'No Company'
+
+        # Update company assignment (can be None to unassign)
+        if new_company_id and new_company_id != 'none':
+            new_company = db_session.query(Company).get(new_company_id)
+            if not new_company:
+                flash('Company not found', 'error')
+                return redirect(url_for('admin.manage_customer_company_grouping'))
+
+            customer.company_id = new_company.id
+            new_company_name = new_company.name
+            flash(f'Successfully moved "{customer.name}" from {old_company_name} to {new_company_name}', 'success')
+        else:
+            customer.company_id = None
+            flash(f'Successfully removed "{customer.name}" from {old_company_name}', 'success')
+
+        db_session.commit()
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f'Error assigning customer to company: {str(e)}')
+        flash(f'Error assigning customer to company: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_customer_company_grouping'))
+
+@admin_bp.route('/customer-company-grouping/bulk-assign', methods=['POST'])
+@admin_required
+def bulk_assign_customers_to_company():
+    """Bulk assign multiple customer companies to a company"""
+    db_session = db_manager.get_session()
+    try:
+        from models.customer_user import CustomerUser
+
+        customer_ids = request.form.getlist('customer_ids')
+        new_company_id = request.form.get('company_id')
+
+        if not customer_ids:
+            flash('No customers selected', 'error')
+            return redirect(url_for('admin.manage_customer_company_grouping'))
+
+        if not new_company_id or new_company_id == 'none':
+            flash('Please select a company', 'error')
+            return redirect(url_for('admin.manage_customer_company_grouping'))
+
+        new_company = db_session.query(Company).get(new_company_id)
+        if not new_company:
+            flash('Company not found', 'error')
+            return redirect(url_for('admin.manage_customer_company_grouping'))
+
+        updated_count = 0
+        for customer_id in customer_ids:
+            customer = db_session.query(CustomerUser).get(customer_id)
+            if customer:
+                customer.company_id = new_company.id
+                updated_count += 1
+
+        db_session.commit()
+        flash(f'Successfully assigned {updated_count} customer companies to {new_company.name}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f'Error bulk assigning customers to company: {str(e)}')
+        flash(f'Error bulk assigning customers to company: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_customer_company_grouping'))
+

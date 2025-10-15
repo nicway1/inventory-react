@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Company Grouping - Admin{% endblock %}
+{% block title %}Asset Company Grouping - Admin{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">Company Grouping Management</h1>
-                <p class="text-gray-600 mt-2">Manage parent/child relationships between companies for grouped display (e.g., "Wise (Firstbase)")</p>
+                <h1 class="text-3xl font-bold text-gray-900">Asset Company Grouping Management</h1>
+                <p class="text-gray-600 mt-2">Manage parent/child relationships between asset companies for grouped display (e.g., "Wise (Firstbase)")</p>
             </div>
             <a href="{{ url_for('admin.manage_companies') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
                 Back to Companies

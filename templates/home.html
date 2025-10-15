@@ -329,7 +329,7 @@
                 </div>
                 <h2 class="text-xl font-bold text-gray-800">System Management</h2>
             </div>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-4 gap-4">
                 <!-- Row 1 -->
                 <a href="{{ url_for('admin.manage_users') }}" 
                    class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:from-slate-100 hover:to-slate-200 hover:shadow-md transition-all duration-200">
@@ -349,15 +349,26 @@
                     </div>
                     <span class="text-center text-xs">Manage Companies</span>
                 </a>
-                <a href="{{ url_for('admin.manage_company_grouping') }}" 
+                <a href="{{ url_for('admin.manage_company_grouping') }}"
                    class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200 hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md transition-all duration-200">
                     <div class="bg-indigo-500 p-2 rounded-lg mb-2 group-hover:bg-indigo-600 transition-colors">
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </div>
-                    <span class="text-center text-xs">Company Grouping</span>
+                    <span class="text-center text-xs">Asset Company Grouping</span>
                 </a>
+                <a href="{{ url_for('admin.manage_customer_company_grouping') }}"
+                   class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 hover:from-purple-100 hover:to-purple-200 hover:shadow-md transition-all duration-200">
+                    <div class="bg-purple-500 p-2 rounded-lg mb-2 group-hover:bg-purple-600 transition-colors">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <span class="text-center text-xs">Customer Company Grouping</span>
+                </a>
+
+                <!-- Row 2 -->
                 <a href="{{ url_for('admin.create_user') }}" 
                    class="group flex flex-col items-center justify-center p-4 h-24 text-sm font-medium text-gray-700 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 hover:from-green-100 hover:to-green-200 hover:shadow-md transition-all duration-200">
                     <div class="bg-green-500 p-2 rounded-lg mb-2 group-hover:bg-green-600 transition-colors">
