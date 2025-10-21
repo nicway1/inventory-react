@@ -5421,7 +5421,7 @@ body.dark-theme .sf-card-body .sf-field-label {
             </div>
 
             <!-- Add Item to Package Modal -->
-            <div id="addItemModal" class="fixed inset-0 overflow-y-auto hidden z-60">
+            <div id="addItemModal" class="fixed inset-0 overflow-y-auto hidden" style="z-index: 9999;">
                 <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                     <div class="fixed inset-0 transition-opacity" aria-hidden="true">
                         <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
@@ -9147,20 +9147,25 @@ function refreshPackageTracking(packageNumber) {
 
 // Package Item Management Functions
 function showAddItemModal(packageNumber) {
+    console.log('DEBUG: showAddItemModal called with packageNumber:', packageNumber);
+
     // Update modal content
     document.getElementById('itemModalTitle').textContent = `Add Item to Package ${packageNumber}`;
     document.getElementById('itemModalDescription').textContent = `Select an asset or accessory to add to Package ${packageNumber}.`;
     document.getElementById('item_package_number').value = packageNumber;
-    
+
     // Clear form
     document.getElementById('item_type').value = '';
     document.getElementById('item_id').innerHTML = '<option value="">-- Select Item --</option>';
     document.getElementById('item_selection').style.display = 'none';
     document.getElementById('item_quantity').value = '1';
     document.getElementById('item_notes').value = '';
-    
+
     // Show modal
-    document.getElementById('addItemModal').classList.remove('hidden');
+    const modal = document.getElementById('addItemModal');
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+    console.log('DEBUG: Modal should now be visible');
 }
 
 function hideAddItemModal() {
