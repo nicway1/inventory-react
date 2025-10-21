@@ -304,17 +304,18 @@ class Ticket(Base):
         
         return packages
 
-    def get_package_items(self, package_number):
+    def get_package_items(self, package_number, db_session=None):
         """Get all items (assets and accessories) associated with a specific package"""
         from models.package_item import PackageItem
         from database import SessionLocal
         
-        db = SessionLocal()
+        managed_session = db_session is None
+        db = db_session or SessionLocal()
         try:
             items = db.query(PackageItem).filter_by(
                 ticket_id=self.id,
                 package_number=package_number
-            ).all()
+            ).order_by(PackageItem.created_at.asc()).all()
             
             return [{
                 'id': item.id,
@@ -327,9 +328,10 @@ class Ticket(Base):
                 'accessory_id': item.accessory_id
             } for item in items]
         finally:
-            db.close()
+            if managed_session:
+                db.close()
 
-    def add_package_item(self, package_number, asset_id=None, accessory_id=None, quantity=1, notes=None):
+    def add_package_item(self, package_number, asset_id=None, accessory_id=None, quantity=1, notes=None, db_session=None):
         """Add an asset or accessory to a specific package"""
         from models.package_item import PackageItem
         from database import SessionLocal
@@ -340,7 +342,8 @@ class Ticket(Base):
         if asset_id and accessory_id:
             raise ValueError("Cannot specify both asset_id and accessory_id")
         
-        db = SessionLocal()
+        managed_session = db_session is None
+        db = db_session or SessionLocal()
         try:
             # Check if this item is already associated with this package
             existing = db.query(PackageItem).filter_by(
@@ -355,7 +358,10 @@ class Ticket(Base):
                 existing.quantity += quantity
                 existing.notes = notes if notes else existing.notes
                 existing.updated_at = datetime.utcnow()
-                db.commit()
+                if managed_session:
+                    db.commit()
+                else:
+                    db.flush()
                 return existing
             else:
                 # Create new package item association
@@ -368,10 +374,14 @@ class Ticket(Base):
                     notes=notes
                 )
                 db.add(package_item)
-                db.commit()
+                if managed_session:
+                    db.commit()
+                else:
+                    db.flush()
                 return package_item
         finally:
-            db.close()
+            if managed_session:
+                db.close()
 
     def remove_package_item(self, package_item_id):
         """Remove an item from a package"""

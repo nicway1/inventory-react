@@ -50,6 +50,14 @@
                 window.tabSystem.setActiveTab(tabId);
             }
         }, 100);
+        // Move Add Item modal to body to avoid parent layout constraints
+        const addItemModal = document.getElementById('addItemModal');
+        if (addItemModal && addItemModal.parentElement !== document.body) {
+            document.body.appendChild(addItemModal);
+            addItemModal.classList.add('hidden');
+            addItemModal.classList.remove('modal-visible');
+            addItemModal.setAttribute('aria-hidden', 'true');
+        }
     });
 </script>
 
@@ -59,6 +67,15 @@
     #details, #comments, #documents {
         display: block;
         margin-bottom: 2rem;
+    }
+
+    /* Utility class to force Tailwind hidden modals back into view */
+    .modal-visible {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center;
+        justify-content: center;
     }
 
     /* Enhanced Comment System Styles */
@@ -5422,14 +5439,14 @@ body.dark-theme .sf-card-body .sf-field-label {
 
             <!-- Add Item to Package Modal -->
             <div id="addItemModal" class="fixed inset-0 overflow-y-auto hidden" style="z-index: 9999;">
-                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="flex items-center justify-center min-h-screen px-4 py-6 text-center sm:flex sm:p-0">
                     <div class="fixed inset-0 transition-opacity" aria-hidden="true">
                         <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
                     </div>
 
                     <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full">
                         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                             <div class="sm:flex sm:items-start">
                                 <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
@@ -6672,10 +6689,8 @@ function deleteAttachment(attachmentId, ticketId) {
 // Tracking Modal Functions
 function showAddOutboundTrackingModal() {
     // First, hide any other modals that might be open
-    const itemModal = document.getElementById('addItemModal');
-    const returnModal = document.getElementById('addReturnTrackingModal');
-    if (itemModal) itemModal.classList.add('hidden');
-    if (returnModal) returnModal.classList.add('hidden');
+    hideAddItemModal();
+    hideAddReturnTrackingModal();
     
     const modal = document.getElementById('addOutboundTrackingModal');
     if (modal) {
@@ -9163,19 +9178,52 @@ function showAddItemModal(packageNumber) {
 
     // Show modal
     const modal = document.getElementById('addItemModal');
+    if (!modal) {
+        console.error('ERROR: Add Item modal element not found in DOM.');
+        return;
+    }
+
+    console.log('DEBUG: Modal element found:', modal);
+    console.log('DEBUG: Modal classes before:', modal.className);
+
+    // Clear any inline display overrides left over from previous attempts
+    modal.style.removeProperty('display');
+    modal.style.removeProperty('visibility');
+    modal.style.removeProperty('opacity');
+
     modal.classList.remove('hidden');
-    modal.style.display = 'block';
+    modal.classList.add('modal-visible');
+    modal.removeAttribute('aria-hidden');
+
+    document.body.classList.add('overflow-hidden');
+    document.body.style.overflow = 'hidden';
+
+    console.log('DEBUG: Modal classes after:', modal.className);
+    console.log('DEBUG: Modal computed after:', window.getComputedStyle(modal).display, window.getComputedStyle(modal).visibility, window.getComputedStyle(modal).opacity);
+    
+    requestAnimationFrame(() => {
+        const rect = modal.getBoundingClientRect();
+        console.log('DEBUG: Modal rect after RAF:', rect);
+        const content = modal.querySelector('.inline-block');
+        if (content) {
+            console.log('DEBUG: Modal content rect after RAF:', content.getBoundingClientRect());
+        }
+    });
     console.log('DEBUG: Modal should now be visible');
 }
 
 function hideAddItemModal() {
     const modal = document.getElementById('addItemModal');
     if (modal) {
+        modal.classList.remove('modal-visible');
         modal.classList.add('hidden');
-        modal.style.display = 'none';
-        modal.style.visibility = 'hidden';
-        modal.style.opacity = '0';
-        
+        modal.setAttribute('aria-hidden', 'true');
+
+        modal.style.removeProperty('display');
+        modal.style.removeProperty('visibility');
+        modal.style.removeProperty('opacity');
+
+        document.body.classList.remove('overflow-hidden');
         // Restore body scrolling
         document.body.style.overflow = '';
     }

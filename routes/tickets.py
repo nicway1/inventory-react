@@ -2073,7 +2073,7 @@ def view_ticket(ticket_id):
                         packages_tracking_data[package_number] = tracking_history.events
                 
                 # Load package items (assets and accessories)
-                package_items = ticket.get_package_items(package_number)
+                package_items = ticket.get_package_items(package_number, db_session=db_session)
                 packages_items_data[package_number] = package_items
         
         return render_template(
@@ -2565,7 +2565,7 @@ def assign_existing_asset(ticket_id):
                         return jsonify({'success': False, 'error': 'Package number must be between 1 and 5'}), 400
                     
                     # Add asset to the specified package
-                    ticket.add_package_item(package_number, asset_id=asset.id)
+                    ticket.add_package_item(package_number, asset_id=asset.id, db_session=db_session)
                     logger.info(f"[ASSIGN ASSET] Added asset {asset.asset_tag} to package {package_number}")
                     
                 except Exception as pkg_error:
@@ -6098,21 +6098,19 @@ def generate_package_mock_tracking_data(tracking_number, ticket_id, package_numb
 @login_required
 def add_package_item(ticket_id, package_number):
     """Add an asset or accessory to a specific package"""
+    db_session = ticket_store.db_manager.get_session()
     try:
         if package_number < 1 or package_number > 5:
             return jsonify({'success': False, 'message': 'Package number must be between 1 and 5'}), 400
 
         # Get ticket from database
-        db_session = ticket_store.db_manager.get_session()
         ticket = db_session.query(Ticket).get(ticket_id)
 
         if not ticket:
-            db_session.close()
             return jsonify({'success': False, 'message': 'Ticket not found'}), 404
 
         # Verify this is an Asset Checkout (claw) ticket
         if not ticket.category or ticket.category.name != 'ASSET_CHECKOUT_CLAW':
-            db_session.close()
             return jsonify({'success': False, 'message': 'Package item management is only available for Asset Checkout (claw) tickets'}), 400
 
         # Get request data
@@ -6123,7 +6121,6 @@ def add_package_item(ticket_id, package_number):
         notes = data.get('notes', '')
 
         if not item_type or not item_id:
-            db_session.close()
             return jsonify({'success': False, 'message': 'Item type and item ID are required'}), 400
 
         # Get the item name first while we have an active session
@@ -6131,37 +6128,34 @@ def add_package_item(ticket_id, package_number):
             from models.asset import Asset
             asset = db_session.query(Asset).get(item_id)
             if not asset:
-                db_session.close()
                 return jsonify({'success': False, 'message': 'Asset not found'}), 404
-            item_name = asset.name
             
             # Add the item to the package
             package_item = ticket.add_package_item(
                 package_number=package_number,
                 asset_id=item_id,
                 quantity=quantity,
-                notes=notes
+                notes=notes,
+                db_session=db_session
             )
         elif item_type == 'accessory':
             from models.accessory import Accessory
             accessory = db_session.query(Accessory).get(item_id)
             if not accessory:
-                db_session.close()
                 return jsonify({'success': False, 'message': 'Accessory not found'}), 404
-            item_name = accessory.name
             
             # Add the item to the package
             package_item = ticket.add_package_item(
                 package_number=package_number,
                 accessory_id=item_id,
                 quantity=quantity,
-                notes=notes
+                notes=notes,
+                db_session=db_session
             )
         else:
-            db_session.close()
             return jsonify({'success': False, 'message': 'Invalid item type. Must be "asset" or "accessory"'}), 400
 
-        db_session.close()
+        db_session.commit()
 
         # Note: Automatic comment generation removed as requested
         return jsonify({
@@ -6170,10 +6164,13 @@ def add_package_item(ticket_id, package_number):
         })
 
     except Exception as e:
+        db_session.rollback()
         logger.info(f"Error adding package item: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error adding item to package: {str(e)}'}), 500
+    finally:
+        db_session.close()
 
 @tickets_bp.route('/<int:ticket_id>/package_item/<int:package_item_id>/remove', methods=['POST'])
 @login_required
@@ -6247,7 +6244,7 @@ def get_package_items(ticket_id, package_number):
             return jsonify({'success': False, 'message': 'Ticket not found'}), 404
 
         # Get package items
-        package_items = ticket.get_package_items(package_number)
+        package_items = ticket.get_package_items(package_number, db_session=db_session)
 
         db_session.close()
         return jsonify({
