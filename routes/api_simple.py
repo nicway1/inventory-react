@@ -319,13 +319,25 @@ def list_tickets():
         # Get query parameters
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
-        
+        queue_id = request.args.get('queue_id', type=int)
+        status = request.args.get('status')
+
         # Get tickets from database (same as web interface)
         db_session = db_manager.get_session()
         try:
             # Query tickets from database
-            query = db_session.query(Ticket).order_by(Ticket.created_at.desc())
-            
+            query = db_session.query(Ticket)
+
+            # Apply filters
+            if queue_id:
+                query = query.filter(Ticket.queue_id == queue_id)
+
+            if status:
+                query = query.filter(Ticket.status == status)
+
+            # Order by most recent first
+            query = query.order_by(Ticket.created_at.desc())
+
             # Get total count
             total = query.count()
             
