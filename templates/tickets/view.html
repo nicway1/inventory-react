@@ -2484,6 +2484,15 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                                 {{ item.item_type }}
                                                             </span>
                                                             <span class="font-medium">{{ item.item_name }}</span>
+                                                            {% if item.item_type == 'Asset' %}
+                                                                {% set details = item.item_details %}
+                                                                {% if details.asset_tag %}
+                                                                <span class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">Tag: {{ details.asset_tag }}</span>
+                                                                {% endif %}
+                                                                {% if details.serial_num %}
+                                                                <span class="text-xs text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">SN: {{ details.serial_num }}</span>
+                                                                {% endif %}
+                                                            {% endif %}
                                                             {% if item.quantity > 1 %}
                                                             <span class="text-sm text-gray-500">({{ item.quantity }}x)</span>
                                                             {% endif %}
