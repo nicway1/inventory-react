@@ -13,6 +13,7 @@ from models.asset import Asset
 from models.comment import Comment
 from models.audit_session import AuditSession
 from models.user import Country
+from models.queue import Queue
 from werkzeug.security import check_password_hash
 import jwt
 import os
@@ -35,6 +36,44 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0"
     })
+
+@api_bp.route('/queues', methods=['GET'])
+@require_api_key(permissions=['tickets:read'])
+def list_queues():
+    """
+    Get list of all available queues for filtering and display
+
+    Returns:
+        List of queues with id, name, and description
+    """
+    try:
+        db_session = db_manager.get_session()
+        try:
+            queues = db_session.query(Queue).order_by(Queue.name).all()
+
+            queues_data = []
+            for queue in queues:
+                queue_data = {
+                    'id': queue.id,
+                    'name': queue.name,
+                    'description': queue.description if hasattr(queue, 'description') else None
+                }
+                queues_data.append(queue_data)
+
+            return jsonify(create_success_response(
+                queues_data,
+                f"Retrieved {len(queues_data)} queues"
+            ))
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving queues: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
 
 @api_bp.route('/auth/login', methods=['POST'])
 def login():
@@ -302,6 +341,14 @@ def list_tickets():
                     'description': ticket.description,
                     'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                     'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
+                    'category': ticket.category.name if ticket.category else None,
+                    'queue_id': ticket.queue_id,
+                    'queue_name': ticket.queue.name if ticket.queue else None,
+                    'customer_id': ticket.customer_user_id,
+                    'customer_name': ticket.customer_user.name if ticket.customer_user else None,
+                    'customer_email': ticket.customer_user.email if ticket.customer_user else None,
+                    'assigned_to_id': ticket.assigned_to_id,
+                    'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
                     'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                     'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
                 }
@@ -355,7 +402,15 @@ def get_ticket(ticket_id):
                 'description': ticket.description,
                 'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                 'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
-                'category': ticket.category.value if hasattr(ticket.category, 'value') else str(ticket.category) if ticket.category else None,
+                'category': ticket.category.name if ticket.category else None,
+                'queue_id': ticket.queue_id,
+                'queue_name': ticket.queue.name if ticket.queue else None,
+                'customer_id': ticket.customer_user_id,
+                'customer_name': ticket.customer_user.name if ticket.customer_user else None,
+                'customer_email': ticket.customer_user.email if ticket.customer_user else None,
+                'customer_phone': ticket.customer_user.contact_number if ticket.customer_user else None,
+                'assigned_to_id': ticket.assigned_to_id,
+                'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
                 'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
             }
