@@ -335,20 +335,43 @@ def list_tickets():
             # Convert to API format
             tickets_data = []
             for ticket in tickets:
+                # Safely get related object names
+                try:
+                    category_name = ticket.category.name if hasattr(ticket, 'category') and ticket.category else None
+                except:
+                    category_name = None
+
+                try:
+                    queue_name = ticket.queue.name if hasattr(ticket, 'queue') and ticket.queue else None
+                except:
+                    queue_name = None
+
+                try:
+                    customer_name = ticket.customer_user.name if hasattr(ticket, 'customer_user') and ticket.customer_user else None
+                    customer_email = ticket.customer_user.email if hasattr(ticket, 'customer_user') and ticket.customer_user else None
+                except:
+                    customer_name = None
+                    customer_email = None
+
+                try:
+                    assigned_name = ticket.assigned_to.name if hasattr(ticket, 'assigned_to') and ticket.assigned_to else None
+                except:
+                    assigned_name = None
+
                 ticket_data = {
                     'id': ticket.id,
                     'subject': ticket.subject,
                     'description': ticket.description,
                     'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                     'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
-                    'category': ticket.category.name if ticket.category else None,
-                    'queue_id': ticket.queue_id,
-                    'queue_name': ticket.queue.name if ticket.queue else None,
-                    'customer_id': ticket.customer_user_id,
-                    'customer_name': ticket.customer_user.name if ticket.customer_user else None,
-                    'customer_email': ticket.customer_user.email if ticket.customer_user else None,
-                    'assigned_to_id': ticket.assigned_to_id,
-                    'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
+                    'category': category_name,
+                    'queue_id': getattr(ticket, 'queue_id', None),
+                    'queue_name': queue_name,
+                    'customer_id': getattr(ticket, 'customer_user_id', None),
+                    'customer_name': customer_name,
+                    'customer_email': customer_email,
+                    'assigned_to_id': getattr(ticket, 'assigned_to_id', None),
+                    'assigned_to_name': assigned_name,
                     'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                     'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
                 }
@@ -396,21 +419,46 @@ def get_ticket(ticket_id):
                 )
                 return jsonify(response), status_code
             
+            # Safely get related object names
+            try:
+                category_name = ticket.category.name if hasattr(ticket, 'category') and ticket.category else None
+            except:
+                category_name = None
+
+            try:
+                queue_name = ticket.queue.name if hasattr(ticket, 'queue') and ticket.queue else None
+            except:
+                queue_name = None
+
+            try:
+                customer_name = ticket.customer_user.name if hasattr(ticket, 'customer_user') and ticket.customer_user else None
+                customer_email = ticket.customer_user.email if hasattr(ticket, 'customer_user') and ticket.customer_user else None
+                customer_phone = ticket.customer_user.contact_number if hasattr(ticket, 'customer_user') and ticket.customer_user else None
+            except:
+                customer_name = None
+                customer_email = None
+                customer_phone = None
+
+            try:
+                assigned_name = ticket.assigned_to.name if hasattr(ticket, 'assigned_to') and ticket.assigned_to else None
+            except:
+                assigned_name = None
+
             ticket_data = {
                 'id': ticket.id,
                 'subject': ticket.subject,
                 'description': ticket.description,
                 'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                 'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else None,
-                'category': ticket.category.name if ticket.category else None,
-                'queue_id': ticket.queue_id,
-                'queue_name': ticket.queue.name if ticket.queue else None,
-                'customer_id': ticket.customer_user_id,
-                'customer_name': ticket.customer_user.name if ticket.customer_user else None,
-                'customer_email': ticket.customer_user.email if ticket.customer_user else None,
-                'customer_phone': ticket.customer_user.contact_number if ticket.customer_user else None,
-                'assigned_to_id': ticket.assigned_to_id,
-                'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
+                'category': category_name,
+                'queue_id': getattr(ticket, 'queue_id', None),
+                'queue_name': queue_name,
+                'customer_id': getattr(ticket, 'customer_user_id', None),
+                'customer_name': customer_name,
+                'customer_email': customer_email,
+                'customer_phone': customer_phone,
+                'assigned_to_id': getattr(ticket, 'assigned_to_id', None),
+                'assigned_to_name': assigned_name,
                 'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None
             }
