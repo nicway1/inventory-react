@@ -652,9 +652,13 @@ def sync_tickets():
                 'description': ticket.description,
                 'status': ticket.status,
                 'priority': ticket.priority.name if ticket.priority else None,
+                'category': ticket.category.name if ticket.category else None,
                 'queue_id': ticket.queue_id,
+                'queue_name': ticket.queue.name if ticket.queue else None,
                 'customer_id': ticket.customer_user_id,
+                'customer_name': ticket.customer_user.name if ticket.customer_user else None,
                 'assigned_to_id': ticket.assigned_to_id,
+                'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
                 'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
                 'sync_timestamp': datetime.utcnow().isoformat()
@@ -890,6 +894,40 @@ def get_companies():
         }), 500
 
 # Health Check Endpoint
+
+@api_bp.route('/queues', methods=['GET'])
+@require_api_key(permissions=['tickets:read'])
+def list_queues():
+    """
+    Get list of all available queues
+
+    Returns:
+        List of queues with id and name
+    """
+    try:
+        queues = Queue.query.order_by(Queue.name).all()
+
+        queues_data = []
+        for queue in queues:
+            queue_data = {
+                'id': queue.id,
+                'name': queue.name,
+                'description': queue.description if hasattr(queue, 'description') else None
+            }
+            queues_data.append(queue_data)
+
+        return jsonify(create_success_response(
+            queues_data,
+            f"Retrieved {len(queues_data)} queues"
+        ))
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving queues: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
 
 @api_bp.route('/health', methods=['GET'])
 def health_check():
