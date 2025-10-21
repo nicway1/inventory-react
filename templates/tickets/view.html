@@ -9180,39 +9180,64 @@ function loadItemOptions() {
     const itemType = document.getElementById('item_type').value;
     const itemSelect = document.getElementById('item_id');
     const itemSelection = document.getElementById('item_selection');
-    
+
+    // Clear previous options and show loading
+    itemSelect.innerHTML = '<option value="">-- Loading Items... --</option>';
+    itemSelect.disabled = true;
+
     if (!itemType) {
         itemSelection.style.display = 'none';
         return;
     }
-    
-    // Show the selection dropdown
+
+    // Show the item selection dropdown
     itemSelection.style.display = 'block';
-    
-    // Build options based on ticket's existing items
-    let optionsHtml = '<option value="">-- Select Item --</option>';
-    
-    if (itemType === 'asset') {
-        // Use the ticketAssets array we defined earlier
-        ticketAssets.forEach(asset => {
-            const displayName = asset.name + (asset.asset_tag ? ' (' + asset.asset_tag + ')' : '');
-            optionsHtml += `<option value="${asset.id}">${displayName}</option>`;
-        });
-    } else {
-        // Use the ticketAccessories array we defined earlier
-        ticketAccessories.forEach(accessory => {
-            const displayName = accessory.name + (accessory.category ? ' - ' + accessory.category : '');
-            optionsHtml += `<option value="${accessory.id}">${displayName}</option>`;
-        });
-    }
-    
-    itemSelect.innerHTML = optionsHtml;
-    
-    // If no items available, show appropriate message
-    if ((itemType === 'asset' && ticketAssets.length === 0) || 
-        (itemType === 'accessory' && ticketAccessories.length === 0)) {
-        itemSelect.innerHTML = `<option value="">No ${itemType}s available in this ticket</option>`;
-    }
+
+    console.log('DEBUG: Loading items for type:', itemType);
+
+    // Fetch items via AJAX to get ALL available items from inventory
+    const ticketId = {{ ticket.id }};
+    fetch(`/tickets/${ticketId}/api/items?type=${itemType}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('DEBUG: Received items data:', data);
+
+        // Re-enable the select and clear loading message
+        itemSelect.disabled = false;
+        itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
+
+        if (data.success && data.items && data.items.length > 0) {
+            data.items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.display_name;
+                itemSelect.appendChild(option);
+                console.log('DEBUG: Added item option:', item.id, '-', item.display_name);
+            });
+            console.log(`DEBUG: Successfully loaded ${data.items.length} ${itemType}s`);
+        } else {
+            itemSelect.innerHTML = `<option value="">No ${itemType}s in this case</option>`;
+            console.log(`DEBUG: No ${itemType}s found in this ticket`);
+        }
+    })
+    .catch(error => {
+        console.error('ERROR: Failed to load items:', error);
+        itemSelect.disabled = false;
+        itemSelect.innerHTML = '<option value="">-- Error Loading Items --</option>';
+        alert(`Failed to load ${itemType}s. Please try again.`);
+    });
 }
 
 function removePackageItem(itemId, packageNumber) {
