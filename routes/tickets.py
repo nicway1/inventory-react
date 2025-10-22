@@ -1141,6 +1141,7 @@ def create_ticket():
             description = request.form.get('description')
             priority = request.form.get('priority')
             queue_id = request.form.get('queue_id', type=int)
+            case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
             user_id = session['user_id']
 
             # Check if user has permission to create tickets in this queue
@@ -1203,16 +1204,8 @@ def create_ticket():
                 shipping_address = request.form.get('shipping_address')
                 shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
                 notes = request.form.get('notes', '')
-                queue_id = request.form.get('queue_id')  # Get selected queue
-                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
-                
-                # Convert queue_id to int if provided
-                if queue_id:
-                    try:
-                        queue_id = int(queue_id)
-                    except ValueError:
-                        queue_id = None
-                
+                # queue_id and case_owner_id already extracted at line 1143-1145
+
                 logger.info(f"Processing {category} - Customer ID: {customer_id}, Serial Number: {serial_number}")  # Debug log
                 
                 if not customer_id:
@@ -1630,7 +1623,7 @@ Additional Notes:
             if category == 'PIN_REQUEST':
                 # PIN Request logic
                 lock_type = request.form.get('lock_type')
-                queue_id = request.form.get('queue_id', type=int)  # Get queue_id
+                # queue_id already extracted at line 1143
                 notes = request.form.get('notes', '')
 
                 try:
@@ -1660,21 +1653,13 @@ Additional Notes:
                 outbound_tracking = request.form.get('shipping_tracking', '')  # Renamed for clarity
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
                 notes = request.form.get('notes', '')
-                queue_id = request.form.get('queue_id')  # Get selected queue
-                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
+                # queue_id and case_owner_id already extracted at line 1143-1145
                 # Extract the return description from the form
                 user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
-                
+
                 logger.info(f"DEBUG - Form return_description: {request.form.get('return_description')}")  # Debug log
                 logger.info(f"DEBUG - Form description: {request.form.get('description')}")  # Debug log
                 logger.info(f"DEBUG - Final user_return_description: {user_return_description}")  # Debug log
-                
-                # Convert queue_id to int if provided
-                if queue_id:
-                    try:
-                        queue_id = int(queue_id)
-                    except ValueError:
-                        queue_id = None
                 
                 logger.info(f"Processing ASSET_RETURN_CLAW - Customer ID: {customer_id}")  # Debug log
                 
@@ -1793,10 +1778,10 @@ Images Attached: {len(image_paths)} image(s)"""
 
             elif category == 'ASSET_INTAKE':
                 title = request.form.get('intake_title') or request.form.get('title')  # Support both field names
-                description = request.form.get('intake_description') or request.form.get('description')  # Support both field names  
+                description = request.form.get('intake_description') or request.form.get('description')  # Support both field names
                 notes = request.form.get('intake_notes') or request.form.get('notes', '')  # Support both field names
                 priority = request.form.get('intake_priority') or request.form.get('priority')  # Support both field names
-                case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
+                # case_owner_id already extracted at line 1143-1145
 
                 if not title or not description:
                     flash('Please provide both title and description', 'error')
@@ -1868,8 +1853,8 @@ Additional Notes:
 
             # Create the ticket for other categories (including custom categories)
             notes = request.form.get('notes', '')
-            case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
-            
+            # case_owner_id already extracted at line 1143-1145
+
             # Handle custom categories
             if is_custom_category:
                 # For custom categories, we'll use a special handling since the DB expects enum values
