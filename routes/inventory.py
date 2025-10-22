@@ -1203,9 +1203,10 @@ def update_asset_status(asset_id):
         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
         if not asset:
             abort(404)
-            
-        data = request.get_json()
-        
+
+        # Try to get JSON data, but don't fail if it's not JSON
+        data = request.get_json(silent=True)
+
         if not data:
             # Handle form submission (not JSON)
             data = {
@@ -1213,7 +1214,7 @@ def update_asset_status(asset_id):
                 'customer_id': request.form.get('customer_id'),
                 'notes': request.form.get('notes')
             }
-        
+
         if 'status' not in data or not data['status']:
             return jsonify({"error": "Status is required"}), 400
         
