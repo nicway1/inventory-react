@@ -80,14 +80,14 @@ def get_filtered_customers(db_session, user):
     """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
     from models.company_customer_permission import CompanyCustomerPermission
     from sqlalchemy import or_
-    
+
     customers_query = db_session.query(CustomerUser)
-    
-    # SUPER_ADMIN and DEVELOPER users can see all customers
-    if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+
+    # SUPER_ADMIN, DEVELOPER, and SUPERVISOR users can see all customers
+    if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR]:
         return customers_query.order_by(CustomerUser.name).all()
-    
-    # For other users, apply permission-based filtering
+
+    # For other users (COUNTRY_ADMIN, CLIENT), apply permission-based filtering
     if user.company_id:
         # Get companies this user's company has permission to view customers from
         permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
@@ -95,7 +95,7 @@ def get_filtered_customers(db_session, user):
                 CompanyCustomerPermission.company_id == user.company_id,
                 CompanyCustomerPermission.can_view == True
             ).subquery()
-        
+
         # Users can always see their own company's customers, plus any permitted ones
         customers_query = customers_query.filter(
             or_(
@@ -103,7 +103,7 @@ def get_filtered_customers(db_session, user):
                 CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
             )
         )
-    
+
     return customers_query.order_by(CustomerUser.name).all()
 
 # Initialize TrackingMore API key
