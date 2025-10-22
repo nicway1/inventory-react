@@ -27,7 +27,7 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         
         user = db_manager.get_user(session['user_id'])
-        if user.user_type not in [UserType.ADMIN, UserType.SUPER_ADMIN]:
+        if not user.is_admin:
             flash('You do not have permission to access this page')
             return redirect(url_for('main.index'))
             

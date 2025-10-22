@@ -1098,7 +1098,7 @@ def create_ticket():
         
         # Get all users for case owner selection (admin and super admin only)
         users_for_assignment = []
-        if user.is_super_admin or user.user_type == UserType.ADMIN:
+        if user.is_admin:
             from models.user import User
             all_users = db_session.query(User).filter(User.is_active == True).all()
             users_for_assignment = [{
