@@ -1655,8 +1655,17 @@ $(document).ready(function() {
                 $('#selected_accessories').val(jsonData);
             }
 
+            // Disable hidden queue fields to prevent them from being submitted
+            $('#pin_queue_id').prop('disabled', true);
+            $('#queue_id').prop('disabled', true);
+            // Keep checkout_queue_id enabled as it's the one for this category
+
             // Submit via AJAX
             const formData = new FormData(this);
+
+            // Re-enable the fields after FormData is created (for future submissions)
+            $('#pin_queue_id').prop('disabled', false);
+            $('#queue_id').prop('disabled', false);
 
             // Debug: Log queue_id value
             const queueIdValue = $('#checkout_queue_id').val();
