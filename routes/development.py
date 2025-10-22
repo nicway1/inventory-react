@@ -664,6 +664,12 @@ def new_bug():
     if request.method == 'POST':
         db_session = SessionLocal()
         try:
+            # Verify current user exists in database
+            user = db_session.query(User).filter(User.id == current_user.id).first()
+            if not user:
+                flash('Error: Your user account no longer exists. Please log in again.', 'error')
+                return redirect(url_for('auth.logout'))
+
             # Handle screenshot upload
             screenshot_path = None
             if 'screenshot' in request.files:
