@@ -6981,9 +6981,8 @@ def debug_documents(ticket_id):
         else:
             # Staff need to check queue permissions
             if ticket.queue_id:
-                # Get queue access list
-                allowed_queues = [q.id for q in user.queues]
-                if ticket.queue_id not in allowed_queues:
+                # Check if user has access to this queue
+                if not user.can_access_queue(ticket.queue_id):
                     flash('You do not have permission to view this ticket', 'error')
                     return redirect(url_for('tickets.list_tickets'))
         
@@ -7028,10 +7027,10 @@ def get_attachment(ticket_id, attachment_id):
             if user_type == 'CLIENT' and ticket.created_by != user.id:
                 flash('You do not have permission to access this attachment', 'error')
                 return redirect(url_for('tickets.list_tickets'))
-            
+
             if ticket.queue_id:
-                allowed_queues = [q.id for q in user.queues]
-                if ticket.queue_id not in allowed_queues:
+                # Check if user has access to this queue
+                if not user.can_access_queue(ticket.queue_id):
                     flash('You do not have permission to access this attachment', 'error')
                     return redirect(url_for('tickets.list_tickets'))
         
