@@ -1144,6 +1144,9 @@ def create_ticket():
             case_owner_id = request.form.get('case_owner_id')  # Get selected case owner
             user_id = session['user_id']
 
+            # Log queue_id for debugging
+            logger.info(f"[CREATE TICKET] Received queue_id from form: {repr(queue_id)} (type: {type(queue_id).__name__})")
+
             # Check if user has permission to create tickets in this queue
             if queue_id and not user.can_create_in_queue(queue_id):
                 flash('You do not have permission to create tickets in this queue', 'error')
@@ -1366,6 +1369,9 @@ Additional Notes:
 
                     # Create the ticket
                     try:
+                        # Log queue_id before creating ticket
+                        logger.info(f"[CREATE TICKET] Creating ticket with queue_id: {repr(queue_id)} (type: {type(queue_id).__name__})")
+
                         ticket_id = ticket_store.create_ticket(
                             subject=subject,
                             description=final_description,
