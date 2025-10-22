@@ -1654,9 +1654,14 @@ $(document).ready(function() {
                 const jsonData = JSON.stringify(selectedAccessories);
                 $('#selected_accessories').val(jsonData);
             }
-            
+
             // Submit via AJAX
             const formData = new FormData(this);
+
+            // Debug: Log queue_id value
+            const queueIdValue = $('#checkout_queue_id').val();
+            console.log('[QUEUE DEBUG] checkout_queue_id value:', queueIdValue);
+            console.log('[QUEUE DEBUG] FormData queue_id:', formData.get('queue_id'));
             
             fetch(this.action, {
                 method: 'POST',
