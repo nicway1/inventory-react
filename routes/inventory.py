@@ -2569,11 +2569,11 @@ def export_inventory(item_type):
         # Create a string buffer to write CSV data
         si = StringIO()
         writer = csv.writer(si)
-        
+
         if item_type == 'assets':
             # Get assets based on user permissions and selection
             query = db_session.query(Asset)
-            
+
             # Handle selected assets if POST request
             if request.method == 'POST' and request.form.get('selected_ids'):
                 try:
@@ -2583,12 +2583,46 @@ def export_inventory(item_type):
                 except json.JSONDecodeError:
                     flash('Invalid selection data', 'error')
                     return redirect(url_for('inventory.view_inventory'))
-            
+
             # Apply user permission filters
             if not current_user.is_super_admin:
                 if current_user.is_country_admin and current_user.assigned_country:
                     query = query.filter(Asset.country == current_user.assigned_country.value)
-            
+
+            # Apply filters from query parameters (from inventory view)
+            status_filter = request.args.get('status')
+            if status_filter and status_filter != 'all':
+                from models.enums import AssetStatus
+                try:
+                    status_enum = AssetStatus(status_filter)
+                    query = query.filter(Asset.status == status_enum)
+                except ValueError:
+                    pass
+
+            model_filter = request.args.get('model')
+            if model_filter and model_filter != 'all':
+                query = query.filter(Asset.model == model_filter)
+
+            company_filter = request.args.get('company')
+            if company_filter and company_filter != 'all':
+                query = query.filter(Asset.customer == company_filter)
+
+            country_filter = request.args.get('country')
+            if country_filter and country_filter != 'all':
+                query = query.filter(Asset.country == country_filter)
+
+            search_filter = request.args.get('search')
+            if search_filter:
+                search_term = f"%{search_filter}%"
+                query = query.filter(
+                    or_(
+                        Asset.serial_num.ilike(search_term),
+                        Asset.asset_tag.ilike(search_term),
+                        Asset.model.ilike(search_term),
+                        Asset.name.ilike(search_term)
+                    )
+                )
+
             assets = query.all()
             
             if not assets:
@@ -2597,40 +2631,80 @@ def export_inventory(item_type):
             
             # Write header
             writer.writerow([
-                'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
+                'Package Number', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
                 'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION',
                 'DIAG', 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES',
                 'MEMORY', 'HARDDRIVE', 'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY',
                 'country'
             ])
-            
+
+            # Import PackageItem model
+            from models.package_item import PackageItem
+
             # Write data
             for asset in assets:
-                writer.writerow([
-                    asset.asset_type or '',
-                    asset.name or '',
-                    asset.asset_tag or '',
-                    asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '',
-                    asset.keyboard or '',
-                    asset.serial_num or '',
-                    asset.po or '',
-                    asset.model or '',
-                    asset.erased or '',
-                    asset.customer or '',
-                    asset.condition or '',
-                    asset.diag or '',
-                    asset.hardware_type or '',
-                    asset.cpu_type or '',
-                    asset.cpu_cores or '',
-                    asset.gpu_cores or '',
-                    asset.memory or '',
-                    asset.harddrive or '',
-                    asset.status.value if asset.status else '',
-                    asset.charger or '',
-                    '',  # INCLUDED field (empty for now)
-                    asset.inventory or '',
-                    asset.country or ''
-                ])
+                # Check if this asset has package items
+                package_items = db_session.query(PackageItem).filter(
+                    PackageItem.asset_id == asset.id
+                ).order_by(PackageItem.package_number).all()
+
+                if package_items:
+                    # Create one row per package item
+                    for pkg_item in package_items:
+                        writer.writerow([
+                            f'Package {pkg_item.package_number}',
+                            asset.asset_type or '',
+                            asset.name or '',
+                            asset.asset_tag or '',
+                            asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '',
+                            asset.keyboard or '',
+                            asset.serial_num or '',
+                            asset.po or '',
+                            asset.model or '',
+                            asset.erased or '',
+                            asset.customer or '',
+                            asset.condition or '',
+                            asset.diag or '',
+                            asset.hardware_type or '',
+                            asset.cpu_type or '',
+                            asset.cpu_cores or '',
+                            asset.gpu_cores or '',
+                            asset.memory or '',
+                            asset.harddrive or '',
+                            asset.status.value if asset.status else '',
+                            asset.charger or '',
+                            '',  # INCLUDED field (empty for now)
+                            asset.inventory or '',
+                            asset.country or ''
+                        ])
+                else:
+                    # No package items, create one row as normal
+                    writer.writerow([
+                        '',  # No package number
+                        asset.asset_type or '',
+                        asset.name or '',
+                        asset.asset_tag or '',
+                        asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '',
+                        asset.keyboard or '',
+                        asset.serial_num or '',
+                        asset.po or '',
+                        asset.model or '',
+                        asset.erased or '',
+                        asset.customer or '',
+                        asset.condition or '',
+                        asset.diag or '',
+                        asset.hardware_type or '',
+                        asset.cpu_type or '',
+                        asset.cpu_cores or '',
+                        asset.gpu_cores or '',
+                        asset.memory or '',
+                        asset.harddrive or '',
+                        asset.status.value if asset.status else '',
+                        asset.charger or '',
+                        '',  # INCLUDED field (empty for now)
+                        asset.inventory or '',
+                        asset.country or ''
+                    ])
         
         elif item_type == 'accessories':
             # Get accessories based on user permissions and selection
@@ -5237,13 +5311,15 @@ def create_customer():
         
         db_session = db_manager.get_session()
         
-        # Convert country string to enum
-        from models.user import Country
+        # Convert country string to enum if it exists, otherwise use as string
+        from models.enums import Country
         try:
-            country_enum = Country(country)
-        except ValueError:
-            return jsonify({'error': f'Invalid country: {country}'}), 400
-        
+            country_enum = Country(country.upper())
+            country_value = country_enum
+        except (ValueError, AttributeError):
+            # If country is not in enum, use it as a custom string value
+            country_value = country.upper()
+
         # Create new customer
         customer = CustomerUser(
             name=name,
@@ -5251,7 +5327,7 @@ def create_customer():
             email=email,
             address=address,
             company_id=company_id,
-            country=country_enum,
+            country=country_value,
             created_at=datetime.utcnow()
         )
         

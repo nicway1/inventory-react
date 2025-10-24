@@ -297,16 +297,34 @@ def manage_users():
     users = db_manager.get_all_users()
     return render_template('admin/users.html', users=users)
 
+def _format_parent_companies(parent_companies):
+    """Helper to format parent companies with their child companies"""
+    return [
+        {
+            'id': c.id,
+            'name': c.name,
+            'child_companies': [{'id': child.id, 'name': child.name} for child in c.child_companies.all()]
+        }
+        for c in parent_companies
+    ]
+
 @admin_bp.route('/users/create', methods=['GET', 'POST'])
 @admin_required
 def create_user():
     """Create a new user"""
     from models.user import User, UserType, Country
-    
+    from models.queue import Queue
+    from models.company_queue_permission import CompanyQueuePermission
+    from models.user_company_permission import UserCompanyPermission
+
     db_session = db_manager.get_session()
     try:
+        # Get all companies for CLIENT user type
         companies = db_session.query(Company).all()
-        
+        # Get only parent companies for COUNTRY_ADMIN filtering
+        parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
+        queues = db_session.query(Queue).all()
+
         if request.method == 'POST':
             username = request.form.get('username')
             email = request.form.get('email')
@@ -314,13 +332,18 @@ def create_user():
             company_id = request.form.get('company_id')
             user_type = request.form.get('user_type')
             assigned_country = request.form.get('assigned_country')
+            country_admin_company = request.form.get('country_admin_company')
+            child_company_ids = request.form.getlist('child_company_ids')
+            queue_ids = request.form.getlist('queue_ids')
 
             # Check if user with this email already exists
             existing_user = db_session.query(User).filter_by(email=email).first()
             if existing_user:
                 flash('A user with this email already exists. Please use a different email address.', 'error')
                 companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                return render_template('admin/create_user.html', companies=companies_data)
+                parent_companies_data = _format_parent_companies(parent_companies)
+                queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
 
             try:
                 # Create user data dictionary
@@ -336,17 +359,51 @@ def create_user():
                 if user_type == 'COUNTRY_ADMIN':
                     if not assigned_country:
                         flash('Country selection is required for Country Admin', 'error')
-                        return render_template('admin/create_user.html', companies=companies)
+                        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                        parent_companies_data = _format_parent_companies(parent_companies)
+                        queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
                     user_data['assigned_country'] = Country[assigned_country]
-                
+
+                    # Set company for Country Admin (to filter assets by parent company)
+                    if country_admin_company:
+                        user_data['company_id'] = country_admin_company
+
                 # Company is required for CLIENT users
                 if user_type == 'CLIENT' and not company_id:
                     flash('Company selection is required for Client users', 'error')
                     companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                    return render_template('admin/create_user.html', companies=companies_data)
+                    parent_companies_data = _format_parent_companies(parent_companies)
+                    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                    return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
 
                 user = User(**user_data)
                 db_session.add(user)
+                db_session.flush()  # Get the user ID before committing
+
+                # Create child company permissions for Country Admin
+                if user_type == 'COUNTRY_ADMIN' and child_company_ids:
+                    for child_company_id in child_company_ids:
+                        company_permission = UserCompanyPermission(
+                            user_id=user.id,
+                            company_id=int(child_company_id),
+                            can_view=True,
+                            can_edit=False,
+                            can_delete=False
+                        )
+                        db_session.add(company_permission)
+
+                # Create queue permissions for Country Admin
+                if user_type == 'COUNTRY_ADMIN' and queue_ids and country_admin_company:
+                    for queue_id in queue_ids:
+                        permission = CompanyQueuePermission(
+                            company_id=country_admin_company,
+                            queue_id=int(queue_id),
+                            can_view=True,
+                            can_create=True
+                        )
+                        db_session.add(permission)
+
                 db_session.commit()
 
                 # Send welcome email
@@ -360,11 +417,15 @@ def create_user():
                 db_session.rollback()
                 flash(f'Error creating user: {str(e)}', 'error')
                 companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                return render_template('admin/create_user.html', companies=companies_data)
+                parent_companies_data = _format_parent_companies(parent_companies)
+                queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
 
-        # Convert companies to list of dicts to avoid detached instance errors
+        # Convert companies, parent companies and queues to list of dicts to avoid detached instance errors
         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-        return render_template('admin/create_user.html', companies=companies_data)
+        parent_companies_data = _format_parent_companies(parent_companies)
+        queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
     finally:
         db_session.close()
 

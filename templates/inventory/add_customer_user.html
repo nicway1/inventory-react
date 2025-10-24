@@ -37,15 +37,26 @@
                 <!-- Country Selection -->
                 <div>
                     <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                    <select id="country" 
-                            name="country" 
+                    <select id="country"
+                            name="country"
                             required
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a country</option>
                         {% for country in Country %}
                         <option value="{{ country.value }}">{{ country.value }}</option>
                         {% endfor %}
+                        <option value="OTHER">Other (Enter Custom Country)</option>
                     </select>
+                </div>
+
+                <!-- Custom Country Input (shown when "Other" is selected) -->
+                <div id="customCountryDiv" style="display: none;">
+                    <label for="customCountry" class="block text-sm font-medium text-gray-700">Enter Country Name</label>
+                    <input type="text"
+                           id="customCountry"
+                           name="customCountry"
+                           placeholder="Enter country name"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
                 <!-- Name -->
@@ -98,4 +109,47 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const countrySelect = document.getElementById('country');
+    const customCountryDiv = document.getElementById('customCountryDiv');
+    const customCountryInput = document.getElementById('customCountry');
+    const form = document.querySelector('form');
+
+    // Show/hide custom country input based on selection
+    countrySelect.addEventListener('change', function() {
+        if (this.value === 'OTHER') {
+            customCountryDiv.style.display = 'block';
+            customCountryInput.required = true;
+        } else {
+            customCountryDiv.style.display = 'none';
+            customCountryInput.required = false;
+            customCountryInput.value = '';
+        }
+    });
+
+    // Handle form submission to use custom country if "Other" is selected
+    form.addEventListener('submit', function(e) {
+        if (countrySelect.value === 'OTHER') {
+            // If custom country is entered, replace the select value with custom country
+            if (customCountryInput.value.trim()) {
+                // Create a hidden input with the custom country value
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'country';
+                hiddenInput.value = customCountryInput.value.trim();
+                form.appendChild(hiddenInput);
+
+                // Disable the select so it doesn't submit "OTHER"
+                countrySelect.disabled = true;
+            } else {
+                e.preventDefault();
+                alert('Please enter a country name');
+                return false;
+            }
+        }
+    });
+});
+</script>
 {% endblock %} 

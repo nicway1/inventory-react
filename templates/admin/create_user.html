@@ -81,8 +81,8 @@
 
                 <div id="countrySelect" style="display: none;">
                     <label for="assigned_country" class="block text-sm font-medium text-gray-700">Assigned Country</label>
-                    <select id="assigned_country" 
-                            name="assigned_country" 
+                    <select id="assigned_country"
+                            name="assigned_country"
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <option value="">-- Select Country --</option>
                         <option value="USA">USA</option>
@@ -93,6 +93,44 @@
                         <option value="INDIA">India</option>
                         <option value="SINGAPORE">Singapore</option>
                     </select>
+                </div>
+
+                <div id="countryAdminCompanySelect" style="display: none;">
+                    <label for="country_admin_company" class="block text-sm font-medium text-gray-700">Parent Company</label>
+                    <select id="country_admin_company"
+                            name="country_admin_company"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select Parent Company --</option>
+                        {% for company in parent_companies %}
+                        <option value="{{ company.id }}" data-child-companies='{{ company.child_companies | tojson }}'>{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">Select a parent company to view its child companies</p>
+                </div>
+
+                <div id="childCompanySelect" style="display: none;">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Child Companies (Assets Filter)</label>
+                    <div id="childCompanyList" class="border border-gray-300 rounded-md p-3 max-h-60 overflow-y-auto">
+                        <p class="text-sm text-gray-500">Select a parent company to see child companies</p>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Select which child companies this Country Admin can view assets from. If none selected, they can view all child companies under the parent.</p>
+                </div>
+
+                <div id="queueSelect" style="display: none;">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Accessible Queues</label>
+                    <div class="border border-gray-300 rounded-md p-3 max-h-60 overflow-y-auto">
+                        {% for queue in queues %}
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox"
+                                   id="queue_{{ queue.id }}"
+                                   name="queue_ids"
+                                   value="{{ queue.id }}"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="queue_{{ queue.id }}" class="ml-2 text-sm text-gray-700">{{ queue.name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Select which queues this Country Admin can access</p>
                 </div>
 
                 <div class="pt-4">
@@ -111,22 +149,71 @@ document.addEventListener('DOMContentLoaded', function() {
     const userTypeSelect = document.getElementById('user_type');
     const countrySelect = document.getElementById('countrySelect');
     const companySelect = document.getElementById('company_id');
-    
+    const countryAdminCompanySelect = document.getElementById('countryAdminCompanySelect');
+    const countryAdminCompanyDropdown = document.getElementById('country_admin_company');
+    const childCompanySelect = document.getElementById('childCompanySelect');
+    const childCompanyList = document.getElementById('childCompanyList');
+    const queueSelect = document.getElementById('queueSelect');
+
     userTypeSelect.addEventListener('change', function() {
         // Handle country select visibility
         if (this.value === 'COUNTRY_ADMIN') {
             countrySelect.style.display = 'block';
+            countryAdminCompanySelect.style.display = 'block';
+            queueSelect.style.display = 'block';
             document.getElementById('assigned_country').required = true;
         } else {
             countrySelect.style.display = 'none';
+            countryAdminCompanySelect.style.display = 'none';
+            childCompanySelect.style.display = 'none';
+            queueSelect.style.display = 'none';
             document.getElementById('assigned_country').required = false;
         }
-        
+
         // Handle company requirement
         if (this.value === 'CLIENT') {
             companySelect.required = true;
         } else {
             companySelect.required = false;
+        }
+    });
+
+    // Handle parent company selection to show child companies
+    countryAdminCompanyDropdown.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const childCompaniesData = selectedOption.getAttribute('data-child-companies');
+
+        if (childCompaniesData && childCompaniesData !== 'null') {
+            try {
+                const childCompanies = JSON.parse(childCompaniesData);
+
+                if (childCompanies && childCompanies.length > 0) {
+                    // Build checkboxes for child companies
+                    let html = '';
+                    childCompanies.forEach(function(child) {
+                        html += `
+                            <div class="flex items-center mb-2">
+                                <input type="checkbox"
+                                       id="child_company_${child.id}"
+                                       name="child_company_ids"
+                                       value="${child.id}"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="child_company_${child.id}" class="ml-2 text-sm text-gray-700">${child.name}</label>
+                            </div>
+                        `;
+                    });
+                    childCompanyList.innerHTML = html;
+                    childCompanySelect.style.display = 'block';
+                } else {
+                    childCompanyList.innerHTML = '<p class="text-sm text-gray-500">This parent company has no child companies</p>';
+                    childCompanySelect.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error parsing child companies:', e);
+                childCompanySelect.style.display = 'none';
+            }
+        } else {
+            childCompanySelect.style.display = 'none';
         }
     });
 

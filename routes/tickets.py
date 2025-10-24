@@ -323,6 +323,7 @@ def export_tickets_csv():
             'Updated Date',
             'Package Number',
             'Package Tracking Number',
+            'Item Type',
             'Package Items',
             'Assets',
             'Return Shipping Tracking',
@@ -496,83 +497,124 @@ def export_tickets_csv():
             if ticket.category and ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_RETURN_CLAW']:
                 packages = ticket.get_all_packages()
 
-            # If ticket has packages, create one row per package
+            # If ticket has packages, create one row per item in each package
             if packages:
                 from models.package_item import PackageItem
                 for package in packages:
                     # Get items for this package
-                    package_items = []
                     try:
                         items = db_session.query(PackageItem).filter_by(
                             ticket_id=ticket.id,
                             package_number=package['package_number']
                         ).all()
-                        item_counter = 1
-                        for item in items:
-                            if item.asset_id:
-                                asset = db_session.query(Asset).get(item.asset_id)
-                                if asset:
-                                    # Format: 1.Asset MacBook Air 13" Apple Tag: O.783 SN: KMJL90245Q
-                                    asset_name = asset.name or 'Asset'
-                                    asset_tag = asset.asset_tag or 'N/A'
-                                    asset_sn = asset.serial_num or 'N/A'
-                                    package_items.append(f"{item_counter}.{asset_name} Tag: {asset_tag} SN: {asset_sn}")
-                                    item_counter += 1
-                            elif item.accessory_id:
-                                accessory = db_session.query(Accessory).get(item.accessory_id)
-                                if accessory:
-                                    package_items.append(f"{item_counter}.Accessory: {accessory.name} (x{item.quantity})")
-                                    item_counter += 1
+
+                        # Get tracking info for this specific package
+                        pkg_tracking_number = package.get('tracking_number', '')
+                        pkg_status = package.get('status', '')
+                        pkg_carrier = package.get('carrier', '')
+
+                        # Get return and outbound shipping tracking
+                        return_shipping = getattr(ticket, 'return_tracking', '') or ''
+                        outbound_shipping = pkg_tracking_number  # For Asset Checkout, outbound is the package tracking
+
+                        # If package has items, create one row per item
+                        if items:
+                            for item in items:
+                                item_description = ''
+                                item_type = ''
+                                if item.asset_id:
+                                    asset = db_session.query(Asset).get(item.asset_id)
+                                    if asset:
+                                        # Format: MacBook Air 13" Apple Tag: O.783 SN: KMJL90245Q
+                                        asset_name = asset.name or 'Asset'
+                                        asset_tag = asset.asset_tag or 'N/A'
+                                        asset_sn = asset.serial_num or 'N/A'
+                                        item_description = f"{asset_name} Tag: {asset_tag} SN: {asset_sn}"
+                                        item_type = 'Asset'
+                                elif item.accessory_id:
+                                    accessory = db_session.query(Accessory).get(item.accessory_id)
+                                    if accessory:
+                                        item_description = f"Accessory: {accessory.name} (x{item.quantity})"
+                                        item_type = 'Accessory'
+
+                                row = [
+                                    ticket.id,
+                                    getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                                    getattr(ticket, 'firstbaseorderid', '') or '',
+                                    ticket.subject or '',
+                                    ticket.description or '',
+                                    ticket.status.value if ticket.status else '',
+                                    ticket.priority.value if ticket.priority else '',
+                                    ticket.get_category_display_name() if ticket.category else '',
+                                    assigned_to,
+                                    customer_name,
+                                    customer_email,
+                                    customer_phone,
+                                    customer_company,
+                                    customer_parent_company,
+                                    customer_address,
+                                    customer_timezone,
+                                    customer_department,
+                                    customer_country,
+                                    ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                                    ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                                    package['package_number'],
+                                    pkg_tracking_number,
+                                    item_type,  # Asset or Accessory
+                                    item_description,  # Single item description instead of all items
+                                    '',  # Empty Assets column for package items (item is in Package Items column)
+                                    return_shipping,
+                                    outbound_shipping,
+                                    queue_name,
+                                    pkg_status,
+                                    pkg_carrier,
+                                    '',  # Latest update
+                                    '',  # Full history
+                                    comments_count,
+                                    comments_text
+                                ]
+                                writer.writerow(row)
+                        else:
+                            # Package has no items, create one row for the package anyway
+                            row = [
+                                ticket.id,
+                                getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                                getattr(ticket, 'firstbaseorderid', '') or '',
+                                ticket.subject or '',
+                                ticket.description or '',
+                                ticket.status.value if ticket.status else '',
+                                ticket.priority.value if ticket.priority else '',
+                                ticket.get_category_display_name() if ticket.category else '',
+                                assigned_to,
+                                customer_name,
+                                customer_email,
+                                customer_phone,
+                                customer_company,
+                                customer_parent_company,
+                                customer_address,
+                                customer_timezone,
+                                customer_department,
+                                customer_country,
+                                ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                                ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                                package['package_number'],
+                                pkg_tracking_number,
+                                '',  # No item type
+                                '',  # No items
+                                '',  # Empty Assets column for package rows
+                                return_shipping,
+                                outbound_shipping,
+                                queue_name,
+                                pkg_status,
+                                pkg_carrier,
+                                '',  # Latest update
+                                '',  # Full history
+                                comments_count,
+                                comments_text
+                            ]
+                            writer.writerow(row)
                     except Exception as e:
                         logger.warning(f"Error loading package items: {e}")
-
-                    package_items_str = ' '.join(package_items) if package_items else ''
-
-                    # Get tracking info for this specific package
-                    pkg_tracking_number = package.get('tracking_number', '')
-                    pkg_status = package.get('status', '')
-                    pkg_carrier = package.get('carrier', '')
-
-                    # Get return and outbound shipping tracking
-                    return_shipping = getattr(ticket, 'return_tracking', '') or ''
-                    outbound_shipping = pkg_tracking_number  # For Asset Checkout, outbound is the package tracking
-
-                    row = [
-                        ticket.id,
-                        getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
-                        getattr(ticket, 'firstbaseorderid', '') or '',
-                        ticket.subject or '',
-                        ticket.description or '',
-                        ticket.status.value if ticket.status else '',
-                        ticket.priority.value if ticket.priority else '',
-                        ticket.get_category_display_name() if ticket.category else '',
-                        assigned_to,
-                        customer_name,
-                        customer_email,
-                        customer_phone,
-                        customer_company,
-                        customer_parent_company,
-                        customer_address,
-                        customer_timezone,
-                        customer_department,
-                        customer_country,
-                        ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
-                        ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
-                        package['package_number'],
-                        pkg_tracking_number,
-                        package_items_str,
-                        assets_str,
-                        return_shipping,
-                        outbound_shipping,
-                        queue_name,
-                        pkg_status,
-                        pkg_carrier,
-                        '',  # Latest update
-                        '',  # Full history
-                        comments_count,
-                        comments_text
-                    ]
-                    writer.writerow(row)
             else:
                 # Original single-row format for tickets without packages
                 # For Asset Return (claw), get both return and outbound tracking
@@ -602,6 +644,7 @@ def export_tickets_csv():
                     ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
                     '',  # Package number
                     '',  # Package tracking number
+                    '',  # Item type (not applicable for non-package tickets)
                     '',  # Package items
                     assets_str,
                     return_shipping,
