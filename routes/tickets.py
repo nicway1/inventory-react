@@ -507,19 +507,26 @@ def export_tickets_csv():
                             ticket_id=ticket.id,
                             package_number=package['package_number']
                         ).all()
+                        item_counter = 1
                         for item in items:
                             if item.asset_id:
                                 asset = db_session.query(Asset).get(item.asset_id)
                                 if asset:
-                                    package_items.append(f"Asset: {asset.serial_num}")
+                                    # Format: 1.Asset MacBook Air 13" Apple Tag: O.783 SN: KMJL90245Q
+                                    asset_name = asset.name or 'Asset'
+                                    asset_tag = asset.asset_tag or 'N/A'
+                                    asset_sn = asset.serial_num or 'N/A'
+                                    package_items.append(f"{item_counter}.{asset_name} Tag: {asset_tag} SN: {asset_sn}")
+                                    item_counter += 1
                             elif item.accessory_id:
                                 accessory = db_session.query(Accessory).get(item.accessory_id)
                                 if accessory:
-                                    package_items.append(f"Accessory: {accessory.name} (x{item.quantity})")
+                                    package_items.append(f"{item_counter}.Accessory: {accessory.name} (x{item.quantity})")
+                                    item_counter += 1
                     except Exception as e:
                         logger.warning(f"Error loading package items: {e}")
 
-                    package_items_str = '; '.join(package_items) if package_items else ''
+                    package_items_str = ' '.join(package_items) if package_items else ''
 
                     # Get tracking info for this specific package
                     pkg_tracking_number = package.get('tracking_number', '')
