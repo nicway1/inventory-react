@@ -1364,6 +1364,24 @@
         refreshPreviewIfVisible();
     }
 
+    function filterTicketList() {
+        const searchInput = document.getElementById('ticketSearchInput');
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const ticketItems = document.querySelectorAll('.ticket-selection-item');
+
+        ticketItems.forEach(item => {
+            const label = item.querySelector('.ticket-selection-label');
+            const ticketText = label.textContent.toLowerCase();
+
+            // Show/hide based on search term
+            if (searchTerm === '' || ticketText.includes(searchTerm)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
     function refreshPreviewIfVisible() {
         // Only refresh preview if it's currently visible
         if (document.getElementById('exportPreviewSection').style.display !== 'none') {
@@ -1731,6 +1749,16 @@
                     </div>
                 </div>
 
+                <!-- Search Box -->
+                <div class="ticket-search-container" style="margin-bottom: 16px;">
+                    <input type="text"
+                           id="ticketSearchInput"
+                           class="ticket-search-input"
+                           placeholder="Search by ticket number or title..."
+                           onkeyup="filterTicketList()">
+                    <i class="fas fa-search ticket-search-icon"></i>
+                </div>
+
                 <div id="ticketSelectionList" class="ticket-selection-container">
                     <!-- Ticket checkboxes will be populated here -->
                 </div>
@@ -1924,6 +1952,35 @@
 
 .selection-button:hover {
     background: #e5e7eb;
+}
+
+.ticket-search-container {
+    position: relative;
+    padding: 0 24px;
+}
+
+.ticket-search-input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+}
+
+.ticket-search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ticket-search-icon {
+    position: absolute;
+    right: 36px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
 }
 
 .ticket-selection-container {
