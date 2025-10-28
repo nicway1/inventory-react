@@ -48,7 +48,7 @@
                     <option value="all" {% if assignee_filter == 'all' %}selected{% endif %}>All Case Owners</option>
                     {% for user in users %}
                         <option value="{{ user.id }}" {% if assignee_filter == user.id|string %}selected{% endif %}>
-                            {{ user.name }}
+                            {{ user.username }}
                         </option>
                     {% endfor %}
                 </select>
@@ -105,7 +105,7 @@
                                             {{ bug.title }}
                                         </a>
                                         <p class="text-xs text-gray-500">
-                                            {{ bug.display_id }} • {{ bug.reporter.name if bug.reporter else 'Unknown' }}
+                                            {{ bug.display_id }} • {{ bug.reporter.username if bug.reporter else 'Unknown' }}
                                             {% if bug.component %}• {{ bug.component }}{% endif %}
                                             {% if bug.environment %}• {{ bug.environment }}{% endif %}
                                         </p>
@@ -131,7 +131,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {% if bug.assignee %}
-                                        {{ bug.assignee.name }}
+                                        {{ bug.assignee.username }}
                                     {% else %}
                                         <span class="text-gray-400">Unassigned</span>
                                     {% endif %}

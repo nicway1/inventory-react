@@ -128,8 +128,8 @@
                                                     {{ feature.title }}
                                                 </a>
                                                 <p class="text-xs text-gray-500 mt-1">
-                                                    {{ feature.display_id }} • {{ feature.requester.name }}
-                                                    {% if feature.assignee %} → {{ feature.assignee.name }}{% endif %}
+                                                    {{ feature.display_id }} • {{ feature.requester.username }}
+                                                    {% if feature.assignee %} → {{ feature.assignee.username }}{% endif %}
                                                 </p>
                                             </div>
                                             <div class="text-right">
@@ -173,8 +173,8 @@
                                                     {{ bug.title }}
                                                 </a>
                                                 <p class="text-xs text-gray-500 mt-1">
-                                                    {{ bug.display_id }} • {{ bug.reporter.name }}
-                                                    {% if bug.assignee %} → {{ bug.assignee.name }}{% endif %}
+                                                    {{ bug.display_id }} • {{ bug.reporter.username }}
+                                                    {% if bug.assignee %} → {{ bug.assignee.username }}{% endif %}
                                                 </p>
                                             </div>
                                             <div class="text-right">
@@ -233,7 +233,7 @@
                         {% if release.release_manager %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Release Manager</dt>
-                            <dd class="text-sm text-gray-900">{{ release.release_manager.name }}</dd>
+                            <dd class="text-sm text-gray-900">{{ release.release_manager.username }}</dd>
                         </div>
                         {% endif %}
 

@@ -90,7 +90,7 @@
                                         {{ feature.title }}
                                     </a>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        {{ feature.display_id }} • {{ feature.requester.name if feature.requester else 'Unknown' }} • {{ feature.updated_at.strftime('%m/%d/%Y') if feature.updated_at else 'No date' }}
+                                        {{ feature.display_id }} • {{ feature.requester.username if feature.requester else 'Unknown' }} • {{ feature.updated_at.strftime('%m/%d/%Y') if feature.updated_at else 'No date' }}
                                     </p>
                                 </div>
                                 <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
@@ -124,7 +124,7 @@
                                         {{ bug.title }}
                                     </a>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        {{ bug.display_id }} • {{ bug.reporter.name if bug.reporter else 'Unknown' }} • {{ bug.updated_at.strftime('%m/%d/%Y') if bug.updated_at else 'No date' }}
+                                        {{ bug.display_id }} • {{ bug.reporter.username if bug.reporter else 'Unknown' }} • {{ bug.updated_at.strftime('%m/%d/%Y') if bug.updated_at else 'No date' }}
                                     </p>
                                 </div>
                                 <div class="text-right">

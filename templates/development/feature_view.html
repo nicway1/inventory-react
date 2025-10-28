@@ -177,14 +177,14 @@
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Requester</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ feature.requester.name }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.requester.username }}</dd>
                         </div>
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Case Owner</dt>
                             <dd class="mt-1 text-sm text-gray-900">
                                 {% if feature.assignee %}
-                                    {{ feature.assignee.name }}
+                                    {{ feature.assignee.username }}
                                 {% else %}
                                     <span class="text-gray-400">Unassigned</span>
                                 {% endif %}

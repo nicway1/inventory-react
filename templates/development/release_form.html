@@ -104,7 +104,7 @@
                             {% for user in users %}
                             <option value="{{ user.id }}"
                                     {% if release and release.release_manager_id == user.id %}selected{% endif %}>
-                                {{ user.name }}
+                                {{ user.username }}
                             </option>
                             {% endfor %}
                         </select>

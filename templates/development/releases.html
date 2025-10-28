@@ -116,7 +116,7 @@
                             </div>
                             <div class="text-center">
                                 {% if release.release_manager %}
-                                    <div class="text-lg font-bold text-gray-900">{{ release.release_manager.name.split()[0] }}</div>
+                                    <div class="text-lg font-bold text-gray-900">{{ release.release_manager.username }}</div>
                                     <div class="text-sm text-gray-600">Manager</div>
                                 {% else %}
                                     <div class="text-lg font-bold text-gray-400">Unassigned</div>
