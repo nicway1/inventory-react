@@ -831,9 +831,9 @@ TrueLog Development System
         from utils.email_sender import _send_email_via_method
 
         success = _send_email_via_method(
-            to_email=mentioned_user.email,
+            to_emails=mentioned_user.email,
             subject=subject,
-            body=plain_body,
+            text_body=plain_body,
             html_body=html_body
         )
 
@@ -1585,9 +1585,9 @@ TrueLog Development System
         from utils.email_sender import _send_email_via_method
 
         success = _send_email_via_method(
-            to_email=mentioned_user.email,
+            to_emails=mentioned_user.email,
             subject=subject,
-            body=plain_body,
+            text_body=plain_body,
             html_body=html_body
         )
 
