@@ -8,3 +8,7 @@ venv/
 *.db-shm
 *.db-wal
 backups/
+
+# Log files
+csv_debug.log
+app_output.log
