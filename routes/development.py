@@ -31,14 +31,14 @@ def send_approval_notification_email(feature):
     subject = f"New Feature Request Requires Approval - {feature.display_id}"
 
     body = f"""
-Dear {feature.approver.name},
+Dear {feature.approver.username},
 
 A new feature request has been submitted and requires your approval:
 
 Feature Request: {feature.display_id}
 Title: {feature.title}
 Priority: {feature.priority.value}
-Requester: {feature.requester.name if feature.requester else 'Unknown'}
+Requester: {feature.requester.username if feature.requester else 'Unknown'}
 
 Description:
 {feature.description}
@@ -84,13 +84,13 @@ def send_approval_decision_email(feature, approved=True, reason=None):
         next_steps = f"Your feature request was not approved at this time. Reason: {reason or 'No specific reason provided'}"
 
     body = f"""
-Dear {feature.requester.name},
+Dear {feature.requester.username},
 
 Your feature request has been reviewed and {decision_text}.
 
 {decision_color} Feature Request: {feature.display_id}
 Title: {feature.title}
-Approver: {feature.approver.name if feature.approver else 'System'}
+Approver: {feature.approver.username if feature.approver else 'System'}
 Decision Date: {datetime.utcnow().strftime('%B %d, %Y at %I:%M %p')}
 
 {next_steps}
@@ -281,7 +281,7 @@ def new_feature():
             if feature.approver:
                 try:
                     send_approval_notification_email(feature)
-                    flash(f'Feature request {feature.display_id} created successfully! Approval notification sent to {feature.approver.name}.', 'success')
+                    flash(f'Feature request {feature.display_id} created successfully! Approval notification sent to {feature.approver.username}.', 'success')
                 except Exception as e:
                     logger.error(f"Failed to send approval notification email: {str(e)}")
                     flash(f'Feature request {feature.display_id} created successfully! However, failed to send email notification.', 'warning')
@@ -525,7 +525,7 @@ def approve_feature(id):
 
         # Add approval comment
         approval_comment = FeatureComment(
-            content=f"Feature request approved by {current_user.name}",
+            content=f"Feature request approved by {current_user.username}",
             feature_id=feature.id,
             user_id=current_user.id,
             created_at=datetime.utcnow()
@@ -578,7 +578,7 @@ def reject_feature(id):
 
         # Add rejection comment
         rejection_comment = FeatureComment(
-            content=f"Feature request rejected by {current_user.name}\n\nReason: {rejection_reason}",
+            content=f"Feature request rejected by {current_user.username}\n\nReason: {rejection_reason}",
             feature_id=feature.id,
             user_id=current_user.id,
             created_at=datetime.utcnow()
