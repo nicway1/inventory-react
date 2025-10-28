@@ -52,6 +52,7 @@ class FeatureRequest(Base):
     business_value = Column(String(50), nullable=True)  # Low, Medium, High, Critical
     acceptance_criteria = Column(Text, nullable=True)
     case_progress = Column(Integer, default=0)  # Progress percentage (0-100)
+    images = Column(Text, nullable=True)  # JSON array of image paths
 
     # Relationships
     requester = relationship('User', foreign_keys=[requester_id], backref='requested_features')

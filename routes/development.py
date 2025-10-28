@@ -277,6 +277,36 @@ def new_feature():
             db_session.add(feature)
             db_session.commit()
 
+            # Handle image uploads
+            if 'images' in request.files:
+                files = request.files.getlist('images')
+                image_paths = []
+
+                for file in files:
+                    if file and file.filename:
+                        # Secure the filename
+                        filename = secure_filename(file.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                        unique_filename = f"feature_{feature.id}_{timestamp}_{filename}"
+
+                        # Create directory if it doesn't exist
+                        os.makedirs('static/uploads/features', exist_ok=True)
+
+                        # Save the file
+                        file_path = os.path.join('static', 'uploads', 'features', unique_filename)
+                        file.save(file_path)
+
+                        # Store relative path for database
+                        image_paths.append(f"uploads/features/{unique_filename}")
+                        logger.info(f"Image saved to: {file_path}")
+
+                # Save image paths to database as JSON
+                if image_paths:
+                    import json
+                    feature.images = json.dumps(image_paths)
+                    db_session.commit()
+
             # Send email notification to approver
             if feature.approver:
                 try:
@@ -383,6 +413,37 @@ def edit_feature(id):
                     feature.status = FeatureStatus(request.form['status'])
                     if feature.status == FeatureStatus.COMPLETED and not feature.completed_date:
                         feature.completed_date = datetime.utcnow()
+
+                # Handle image uploads
+                if 'images' in request.files:
+                    files = request.files.getlist('images')
+                    import json
+
+                    # Get existing images
+                    existing_images = json.loads(feature.images) if feature.images else []
+
+                    for file in files:
+                        if file and file.filename:
+                            # Secure the filename
+                            filename = secure_filename(file.filename)
+                            # Create unique filename with timestamp
+                            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                            unique_filename = f"feature_{feature.id}_{timestamp}_{filename}"
+
+                            # Create directory if it doesn't exist
+                            os.makedirs('static/uploads/features', exist_ok=True)
+
+                            # Save the file
+                            file_path = os.path.join('static', 'uploads', 'features', unique_filename)
+                            file.save(file_path)
+
+                            # Add to existing images
+                            existing_images.append(f"uploads/features/{unique_filename}")
+                            logger.info(f"Image saved to: {file_path}")
+
+                    # Save updated image list
+                    if existing_images:
+                        feature.images = json.dumps(existing_images)
 
                 db_session.commit()
                 flash(f'Feature request {feature.display_id} updated successfully!', 'success')
@@ -631,6 +692,57 @@ def delete_feature(id):
         db_session.rollback()
         flash(f'Error deleting feature request: {str(e)}', 'error')
         return redirect(url_for('development.view_feature', id=id))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/features/<int:id>/delete-image', methods=['POST'])
+@login_required
+@permission_required('can_edit_features')
+def delete_feature_image(id):
+    """Delete an image from a feature request"""
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).filter(FeatureRequest.id == id).first()
+        if not feature:
+            return jsonify({'success': False, 'error': 'Feature request not found'}), 404
+
+        # Get the image path to delete from request body
+        data = request.get_json()
+        image_path = data.get('image_path')
+
+        if not image_path:
+            return jsonify({'success': False, 'error': 'No image path provided'}), 400
+
+        # Load current images
+        import json
+        current_images = json.loads(feature.images) if feature.images else []
+
+        # Remove the image from the list
+        if image_path in current_images:
+            current_images.remove(image_path)
+
+            # Delete the physical file
+            try:
+                file_path = os.path.join('static', image_path)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Deleted image file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error deleting image file: {str(e)}")
+
+            # Update database
+            feature.images = json.dumps(current_images) if current_images else None
+            db_session.commit()
+
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Image not found in feature'}), 404
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error deleting feature image: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
 

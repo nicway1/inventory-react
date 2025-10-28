@@ -229,6 +229,15 @@ def create_app():
         from utils.timezone_utils import format_singapore_time
         return format_singapore_time(dt)
 
+    @app.template_filter('from_json')
+    def from_json_filter(json_string):
+        """Template filter to parse JSON string"""
+        import json
+        try:
+            return json.loads(json_string) if json_string else []
+        except:
+            return []
+
     @app.route('/activity/<int:activity_id>/read', methods=['POST'])
     @login_required
     def mark_activity_read(activity_id):
