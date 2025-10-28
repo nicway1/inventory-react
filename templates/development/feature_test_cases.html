@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Test Cases - {{ feature.display_id }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Test Cases for {{ feature.display_id }}</h1>
+                <p class="text-gray-600 mt-1">{{ feature.title }}</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('development.view_feature', id=feature.id) }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Bug
+                </a>
+                <a href="{{ url_for('development.new_feature_test_case', bug_id=feature.id) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-plus mr-2"></i>Create Test Case
+                </a>
+            </div>
+        </div>
+
+        <!-- Feature Info Summary -->
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div class="grid grid-cols-4 gap-4">
+                <div>
+                    <span class="text-sm text-gray-500">Status</span>
+                    <p class="font-medium">
+                        <span class="px-2 py-1 rounded text-xs {{ bug.get_status_color() }}">
+                            {{ bug.status.value }}
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-500">Severity</span>
+                    <p class="font-medium">
+                        <span class="px-2 py-1 rounded text-xs {{ bug.get_severity_color() }}">
+                            {{ bug.severity.value }}
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-500">Assigned To</span>
+                    <p class="font-medium">{{ bug.assignee.username if bug.assignee else 'Unassigned' }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-500">Test Cases</span>
+                    <p class="font-medium">{{ bug.test_cases|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Cases List -->
+    {% if bug.test_cases %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tested By</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for tc in bug.test_cases %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                        {{ tc.display_id }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                        {{ tc.title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 rounded text-xs {% if tc.priority == 'High' %}text-orange-600 bg-orange-100{% elif tc.priority == 'Medium' %}text-blue-600 bg-blue-100{% else %}text-gray-600 bg-gray-100{% endif %}">
+                            {{ tc.priority }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 rounded text-xs {{ tc.get_status_color() }}">
+                            {{ tc.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ tc.created_by.username if tc.created_by else 'Unknown' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ tc.tested_by.username if tc.tested_by else '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('development.execute_feature_test_case', id=tc.id) }}"
+                               class="text-green-600 hover:text-green-900"
+                               title="Execute Test">
+                                <i class="fas fa-play"></i>
+                            </a>
+                            <a href="{{ url_for('development.edit_feature_test_case', id=tc.id) }}"
+                               class="text-blue-600 hover:text-blue-900"
+                               title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="POST"
+                                  action="{{ url_for('development.delete_feature_test_case', id=tc.id) }}"
+                                  class="inline"
+                                  onsubmit="return confirm('Are you sure you want to delete this test case?');">
+                                <button type="submit"
+                                        class="text-red-600 hover:text-red-900"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow p-8 text-center">
+        <i class="fas fa-clipboard-list text-gray-300 text-6xl mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Test Cases Yet</h3>
+        <p class="text-gray-500 mb-4">Create your first test case to start testing this bug/feature</p>
+        <a href="{{ url_for('development.new_feature_test_case', bug_id=feature.id) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md inline-block">
+            <i class="fas fa-plus mr-2"></i>Create Test Case
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

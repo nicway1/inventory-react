@@ -51,6 +51,7 @@ class FeatureRequest(Base):
     estimated_effort = Column(String(50), nullable=True)  # Small, Medium, Large, XL
     business_value = Column(String(50), nullable=True)  # Low, Medium, High, Critical
     acceptance_criteria = Column(Text, nullable=True)
+    case_progress = Column(Integer, default=0)  # Progress percentage (0-100)
 
     # Relationships
     requester = relationship('User', foreign_keys=[requester_id], backref='requested_features')
@@ -59,6 +60,7 @@ class FeatureRequest(Base):
     target_release = relationship('Release', back_populates='features')
     comments = relationship('FeatureComment', back_populates='feature', cascade='all, delete-orphan')
     changelog_entries = relationship('ChangelogEntry', back_populates='feature')
+    test_cases = relationship('FeatureTestCase', back_populates='feature', cascade='all, delete-orphan')
 
     @property
     def display_id(self):
@@ -132,3 +134,37 @@ class FeatureComment(Base):
 
     def __repr__(self):
         return f'<FeatureComment {self.id}: {self.content[:50]}...>'
+
+
+# Test Case model for features
+class FeatureTestCase(Base):
+    __tablename__ = 'feature_test_cases'
+
+    id = Column(Integer, primary_key=True)
+    feature_id = Column(Integer, ForeignKey('feature_requests.id'), nullable=False)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    preconditions = Column(Text, nullable=True)
+    test_steps = Column(Text, nullable=False)
+    expected_result = Column(Text, nullable=False)
+    actual_result = Column(Text, nullable=True)
+    status = Column(String(20), default='Pending')  # Pending, Passed, Failed, Blocked, Skipped
+    priority = Column(String(20), default='Medium')  # Low, Medium, High, Critical
+    test_data = Column(Text, nullable=True)
+
+    # User relationships
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    tested_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    tested_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    feature = relationship('FeatureRequest', back_populates='test_cases')
+    created_by = relationship('User', foreign_keys=[created_by_id], backref='created_feature_test_cases')
+    tested_by = relationship('User', foreign_keys=[tested_by_id], backref='tested_feature_test_cases')
+
+    def __repr__(self):
+        return f'<FeatureTestCase {self.id}: {self.title}>'

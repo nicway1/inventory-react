@@ -47,10 +47,7 @@ def get_db():
     finally:
         db.close()
 
-# Create database engine
-engine = create_engine('sqlite:///inventory.db')
-
-# Create session factory
+# Create session factory using the main engine
 Session = sessionmaker(bind=engine)
 
 # Create a session

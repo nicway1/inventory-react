@@ -38,6 +38,28 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Main Content -->
             <div class="lg:col-span-2 space-y-6">
+                <!-- Case Progress -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-tasks text-blue-600 mr-2"></i>Case Progress
+                    </h3>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 bg-gray-200 rounded-full h-4">
+                            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300 flex items-center justify-end pr-2" style="width: {{ bug.case_progress if bug.case_progress else 0 }}%">
+                                {% if bug.case_progress and bug.case_progress > 10 %}
+                                <span class="text-white text-xs font-semibold">{{ bug.case_progress }}%</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="text-lg font-bold text-gray-700 min-w-[60px] text-right">{{ bug.case_progress if bug.case_progress else 0 }}%</span>
+                    </div>
+                    <div class="mt-3 flex justify-between text-xs text-gray-500">
+                        <span>Not Started</span>
+                        <span>In Progress</span>
+                        <span>Complete</span>
+                    </div>
+                </div>
+
                 <!-- Description -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Description</h3>
@@ -117,60 +139,30 @@
                 </div>
                 {% endif %}
 
-                <!-- Comments -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">
-                            Comments ({{ bug.comments|length }})
+                <!-- Comments - Messenger Style -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+                        <h3 class="text-lg font-semibold text-white flex items-center">
+                            <i class="fas fa-comments mr-2"></i>Comments ({{ bug.comments|length }})
                         </h3>
-                        <button onclick="toggleCommentForm()"
-                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
-                            <i class="fas fa-plus mr-1"></i>Add Comment
-                        </button>
                     </div>
 
-                    <!-- Comment Form -->
-                    <div id="commentForm" class="hidden mb-6">
-                        <form method="POST" action="{{ url_for('development.add_bug_comment', id=bug.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="mb-3">
-                                <select name="comment_type" class="border border-gray-300 rounded px-3 py-1 text-sm">
-                                    <option value="comment">General Comment</option>
-                                    <option value="workaround">Workaround</option>
-                                    <option value="resolution">Resolution Notes</option>
-                                </select>
-                            </div>
-                            <textarea name="content"
-                                      required
-                                      rows="3"
-                                      class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                      placeholder="Add your comment..."></textarea>
-                            <div class="flex justify-end space-x-2 mt-2">
-                                <button type="button"
-                                        onclick="toggleCommentForm()"
-                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
-                                    Cancel
-                                </button>
-                                <button type="submit"
-                                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
-                                    Add Comment
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Comments List -->
-                    {% if bug.comments %}
-                        <div class="space-y-4">
+                    <!-- Comments List - Messenger Style -->
+                    <div class="p-4 max-h-[600px] overflow-y-auto bg-gray-50" id="commentsContainer">
+                        {% if bug.comments %}
                             {% for comment in bug.comments|sort(attribute='created_at') %}
-                            <div class="border-l-4 {% if comment.comment_type == 'workaround' %}border-yellow-400{% elif comment.comment_type == 'resolution' %}border-green-400{% else %}border-red-400{% endif %} pl-4 py-2">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <div class="text-sm font-medium text-gray-900">
-                                            {{ comment.user.name }}
+                            <div class="mb-4 {% if comment.user.id == current_user.id %}flex justify-end{% else %}flex justify-start{% endif %}">
+                                <div class="{% if comment.user.id == current_user.id %}max-w-[75%]{% else %}max-w-[75%]{% endif %}">
+                                    <!-- User Avatar and Name -->
+                                    <div class="flex items-center mb-1 {% if comment.user.id == current_user.id %}flex-row-reverse{% endif %}">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm {% if comment.user.id == current_user.id %}bg-red-500 ml-2{% else %}bg-blue-500 mr-2{% endif %}">
+                                            {{ comment.user.username[0].upper() if comment.user else 'U' }}
                                         </div>
+                                        <span class="text-xs font-medium text-gray-700">
+                                            {{ comment.user.username if comment.user else 'Unknown' }}
+                                        </span>
                                         {% if comment.comment_type != 'comment' %}
-                                            <span class="inline-flex px-2 py-1 text-xs rounded-full
+                                            <span class="ml-2 px-2 py-0.5 text-xs rounded-full
                                                 {% if comment.comment_type == 'workaround' %}bg-yellow-100 text-yellow-800
                                                 {% elif comment.comment_type == 'resolution' %}bg-green-100 text-green-800
                                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
@@ -178,18 +170,307 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <div class="text-xs text-gray-500">
-                                        {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') if comment.created_at else 'Unknown date' }}
+
+                                    <!-- Message Bubble -->
+                                    <div class="{% if comment.user.id == current_user.id %}bg-red-500 text-white rounded-l-2xl rounded-tr-2xl{% else %}bg-white border border-gray-200 text-gray-800 rounded-r-2xl rounded-tl-2xl{% endif %} px-4 py-3 shadow-sm">
+                                        <div class="text-sm whitespace-pre-wrap break-words comment-content">{{ comment.content }}</div>
+                                    </div>
+
+                                    <!-- Timestamp -->
+                                    <div class="mt-1 text-xs text-gray-500 {% if comment.user.id == current_user.id %}text-right{% endif %}">
+                                        {{ comment.created_at.strftime('%I:%M %p') if comment.created_at else '' }}
                                     </div>
                                 </div>
-                                <div class="text-sm text-gray-700">
-                                    {{ comment.content|nl2br|safe }}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-12">
+                                <i class="fas fa-comment-slash text-gray-300 text-5xl mb-3"></i>
+                                <p class="text-gray-500">No comments yet. Start the conversation!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Comment Input - Fixed at Bottom -->
+                    <div class="border-t border-gray-200 bg-white p-4">
+                        <form method="POST" action="{{ url_for('development.add_bug_comment', id=bug.id) }}" id="commentFormMessenger">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="comment_type" value="comment" id="selectedCommentType">
+
+                            <div class="flex items-end space-x-2">
+                                <!-- Type Selector -->
+                                <div class="relative">
+                                    <button type="button"
+                                            onclick="toggleTypeMenu()"
+                                            class="p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                                            title="Comment type">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <!-- Type Menu -->
+                                    <div id="typeMenu" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-48 z-10">
+                                        <button type="button" onclick="selectType('comment', 'General Comment')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                                            <i class="fas fa-comment text-gray-500 mr-2"></i>General Comment
+                                        </button>
+                                        <button type="button" onclick="selectType('workaround', 'Workaround')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Workaround
+                                        </button>
+                                        <button type="button" onclick="selectType('resolution', 'Resolution')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                                            <i class="fas fa-check-circle text-green-500 mr-2"></i>Resolution
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Textarea with @mention -->
+                                <div class="flex-1 relative">
+                                    <textarea name="content"
+                                              id="commentTextarea"
+                                              required
+                                              rows="1"
+                                              class="w-full border border-gray-300 rounded-2xl px-4 py-2.5 pr-12 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                                              placeholder="Write a comment... Use @ to mention users"
+                                              onkeydown="handleKeyPress(event)"
+                                              oninput="autoResize(this); checkMention(this)"></textarea>
+
+                                    <!-- @mention Dropdown -->
+                                    <div id="mentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-20">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+
+                                    <!-- Send Button -->
+                                    <button type="submit"
+                                            class="absolute right-2 bottom-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                                        <i class="fas fa-paper-plane text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Selected Type Indicator -->
+                            <div id="typeIndicator" class="hidden mt-2 text-xs text-gray-600 flex items-center">
+                                <span id="typeIcon" class="mr-1"></span>
+                                <span id="typeText"></span>
+                                <button type="button" onclick="clearType()" class="ml-2 text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <p class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>Use <strong>@username</strong> to mention someone and send them an email notification
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Assigned Testers -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            <i class="fas fa-user-check text-purple-600 mr-2"></i>Assigned Testers
+                        </h3>
+                        <button onclick="toggleTesterAssignment()"
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Assign Testers
+                        </button>
+                    </div>
+
+                    <!-- Tester Assignment Form (Hidden by default) -->
+                    <div id="testerAssignmentForm" class="hidden mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <form method="POST" action="{{ url_for('development.assign_testers_to_bug', bug_id=bug.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <h4 class="text-sm font-semibold text-gray-900 mb-3">Select Testers</h4>
+                            <div class="space-y-2 mb-4 max-h-64 overflow-y-auto">
+                                {% if testers %}
+                                    {% for tester in testers %}
+                                    <label class="flex items-center p-2 hover:bg-purple-100 rounded cursor-pointer">
+                                        <input type="checkbox"
+                                               name="tester_ids"
+                                               value="{{ tester.id }}"
+                                               {% if bug.tester_assignments %}
+                                                   {% for assignment in bug.tester_assignments %}
+                                                       {% if assignment.tester_id == tester.id %}checked{% endif %}
+                                                   {% endfor %}
+                                               {% endif %}
+                                               class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-3">
+                                        <div class="flex-1">
+                                            <span class="text-sm font-medium text-gray-900">{{ tester.user.username }}</span>
+                                            {% if tester.specialization %}
+                                                <span class="text-xs text-gray-500 ml-2">({{ tester.specialization }})</span>
+                                            {% endif %}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-sm text-gray-500">No testers available. <a href="{{ url_for('development.manage_testers') }}" class="text-purple-600 hover:text-purple-700">Add testers</a> first.</p>
+                                {% endif %}
+                            </div>
+
+                            {% if testers %}
+                            <div class="mb-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox"
+                                           name="notify_testers"
+                                           value="yes"
+                                           class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2">
+                                    <span class="text-sm font-medium text-gray-700">
+                                        <i class="fas fa-bell mr-1"></i>Notify assigned testers
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-end space-x-2">
+                                <button type="button"
+                                        onclick="toggleTesterAssignment()"
+                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm">
+                                    <i class="fas fa-save mr-1"></i>Save Assignments
+                                </button>
+                            </div>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                    <!-- Assigned Testers List -->
+                    {% if bug.tester_assignments %}
+                        <div class="space-y-2">
+                            {% for assignment in bug.tester_assignments %}
+                            <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-purple-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ assignment.tester.user.username }}</p>
+                                        {% if assignment.tester.specialization %}
+                                            <p class="text-xs text-gray-500">{{ assignment.tester.specialization }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-xs text-gray-500">
+                                        {% if assignment.notified == 'Yes' %}
+                                            <i class="fas fa-bell text-green-500 mr-1"></i>Notified
+                                        {% else %}
+                                            <i class="fas fa-bell-slash text-gray-400 mr-1"></i>Not notified
+                                        {% endif %}
+                                    </div>
+                                    <span class="px-2 py-1 rounded text-xs {% if assignment.test_status == 'Passed' %}bg-green-100 text-green-700{% elif assignment.test_status == 'Failed' %}bg-red-100 text-red-700{% elif assignment.test_status == 'In Progress' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ assignment.test_status }}
+                                    </span>
+                                    <form method="POST"
+                                          action="{{ url_for('development.remove_tester_from_bug', bug_id=bug.id, assignment_id=assignment.id) }}"
+                                          class="inline">
+                                        <button type="submit"
+                                                onclick="return confirm('Remove this tester from the bug?')"
+                                                class="text-red-600 hover:text-red-800">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-gray-500 text-center py-4">No comments yet</p>
+                        <div class="text-center py-6">
+                            <i class="fas fa-users text-gray-300 text-3xl mb-2"></i>
+                            <p class="text-gray-500 text-sm">No testers assigned yet</p>
+                            <button onclick="toggleTesterAssignment()"
+                                    class="mt-2 text-purple-600 hover:text-purple-700 text-sm font-medium">
+                                Assign testers to this bug
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Test Cases -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Test Cases ({{ bug.test_cases|length }})
+                        </h3>
+                        <a href="{{ url_for('development.new_test_case', bug_id=bug.id) }}"
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Create Test Case
+                        </a>
+                    </div>
+
+                    <!-- Test Cases List -->
+                    {% if bug.test_cases %}
+                        <div class="space-y-4">
+                            {% for tc in bug.test_cases %}
+                            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900">{{ tc.title }}</h4>
+                                        <p class="text-xs text-gray-500 mt-1">{{ tc.display_id }}</p>
+                                    </div>
+                                    <span class="px-2 py-1 rounded text-xs {{ tc.get_status_color() }}">
+                                        {{ tc.status }}
+                                    </span>
+                                </div>
+
+                                {% if tc.description %}
+                                <p class="text-sm text-gray-600 mb-3">{{ tc.description }}</p>
+                                {% endif %}
+
+                                <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+                                    <div class="flex items-center space-x-4">
+                                        <span>
+                                            <i class="fas fa-flag mr-1"></i>
+                                            <span class="{% if tc.priority == 'High' %}text-orange-600{% elif tc.priority == 'Medium' %}text-blue-600{% else %}text-gray-600{% endif %}">
+                                                {{ tc.priority }}
+                                            </span>
+                                        </span>
+                                        <span>
+                                            <i class="fas fa-user mr-1"></i>{{ tc.created_by.username if tc.created_by else 'Unknown' }}
+                                        </span>
+                                        {% if tc.tested_by %}
+                                        <span>
+                                            <i class="fas fa-check-circle mr-1 text-green-600"></i>{{ tc.tested_by.username }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Test Steps Preview -->
+                                <div class="bg-gray-50 rounded p-3 mb-3">
+                                    <h5 class="text-xs font-medium text-gray-700 mb-1">Test Steps:</h5>
+                                    <p class="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{{ tc.test_steps }}</p>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex space-x-2">
+                                    <a href="{{ url_for('development.execute_test_case', id=tc.id) }}"
+                                       class="flex-1 text-center bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded text-sm font-medium">
+                                        <i class="fas fa-play mr-1"></i>Execute
+                                    </a>
+                                    <a href="{{ url_for('development.edit_test_case', id=tc.id) }}"
+                                       class="flex-1 text-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded text-sm font-medium">
+                                        <i class="fas fa-edit mr-1"></i>Edit
+                                    </a>
+                                    <form method="POST"
+                                          action="{{ url_for('development.delete_test_case', id=tc.id) }}"
+                                          class="flex-1"
+                                          onsubmit="return confirm('Are you sure you want to delete this test case?');">
+                                        <button type="submit"
+                                                class="w-full bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded text-sm font-medium">
+                                            <i class="fas fa-trash mr-1"></i>Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8">
+                            <i class="fas fa-clipboard-list text-gray-300 text-4xl mb-3"></i>
+                            <p class="text-gray-500 mb-4">No test cases yet</p>
+                            <a href="{{ url_for('development.new_test_case', bug_id=bug.id) }}"
+                               class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                                <i class="fas fa-plus mr-2"></i>Create First Test Case
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -232,17 +513,29 @@
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Reporter</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ bug.reporter.name }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.reporter.username if bug.reporter else 'Unknown' }}</dd>
                         </div>
 
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Assignee</dt>
+                            <dt class="text-sm font-medium text-gray-500">Case Owner</dt>
                             <dd class="mt-1 text-sm text-gray-900">
                                 {% if bug.assignee %}
-                                    {{ bug.assignee.name }}
+                                    {{ bug.assignee.username }}
                                 {% else %}
                                     <span class="text-gray-400">Unassigned</span>
                                 {% endif %}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 mb-2">Case Progress</dt>
+                            <dd>
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: {{ bug.case_progress if bug.case_progress else 0 }}%"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-700">{{ bug.case_progress if bug.case_progress else 0 }}%</span>
+                                </div>
                             </dd>
                         </div>
 
@@ -301,7 +594,8 @@
                 </div>
                 {% endif %}
 
-                <!-- Quick Actions -->
+                <!-- Quick Actions (Only for Case Owner) -->
+                {% if bug.assignee and bug.assignee.id == current_user.id %}
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
                     <div class="space-y-2">
@@ -350,8 +644,55 @@
                             </button>
                         </form>
                         {% endif %}
+
+                        <!-- Change Status -->
+                        <button onclick="document.getElementById('statusModal').classList.remove('hidden')"
+                                class="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm">
+                            <i class="fas fa-exchange-alt mr-2"></i>Change Status
+                        </button>
+
+                        <!-- Delete Case -->
+                        <form method="POST" action="{{ url_for('development.delete_bug', id=bug.id) }}" onsubmit="return confirm('Are you sure you want to delete this bug? This action cannot be undone.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                    class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm">
+                                <i class="fas fa-trash mr-2"></i>Delete Case
+                            </button>
+                        </form>
                     </div>
                 </div>
+
+                <!-- Status Change Modal -->
+                <div id="statusModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div class="mt-3">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Change Status</h3>
+                            <form method="POST" action="{{ url_for('development.update_bug_status', id=bug.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <select name="status" class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4">
+                                    <option value="OPEN" {% if bug.status.value == 'Open' %}selected{% endif %}>Open</option>
+                                    <option value="IN_PROGRESS" {% if bug.status.value == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="TESTING" {% if bug.status.value == 'Testing' %}selected{% endif %}>Testing</option>
+                                    <option value="RESOLVED" {% if bug.status.value == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                    <option value="CLOSED" {% if bug.status.value == 'Closed' %}selected{% endif %}>Closed</option>
+                                    <option value="REOPENED" {% if bug.status.value == 'Reopened' %}selected{% endif %}>Reopened</option>
+                                </select>
+                                <div class="flex justify-end space-x-2">
+                                    <button type="button"
+                                            onclick="document.getElementById('statusModal').classList.add('hidden')"
+                                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                                        Cancel
+                                    </button>
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                                        Update Status
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Fixed In Release -->
                 {% if bug.fixed_in_release %}
@@ -395,6 +736,11 @@
 </div>
 
 <script>
+// Available users for @mentions
+const availableUsers = {{ users_json|safe }};
+let mentionStartPos = -1;
+let currentMentionText = '';
+
 function toggleCommentForm() {
     const form = document.getElementById('commentForm');
     form.classList.toggle('hidden');
@@ -402,6 +748,158 @@ function toggleCommentForm() {
         form.querySelector('textarea').focus();
     }
 }
+
+function toggleTesterAssignment() {
+    const form = document.getElementById('testerAssignmentForm');
+    form.classList.toggle('hidden');
+}
+
+// Auto-resize textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
+// Handle Enter key (Shift+Enter for new line, Enter to submit)
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        document.getElementById('commentFormMessenger').submit();
+    }
+}
+
+// Toggle comment type menu
+function toggleTypeMenu() {
+    const menu = document.getElementById('typeMenu');
+    menu.classList.toggle('hidden');
+}
+
+// Select comment type
+function selectType(type, label) {
+    document.getElementById('selectedCommentType').value = type;
+    document.getElementById('typeMenu').classList.add('hidden');
+
+    const indicator = document.getElementById('typeIndicator');
+    const icon = document.getElementById('typeIcon');
+    const text = document.getElementById('typeText');
+
+    indicator.classList.remove('hidden');
+    text.textContent = label;
+
+    if (type === 'workaround') {
+        icon.innerHTML = '<i class="fas fa-lightbulb text-yellow-500"></i>';
+    } else if (type === 'resolution') {
+        icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+    } else {
+        icon.innerHTML = '<i class="fas fa-comment text-gray-500"></i>';
+    }
+}
+
+// Clear comment type
+function clearType() {
+    document.getElementById('selectedCommentType').value = 'comment';
+    document.getElementById('typeIndicator').classList.add('hidden');
+}
+
+// Check for @mention
+function checkMention(textarea) {
+    const cursorPos = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Find last @ before cursor
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            atPos = i;
+            break;
+        }
+        if (text[i] === ' ' || text[i] === '\n') {
+            break;
+        }
+    }
+
+    if (atPos !== -1) {
+        mentionStartPos = atPos;
+        currentMentionText = text.substring(atPos + 1, cursorPos).toLowerCase();
+        showMentionDropdown(currentMentionText);
+    } else {
+        hideMentionDropdown();
+    }
+}
+
+// Show @mention dropdown
+function showMentionDropdown(searchText) {
+    const dropdown = document.getElementById('mentionDropdown');
+    const filtered = availableUsers.filter(user =>
+        user.username.toLowerCase().includes(searchText)
+    );
+
+    if (filtered.length === 0) {
+        hideMentionDropdown();
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    filtered.forEach((user, index) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left px-4 py-2 hover:bg-red-50 flex items-center';
+        item.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm mr-3">
+                ${user.username[0].toUpperCase()}
+            </div>
+            <div>
+                <div class="font-medium text-sm">${user.username}</div>
+                <div class="text-xs text-gray-500">${user.email}</div>
+            </div>
+        `;
+        item.onclick = function() {
+            selectMention(user.username);
+        };
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+// Hide @mention dropdown
+function hideMentionDropdown() {
+    document.getElementById('mentionDropdown').classList.add('hidden');
+    mentionStartPos = -1;
+}
+
+// Select a mention
+function selectMention(username) {
+    const textarea = document.getElementById('commentTextarea');
+    const text = textarea.value;
+    const beforeMention = text.substring(0, mentionStartPos);
+    const afterMention = text.substring(textarea.selectionStart);
+
+    textarea.value = beforeMention + '@' + username + ' ' + afterMention;
+    const newPos = beforeMention.length + username.length + 2;
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+
+    hideMentionDropdown();
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('#commentTextarea') && !event.target.closest('#mentionDropdown')) {
+        hideMentionDropdown();
+    }
+    if (!event.target.closest('.relative')) {
+        document.getElementById('typeMenu').classList.add('hidden');
+    }
+});
+
+// Scroll to bottom of comments on load
+window.addEventListener('load', function() {
+    const container = document.getElementById('commentsContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
 
 function openScreenshotModal(imageSrc) {
     // Create modal overlay

@@ -54,16 +54,53 @@
             
             <!-- Main Form Content -->
             <div>
+                <!-- PDF Upload Section -->
+                {% if not article %}
+                <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        Quick Import from PDF
+                    </label>
+                    <p style="font-size: 0.75rem; color: #706e6b; margin-bottom: 1rem;">Upload a PDF to automatically extract text and images</p>
+
+                    <input type="file"
+                           id="pdfUpload"
+                           accept=".pdf"
+                           style="display: none;">
+
+                    <button type="button"
+                            onclick="document.getElementById('pdfUpload').click()"
+                            style="background: #1589ee; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg style="width: 1.25rem; height: 1.25rem; fill: white;" viewBox="0 0 24 24">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/>
+                        </svg>
+                        Upload PDF
+                    </button>
+
+                    <div id="pdfProcessingStatus" style="margin-top: 1rem; display: none;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #1589ee;">
+                            <div class="spinner" style="border: 2px solid #f3f3f3; border-top: 2px solid #1589ee; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite;"></div>
+                            <span style="font-size: 0.875rem;">Processing PDF...</span>
+                        </div>
+                    </div>
+
+                    <div id="pdfSuccess" style="margin-top: 1rem; display: none; padding: 0.75rem; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 0.25rem; color: #155724; font-size: 0.875rem;">
+                        PDF imported successfully! Content and images have been added below.
+                    </div>
+
+                    <div id="pdfError" style="margin-top: 1rem; display: none; padding: 0.75rem; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 0.25rem; color: #721c24; font-size: 0.875rem;"></div>
+                </div>
+                {% endif %}
+
                 <!-- Title Field -->
                 <div style="background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
                     <label for="title" style="display: block; font-weight: 600; color: #181818; margin-bottom: 0.5rem; font-size: 0.875rem;">
                         Title <span style="color: #c23934;">*</span>
                     </label>
-                    <input type="text" 
-                           id="title" 
-                           name="title" 
-                           value="{% if article %}{{ article.title }}{% endif %}" 
-                           required 
+                    <input type="text"
+                           id="title"
+                           name="title"
+                           value="{% if article %}{{ article.title }}{% endif %}"
+                           required
                            maxlength="255"
                            placeholder="Enter article title..."
                            style="width: 100%; padding: 0.75rem; border: 1px solid #d8dde6; border-radius: 0.25rem; font-size: 1rem; background: white;">
@@ -229,15 +266,13 @@
                             {% if article %}Update Article{% else %}Create Article{% endif %}
                         </button>
                         
-                        {% if article %}
-                        <button type="button" onclick="previewArticle()" 
+                        <button type="button" onclick="previewArticle()"
                                 style="background: white; color: #706e6b; border: 1px solid #d8dde6; padding: 0.75rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                             <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; fill: currentColor;" viewBox="0 0 24 24">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                             </svg>
                             Preview
                         </button>
-                        {% endif %}
                         
                         <a href="{{ url_for('knowledge.admin_manage_articles') }}" 
                            style="background: white; color: #c23934; border: 1px solid #d8dde6; padding: 0.75rem 1rem; border-radius: 0.25rem; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center;">
@@ -618,7 +653,7 @@ document.getElementById('title').addEventListener('input', function() {
     const maxLength = 255;
     const currentLength = this.value.length;
     const remaining = maxLength - currentLength;
-    
+
     // You can add a character counter here if needed
     if (remaining < 20) {
         this.style.borderColor = remaining < 0 ? '#c23934' : '#ff9500';
@@ -626,6 +661,268 @@ document.getElementById('title').addEventListener('input', function() {
         this.style.borderColor = '#d8dde6';
     }
 });
+
+// PDF Upload Handler
+const pdfUploadInput = document.getElementById('pdfUpload');
+if (pdfUploadInput) {
+    pdfUploadInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.includes('pdf')) {
+            showPdfError('Please upload a PDF file');
+            return;
+        }
+
+        // Show processing status
+        document.getElementById('pdfProcessingStatus').style.display = 'block';
+        document.getElementById('pdfSuccess').style.display = 'none';
+        document.getElementById('pdfError').style.display = 'none';
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        try {
+            const response = await fetch('/knowledge/admin/process-pdf', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // Hide processing, show success
+                document.getElementById('pdfProcessingStatus').style.display = 'none';
+                document.getElementById('pdfSuccess').style.display = 'block';
+
+                // Fill in the title (use first 100 chars of text or filename)
+                if (data.title) {
+                    document.getElementById('title').value = data.title;
+                }
+
+                // Fill in content
+                if (data.content) {
+                    const contentEditor = document.getElementById('content');
+                    if (contentEditor) {
+                        contentEditor.value = data.content;
+                    }
+                }
+
+                // Images are now auto-inserted into content by backend
+                // Show message about images
+                if (data.images && data.images.length > 0) {
+                    const successDiv = document.getElementById('pdfSuccess');
+                    successDiv.innerHTML = `PDF imported successfully! Extracted ${data.images.length} image(s) and automatically inserted them into the content.`;
+                }
+
+                // Optionally fill summary (first 200 chars)
+                if (data.summary) {
+                    document.getElementById('summary').value = data.summary;
+                }
+            } else {
+                throw new Error(data.error || 'Failed to process PDF');
+            }
+        } catch (error) {
+            console.error('Error processing PDF:', error);
+            showPdfError(error.message || 'Error processing PDF. Please try again.');
+            document.getElementById('pdfProcessingStatus').style.display = 'none';
+        }
+
+        // Clear the file input
+        e.target.value = '';
+    });
+}
+
+function showPdfError(message) {
+    const errorDiv = document.getElementById('pdfError');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    document.getElementById('pdfProcessingStatus').style.display = 'none';
+    document.getElementById('pdfSuccess').style.display = 'none';
+}
+
+function addExtractedImages(images) {
+    // Create or get the image gallery container
+    let galleryContainer = document.getElementById('pdf-images-gallery');
+
+    if (!galleryContainer) {
+        // Create gallery container after the content field
+        const contentField = document.getElementById('content');
+        if (!contentField) {
+            console.error('Content field not found');
+            return;
+        }
+
+        // Find the parent div that contains the content field (has padding and border)
+        const contentDiv = contentField.closest('div[style*="padding: 1.5rem"]');
+        if (!contentDiv) {
+            console.error('Content parent div not found');
+            return;
+        }
+
+        galleryContainer = document.createElement('div');
+        galleryContainer.id = 'pdf-images-gallery';
+        galleryContainer.style.cssText = 'background: white; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;';
+
+        // Insert after the content div
+        contentDiv.parentNode.insertBefore(galleryContainer, contentDiv.nextSibling);
+    }
+
+    // Build gallery HTML
+    let imageGalleryHtml = '<h3 style="margin: 0 0 1rem 0; color: #181818; font-size: 1rem; font-weight: 600;">Extracted PDF Images</h3>';
+    imageGalleryHtml += '<p style="font-size: 0.75rem; color: #706e6b; margin-bottom: 1rem;">Click "Insert" to add an image to the content field at your cursor position</p>';
+    imageGalleryHtml += '<div class="image-gallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">';
+
+    images.forEach((imagePath, index) => {
+        imageGalleryHtml += `
+            <div class="extracted-image-item" style="border: 1px solid #d8dde6; border-radius: 0.5rem; overflow: hidden; background: white;">
+                <img src="${imagePath}" alt="Extracted Image ${index + 1}" style="width: 100%; height: auto; display: block; max-height: 200px; object-fit: contain; background: #f8f9fa; padding: 0.5rem;">
+                <div style="padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; background: white; border-top: 1px solid #e5e5e5;">
+                    <span style="font-size: 0.75rem; color: #706e6b; font-weight: 500;">Image ${index + 1}</span>
+                    <button type="button" onclick="insertPdfImageAtCursor('${imagePath}')" style="background: #1589ee; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.25rem; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Insert</button>
+                </div>
+            </div>
+        `;
+    });
+
+    imageGalleryHtml += '</div>';
+    galleryContainer.innerHTML = imageGalleryHtml;
+}
+
+function insertPdfImageAtCursor(imagePath) {
+    const contentField = document.getElementById('content');
+    if (!contentField) return;
+
+    // Create image HTML tag
+    const imageHtml = `<img src="${imagePath}" style="max-width: 100%; height: auto; display: block; margin: 1rem 0;" alt="PDF Image">`;
+
+    // Get cursor position
+    const startPos = contentField.selectionStart;
+    const endPos = contentField.selectionEnd;
+    const currentValue = contentField.value;
+
+    // Insert image HTML at cursor position
+    const newValue = currentValue.substring(0, startPos) + imageHtml + currentValue.substring(endPos);
+    contentField.value = newValue;
+
+    // Move cursor after inserted image HTML
+    const newCursorPos = startPos + imageHtml.length;
+    contentField.setSelectionRange(newCursorPos, newCursorPos);
+    contentField.focus();
+
+    // Show success message
+    const successMsg = document.createElement('div');
+    successMsg.textContent = 'Image inserted successfully!';
+    successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 1rem; border-radius: 0.5rem; z-index: 9999; font-size: 0.875rem;';
+    document.body.appendChild(successMsg);
+
+    setTimeout(() => {
+        successMsg.remove();
+    }, 2000);
+}
+
+// Add CSS animation for spinner
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .dragging {
+        opacity: 0.5;
+    }
+`;
+document.head.appendChild(style);
+
+// Preview Article Function
+function previewArticle() {
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+    const summary = document.getElementById('summary').value;
+
+    // Create preview modal
+    const modal = document.createElement('div');
+    modal.id = 'preview-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 2rem;';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background: white; border-radius: 0.5rem; max-width: 1000px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+
+    modalContent.innerHTML = `
+        <div style="padding: 2rem; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+            <h2 style="margin: 0; font-size: 1.5rem; color: #080707;">Article Preview</h2>
+            <button onclick="document.getElementById('preview-modal').remove()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #706e6b; line-height: 1;">&times;</button>
+        </div>
+        <div style="padding: 2rem;">
+            <div style="margin-bottom: 2rem;">
+                <h1 style="font-size: 1.75rem; font-weight: 600; color: #080707; margin-bottom: 1rem;">${title || 'Untitled Article'}</h1>
+                ${summary ? `<p style="font-size: 1rem; color: #706e6b; line-height: 1.6; padding: 1rem; background: #f8f9fa; border-left: 4px solid #1589ee; border-radius: 0.25rem;"><strong>Summary:</strong> ${summary}</p>` : ''}
+            </div>
+            <div class="article-content" style="line-height: 1.8; color: #3e3e3c; font-size: 1rem;">
+                <style>
+                    #preview-modal .article-content {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    }
+                    #preview-modal .article-content p {
+                        margin-bottom: 1.5rem;
+                        line-height: 1.8;
+                        text-align: justify;
+                    }
+                    #preview-modal .article-content img {
+                        max-width: 100%;
+                        height: auto;
+                        margin: 2rem auto;
+                        display: block;
+                        border-radius: 0.5rem;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        border: 1px solid #e5e5e5;
+                    }
+                    #preview-modal .article-content br {
+                        display: block;
+                        margin: 0.25rem 0;
+                        line-height: 0.25rem;
+                    }
+                    #preview-modal .article-content strong {
+                        font-weight: 600;
+                        color: #080707;
+                        display: inline-block;
+                        margin-top: 1rem;
+                    }
+                    #preview-modal .article-content h1, #preview-modal .article-content h2, #preview-modal .article-content h3 {
+                        margin-top: 2rem;
+                        margin-bottom: 1rem;
+                        font-weight: 600;
+                        color: #080707;
+                        line-height: 1.3;
+                    }
+                </style>
+                ${content || '<p style="color: #706e6b; font-style: italic;">No content yet.</p>'}
+            </div>
+        </div>
+    `;
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Close on outside click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
 </script>
 
 {% endblock %}

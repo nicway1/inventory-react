@@ -95,9 +95,11 @@
                                     <i class="fas fa-list"></i> Manage Articles
                                 </a>
                                 {% if current_user.permissions.can_manage_categories %}
-                                <!-- <a href="{{ url_for('knowledge.admin_manage_categories') }}" class="btn btn-outline-primary">
+                                {# Temporarily disabled - route not implemented yet
+                                <a href="{{ url_for('knowledge.admin_manage_categories') }}" class="btn btn-outline-primary">
                                     <i class="fas fa-folder"></i> Manage Categories
-                                </a> -->
+                                </a>
+                                #}
                                 <span class="btn btn-outline-secondary disabled">
                                     <i class="fas fa-folder"></i> Manage Categories (Coming Soon)
                                 </span>

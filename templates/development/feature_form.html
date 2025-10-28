@@ -82,10 +82,10 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Assignee -->
+                    <!-- Case Owner -->
                     <div>
                         <label for="assignee_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            Assignee
+                            Case Owner
                         </label>
                         <select name="assignee_id"
                                 id="assignee_id"
@@ -206,6 +206,30 @@
                 </div>
 
                 {% if feature %}
+                <!-- Case Progress (only for editing) -->
+                <div>
+                    <label for="case_progress" class="block text-sm font-medium text-gray-700 mb-2">
+                        Case Progress: <span id="progress_value" class="font-bold text-blue-600">{{ feature.case_progress if feature else 0 }}%</span>
+                    </label>
+                    <input type="range"
+                           name="case_progress"
+                           id="case_progress"
+                           min="0"
+                           max="100"
+                           step="5"
+                           value="{{ feature.case_progress if feature else 0 }}"
+                           oninput="document.getElementById('progress_value').textContent = this.value + '%'"
+                           class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                        <div id="progress_bar"
+                             class="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                             style="width: {{ feature.case_progress if feature else 0 }}%"></div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Adjust the slider to update the progress percentage
+                    </p>
+                </div>
+
                 <!-- Status (only for editing) -->
                 <div>
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
@@ -239,4 +263,18 @@
         </form>
     </div>
 </div>
+
+<script>
+    // Sync the progress bar with the slider
+    document.addEventListener('DOMContentLoaded', function() {
+        const slider = document.getElementById('case_progress');
+        const progressBar = document.getElementById('progress_bar');
+
+        if (slider && progressBar) {
+            slider.addEventListener('input', function() {
+                progressBar.style.width = this.value + '%';
+            });
+        }
+    });
+</script>
 {% endblock %}

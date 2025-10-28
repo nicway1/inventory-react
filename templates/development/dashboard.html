@@ -5,6 +5,9 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Development Dashboard</h1>
         <div class="flex space-x-3">
+            <a href="{{ url_for('development.manage_testers') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md">
+                <i class="fas fa-user-check mr-2"></i>Manage Testers
+            </a>
             <a href="{{ url_for('development.new_feature') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
                 <i class="fas fa-plus mr-2"></i>New Feature
             </a>

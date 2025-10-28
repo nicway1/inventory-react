@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Execute Test Case - {{ test_case.display_id }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Execute Test Case: {{ test_case.display_id }}</h1>
+            <p class="text-gray-600 mt-1">{{ test_case.title }}</p>
+            <p class="text-sm text-gray-500 mt-1">Bug: {{ test_case.feature.display_id }} - {{ test_case.feature.title }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Test Case Details (Read-Only) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Test Case Info -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Test Case Details</h2>
+
+                    {% if test_case.description %}
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Description</h3>
+                        <p class="text-gray-600 whitespace-pre-wrap">{{ test_case.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if test_case.preconditions %}
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-check-circle text-blue-500 mr-2"></i>Preconditions
+                        </h3>
+                        <div class="bg-blue-50 rounded p-3">
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ test_case.preconditions }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-list-ol text-green-500 mr-2"></i>Test Steps
+                        </h3>
+                        <div class="bg-green-50 rounded p-3">
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ test_case.test_steps }}</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-check-double text-purple-500 mr-2"></i>Expected Result
+                        </h3>
+                        <div class="bg-purple-50 rounded p-3">
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ test_case.expected_result }}</p>
+                        </div>
+                    </div>
+
+                    {% if test_case.test_data %}
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-database text-orange-500 mr-2"></i>Test Data
+                        </h3>
+                        <div class="bg-orange-50 rounded p-3">
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ test_case.test_data }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Execution Form -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-play-circle text-green-600 mr-2"></i>Test Execution Results
+                    </h2>
+
+                    <form method="POST">
+                        <div class="space-y-4">
+                            <!-- Actual Result -->
+                            <div>
+                                <label for="actual_result" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Actual Result <span class="text-red-500">*</span>
+                                </label>
+                                <textarea name="actual_result"
+                                          id="actual_result"
+                                          rows="6"
+                                          required
+                                          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                          placeholder="What actually happened when you executed the test?&#10;&#10;Be specific and include:&#10;- What you observed&#10;- Any error messages&#10;- Screenshots or evidence (describe location if uploaded)&#10;- Any deviations from expected behavior">{{ test_case.actual_result if test_case.actual_result else '' }}</textarea>
+                                <p class="text-sm text-gray-500 mt-1">Document what actually happened during test execution</p>
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Test Status <span class="text-red-500">*</span>
+                                </label>
+                                <select name="status"
+                                        id="status"
+                                        required
+                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <option value="Pending" {% if test_case.status == 'Pending' %}selected{% endif %}>Pending - Not yet tested</option>
+                                    <option value="Passed" {% if test_case.status == 'Passed' %}selected{% endif %}>Passed - Test executed successfully</option>
+                                    <option value="Failed" {% if test_case.status == 'Failed' %}selected{% endif %}>Failed - Test did not pass</option>
+                                    <option value="Blocked" {% if test_case.status == 'Blocked' %}selected{% endif %}>Blocked - Cannot complete test</option>
+                                    <option value="Skipped" {% if test_case.status == 'Skipped' %}selected{% endif %}>Skipped - Test not executed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <a href="{{ url_for('development.feature_test_cases', feature_id=test_case.bug_id) }}"
+                               class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                Cancel
+                            </a>
+                            <button type="submit"
+                                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                <i class="fas fa-save mr-2"></i>Save Results
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Test Case Info Card -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Test Case Info</h3>
+                    <div class="space-y-2 text-sm">
+                        <div>
+                            <span class="text-gray-500">ID:</span>
+                            <span class="font-medium ml-2">{{ test_case.display_id }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Priority:</span>
+                            <span class="ml-2 px-2 py-1 rounded text-xs {% if test_case.priority == 'High' %}text-orange-600 bg-orange-100{% elif test_case.priority == 'Medium' %}text-blue-600 bg-blue-100{% else %}text-gray-600 bg-gray-100{% endif %}">
+                                {{ test_case.priority }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Current Status:</span>
+                            <span class="ml-2 px-2 py-1 rounded text-xs {{ test_case.get_status_color() }}">
+                                {{ test_case.status }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Created By:</span>
+                            <span class="font-medium ml-2">{{ test_case.created_by.username }}</span>
+                        </div>
+                        {% if test_case.tested_by %}
+                        <div>
+                            <span class="text-gray-500">Last Tested By:</span>
+                            <span class="font-medium ml-2">{{ test_case.tested_by.username }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h3>
+                    <div class="space-y-2">
+                        <a href="{{ url_for('development.view_feature', id=test_case.bug_id) }}"
+                           class="block w-full text-center px-3 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
+                            <i class="fas fa-bug mr-2"></i>View Bug
+                        </a>
+                        <a href="{{ url_for('development.edit_test_case', id=test_case.id) }}"
+                           class="block w-full text-center px-3 py-2 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">
+                            <i class="fas fa-edit mr-2"></i>Edit Test Case
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

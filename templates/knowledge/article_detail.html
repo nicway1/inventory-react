@@ -85,7 +85,52 @@
                 <!-- Article Content -->
                 <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem; margin-bottom: 1.5rem;">
                     <div class="slds-card__body slds-card__body_inner" style="padding: 2rem;">
-                        <div class="article-content slds-text-longform">
+                        <div class="article-content slds-text-longform" style="line-height: 1.8; color: #3e3e3c; font-size: 1rem; max-width: 900px;">
+                            <style>
+                                .article-content {
+                                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                }
+                                .article-content p {
+                                    margin-bottom: 1.5rem;
+                                    line-height: 1.8;
+                                    text-align: justify;
+                                }
+                                .article-content img {
+                                    max-width: 100%;
+                                    height: auto;
+                                    margin: 2rem auto;
+                                    display: block;
+                                    border-radius: 0.5rem;
+                                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                    border: 1px solid #e5e5e5;
+                                }
+                                .article-content br {
+                                    display: block;
+                                    margin: 0.25rem 0;
+                                    line-height: 0.25rem;
+                                }
+                                .article-content strong {
+                                    font-weight: 600;
+                                    color: #080707;
+                                    display: inline-block;
+                                    margin-top: 1rem;
+                                }
+                                .article-content h1, .article-content h2, .article-content h3 {
+                                    margin-top: 2rem;
+                                    margin-bottom: 1rem;
+                                    font-weight: 600;
+                                    color: #080707;
+                                    line-height: 1.3;
+                                }
+                                .article-content ul, .article-content ol {
+                                    margin: 1.5rem 0;
+                                    padding-left: 2rem;
+                                    line-height: 1.8;
+                                }
+                                .article-content li {
+                                    margin-bottom: 0.75rem;
+                                }
+                            </style>
                             {{ article.content | safe }}
                         </div>
 

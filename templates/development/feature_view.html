@@ -32,9 +32,28 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Main Content -->
             <div class="lg:col-span-2 space-y-6">
+                <!-- Case Progress -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-tasks text-blue-600 mr-2"></i>Case Progress
+                    </h3>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 bg-gray-200 rounded-full h-4">
+                            <div class="bg-blue-600 h-4 rounded-full flex items-center justify-center transition-all duration-300" style="width: {{ feature.case_progress }}%">
+                                {% if feature.case_progress > 10 %}
+                                <span class="text-white text-xs font-semibold">{{ feature.case_progress }}%</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="text-lg font-bold text-blue-600">{{ feature.case_progress }}%</span>
+                    </div>
+                </div>
+
                 <!-- Description -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Description</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-align-left text-gray-600 mr-2"></i>Description
+                    </h3>
                     <div class="prose max-w-none text-gray-700">
                         {{ feature.description|nl2br|safe }}
                     </div>
@@ -50,63 +69,85 @@
                 </div>
                 {% endif %}
 
-                <!-- Comments -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">
-                            Comments ({{ feature.comments|length }})
+                <!-- Comments - Messenger Style -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                        <h3 class="text-lg font-semibold text-white flex items-center">
+                            <i class="fas fa-comments mr-2"></i>Comments ({{ feature.comments|length }})
                         </h3>
-                        <button onclick="toggleCommentForm()"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
-                            <i class="fas fa-plus mr-1"></i>Add Comment
-                        </button>
                     </div>
 
-                    <!-- Comment Form -->
-                    <div id="commentForm" class="hidden mb-6">
-                        <form method="POST" action="{{ url_for('development.add_feature_comment', id=feature.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <textarea name="content"
-                                      required
-                                      rows="3"
-                                      class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      placeholder="Add your comment..."></textarea>
-                            <div class="flex justify-end space-x-2 mt-2">
-                                <button type="button"
-                                        onclick="toggleCommentForm()"
-                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
-                                    Cancel
-                                </button>
-                                <button type="submit"
-                                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
-                                    Add Comment
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Comments List -->
-                    {% if feature.comments %}
-                        <div class="space-y-4">
+                    <!-- Comments List - Messenger Style -->
+                    <div class="p-4 max-h-[600px] overflow-y-auto bg-gray-50" id="commentsContainer">
+                        {% if feature.comments %}
                             {% for comment in feature.comments|sort(attribute='created_at') %}
-                            <div class="border-l-4 border-blue-400 pl-4 py-2">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        {{ comment.user.name }}
+                            <div class="mb-4 {% if comment.user.id == current_user.id %}flex justify-end{% else %}flex justify-start{% endif %}">
+                                <div class="{% if comment.user.id == current_user.id %}max-w-[75%]{% else %}max-w-[75%]{% endif %}">
+                                    <!-- User Avatar and Name -->
+                                    <div class="flex items-center mb-1 {% if comment.user.id == current_user.id %}flex-row-reverse{% endif %}">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm {% if comment.user.id == current_user.id %}bg-blue-500 ml-2{% else %}bg-gray-500 mr-2{% endif %}">
+                                            {{ comment.user.username[0].upper() if comment.user else 'U' }}
+                                        </div>
+                                        <span class="text-xs font-medium text-gray-700">
+                                            {{ comment.user.username if comment.user else 'Unknown' }}
+                                        </span>
                                     </div>
-                                    <div class="text-xs text-gray-500">
-                                        {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+
+                                    <!-- Message Bubble -->
+                                    <div class="{% if comment.user.id == current_user.id %}bg-blue-500 text-white rounded-l-2xl rounded-tr-2xl{% else %}bg-white border border-gray-200 text-gray-800 rounded-r-2xl rounded-tl-2xl{% endif %} px-4 py-3 shadow-sm">
+                                        <div class="text-sm whitespace-pre-wrap break-words comment-content">{{ comment.content }}</div>
                                     </div>
-                                </div>
-                                <div class="text-sm text-gray-700">
-                                    {{ comment.content|nl2br|safe }}
+
+                                    <!-- Timestamp -->
+                                    <div class="mt-1 text-xs text-gray-500 {% if comment.user.id == current_user.id %}text-right{% endif %}">
+                                        {{ comment.created_at.strftime('%I:%M %p') if comment.created_at else '' }}
+                                    </div>
                                 </div>
                             </div>
                             {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-gray-500 text-center py-4">No comments yet</p>
-                    {% endif %}
+                        {% else %}
+                            <div class="text-center py-12">
+                                <i class="fas fa-comment-slash text-gray-300 text-5xl mb-3"></i>
+                                <p class="text-gray-500">No comments yet. Start the conversation!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Comment Input - Fixed at Bottom -->
+                    <div class="border-t border-gray-200 bg-white p-4">
+                        <form method="POST" action="{{ url_for('development.add_feature_comment', id=feature.id) }}" id="commentFormMessenger">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="flex items-end space-x-2">
+                                <!-- Textarea with @mention -->
+                                <div class="flex-1 relative">
+                                    <textarea name="content"
+                                              id="commentTextarea"
+                                              required
+                                              rows="1"
+                                              class="w-full border border-gray-300 rounded-2xl px-4 py-2.5 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                              placeholder="Write a comment... Use @ to mention users"
+                                              onkeydown="handleKeyPress(event)"
+                                              oninput="autoResize(this); checkMention(this)"></textarea>
+
+                                    <!-- @mention Dropdown -->
+                                    <div id="mentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-20">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+
+                                    <!-- Send Button -->
+                                    <button type="submit"
+                                            class="absolute right-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                                        <i class="fas fa-paper-plane text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>Use <strong>@username</strong> to mention someone and send them an email notification
+                            </p>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -140,7 +181,7 @@
                         </div>
 
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Assignee</dt>
+                            <dt class="text-sm font-medium text-gray-500">Case Owner</dt>
                             <dd class="mt-1 text-sm text-gray-900">
                                 {% if feature.assignee %}
                                     {{ feature.assignee.name }}
@@ -234,43 +275,60 @@
                 </div>
                 {% endif %}
 
-                <!-- Quick Actions -->
+                <!-- Quick Actions (Case Owner Only) -->
+                {% if feature.assignee and feature.assignee.id == current_user.id %}
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-bolt text-yellow-500 mr-2"></i>Quick Actions
+                    </h3>
                     <div class="space-y-2">
-                        {% if feature.status != 'COMPLETED' %}
-                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="status" value="COMPLETED">
-                            <button type="submit"
-                                    class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
-                                    onclick="return confirm('Mark this feature as completed?')">
-                                <i class="fas fa-check mr-2"></i>Mark Complete
-                            </button>
-                        </form>
-                        {% endif %}
+                        <!-- Change Status -->
+                        <button onclick="document.getElementById('statusModal').classList.remove('hidden')"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center">
+                            <i class="fas fa-exchange-alt mr-2"></i>Change Status
+                        </button>
 
-                        {% if feature.status == 'REQUESTED' %}
-                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
+                        <!-- Delete Feature -->
+                        <form method="POST" action="{{ url_for('development.delete_feature', id=feature.id) }}" onsubmit="return confirm('Are you sure you want to delete this feature? This action cannot be undone.');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="status" value="IN_PLANNING">
                             <button type="submit"
-                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm">
-                                <i class="fas fa-play mr-2"></i>Start Planning
+                                    class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center">
+                                <i class="fas fa-trash-alt mr-2"></i>Delete Feature
                             </button>
                         </form>
-                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
 
-                        {% if feature.status in ['IN_PLANNING', 'IN_DEVELOPMENT'] %}
-                        <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="status" value="CANCELLED">
-                            <button type="submit"
-                                    class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm"
-                                    onclick="return confirm('Cancel this feature request?')">
-                                <i class="fas fa-times mr-2"></i>Cancel Feature
-                            </button>
-                        </form>
+                <!-- Test Cases -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
+                        <span><i class="fas fa-clipboard-check text-green-600 mr-2"></i>Test Cases</span>
+                        <a href="{{ url_for('development.feature_test_cases', feature_id=feature.id) }}"
+                           class="text-blue-600 hover:text-blue-800 text-sm">
+                            View All
+                        </a>
+                    </h3>
+                    <div class="space-y-2">
+                        <a href="{{ url_for('development.new_feature_test_case', feature_id=feature.id) }}"
+                           class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center">
+                            <i class="fas fa-plus mr-2"></i>Add Test Case
+                        </a>
+                        {% if feature.test_cases %}
+                        <div class="text-sm text-gray-600 mt-3">
+                            <div class="flex justify-between items-center py-1">
+                                <span>Total Cases:</span>
+                                <span class="font-semibold">{{ feature.test_cases|length }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1">
+                                <span>Passed:</span>
+                                <span class="font-semibold text-green-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Passed')|list|length }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1">
+                                <span>Failed:</span>
+                                <span class="font-semibold text-red-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Failed')|list|length }}</span>
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -279,13 +337,153 @@
     </div>
 </div>
 
+<!-- Status Change Modal -->
+{% if feature.assignee and feature.assignee.id == current_user.id %}
+<div id="statusModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Change Status</h3>
+            <form method="POST" action="{{ url_for('development.update_feature_status', id=feature.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="status" class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4">
+                    {% for status in FeatureStatus %}
+                    <option value="{{ status.name }}" {% if feature.status == status %}selected{% endif %}>
+                        {{ status.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="flex justify-end space-x-2">
+                    <button type="button"
+                            onclick="document.getElementById('statusModal').classList.add('hidden')"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Update Status
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
-function toggleCommentForm() {
-    const form = document.getElementById('commentForm');
-    form.classList.toggle('hidden');
-    if (!form.classList.contains('hidden')) {
-        form.querySelector('textarea').focus();
+// Available users for @mentions
+const availableUsers = {{ users_json|safe }};
+let mentionStartPos = -1;
+let currentMentionText = '';
+
+// Auto-resize textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
+// Handle Enter key (Shift+Enter for new line, Enter to submit)
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        document.getElementById('commentFormMessenger').submit();
     }
 }
+
+// Check for @mention
+function checkMention(textarea) {
+    const cursorPos = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Find last @ before cursor
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            atPos = i;
+            break;
+        }
+        if (text[i] === ' ' || text[i] === '\n') {
+            break;
+        }
+    }
+
+    if (atPos !== -1) {
+        mentionStartPos = atPos;
+        currentMentionText = text.substring(atPos + 1, cursorPos).toLowerCase();
+        showMentionDropdown(currentMentionText);
+    } else {
+        hideMentionDropdown();
+    }
+}
+
+// Show @mention dropdown
+function showMentionDropdown(searchText) {
+    const dropdown = document.getElementById('mentionDropdown');
+    const filtered = availableUsers.filter(user =>
+        user.username.toLowerCase().includes(searchText)
+    );
+
+    if (filtered.length === 0) {
+        hideMentionDropdown();
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    filtered.forEach((user, index) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center';
+        item.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm mr-3">
+                ${user.username[0].toUpperCase()}
+            </div>
+            <div>
+                <div class="font-medium text-sm">${user.username}</div>
+                <div class="text-xs text-gray-500">${user.email}</div>
+            </div>
+        `;
+        item.onclick = function() {
+            selectMention(user.username);
+        };
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+// Hide @mention dropdown
+function hideMentionDropdown() {
+    document.getElementById('mentionDropdown').classList.add('hidden');
+    mentionStartPos = -1;
+}
+
+// Select a mention
+function selectMention(username) {
+    const textarea = document.getElementById('commentTextarea');
+    const text = textarea.value;
+    const beforeMention = text.substring(0, mentionStartPos);
+    const afterMention = text.substring(textarea.selectionStart);
+
+    textarea.value = beforeMention + '@' + username + ' ' + afterMention;
+    const newPos = beforeMention.length + username.length + 2;
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+
+    hideMentionDropdown();
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('#commentTextarea') && !event.target.closest('#mentionDropdown')) {
+        hideMentionDropdown();
+    }
+});
+
+// Scroll to bottom of comments on load
+window.addEventListener('load', function() {
+    const container = document.getElementById('commentsContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
 </script>
 {% endblock %}

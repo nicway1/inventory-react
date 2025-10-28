@@ -318,20 +318,31 @@ def new_feature():
 @permission_required('can_view_features')
 def view_feature(id):
     """View a specific feature request"""
+    from models.feature_request import FeatureTestCase
     db_session = SessionLocal()
     try:
         feature = db_session.query(FeatureRequest)\
             .options(joinedload(FeatureRequest.requester),
                     joinedload(FeatureRequest.assignee),
                     joinedload(FeatureRequest.target_release),
-                    joinedload(FeatureRequest.comments).joinedload(FeatureComment.user))\
+                    joinedload(FeatureRequest.comments).joinedload(FeatureComment.user),
+                    joinedload(FeatureRequest.test_cases).joinedload(FeatureTestCase.created_by),
+                    joinedload(FeatureRequest.test_cases).joinedload(FeatureTestCase.tested_by))\
             .filter(FeatureRequest.id == id).first()
 
         if not feature:
             flash('Feature request not found', 'error')
             return redirect(url_for('development.features'))
 
-        return render_template('development/feature_view.html', feature=feature)
+        # Get all users for @mentions
+        import json
+        all_users = db_session.query(User).all()
+        users_json = json.dumps([{'id': u.id, 'username': u.username, 'email': u.email} for u in all_users])
+
+        return render_template('development/feature_view.html',
+                             feature=feature,
+                             users_json=users_json,
+                             FeatureStatus=FeatureStatus)
 
     finally:
         db_session.close()
@@ -366,6 +377,7 @@ def edit_feature(id):
                 feature.approver_id = request.form.get('approver_id') if request.form.get('approver_id') else None
                 feature.target_release_id = request.form.get('target_release_id') if request.form.get('target_release_id') else None
                 feature.target_date = datetime.strptime(request.form['target_date'], '%Y-%m-%d').date() if request.form.get('target_date') else None
+                feature.case_progress = int(request.form.get('case_progress', 0))
 
                 if request.form.get('status'):
                     feature.status = FeatureStatus(request.form['status'])
@@ -409,14 +421,28 @@ def add_feature_comment(id):
             flash('Feature request not found', 'error')
             return redirect(url_for('development.features'))
 
+        content = request.form['content']
+
         comment = FeatureComment(
-            content=request.form['content'],
+            content=content,
             feature_id=feature.id,
             user_id=current_user.id
         )
 
         db_session.add(comment)
         db_session.commit()
+
+        # Extract @mentions and send email notifications
+        import re
+        mentions = re.findall(r'@(\w+)', content)
+        if mentions:
+            mentioned_users = db_session.query(User).filter(User.username.in_(mentions)).all()
+            for mentioned_user in mentioned_users:
+                if mentioned_user.email and mentioned_user.id != current_user.id:
+                    try:
+                        send_feature_mention_email(mentioned_user, current_user, feature, content)
+                    except Exception as email_error:
+                        logging.error(f"Failed to send mention email: {str(email_error)}")
 
         flash('Comment added successfully!', 'success')
         return redirect(url_for('development.view_feature', id=id))
@@ -442,9 +468,24 @@ def update_feature_status(id):
 
         new_status = request.form.get('status')
         if new_status:
-            feature.status = FeatureStatus(new_status)
+            # Convert by enum name, not value
+            feature.status = FeatureStatus[new_status]
             if feature.status == FeatureStatus.COMPLETED and not feature.completed_date:
                 feature.completed_date = datetime.utcnow()
+
+            # Auto-update case progress based on status
+            status_progress_map = {
+                FeatureStatus.REQUESTED: 0,
+                FeatureStatus.PENDING_APPROVAL: 10,
+                FeatureStatus.APPROVED: 20,
+                FeatureStatus.REJECTED: 0,
+                FeatureStatus.IN_PLANNING: 30,
+                FeatureStatus.IN_DEVELOPMENT: 50,
+                FeatureStatus.IN_TESTING: 80,
+                FeatureStatus.COMPLETED: 100,
+                FeatureStatus.CANCELLED: 0
+            }
+            feature.case_progress = status_progress_map.get(feature.status, feature.case_progress)
 
             db_session.commit()
             flash(f'Feature status updated to {feature.status.value}', 'success')
@@ -561,6 +602,430 @@ def reject_feature(id):
         return redirect(url_for('development.view_feature', id=id))
     finally:
         db_session.close()
+
+@development_bp.route('/features/<int:id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_edit_features')
+def delete_feature(id):
+    """Delete a feature request"""
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).filter(FeatureRequest.id == id).first()
+        if not feature:
+            flash('Feature request not found', 'error')
+            return redirect(url_for('development.features'))
+
+        # Check if user is the case owner or has delete permissions
+        if feature.assignee_id != current_user.id and current_user.user_type != UserType.SUPER_ADMIN:
+            flash('You are not authorized to delete this feature request', 'error')
+            return redirect(url_for('development.view_feature', id=id))
+
+        feature_display_id = feature.display_id
+        db_session.delete(feature)
+        db_session.commit()
+
+        flash(f'Feature request {feature_display_id} has been deleted successfully', 'success')
+        return redirect(url_for('development.features'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting feature request: {str(e)}', 'error')
+        return redirect(url_for('development.view_feature', id=id))
+    finally:
+        db_session.close()
+
+
+def send_feature_mention_email(mentioned_user, commenter, feature, comment_content):
+    """Send email notification when user is mentioned in a feature comment"""
+    from flask import current_app
+
+    try:
+        logging.info(f"Attempting to send feature mention notification to {mentioned_user.email}")
+
+        if not mentioned_user.email:
+            logging.warning(f"User {mentioned_user.username} has no email address")
+            return False
+
+        # Create the feature URL
+        feature_url = f"https://inventory.truelog.com.sg/development/features/{feature.id}"
+
+        subject = f"You were mentioned in {feature.display_id}"
+
+        # Get priority color mapping
+        priority_colors = {
+            'Low': {'bg': '#f3f4f6', 'text': '#6b7280'},
+            'Medium': {'bg': '#fef3c7', 'text': '#d97706'},
+            'High': {'bg': '#fed7aa', 'text': '#ea580c'},
+            'Critical': {'bg': '#fee2e2', 'text': '#dc2626'}
+        }
+        priority_value = feature.priority.value if feature.priority else 'Medium'
+        priority_style = priority_colors.get(priority_value, priority_colors['Medium'])
+
+        # Get status color mapping
+        status_colors = {
+            'Requested': {'bg': '#dbeafe', 'text': '#2563eb'},
+            'Pending Approval': {'bg': '#e0e7ff', 'text': '#4f46e5'},
+            'Approved': {'bg': '#d1fae5', 'text': '#059669'},
+            'Rejected': {'bg': '#fee2e2', 'text': '#dc2626'},
+            'In Planning': {'bg': '#fef3c7', 'text': '#d97706'},
+            'In Development': {'bg': '#fed7aa', 'text': '#ea580c'},
+            'In Testing': {'bg': '#e9d5ff', 'text': '#9333ea'},
+            'Completed': {'bg': '#dcfce7', 'text': '#16a34a'},
+            'Cancelled': {'bg': '#fee2e2', 'text': '#dc2626'}
+        }
+        status_value = feature.status.value if feature.status else 'Requested'
+        status_style = status_colors.get(status_value, status_colors['Requested'])
+
+        # HTML email template
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Mention Notification - {feature.display_id}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                        💬 You Were Mentioned
+                    </h1>
+                    <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 16px;">
+                        TrueLog Development System
+                    </p>
+                </div>
+
+                <!-- Main Content -->
+                <div style="padding: 40px;">
+                    <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <h2 style="color: #1a202c; margin: 0 0 10px 0; font-size: 20px;">
+                            Hello {mentioned_user.username}!
+                        </h2>
+                        <p style="color: #4a5568; margin: 0; font-size: 16px; line-height: 1.5;">
+                            <strong>{commenter.username}</strong> mentioned you in a comment on {feature.display_id}.
+                        </p>
+                    </div>
+
+                    <!-- Feature Details Card -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background-color: #2563eb; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">✨ Feature Details</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600; width: 120px;">Feature ID:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{feature.display_id}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Title:</td>
+                                    <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">{feature.title}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Priority:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: {priority_style['bg']};
+                                                     color: {priority_style['text']};
+                                                     padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {priority_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Status:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: {status_style['bg']};
+                                                     color: {status_style['text']};
+                                                     padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {status_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Case Owner:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{feature.assignee.username if feature.assignee else 'Unassigned'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Comment Preview -->
+                    <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                        <h4 style="color: #2d3748; margin: 0 0 10px 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">💬 {commenter.username} said:</h4>
+                        <p style="color: #4a5568; margin: 0; line-height: 1.6; font-size: 14px; white-space: pre-wrap;">
+                            {comment_content}
+                        </p>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{feature_url}"
+                           style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+                                  color: white;
+                                  text-decoration: none;
+                                  padding: 14px 28px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  font-size: 16px;
+                                  display: inline-block;
+                                  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+                                  transition: all 0.3s ease;">
+                            🔗 View Feature & Reply
+                        </a>
+                    </div>
+
+                    <!-- Next Steps -->
+                    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px;">
+                        <h4 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
+                            ✅ What's Next?
+                        </h4>
+                        <ul style="color: #1e3a8a; margin: 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Review the feature details and comment</li>
+                            <li>Reply to the comment to continue the conversation</li>
+                            <li>Add any additional information or feedback</li>
+                            <li>Collaborate with the team on the feature</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                        This notification was sent because you were mentioned in a comment.
+                    </p>
+                    <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                        TrueLog Development System |
+                        <a href="https://inventory.truelog.com.sg" style="color: #2563eb; text-decoration: none;">inventory.truelog.com.sg</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text fallback
+        plain_body = f"""
+Hi {mentioned_user.username},
+
+{commenter.username} mentioned you in a comment on {feature.display_id}.
+
+Feature Details:
+- Feature ID: {feature.display_id}
+- Title: {feature.title}
+- Priority: {priority_value}
+- Status: {status_value}
+- Case Owner: {feature.assignee.username if feature.assignee else 'Unassigned'}
+
+Comment:
+{comment_content}
+
+View the feature and reply: {feature_url}
+
+Best regards,
+TrueLog Development System
+"""
+
+        # Send email using the email_sender utility
+        from utils.email_sender import _send_email_via_method
+
+        success = _send_email_via_method(
+            to_email=mentioned_user.email,
+            subject=subject,
+            body=plain_body,
+            html_body=html_body
+        )
+
+        if success:
+            logging.info(f"Feature mention notification sent successfully to {mentioned_user.email}")
+        else:
+            logging.error(f"Failed to send feature mention notification to {mentioned_user.email}")
+
+        return success
+
+    except Exception as e:
+        logging.error(f"Failed to send feature mention email to {mentioned_user.email}: {str(e)}")
+        return False
+
+
+# ============================================================================
+# FEATURE TEST CASE ROUTES
+# ============================================================================
+
+@development_bp.route('/features/<int:feature_id>/test-cases')
+@login_required
+@permission_required('can_view_features')
+def feature_test_cases(feature_id):
+    """View test cases for a feature"""
+    from models.feature_request import FeatureTestCase
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).options(
+            joinedload(FeatureRequest.test_cases).joinedload(FeatureTestCase.created_by),
+            joinedload(FeatureRequest.test_cases).joinedload(FeatureTestCase.tested_by),
+            joinedload(FeatureRequest.requester),
+            joinedload(FeatureRequest.assignee)
+        ).filter(FeatureRequest.id == feature_id).first()
+
+        if not feature:
+            flash('Feature not found', 'error')
+            return redirect(url_for('development.features'))
+
+        return render_template('development/feature_test_cases.html', feature=feature)
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/features/<int:feature_id>/test-cases/new', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_features')
+def new_feature_test_case(feature_id):
+    """Create a new test case for a feature"""
+    from models.feature_request import FeatureTestCase
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
+        if not feature:
+            flash('Feature not found', 'error')
+            return redirect(url_for('development.features'))
+
+        if request.method == 'POST':
+            test_case = FeatureTestCase(
+                feature_id=feature_id,
+                title=request.form.get('title'),
+                description=request.form.get('description'),
+                preconditions=request.form.get('preconditions'),
+                test_steps=request.form.get('test_steps'),
+                expected_result=request.form.get('expected_result'),
+                priority=request.form.get('priority', 'Medium'),
+                test_data=request.form.get('test_data'),
+                created_by_id=current_user.id
+            )
+
+            db_session.add(test_case)
+            db_session.commit()
+
+            flash(f'Test case created successfully', 'success')
+            return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+        return render_template('development/feature_test_case_form.html', feature=feature, test_case=None)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error creating test case: {str(e)}', 'error')
+        return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/feature-test-cases/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_features')
+def edit_feature_test_case(id):
+    """Edit a feature test case"""
+    from models.feature_request import FeatureTestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(FeatureTestCase).options(
+            joinedload(FeatureTestCase.feature)
+        ).filter(FeatureTestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.features'))
+
+        if request.method == 'POST':
+            test_case.title = request.form.get('title')
+            test_case.description = request.form.get('description')
+            test_case.preconditions = request.form.get('preconditions')
+            test_case.test_steps = request.form.get('test_steps')
+            test_case.expected_result = request.form.get('expected_result')
+            test_case.priority = request.form.get('priority', 'Medium')
+            test_case.test_data = request.form.get('test_data')
+            test_case.updated_at = datetime.utcnow()
+
+            db_session.commit()
+
+            flash(f'Test case updated successfully', 'success')
+            return redirect(url_for('development.feature_test_cases', feature_id=test_case.feature_id))
+
+        return render_template('development/feature_test_case_form.html', feature=test_case.feature, test_case=test_case)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating test case: {str(e)}', 'error')
+        return redirect(url_for('development.features'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/feature-test-cases/<int:id>/execute', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_features')
+def execute_feature_test_case(id):
+    """Execute a feature test case (fill in actual results)"""
+    from models.feature_request import FeatureTestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(FeatureTestCase).options(
+            joinedload(FeatureTestCase.feature)
+        ).filter(FeatureTestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.features'))
+
+        if request.method == 'POST':
+            test_case.actual_result = request.form.get('actual_result')
+            test_case.status = request.form.get('status', 'Pending')
+            test_case.tested_by_id = current_user.id
+            test_case.tested_at = datetime.utcnow()
+            test_case.updated_at = datetime.utcnow()
+
+            db_session.commit()
+
+            flash(f'Test case executed successfully', 'success')
+            return redirect(url_for('development.feature_test_cases', feature_id=test_case.feature_id))
+
+        return render_template('development/execute_feature_test_case.html', test_case=test_case)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error executing test case: {str(e)}', 'error')
+        return redirect(url_for('development.features'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/feature-test-cases/<int:id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_edit_features')
+def delete_feature_test_case(id):
+    """Delete a feature test case"""
+    from models.feature_request import FeatureTestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(FeatureTestCase).filter(FeatureTestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.features'))
+
+        feature_id = test_case.feature_id
+        db_session.delete(test_case)
+        db_session.commit()
+
+        flash(f'Test case deleted successfully', 'success')
+        return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting test case: {str(e)}', 'error')
+        return redirect(url_for('development.features'))
+    finally:
+        db_session.close()
+
 
 # Bug Routes
 @development_bp.route('/bugs')
@@ -724,9 +1189,14 @@ def new_bug():
     # GET - show form
     db_session = SessionLocal()
     try:
-        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
+        from models.bug_report import Tester
+        # Only developers can be assigned to bugs
+        users = db_session.query(User).filter(User.user_type == UserType.DEVELOPER).all()
+        # Get active testers
+        testers = db_session.query(Tester).filter(Tester.is_active == 'Yes').all()
         return render_template('development/bug_form.html',
                              users=users,
+                             testers=testers,
                              BugSeverity=BugSeverity,
                              BugPriority=BugPriority)
     finally:
@@ -737,20 +1207,35 @@ def new_bug():
 @permission_required('can_view_bugs')
 def view_bug(id):
     """View a specific bug report"""
+    from models.bug_report import Tester, TestCase, BugTesterAssignment
     db_session = SessionLocal()
     try:
         bug = db_session.query(BugReport)\
             .options(joinedload(BugReport.reporter),
                     joinedload(BugReport.assignee),
                     joinedload(BugReport.fixed_in_release),
-                    joinedload(BugReport.comments).joinedload(BugComment.user))\
+                    joinedload(BugReport.comments).joinedload(BugComment.user),
+                    joinedload(BugReport.tester_assignments).joinedload(BugTesterAssignment.tester).joinedload(Tester.user),
+                    joinedload(BugReport.test_cases).joinedload(TestCase.created_by),
+                    joinedload(BugReport.test_cases).joinedload(TestCase.tested_by))\
             .filter(BugReport.id == id).first()
 
         if not bug:
             flash('Bug report not found', 'error')
             return redirect(url_for('development.bugs'))
 
-        return render_template('development/bug_view.html', bug=bug)
+        # Get all active testers
+        testers = db_session.query(Tester)\
+            .filter(Tester.is_active == 'Yes')\
+            .options(joinedload(Tester.user))\
+            .all()
+
+        # Get all users for @mentions
+        import json
+        all_users = db_session.query(User).all()
+        users_json = json.dumps([{'id': u.id, 'username': u.username, 'email': u.email} for u in all_users])
+
+        return render_template('development/bug_view.html', bug=bug, testers=testers, users_json=users_json)
 
     finally:
         db_session.close()
@@ -801,12 +1286,39 @@ def edit_bug(id):
                 bug.component = request.form.get('component')
                 bug.environment = request.form.get('environment')
                 bug.assignee_id = request.form.get('assignee_id') if request.form.get('assignee_id') else None
+                bug.case_progress = int(request.form.get('case_progress', 0))
 
                 if request.form.get('status'):
                     bug.status = BugStatus(request.form['status'])
                     if bug.status in [BugStatus.RESOLVED, BugStatus.CLOSED] and not bug.resolution_date:
                         bug.resolution_date = datetime.utcnow()
                         bug.resolution_notes = request.form.get('resolution_notes')
+
+                # Handle tester assignments
+                from models.bug_report import BugTesterAssignment
+                tester_ids = request.form.getlist('tester_ids')
+                notify_testers = request.form.get('notify_testers') == 'yes'
+
+                # Remove old assignments not in new list
+                for assignment in bug.tester_assignments:
+                    if str(assignment.tester_id) not in tester_ids:
+                        db_session.delete(assignment)
+
+                # Add new assignments
+                existing_tester_ids = [a.tester_id for a in bug.tester_assignments]
+                for tester_id in tester_ids:
+                    if int(tester_id) not in existing_tester_ids:
+                        assignment = BugTesterAssignment(
+                            bug_id=bug.id,
+                            tester_id=int(tester_id),
+                            notified='Yes' if notify_testers else 'No',
+                            notified_at=datetime.utcnow() if notify_testers else None
+                        )
+                        db_session.add(assignment)
+
+                        # TODO: Send notification to tester if notify_testers is True
+                        if notify_testers:
+                            logger.info(f"Tester {tester_id} notified about bug {bug.id}")
 
                 db_session.commit()
                 flash(f'Bug report {bug.display_id} updated successfully!', 'success')
@@ -818,10 +1330,15 @@ def edit_bug(id):
                 logger.error(f'Error updating bug report: {str(e)}')
 
         # GET - show form
-        users = db_session.query(User).filter(User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])).all()
+        from models.bug_report import Tester
+        # Only developers can be assigned to bugs
+        users = db_session.query(User).filter(User.user_type == UserType.DEVELOPER).all()
+        # Get active testers
+        testers = db_session.query(Tester).filter(Tester.is_active == 'Yes').all()
         return render_template('development/bug_form.html',
                              bug=bug,
                              users=users,
+                             testers=testers,
                              BugSeverity=BugSeverity,
                              BugPriority=BugPriority,
                              BugStatus=BugStatus)
@@ -840,8 +1357,9 @@ def add_bug_comment(id):
             flash('Bug report not found', 'error')
             return redirect(url_for('development.bugs'))
 
+        content = request.form['content']
         comment = BugComment(
-            content=request.form['content'],
+            content=content,
             bug_id=bug.id,
             user_id=current_user.id,
             comment_type=request.form.get('comment_type', 'comment')
@@ -849,6 +1367,19 @@ def add_bug_comment(id):
 
         db_session.add(comment)
         db_session.commit()
+
+        # Extract @mentions and send email notifications
+        import re
+        mentions = re.findall(r'@(\w+)', content)
+        if mentions:
+            mentioned_users = db_session.query(User).filter(User.username.in_(mentions)).all()
+            for mentioned_user in mentioned_users:
+                if mentioned_user.email and mentioned_user.id != current_user.id:
+                    try:
+                        send_mention_email(mentioned_user, current_user, bug, content)
+                        logger.info(f"Mention email sent to {mentioned_user.email}")
+                    except Exception as email_error:
+                        logger.error(f"Failed to send mention email: {str(email_error)}")
 
         flash('Comment added successfully!', 'success')
         return redirect(url_for('development.view_bug', id=id))
@@ -859,6 +1390,217 @@ def add_bug_comment(id):
         return redirect(url_for('development.view_bug', id=id))
     finally:
         db_session.close()
+
+
+def send_mention_email(mentioned_user, commenter, bug, comment_content):
+    """Send email notification when user is mentioned in a comment"""
+    from flask import current_app
+
+    try:
+        logging.info(f"Attempting to send mention notification to {mentioned_user.email}")
+
+        if not mentioned_user.email:
+            logging.warning(f"User {mentioned_user.username} has no email address")
+            return False
+
+        # Create the bug URL
+        bug_url = f"https://inventory.truelog.com.sg/development/bugs/{bug.id}"
+
+        subject = f"You were mentioned in {bug.display_id}"
+
+        # Get severity color mapping
+        severity_colors = {
+            'Low': {'bg': '#dcfce7', 'text': '#16a34a'},
+            'Medium': {'bg': '#fef3c7', 'text': '#d97706'},
+            'High': {'bg': '#fed7aa', 'text': '#ea580c'},
+            'Critical': {'bg': '#fee2e2', 'text': '#dc2626'}
+        }
+        severity_value = bug.severity.value if bug.severity else 'Medium'
+        severity_style = severity_colors.get(severity_value, severity_colors['Medium'])
+
+        # Get status color mapping
+        status_colors = {
+            'Open': {'bg': '#fee2e2', 'text': '#dc2626'},
+            'In Progress': {'bg': '#fef3c7', 'text': '#d97706'},
+            'Testing': {'bg': '#dbeafe', 'text': '#2563eb'},
+            'Resolved': {'bg': '#dcfce7', 'text': '#16a34a'},
+            'Closed': {'bg': '#f3f4f6', 'text': '#6b7280'},
+            'Reopened': {'bg': '#fed7aa', 'text': '#ea580c'}
+        }
+        status_value = bug.status.value if bug.status else 'Open'
+        status_style = status_colors.get(status_value, status_colors['Open'])
+
+        # HTML email template
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Mention Notification - {bug.display_id}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                        💬 You Were Mentioned
+                    </h1>
+                    <p style="color: #fecaca; margin: 8px 0 0 0; font-size: 16px;">
+                        TrueLog Development System
+                    </p>
+                </div>
+
+                <!-- Main Content -->
+                <div style="padding: 40px;">
+                    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <h2 style="color: #1a202c; margin: 0 0 10px 0; font-size: 20px;">
+                            Hello {mentioned_user.username}!
+                        </h2>
+                        <p style="color: #4a5568; margin: 0; font-size: 16px; line-height: 1.5;">
+                            <strong>{commenter.username}</strong> mentioned you in a comment on {bug.display_id}.
+                        </p>
+                    </div>
+
+                    <!-- Bug Details Card -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background-color: #dc2626; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🐛 Bug Details</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600; width: 120px;">Bug ID:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{bug.display_id}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Title:</td>
+                                    <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">{bug.title}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Severity:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: {severity_style['bg']};
+                                                     color: {severity_style['text']};
+                                                     padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {severity_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Status:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: {status_style['bg']};
+                                                     color: {status_style['text']};
+                                                     padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {status_value}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Case Owner:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">{bug.assignee.username if bug.assignee else 'Unassigned'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Comment Preview -->
+                    <div style="background-color: #f7fafc; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                        <h4 style="color: #2d3748; margin: 0 0 10px 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">💬 {commenter.username} said:</h4>
+                        <p style="color: #4a5568; margin: 0; line-height: 1.6; font-size: 14px; white-space: pre-wrap;">
+                            {comment_content}
+                        </p>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{bug_url}"
+                           style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                                  color: white;
+                                  text-decoration: none;
+                                  padding: 14px 28px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  font-size: 16px;
+                                  display: inline-block;
+                                  box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);
+                                  transition: all 0.3s ease;">
+                            🔗 View Bug & Reply
+                        </a>
+                    </div>
+
+                    <!-- Next Steps -->
+                    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px;">
+                        <h4 style="color: #991b1b; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
+                            ✅ What's Next?
+                        </h4>
+                        <ul style="color: #b91c1c; margin: 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Review the bug details and comment</li>
+                            <li>Reply to the comment to continue the conversation</li>
+                            <li>Add any additional information or insights</li>
+                            <li>Collaborate with the team to resolve the issue</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                        This notification was sent because you were mentioned in a comment.
+                    </p>
+                    <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                        TrueLog Development System |
+                        <a href="https://inventory.truelog.com.sg" style="color: #dc2626; text-decoration: none;">inventory.truelog.com.sg</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text fallback
+        plain_body = f"""
+Hi {mentioned_user.username},
+
+{commenter.username} mentioned you in a comment on {bug.display_id}.
+
+Bug Details:
+- Bug ID: {bug.display_id}
+- Title: {bug.title}
+- Severity: {severity_value}
+- Status: {status_value}
+- Case Owner: {bug.assignee.username if bug.assignee else 'Unassigned'}
+
+Comment:
+{comment_content}
+
+View the bug and reply: {bug_url}
+
+Best regards,
+TrueLog Development System
+"""
+
+        # Send email using the email_sender utility
+        from utils.email_sender import _send_email_via_method
+
+        success = _send_email_via_method(
+            to_email=mentioned_user.email,
+            subject=subject,
+            body=plain_body,
+            html_body=html_body
+        )
+
+        if success:
+            logging.info(f"Mention notification sent successfully to {mentioned_user.email}")
+        else:
+            logging.error(f"Failed to send mention notification to {mentioned_user.email}")
+
+        return success
+
+    except Exception as e:
+        logging.error(f"Failed to send mention email to {mentioned_user.email}: {str(e)}")
+        return False
 
 @development_bp.route('/releases/<int:id>')
 @login_required
@@ -1084,12 +1826,25 @@ def update_bug_status(id):
 
         new_status = request.form.get('status')
         if new_status:
-            bug.status = BugStatus(new_status)
+            # Convert string to enum by name (e.g., 'IN_PROGRESS' -> BugStatus.IN_PROGRESS)
+            bug.status = BugStatus[new_status]
+
+            # Auto-update case progress based on status
+            status_progress_map = {
+                BugStatus.OPEN: 0,
+                BugStatus.IN_PROGRESS: 25,
+                BugStatus.TESTING: 75,
+                BugStatus.RESOLVED: 100,
+                BugStatus.CLOSED: 100,
+                BugStatus.REOPENED: 10
+            }
+            bug.case_progress = status_progress_map.get(bug.status, bug.case_progress)
+
             if bug.status in [BugStatus.RESOLVED, BugStatus.CLOSED] and not bug.resolution_date:
                 bug.resolution_date = datetime.utcnow()
 
             db_session.commit()
-            flash(f'Bug status updated to {bug.status.value}', 'success')
+            flash(f'Bug status updated to {bug.status.value} (Progress: {bug.case_progress}%)', 'success')
 
         return redirect(url_for('development.view_bug', id=id))
 
@@ -1097,5 +1852,405 @@ def update_bug_status(id):
         db_session.rollback()
         flash(f'Error updating status: {str(e)}', 'error')
         return redirect(url_for('development.view_bug', id=id))
+    finally:
+        db_session.close()
+
+@development_bp.route('/bugs/<int:id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def delete_bug(id):
+    """Delete a bug report"""
+    db_session = SessionLocal()
+    try:
+        bug = db_session.query(BugReport).filter(BugReport.id == id).first()
+        if not bug:
+            flash('Bug report not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        bug_display_id = bug.display_id
+        db_session.delete(bug)
+        db_session.commit()
+
+        flash(f'Bug {bug_display_id} deleted successfully', 'success')
+        return redirect(url_for('development.bugs'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting bug: {str(e)}', 'error')
+        return redirect(url_for('development.view_bug', id=id))
+    finally:
+        db_session.close()
+
+# ============= TESTER MANAGEMENT =============
+
+@development_bp.route('/testers')
+@login_required
+@permission_required('can_edit_bugs')
+def manage_testers():
+    """View and manage testers"""
+    from models.bug_report import Tester
+    db_session = SessionLocal()
+    try:
+        testers = db_session.query(Tester).all()
+        # Get users who are not already testers
+        tester_user_ids = [t.user_id for t in testers]
+        available_users = db_session.query(User).filter(~User.id.in_(tester_user_ids)).all()
+        return render_template('development/testers.html',
+                             testers=testers,
+                             available_users=available_users)
+    finally:
+        db_session.close()
+
+@development_bp.route('/testers/add', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def add_tester():
+    """Add a new tester"""
+    from models.bug_report import Tester
+    db_session = SessionLocal()
+    try:
+        user_id = request.form.get('user_id')
+        specialization = request.form.get('specialization')
+
+        # Check if user is already a tester
+        existing = db_session.query(Tester).filter(Tester.user_id == user_id).first()
+        if existing:
+            flash('This user is already a tester', 'error')
+            return redirect(url_for('development.manage_testers'))
+
+        tester = Tester(
+            user_id=user_id,
+            specialization=specialization,
+            is_active='Yes'
+        )
+        db_session.add(tester)
+        db_session.commit()
+
+        flash(f'Tester added successfully!', 'success')
+        return redirect(url_for('development.manage_testers'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error adding tester: {str(e)}', 'error')
+        return redirect(url_for('development.manage_testers'))
+    finally:
+        db_session.close()
+
+@development_bp.route('/testers/<int:id>/toggle', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def toggle_tester(id):
+    """Toggle tester active status"""
+    from models.bug_report import Tester
+    db_session = SessionLocal()
+    try:
+        tester = db_session.query(Tester).filter(Tester.id == id).first()
+        if not tester:
+            flash('Tester not found', 'error')
+            return redirect(url_for('development.manage_testers'))
+
+        tester.is_active = 'No' if tester.is_active == 'Yes' else 'Yes'
+        db_session.commit()
+
+        status = 'activated' if tester.is_active == 'Yes' else 'deactivated'
+        flash(f'Tester {status} successfully', 'success')
+        return redirect(url_for('development.manage_testers'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error toggling tester status: {str(e)}', 'error')
+        return redirect(url_for('development.manage_testers'))
+    finally:
+        db_session.close()
+
+@development_bp.route('/testers/<int:id>/remove', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def remove_tester(id):
+    """Remove a tester"""
+    from models.bug_report import Tester
+    db_session = SessionLocal()
+    try:
+        tester = db_session.query(Tester).filter(Tester.id == id).first()
+        if not tester:
+            flash('Tester not found', 'error')
+            return redirect(url_for('development.manage_testers'))
+
+        db_session.delete(tester)
+        db_session.commit()
+
+        flash(f'Tester removed successfully', 'success')
+        return redirect(url_for('development.manage_testers'))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing tester: {str(e)}', 'error')
+        return redirect(url_for('development.manage_testers'))
+    finally:
+        db_session.close()
+
+
+# ============================================================================
+# TEST CASE MANAGEMENT ROUTES
+# ============================================================================
+
+@development_bp.route('/bugs/<int:bug_id>/test-cases')
+@login_required
+@permission_required('can_view_bugs')
+def bug_test_cases(bug_id):
+    """View test cases for a bug"""
+    from models.bug_report import TestCase
+    db_session = SessionLocal()
+    try:
+        bug = db_session.query(BugReport).options(
+            joinedload(BugReport.test_cases).joinedload(TestCase.created_by),
+            joinedload(BugReport.test_cases).joinedload(TestCase.tested_by),
+            joinedload(BugReport.reporter),
+            joinedload(BugReport.assignee)
+        ).filter(BugReport.id == bug_id).first()
+
+        if not bug:
+            flash('Bug not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        return render_template('development/test_cases.html', bug=bug)
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/bugs/<int:bug_id>/test-cases/new', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_create_bugs')
+def new_test_case(bug_id):
+    """Create a new test case"""
+    from models.bug_report import TestCase
+    db_session = SessionLocal()
+    try:
+        bug = db_session.query(BugReport).filter(BugReport.id == bug_id).first()
+        if not bug:
+            flash('Bug not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        if request.method == 'POST':
+            test_case = TestCase(
+                bug_id=bug_id,
+                title=request.form.get('title'),
+                description=request.form.get('description'),
+                preconditions=request.form.get('preconditions'),
+                test_steps=request.form.get('test_steps'),
+                expected_result=request.form.get('expected_result'),
+                priority=request.form.get('priority', 'Medium'),
+                test_data=request.form.get('test_data'),
+                created_by_id=current_user.id
+            )
+
+            db_session.add(test_case)
+            db_session.commit()
+
+            flash(f'Test case {test_case.display_id} created successfully', 'success')
+            return redirect(url_for('development.bug_test_cases', bug_id=bug_id))
+
+        return render_template('development/test_case_form.html', bug=bug, test_case=None)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error creating test case: {str(e)}', 'error')
+        return redirect(url_for('development.bug_test_cases', bug_id=bug_id))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/test-cases/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def edit_test_case(id):
+    """Edit a test case"""
+    from models.bug_report import TestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(TestCase).options(
+            joinedload(TestCase.bug)
+        ).filter(TestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        if request.method == 'POST':
+            test_case.title = request.form.get('title')
+            test_case.description = request.form.get('description')
+            test_case.preconditions = request.form.get('preconditions')
+            test_case.test_steps = request.form.get('test_steps')
+            test_case.expected_result = request.form.get('expected_result')
+            test_case.priority = request.form.get('priority', 'Medium')
+            test_case.test_data = request.form.get('test_data')
+            test_case.updated_at = datetime.utcnow()
+
+            db_session.commit()
+
+            flash(f'Test case {test_case.display_id} updated successfully', 'success')
+            return redirect(url_for('development.bug_test_cases', bug_id=test_case.bug_id))
+
+        return render_template('development/test_case_form.html', bug=test_case.bug, test_case=test_case)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating test case: {str(e)}', 'error')
+        return redirect(url_for('development.bugs'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/test-cases/<int:id>/execute', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def execute_test_case(id):
+    """Execute a test case (fill in actual results)"""
+    from models.bug_report import TestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(TestCase).options(
+            joinedload(TestCase.bug)
+        ).filter(TestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        if request.method == 'POST':
+            test_case.actual_result = request.form.get('actual_result')
+            test_case.status = request.form.get('status', 'Pending')
+            test_case.tested_by_id = current_user.id
+            test_case.tested_at = datetime.utcnow()
+            test_case.updated_at = datetime.utcnow()
+
+            db_session.commit()
+
+            flash(f'Test case {test_case.display_id} executed successfully', 'success')
+            return redirect(url_for('development.bug_test_cases', bug_id=test_case.bug_id))
+
+        return render_template('development/execute_test_case.html', test_case=test_case)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error executing test case: {str(e)}', 'error')
+        return redirect(url_for('development.bugs'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/test-cases/<int:id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def delete_test_case(id):
+    """Delete a test case"""
+    from models.bug_report import TestCase
+    db_session = SessionLocal()
+    try:
+        test_case = db_session.query(TestCase).filter(TestCase.id == id).first()
+
+        if not test_case:
+            flash('Test case not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        bug_id = test_case.bug_id
+        db_session.delete(test_case)
+        db_session.commit()
+
+        flash(f'Test case deleted successfully', 'success')
+        return redirect(url_for('development.bug_test_cases', bug_id=bug_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting test case: {str(e)}', 'error')
+        return redirect(url_for('development.bugs'))
+    finally:
+        db_session.close()
+
+
+# ============================================================================
+# TESTER ASSIGNMENT TO BUGS
+# ============================================================================
+
+@development_bp.route('/bugs/<int:bug_id>/assign-testers', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def assign_testers_to_bug(bug_id):
+    """Assign testers to a bug"""
+    from models.bug_report import BugTesterAssignment
+    db_session = SessionLocal()
+    try:
+        bug = db_session.query(BugReport).filter(BugReport.id == bug_id).first()
+        if not bug:
+            flash('Bug not found', 'error')
+            return redirect(url_for('development.bugs'))
+
+        tester_ids = request.form.getlist('tester_ids')
+        notify_testers = request.form.get('notify_testers') == 'yes'
+
+        # Remove assignments not in the new list
+        for assignment in bug.tester_assignments:
+            if str(assignment.tester_id) not in tester_ids:
+                db_session.delete(assignment)
+
+        # Add new assignments
+        existing_tester_ids = [a.tester_id for a in bug.tester_assignments]
+        for tester_id in tester_ids:
+            if int(tester_id) not in existing_tester_ids:
+                assignment = BugTesterAssignment(
+                    bug_id=bug_id,
+                    tester_id=int(tester_id),
+                    notified='Yes' if notify_testers else 'No',
+                    notified_at=datetime.utcnow() if notify_testers else None
+                )
+                db_session.add(assignment)
+                logger.info(f"Assigned tester {tester_id} to bug {bug_id}")
+                if notify_testers:
+                    logger.info(f"Tester {tester_id} notified for bug {bug_id}")
+
+        db_session.commit()
+
+        if tester_ids:
+            flash(f'{len(tester_ids)} tester(s) assigned successfully', 'success')
+        else:
+            flash('All testers removed', 'success')
+
+        return redirect(url_for('development.view_bug', id=bug_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error assigning testers: {str(e)}', 'error')
+        return redirect(url_for('development.view_bug', id=bug_id))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/bugs/<int:bug_id>/remove-tester/<int:assignment_id>', methods=['POST'])
+@login_required
+@permission_required('can_edit_bugs')
+def remove_tester_from_bug(bug_id, assignment_id):
+    """Remove a tester assignment from a bug"""
+    from models.bug_report import BugTesterAssignment
+    db_session = SessionLocal()
+    try:
+        assignment = db_session.query(BugTesterAssignment).filter(
+            BugTesterAssignment.id == assignment_id,
+            BugTesterAssignment.bug_id == bug_id
+        ).first()
+
+        if not assignment:
+            flash('Tester assignment not found', 'error')
+            return redirect(url_for('development.view_bug', id=bug_id))
+
+        db_session.delete(assignment)
+        db_session.commit()
+
+        flash('Tester removed successfully', 'success')
+        return redirect(url_for('development.view_bug', id=bug_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing tester: {str(e)}', 'error')
+        return redirect(url_for('development.view_bug', id=bug_id))
     finally:
         db_session.close()
