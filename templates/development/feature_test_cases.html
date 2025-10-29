@@ -13,9 +13,9 @@
             </div>
             <div class="flex space-x-3">
                 <a href="{{ url_for('development.view_feature', id=feature.id) }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
-                    <i class="fas fa-arrow-left mr-2"></i>Back to Bug
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Feature
                 </a>
-                <a href="{{ url_for('development.new_feature_test_case', bug_id=feature.id) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                <a href="{{ url_for('development.new_feature_test_case', feature_id=feature.id) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
                     <i class="fas fa-plus mr-2"></i>Create Test Case
                 </a>
             </div>
@@ -27,33 +27,33 @@
                 <div>
                     <span class="text-sm text-gray-500">Status</span>
                     <p class="font-medium">
-                        <span class="px-2 py-1 rounded text-xs {{ bug.get_status_color() }}">
-                            {{ bug.status.value }}
+                        <span class="px-2 py-1 rounded text-xs {{ feature.get_status_color() }}">
+                            {{ feature.status.value }}
                         </span>
                     </p>
                 </div>
                 <div>
-                    <span class="text-sm text-gray-500">Severity</span>
+                    <span class="text-sm text-gray-500">Priority</span>
                     <p class="font-medium">
-                        <span class="px-2 py-1 rounded text-xs {{ bug.get_severity_color() }}">
-                            {{ bug.severity.value }}
+                        <span class="px-2 py-1 rounded text-xs {{ feature.get_priority_color() }}">
+                            {{ feature.priority.value }}
                         </span>
                     </p>
                 </div>
                 <div>
                     <span class="text-sm text-gray-500">Assigned To</span>
-                    <p class="font-medium">{{ bug.assignee.username if bug.assignee else 'Unassigned' }}</p>
+                    <p class="font-medium">{{ feature.assignee.username if feature.assignee else 'Unassigned' }}</p>
                 </div>
                 <div>
                     <span class="text-sm text-gray-500">Test Cases</span>
-                    <p class="font-medium">{{ bug.test_cases|length }}</p>
+                    <p class="font-medium">{{ feature.test_cases|length }}</p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Test Cases List -->
-    {% if bug.test_cases %}
+    {% if feature.test_cases %}
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -68,7 +68,7 @@
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                {% for tc in bug.test_cases %}
+                {% for tc in feature.test_cases %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         {{ tc.display_id }}
