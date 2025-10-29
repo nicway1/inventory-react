@@ -1144,6 +1144,111 @@ def delete_feature_test_case(id):
         db_session.close()
 
 
+@development_bp.route('/features/<int:feature_id>/test-cases/import', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_features')
+def import_feature_test_cases(feature_id):
+    """Import test cases from CSV file"""
+    import csv
+    import io
+    from models.feature_request import FeatureTestCase
+
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
+        if not feature:
+            flash('Feature not found', 'error')
+            return redirect(url_for('development.features'))
+
+        if request.method == 'POST':
+            if 'csv_file' not in request.files:
+                flash('No file uploaded', 'error')
+                return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+            file = request.files['csv_file']
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+            if not file.filename.endswith('.csv'):
+                flash('File must be a CSV file', 'error')
+                return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+            try:
+                # Read CSV file
+                stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+                csv_reader = csv.DictReader(stream)
+
+                imported_count = 0
+                skipped_count = 0
+                errors = []
+
+                for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+                    try:
+                        # Validate required fields
+                        if not row.get('title') or not row.get('test_steps') or not row.get('expected_result'):
+                            skipped_count += 1
+                            errors.append(f"Row {row_num}: Missing required fields (title, test_steps, or expected_result)")
+                            continue
+
+                        # Replace | with newlines for multi-line fields
+                        preconditions = row.get('preconditions', '').replace('|', '\n') if row.get('preconditions') else None
+                        test_steps = row.get('test_steps', '').replace('|', '\n')
+                        expected_result = row.get('expected_result', '').replace('|', '\n')
+                        test_data = row.get('test_data', '').replace('|', '\n') if row.get('test_data') else None
+
+                        # Create test case
+                        test_case = FeatureTestCase(
+                            feature_id=feature_id,
+                            title=row.get('title'),
+                            description=row.get('description'),
+                            preconditions=preconditions,
+                            test_steps=test_steps,
+                            expected_result=expected_result,
+                            priority=row.get('priority', 'Medium'),
+                            status=row.get('status', 'Pending'),
+                            test_data=test_data,
+                            created_by_id=current_user.id
+                        )
+
+                        db_session.add(test_case)
+                        imported_count += 1
+
+                    except Exception as e:
+                        skipped_count += 1
+                        errors.append(f"Row {row_num}: {str(e)}")
+
+                db_session.commit()
+
+                # Build success message
+                message = f'Successfully imported {imported_count} test case(s)'
+                if skipped_count > 0:
+                    message += f', skipped {skipped_count} row(s)'
+
+                flash(message, 'success')
+
+                # Show errors if any
+                if errors:
+                    for error in errors[:5]:  # Show first 5 errors
+                        flash(error, 'warning')
+                    if len(errors) > 5:
+                        flash(f'... and {len(errors) - 5} more errors', 'warning')
+
+                return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+            except Exception as e:
+                db_session.rollback()
+                flash(f'Error importing CSV: {str(e)}', 'error')
+                logger.error(f'CSV import error: {str(e)}')
+                return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+        # GET request - show template download option
+        return redirect(url_for('development.feature_test_cases', feature_id=feature_id))
+
+    finally:
+        db_session.close()
+
+
 # Bug Routes
 @development_bp.route('/bugs')
 @login_required
