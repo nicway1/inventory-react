@@ -172,6 +172,7 @@ class Tester(Base):
     # Relationships
     user = relationship('User', backref='tester_profile')
     bug_assignments = relationship('BugTesterAssignment', back_populates='tester', cascade='all, delete-orphan')
+    feature_assignments = relationship('FeatureTesterAssignment', back_populates='tester', cascade='all, delete-orphan')
 
     @property
     def name(self):

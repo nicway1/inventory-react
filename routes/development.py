@@ -369,9 +369,14 @@ def view_feature(id):
         all_users = db_session.query(User).all()
         users_json = json.dumps([{'id': u.id, 'username': u.username, 'email': u.email} for u in all_users])
 
+        # Get all active testers
+        from models.bug_report import Tester
+        testers = db_session.query(Tester).filter(Tester.is_active == 'Yes').all()
+
         return render_template('development/feature_view.html',
                              feature=feature,
                              users_json=users_json,
+                             testers=testers,
                              FeatureStatus=FeatureStatus)
 
     finally:
@@ -2364,5 +2369,88 @@ def remove_tester_from_bug(bug_id, assignment_id):
         db_session.rollback()
         flash(f'Error removing tester: {str(e)}', 'error')
         return redirect(url_for('development.view_bug', id=bug_id))
+    finally:
+        db_session.close()
+
+@development_bp.route('/features/<int:feature_id>/assign-testers', methods=['POST'])
+@login_required
+@permission_required('can_edit_features')
+def assign_testers_to_feature(feature_id):
+    """Assign testers to a feature"""
+    from models.feature_request import FeatureTesterAssignment
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
+        if not feature:
+            flash('Feature not found', 'error')
+            return redirect(url_for('development.features'))
+
+        tester_ids = request.form.getlist('tester_ids')
+        notify_testers = request.form.get('notify_testers') == 'yes'
+
+        # Remove assignments not in the new list
+        for assignment in feature.tester_assignments:
+            if str(assignment.tester_id) not in tester_ids:
+                db_session.delete(assignment)
+
+        # Add new assignments
+        existing_tester_ids = [a.tester_id for a in feature.tester_assignments]
+        for tester_id in tester_ids:
+            if int(tester_id) not in existing_tester_ids:
+                assignment = FeatureTesterAssignment(
+                    feature_id=feature_id,
+                    tester_id=int(tester_id),
+                    notified='Yes' if notify_testers else 'No',
+                    notified_at=datetime.utcnow() if notify_testers else None
+                )
+                db_session.add(assignment)
+                logger.info(f"Assigned tester {tester_id} to feature {feature_id}")
+                if notify_testers:
+                    logger.info(f"Tester {tester_id} notified for feature {feature_id}")
+
+        db_session.commit()
+
+        if tester_ids:
+            flash(f'{len(tester_ids)} tester(s) assigned successfully', 'success')
+        else:
+            flash('All testers removed', 'success')
+
+        return redirect(url_for('development.view_feature', id=feature_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error assigning testers: {str(e)}', 'error')
+        return redirect(url_for('development.view_feature', id=feature_id))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/features/<int:feature_id>/remove-tester/<int:assignment_id>', methods=['POST'])
+@login_required
+@permission_required('can_edit_features')
+def remove_tester_from_feature(feature_id, assignment_id):
+    """Remove a tester assignment from a feature"""
+    from models.feature_request import FeatureTesterAssignment
+    db_session = SessionLocal()
+    try:
+        assignment = db_session.query(FeatureTesterAssignment).filter(
+            FeatureTesterAssignment.id == assignment_id,
+            FeatureTesterAssignment.feature_id == feature_id
+        ).first()
+
+        if not assignment:
+            flash('Tester assignment not found', 'error')
+            return redirect(url_for('development.view_feature', id=feature_id))
+
+        db_session.delete(assignment)
+        db_session.commit()
+
+        flash('Tester removed successfully', 'success')
+        return redirect(url_for('development.view_feature', id=feature_id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error removing tester: {str(e)}', 'error')
+        return redirect(url_for('development.view_feature', id=feature_id))
     finally:
         db_session.close()

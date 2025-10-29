@@ -62,6 +62,7 @@ class FeatureRequest(Base):
     comments = relationship('FeatureComment', back_populates='feature', cascade='all, delete-orphan')
     changelog_entries = relationship('ChangelogEntry', back_populates='feature')
     test_cases = relationship('FeatureTestCase', back_populates='feature', cascade='all, delete-orphan')
+    tester_assignments = relationship('FeatureTesterAssignment', back_populates='feature', cascade='all, delete-orphan')
 
     @property
     def display_id(self):
@@ -169,3 +170,24 @@ class FeatureTestCase(Base):
 
     def __repr__(self):
         return f'<FeatureTestCase {self.id}: {self.title}>'
+
+
+class FeatureTesterAssignment(Base):
+    __tablename__ = 'feature_tester_assignments'
+
+    id = Column(Integer, primary_key=True)
+    feature_id = Column(Integer, ForeignKey('feature_requests.id'), nullable=False)
+    tester_id = Column(Integer, ForeignKey('testers.id'), nullable=False)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+    notified = Column(String(10), default='No')  # Yes/No - whether tester was notified
+    notified_at = Column(DateTime, nullable=True)
+    test_status = Column(String(20), default='Pending')  # Pending, In Progress, Passed, Failed
+    test_notes = Column(Text, nullable=True)
+    tested_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    feature = relationship('FeatureRequest', back_populates='tester_assignments')
+    tester = relationship('Tester', back_populates='feature_assignments')
+
+    def __repr__(self):
+        return f'<FeatureTesterAssignment Feature:{self.feature_id} Tester:{self.tester_id}>'

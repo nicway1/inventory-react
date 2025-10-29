@@ -321,6 +321,130 @@
                 </div>
                 {% endif %}
 
+                <!-- Assigned Testers -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            <i class="fas fa-user-check text-purple-600 mr-2"></i>Assigned Testers
+                        </h3>
+                        <button onclick="toggleTesterAssignment()"
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Assign Testers
+                        </button>
+                    </div>
+
+                    <!-- Tester Assignment Form (Hidden by default) -->
+                    <div id="testerAssignmentForm" class="hidden mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <form method="POST" action="{{ url_for('development.assign_testers_to_feature', feature_id=feature.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <h4 class="text-sm font-semibold text-gray-900 mb-3">Select Testers</h4>
+                            <div class="space-y-2 mb-4 max-h-64 overflow-y-auto">
+                                {% if testers %}
+                                    {% for tester in testers %}
+                                    <label class="flex items-center p-2 hover:bg-purple-100 rounded cursor-pointer">
+                                        <input type="checkbox"
+                                               name="tester_ids"
+                                               value="{{ tester.id }}"
+                                               {% if feature.tester_assignments %}
+                                                   {% for assignment in feature.tester_assignments %}
+                                                       {% if assignment.tester_id == tester.id %}checked{% endif %}
+                                                   {% endfor %}
+                                               {% endif %}
+                                               class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-3">
+                                        <div class="flex-1">
+                                            <span class="text-sm font-medium text-gray-900">{{ tester.user.username }}</span>
+                                            {% if tester.specialization %}
+                                                <span class="text-xs text-gray-500 ml-2">({{ tester.specialization }})</span>
+                                            {% endif %}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-sm text-gray-500">No testers available. <a href="{{ url_for('development.manage_testers') }}" class="text-purple-600 hover:text-purple-700">Add testers</a> first.</p>
+                                {% endif %}
+                            </div>
+
+                            {% if testers %}
+                            <div class="mb-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox"
+                                           name="notify_testers"
+                                           value="yes"
+                                           class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2">
+                                    <span class="text-sm font-medium text-gray-700">
+                                        <i class="fas fa-bell mr-1"></i>Notify assigned testers
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-end space-x-2">
+                                <button type="button"
+                                        onclick="toggleTesterAssignment()"
+                                        class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm">
+                                    <i class="fas fa-save mr-1"></i>Save Assignments
+                                </button>
+                            </div>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                    <!-- Assigned Testers List -->
+                    {% if feature.tester_assignments %}
+                        <div class="space-y-2">
+                            {% for assignment in feature.tester_assignments %}
+                            <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-purple-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ assignment.tester.user.username }}</p>
+                                        {% if assignment.tester.specialization %}
+                                            <p class="text-xs text-gray-500">{{ assignment.tester.specialization }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-xs text-gray-500">
+                                        {% if assignment.notified == 'Yes' %}
+                                            <i class="fas fa-bell text-green-500 mr-1"></i>Notified
+                                        {% else %}
+                                            <i class="fas fa-bell-slash text-gray-400 mr-1"></i>Not notified
+                                        {% endif %}
+                                    </div>
+                                    <span class="px-2 py-1 rounded text-xs {% if assignment.test_status == 'Passed' %}bg-green-100 text-green-700{% elif assignment.test_status == 'Failed' %}bg-red-100 text-red-700{% elif assignment.test_status == 'In Progress' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ assignment.test_status }}
+                                    </span>
+                                    <form method="POST"
+                                          action="{{ url_for('development.remove_tester_from_feature', feature_id=feature.id, assignment_id=assignment.id) }}"
+                                          class="inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit"
+                                                onclick="return confirm('Remove this tester from the feature?')"
+                                                class="text-red-600 hover:text-red-800">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-6">
+                            <i class="fas fa-users text-gray-300 text-3xl mb-2"></i>
+                            <p class="text-gray-500 text-sm">No testers assigned yet</p>
+                            <button onclick="toggleTesterAssignment()"
+                                    class="mt-2 text-purple-600 hover:text-purple-700 text-sm font-medium">
+                                Assign testers to this feature
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+
                 <!-- Test Cases -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
@@ -506,5 +630,11 @@ window.addEventListener('load', function() {
         container.scrollTop = container.scrollHeight;
     }
 });
+
+// Toggle tester assignment form
+function toggleTesterAssignment() {
+    const form = document.getElementById('testerAssignmentForm');
+    form.classList.toggle('hidden');
+}
 </script>
 {% endblock %}
