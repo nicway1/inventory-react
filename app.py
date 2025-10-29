@@ -57,6 +57,7 @@ from routes.reports import reports_bp
 from routes.ticket_categories.asset_checkout_claw import asset_checkout_claw_bp
 from routes.ticket_categories.asset_return_claw import asset_return_claw_bp
 from routes.knowledge import knowledge_bp
+from routes.feedback import feedback_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -207,6 +208,7 @@ def create_app():
     app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
     app.register_blueprint(knowledge_bp)
+    app.register_blueprint(feedback_bp)
 
     @app.context_processor
     def utility_processor():

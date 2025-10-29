@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <div class="flex items-center space-x-2 mb-2">
+                    <h1 class="text-3xl font-bold text-gray-900">{{ bug.title }}</h1>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_status_color() }}">
+                        {{ bug.status.value }}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_severity_color() }}">
+                        {{ bug.severity.value }}
+                        {% if bug.severity.value == 'Critical' %}
+                            <i class="fas fa-exclamation-triangle ml-1"></i>
+                        {% endif %}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_priority_color() }}">
+                        {{ bug.priority.value }}
+                    </span>
+                </div>
+                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
+            </div>
+            <a href="{{ url_for('feedback.my_reports') }}"
+               class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i>Back to My Reports
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Case Progress -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-tasks text-blue-600 mr-2"></i>Case Progress
+                    </h3>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 bg-gray-200 rounded-full h-4">
+                            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300 flex items-center justify-end pr-2" style="width: {{ bug.case_progress if bug.case_progress else 0 }}%">
+                                {% if bug.case_progress and bug.case_progress > 10 %}
+                                <span class="text-white text-xs font-semibold">{{ bug.case_progress }}%</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="text-lg font-bold text-gray-700 min-w-[60px] text-right">{{ bug.case_progress if bug.case_progress else 0 }}%</span>
+                    </div>
+                    <div class="mt-3 flex justify-between text-xs text-gray-500">
+                        <span>Not Started</span>
+                        <span>In Progress</span>
+                        <span>Complete</span>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Description</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.description|nl2br|safe }}
+                    </div>
+                </div>
+
+                <!-- Screenshot -->
+                {% if bug.screenshot_path %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-image mr-2"></i>Screenshot
+                    </h3>
+                    <div class="border border-gray-300 rounded-lg overflow-hidden">
+                        <img src="{{ url_for('static', filename=bug.screenshot_path) }}"
+                             alt="Bug Screenshot"
+                             class="w-full cursor-pointer hover:opacity-90 transition-opacity"
+                             onclick="openScreenshotModal(this.src)">
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>Click image to view full size
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Steps to Reproduce -->
+                {% if bug.steps_to_reproduce %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Steps to Reproduce</h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.steps_to_reproduce|nl2br|safe }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Expected vs Actual Behavior -->
+                {% if bug.expected_behavior or bug.actual_behavior %}
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Expected vs Actual Behavior</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {% if bug.expected_behavior %}
+                        <div class="border-l-4 border-green-400 pl-4">
+                            <h4 class="text-sm font-medium text-green-800 mb-2">Expected Behavior</h4>
+                            <div class="text-sm text-gray-700">
+                                {{ bug.expected_behavior|nl2br|safe }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.actual_behavior %}
+                        <div class="border-l-4 border-red-400 pl-4">
+                            <h4 class="text-sm font-medium text-red-800 mb-2">Actual Behavior</h4>
+                            <div class="text-sm text-gray-700">
+                                {{ bug.actual_behavior|nl2br|safe }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Resolution Notes -->
+                {% if bug.resolution_notes %}
+                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                    <h3 class="text-lg font-medium text-green-800 mb-4">
+                        <i class="fas fa-check-circle mr-2"></i>Resolution
+                    </h3>
+                    <div class="prose max-w-none text-gray-700">
+                        {{ bug.resolution_notes|nl2br|safe }}
+                    </div>
+                    {% if bug.resolution_date %}
+                        <p class="text-sm text-gray-500 mt-4">
+                            Resolved on {{ bug.resolution_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Details Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Details</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_status_color() }}">
+                                    {{ bug.status.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Severity</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_severity_color() }}">
+                                    {{ bug.severity.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Priority</dt>
+                            <dd class="mt-1">
+                                <span class="inline-flex px-2 py-1 text-sm rounded-full {{ bug.get_priority_color() }}">
+                                    {{ bug.priority.value }}
+                                </span>
+                            </dd>
+                        </div>
+
+                        {% if bug.component %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Component</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.component }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.environment %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Environment</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.environment }}</dd>
+                        </div>
+                        {% endif %}
+
+                        {% if bug.assignee %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Assigned To</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <i class="fas fa-user mr-1"></i>{{ bug.assignee.username }}
+                            </dd>
+                        </div>
+                        {% endif %}
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Reported By</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <i class="fas fa-user mr-1"></i>{{ bug.reporter.username }}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Created</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown' }}
+                            </dd>
+                        </div>
+
+                        {% if bug.updated_at %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {{ bug.updated_at.strftime('%B %d, %Y') if bug.updated_at else 'Never' }}
+                            </dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                <!-- Info Card -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">
+                                Our development team has been notified and will review your bug report. You'll see updates here as progress is made.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Screenshot Modal -->
+<div id="screenshotModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onclick="closeScreenshotModal()">
+    <div class="max-w-7xl max-h-full">
+        <img id="modalImage" src="" alt="Full size screenshot" class="max-w-full max-h-screen object-contain">
+    </div>
+</div>
+
+<script>
+function openScreenshotModal(src) {
+    document.getElementById('modalImage').src = src;
+    document.getElementById('screenshotModal').classList.remove('hidden');
+}
+
+function closeScreenshotModal() {
+    document.getElementById('screenshotModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

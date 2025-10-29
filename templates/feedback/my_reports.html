@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-clipboard-list mr-2"></i>My Bug Reports
+        </h1>
+        <a href="{{ url_for('feedback.report_bug') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+            <i class="fas fa-bug mr-2"></i>Report New Bug
+        </a>
+    </div>
+
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                    Track all the bug reports you've submitted. Our development team will review and update the status of your reports.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bugs List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                {{ bugs|length }} Report{% if bugs|length != 1 %}s{% endif %} Submitted
+            </h3>
+        </div>
+
+        {% if bugs %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Bug Report
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Severity
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Priority
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Submitted
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for bug in bugs %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-bug text-red-500 mt-1"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ bug.display_id }}
+                                            </div>
+                                            <div class="text-sm text-gray-900 mt-1">
+                                                {{ bug.title }}
+                                            </div>
+                                            {% if bug.component %}
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mt-1">
+                                                    {{ bug.component }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if bug.status.value == 'Open' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            {{ bug.status.value }}
+                                        </span>
+                                    {% elif bug.status.value == 'In Progress' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            {{ bug.status.value }}
+                                        </span>
+                                    {% elif bug.status.value == 'Resolved' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ bug.status.value }}
+                                        </span>
+                                    {% elif bug.status.value == 'Closed' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                            {{ bug.status.value }}
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            {{ bug.status.value }}
+                                        </span>
+                                    {% endif %}
+                                    {% if bug.case_progress > 0 %}
+                                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ bug.case_progress }}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-500">{{ bug.case_progress }}%</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if bug.severity.value == 'Critical' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ bug.severity.value }}
+                                        </span>
+                                    {% elif bug.severity.value == 'High' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>{{ bug.severity.value }}
+                                        </span>
+                                    {% elif bug.severity.value == 'Medium' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            {{ bug.severity.value }}
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ bug.severity.value }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if bug.priority.value == 'Critical' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            {{ bug.priority.value }}
+                                        </span>
+                                    {% elif bug.priority.value == 'High' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                            {{ bug.priority.value }}
+                                        </span>
+                                    {% elif bug.priority.value == 'Medium' %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            {{ bug.priority.value }}
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ bug.priority.value }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div>{{ bug.created_at.strftime('%Y-%m-%d') }}</div>
+                                    <div class="text-xs text-gray-400">{{ bug.created_at.strftime('%H:%M') }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <a href="{{ url_for('feedback.view_bug', id=bug.id) }}" class="text-blue-600 hover:text-blue-900">
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="px-6 py-12 text-center">
+                <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Bug Reports Yet</h3>
+                <p class="text-gray-500 mb-4">You haven't submitted any bug reports.</p>
+                <a href="{{ url_for('feedback.report_bug') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+                    <i class="fas fa-bug mr-2"></i>Report Your First Bug
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

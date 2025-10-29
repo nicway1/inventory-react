@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-bug mr-2"></i>Report a Bug
+            </h1>
+            <a href="{{ url_for('feedback.my_reports') }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-list mr-2"></i>My Reports
+            </a>
+        </div>
+
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        Use this form to report any bugs or issues you encounter in the system. Our development team will review and address your report.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-lg font-medium text-gray-900">Bug Details</h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Title <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           name="title"
+                           id="title"
+                           required
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Brief description of the bug">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              required
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Detailed description of the bug"></textarea>
+                </div>
+
+                <!-- Screenshot Upload -->
+                <div>
+                    <label for="screenshot" class="block text-sm font-medium text-gray-700 mb-2">
+                        Screenshot
+                    </label>
+                    <input type="file"
+                           name="screenshot"
+                           id="screenshot"
+                           accept="image/*"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">Upload a screenshot of the bug (PNG, JPG, GIF supported)</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Severity -->
+                    <div>
+                        <label for="severity" class="block text-sm font-medium text-gray-700 mb-2">
+                            Severity <span class="text-red-500">*</span>
+                        </label>
+                        <select name="severity"
+                                id="severity"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            {% for severity in BugSeverity %}
+                            <option value="{{ severity.value }}"
+                                    {% if severity.value == 'Medium' %}selected{% endif %}>
+                                {{ severity.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Priority -->
+                    <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">
+                            Priority <span class="text-red-500">*</span>
+                        </label>
+                        <select name="priority"
+                                id="priority"
+                                required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            {% for priority in BugPriority %}
+                            <option value="{{ priority.value }}"
+                                    {% if priority.value == 'Medium' %}selected{% endif %}>
+                                {{ priority.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Environment Details -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-4">Environment Details (Optional)</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="component" class="block text-sm font-medium text-gray-700 mb-2">
+                                Component
+                            </label>
+                            <input type="text"
+                                   name="component"
+                                   id="component"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="e.g., inventory, tickets, reports">
+                        </div>
+
+                        <div>
+                            <label for="environment" class="block text-sm font-medium text-gray-700 mb-2">
+                                Environment
+                            </label>
+                            <select name="environment"
+                                    id="environment"
+                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Not specified</option>
+                                {% for env in ['production', 'staging', 'development', 'testing'] %}
+                                <option value="{{ env }}">{{ env.title() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Steps to Reproduce -->
+                <div>
+                    <label for="steps_to_reproduce" class="block text-sm font-medium text-gray-700 mb-2">
+                        Steps to Reproduce
+                    </label>
+                    <textarea name="steps_to_reproduce"
+                              id="steps_to_reproduce"
+                              rows="4"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="1. Navigate to...&#10;2. Click on...&#10;3. Enter...&#10;4. Bug occurs"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="expected_behavior" class="block text-sm font-medium text-gray-700 mb-2">
+                            Expected Behavior
+                        </label>
+                        <textarea name="expected_behavior"
+                                  id="expected_behavior"
+                                  rows="3"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder="What should happen"></textarea>
+                    </div>
+
+                    <div>
+                        <label for="actual_behavior" class="block text-sm font-medium text-gray-700 mb-2">
+                            Actual Behavior
+                        </label>
+                        <textarea name="actual_behavior"
+                                  id="actual_behavior"
+                                  rows="3"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder="What actually happens"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <a href="{{ url_for('feedback.my_reports') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+                    <i class="fas fa-paper-plane mr-2"></i>Submit Bug Report
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

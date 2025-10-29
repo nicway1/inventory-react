@@ -104,6 +104,23 @@
             </div>
         </div>
 
+        <!-- Feedback Card -->
+        {% if user.user_type.value in ['COUNTRY_ADMIN', 'CLIENT', 'SUPERVISOR'] %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <h2 class="text-xl font-semibold">Feedback</h2>
+            </div>
+            <p class="text-gray-600">Report Bugs & Issues</p>
+            <div class="mt-4 space-y-2">
+                <a href="{{ url_for('feedback.report_bug') }}" class="block text-blue-600 hover:text-blue-800">Report a Bug →</a>
+                <a href="{{ url_for('feedback.my_reports') }}" class="block text-blue-600 hover:text-blue-800">My Reports →</a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Documents Card -->
         {% if user.can_access_documents() %}
         <div class="bg-white rounded-lg shadow p-6">
