@@ -294,6 +294,39 @@
                         </div>
                     {% endif %}
                 </div>
+
+                <!-- Test Cases -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
+                        <span><i class="fas fa-clipboard-check text-green-600 mr-2"></i>Test Cases</span>
+                        <a href="{{ url_for('development.feature_test_cases', feature_id=feature.id) }}"
+                           class="text-blue-600 hover:text-blue-800 text-sm">
+                            View All
+                        </a>
+                    </h3>
+                    <div class="space-y-2">
+                        <a href="{{ url_for('development.new_feature_test_case', feature_id=feature.id) }}"
+                           class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center">
+                            <i class="fas fa-plus mr-2"></i>Add Test Case
+                        </a>
+                        {% if feature.test_cases %}
+                        <div class="text-sm text-gray-600 mt-3">
+                            <div class="flex justify-between items-center py-1">
+                                <span>Total Cases:</span>
+                                <span class="font-semibold">{{ feature.test_cases|length }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1">
+                                <span>Passed:</span>
+                                <span class="font-semibold text-green-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Passed')|list|length }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1">
+                                <span>Failed:</span>
+                                <span class="font-semibold text-red-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Failed')|list|length }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             <!-- Sidebar -->
@@ -444,39 +477,6 @@
                     </div>
                 </div>
                 {% endif %}
-
-                <!-- Test Cases -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
-                        <span><i class="fas fa-clipboard-check text-green-600 mr-2"></i>Test Cases</span>
-                        <a href="{{ url_for('development.feature_test_cases', feature_id=feature.id) }}"
-                           class="text-blue-600 hover:text-blue-800 text-sm">
-                            View All
-                        </a>
-                    </h3>
-                    <div class="space-y-2">
-                        <a href="{{ url_for('development.new_feature_test_case', feature_id=feature.id) }}"
-                           class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center">
-                            <i class="fas fa-plus mr-2"></i>Add Test Case
-                        </a>
-                        {% if feature.test_cases %}
-                        <div class="text-sm text-gray-600 mt-3">
-                            <div class="flex justify-between items-center py-1">
-                                <span>Total Cases:</span>
-                                <span class="font-semibold">{{ feature.test_cases|length }}</span>
-                            </div>
-                            <div class="flex justify-between items-center py-1">
-                                <span>Passed:</span>
-                                <span class="font-semibold text-green-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Passed')|list|length }}</span>
-                            </div>
-                            <div class="flex justify-between items-center py-1">
-                                <span>Failed:</span>
-                                <span class="font-semibold text-red-600">{{ feature.test_cases|selectattr('status', 'equalto', 'Failed')|list|length }}</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
             </div>
         </div>
     </div>
