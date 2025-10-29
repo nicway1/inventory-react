@@ -82,7 +82,7 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <span class="px-2 py-1 rounded text-xs {{ tc.get_status_color() }}">
+                        <span class="px-2 py-1 rounded text-xs {% if tc.status == 'Passed' %}text-green-600 bg-green-100{% elif tc.status == 'Failed' %}text-red-600 bg-red-100{% elif tc.status == 'Pending' %}text-yellow-600 bg-yellow-100{% else %}text-gray-600 bg-gray-100{% endif %}">
                             {{ tc.status }}
                         </span>
                     </td>
