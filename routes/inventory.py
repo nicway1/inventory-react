@@ -2231,11 +2231,9 @@ def add_customer_user():
                 if not name or not contact_number or not address or not company_name or not country_name:
                     return "Missing required fields", 400
                 
-                # Handle country enum conversion
-                try:
-                    country = Country[country_name]
-                except (KeyError, TypeError):
-                    return f"Invalid country value: {country_name}", 400
+                # Handle country - normalize the format
+                # Convert to uppercase with underscores for consistency
+                country_value = country_name.upper().replace(' ', '_')
 
                 # Create new customer user
                 customer = CustomerUser(
@@ -2243,7 +2241,7 @@ def add_customer_user():
                     contact_number=contact_number,
                     email=email if email and email.strip() else None,  # Handle empty email properly
                     address=address,
-                    country=country
+                    country=country_value
                 )
 
                 # Look for existing company by name
