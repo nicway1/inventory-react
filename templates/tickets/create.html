@@ -977,11 +977,20 @@
                     </div>
                     <div>
                         <label for="new_customer_country" class="block text-sm font-medium text-gray-700">Country *</label>
-                        <select id="new_customer_country" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            {% for country in Country %}
-                            <option value="{{ country.name }}">{{ country.value }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="flex items-center space-x-2">
+                            <select id="new_customer_country" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select a country...</option>
+                                {% for country in Country %}
+                                <option value="{{ country.name }}">{{ country.value }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" id="new_country_name" placeholder="Enter new country" class="hidden mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <button type="button" id="toggleCountryInput" class="mt-1 flex-shrink-0 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded" title="Add new country">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1015,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleButton = document.getElementById('toggleCompanyInput');
     const companySelect = document.getElementById('new_customer_company');
     const companyInput = document.getElementById('new_company_name');
-    
+
     toggleButton.addEventListener('click', function() {
         if (companySelect.classList.contains('hidden')) {
             // Switch to dropdown
@@ -1027,6 +1036,31 @@ document.addEventListener('DOMContentLoaded', function() {
             companySelect.classList.add('hidden');
             companyInput.classList.remove('hidden');
             toggleButton.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>';
+        }
+    });
+
+    // Toggle between country dropdown and text input
+    const toggleCountryButton = document.getElementById('toggleCountryInput');
+    const countrySelect = document.getElementById('new_customer_country');
+    const countryInput = document.getElementById('new_country_name');
+
+    toggleCountryButton.addEventListener('click', function() {
+        if (countrySelect.classList.contains('hidden')) {
+            // Switch to dropdown
+            countrySelect.classList.remove('hidden');
+            countryInput.classList.add('hidden');
+            toggleCountryButton.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>';
+            toggleCountryButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            toggleCountryButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            toggleCountryButton.title = 'Add new country';
+        } else {
+            // Switch to text input
+            countrySelect.classList.add('hidden');
+            countryInput.classList.remove('hidden');
+            toggleCountryButton.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>';
+            toggleCountryButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            toggleCountryButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            toggleCountryButton.title = 'Back to country list';
         }
     });
 });
@@ -1046,7 +1080,7 @@ function createCustomer() {
     let company;
     const companySelect = document.getElementById('new_customer_company');
     const companyInput = document.getElementById('new_company_name');
-    
+
     if (companySelect.classList.contains('hidden')) {
         // Use text input
         company = companyInput.value;
@@ -1054,8 +1088,19 @@ function createCustomer() {
         // Use dropdown
         company = companySelect.value;
     }
-    
-    const country = document.getElementById('new_customer_country').value;
+
+    // Get country from either the dropdown or text input
+    let country;
+    const countrySelect = document.getElementById('new_customer_country');
+    const countryInput = document.getElementById('new_country_name');
+
+    if (countrySelect.classList.contains('hidden')) {
+        // Use text input
+        country = countryInput.value;
+    } else {
+        // Use dropdown
+        country = countrySelect.value;
+    }
     
     // Store current category selection
     const currentCategory = document.getElementById('category').value;
