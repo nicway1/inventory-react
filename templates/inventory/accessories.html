@@ -61,15 +61,93 @@
         </div>
     </div>
 
+    <!-- Search and Filters Section -->
+    <div class="bg-white shadow-md rounded-xl p-6 mb-6 border border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Search Box -->
+            <div class="lg:col-span-2">
+                <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-search mr-1"></i>Search Accessories
+                </label>
+                <input type="text"
+                       id="searchInput"
+                       placeholder="Search by name, category, or manufacturer..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+            </div>
+
+            <!-- Category Filter -->
+            <div>
+                <label for="categoryFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-filter mr-1"></i>Category
+                </label>
+                <select id="categoryFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-toggle-on mr-1"></i>Status
+                </label>
+                <select id="statusFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <option value="">All Statuses</option>
+                    <option value="Available">Available</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                </select>
+            </div>
+
+            <!-- Country Filter -->
+            <div>
+                <label for="countryFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-globe mr-1"></i>Country
+                </label>
+                <select id="countryFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <option value="">All Countries</option>
+                </select>
+            </div>
+
+            <!-- Manufacturer Filter -->
+            <div>
+                <label for="manufacturerFilter" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-industry mr-1"></i>Manufacturer
+                </label>
+                <select id="manufacturerFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <option value="">All Manufacturers</option>
+                </select>
+            </div>
+
+            <!-- Clear Filters Button -->
+            <div class="flex items-end lg:col-span-3">
+                <button id="clearFilters"
+                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center">
+                    <i class="fas fa-times-circle mr-2"></i>Clear All Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Count -->
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <p class="text-sm text-gray-600">
+                Showing <span id="resultCount" class="font-semibold text-blue-600">0</span> of
+                <span id="totalCount" class="font-semibold">0</span> accessories
+            </p>
+        </div>
+    </div>
+
     <!-- Accessories Table -->
     <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+                <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
                         <th scope="col" class="px-6 py-4 text-left">
                             <div class="flex items-center">
-                                <input type="checkbox" 
+                                <input type="checkbox"
                                        id="selectAll"
                                        class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transition duration-150 ease-in-out cursor-pointer"
                                        onclick="toggleAllCheckboxes(this)">
@@ -77,7 +155,9 @@
                         </th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Quantity</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Manufacturer</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Country</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Qty</th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Available</th>
                         <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                         {% if current_user.permissions and current_user.permissions.can_edit_accessories %}
@@ -85,28 +165,47 @@
                         {% endif %}
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody id="accessoryTableBody" class="bg-white divide-y divide-gray-200">
                     {% for accessory in accessories %}
-                    <tr class="hover:bg-blue-50 transition-colors duration-150 group">
+                    <tr class="hover:bg-blue-50 transition-colors duration-150 group accessory-row"
+                        data-name="{{ accessory.name }}"
+                        data-category="{{ accessory.category }}"
+                        data-manufacturer="{{ accessory.manufacturer or 'N/A' }}"
+                        data-country="{{ accessory.country or 'N/A' }}"
+                        data-status="{{ accessory.status }}">
                         <td class="px-6 py-4 whitespace-nowrap" onclick="event.stopPropagation();">
                             <div class="flex items-center">
-                                <input type="checkbox" 
+                                <input type="checkbox"
                                        value="{{ accessory.id }}"
                                        class="accessory-checkbox form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transition duration-150 ease-in-out cursor-pointer"
                                        onclick="updateSelectedIds()">
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
-                            <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-150">{{ accessory.name }}</div>
+                        <td class="px-6 py-4 cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
+                            <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-150">
+                                {{ accessory.name }}
+                            </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
-                            <div class="text-sm text-gray-600">{{ accessory.category }}</div>
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-tag mr-1 text-gray-400"></i>{{ accessory.category }}
+                            </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
-                            <div class="text-sm text-gray-900">{{ accessory.total_quantity }}</div>
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-industry mr-1 text-gray-400"></i>{{ accessory.manufacturer or 'N/A' }}
+                            </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
-                            <div class="text-sm text-gray-900">{{ accessory.available_quantity }}</div>
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-globe mr-1 text-gray-400"></i>{{ accessory.country or 'N/A' }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
+                            <div class="text-sm font-semibold text-gray-900">{{ accessory.total_quantity }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
+                            <div class="text-sm font-semibold text-blue-600">{{ accessory.available_quantity }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap cursor-pointer" onclick="window.location='{{ url_for('inventory.view_accessory', id=accessory.id) }}'">
                             <span class="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors duration-150
@@ -163,8 +262,8 @@
                         {% endif %}
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="{% if current_user.permissions and current_user.permissions.can_edit_accessories %}7{% else %}6{% endif %}" class="px-6 py-8 text-center text-gray-500">
+                    <tr id="emptyState">
+                        <td colspan="{% if current_user.permissions and current_user.permissions.can_edit_accessories %}9{% else %}8{% endif %}" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
@@ -175,6 +274,18 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    <tr id="noResultsRow" style="display: none;">
+                        <td colspan="{% if current_user.permissions and current_user.permissions.can_edit_accessories %}9{% else %}8{% endif %}" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-search text-4xl text-gray-400 mb-3"></i>
+                                <span class="font-medium">No accessories match your filters</span>
+                                <p class="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
+                                <button onclick="clearAllFilters()" class="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    Clear all filters
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -383,9 +494,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.toggleAllCheckboxes = function(source) {
-        const checkboxes = document.getElementsByClassName('accessory-checkbox');
+        const checkboxes = document.querySelectorAll('.accessory-checkbox:not([style*="display: none"])');
         for (let checkbox of checkboxes) {
-            checkbox.checked = source.checked;
+            const row = checkbox.closest('tr');
+            if (row && row.style.display !== 'none') {
+                checkbox.checked = source.checked;
+            }
         }
         updateSelectedIds();
     };
@@ -404,6 +518,139 @@ document.addEventListener('DOMContentLoaded', function() {
             selectAllCheckbox.indeterminate = selectedIds.length > 0 && selectedIds.length < checkboxes.length;
         }
     };
+
+    // ==================== FILTER FUNCTIONALITY ====================
+
+    // Initialize filters and populate dropdowns
+    function initializeFilters() {
+        const rows = document.querySelectorAll('.accessory-row');
+        const categories = new Set();
+        const manufacturers = new Set();
+        const countries = new Set();
+
+        rows.forEach(row => {
+            const category = row.dataset.category;
+            const manufacturer = row.dataset.manufacturer;
+            const country = row.dataset.country;
+
+            if (category && category !== 'N/A') categories.add(category);
+            if (manufacturer && manufacturer !== 'N/A') manufacturers.add(manufacturer);
+            if (country && country !== 'N/A') countries.add(country);
+        });
+
+        // Populate category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        Array.from(categories).sort().forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categoryFilter.appendChild(option);
+        });
+
+        // Populate manufacturer filter
+        const manufacturerFilter = document.getElementById('manufacturerFilter');
+        Array.from(manufacturers).sort().forEach(manufacturer => {
+            const option = document.createElement('option');
+            option.value = manufacturer;
+            option.textContent = manufacturer;
+            manufacturerFilter.appendChild(option);
+        });
+
+        // Populate country filter
+        const countryFilter = document.getElementById('countryFilter');
+        Array.from(countries).sort().forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = country;
+            countryFilter.appendChild(option);
+        });
+
+        // Update counts
+        updateResultCounts();
+    }
+
+    // Apply all filters
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        const countryFilter = document.getElementById('countryFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+
+        const rows = document.querySelectorAll('.accessory-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const name = row.dataset.name.toLowerCase();
+            const category = row.dataset.category;
+            const manufacturer = row.dataset.manufacturer;
+            const country = row.dataset.country;
+            const status = row.dataset.status;
+
+            // Check all filter conditions
+            const matchesSearch = name.includes(searchTerm) ||
+                                category.toLowerCase().includes(searchTerm) ||
+                                manufacturer.toLowerCase().includes(searchTerm);
+            const matchesCategory = !categoryFilter || category === categoryFilter;
+            const matchesStatus = !statusFilter || status === statusFilter;
+            const matchesCountry = !countryFilter || country === countryFilter;
+            const matchesManufacturer = !manufacturerFilter || manufacturer === manufacturerFilter;
+
+            // Show/hide row based on filters
+            if (matchesSearch && matchesCategory && matchesStatus && matchesCountry && matchesManufacturer) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Handle empty state
+        const emptyState = document.getElementById('emptyState');
+        const noResultsRow = document.getElementById('noResultsRow');
+        const hasRows = rows.length > 0;
+
+        if (emptyState) emptyState.style.display = 'none';
+        if (noResultsRow) {
+            noResultsRow.style.display = (hasRows && visibleCount === 0) ? '' : 'none';
+        }
+
+        // Update counts
+        updateResultCounts();
+
+        // Update select all checkbox
+        document.getElementById('selectAll').checked = false;
+    }
+
+    // Update result counts
+    function updateResultCounts() {
+        const allRows = document.querySelectorAll('.accessory-row');
+        const visibleRows = document.querySelectorAll('.accessory-row:not([style*="display: none"])');
+
+        document.getElementById('totalCount').textContent = allRows.length;
+        document.getElementById('resultCount').textContent = visibleRows.length;
+    }
+
+    // Clear all filters
+    window.clearAllFilters = function() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('countryFilter').value = '';
+        document.getElementById('manufacturerFilter').value = '';
+        applyFilters();
+    };
+
+    // Attach event listeners to filters
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    document.getElementById('countryFilter').addEventListener('change', applyFilters);
+    document.getElementById('manufacturerFilter').addEventListener('change', applyFilters);
+    document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
+
+    // Initialize filters on page load
+    initializeFilters();
 });
 </script>
 {% endblock %}
