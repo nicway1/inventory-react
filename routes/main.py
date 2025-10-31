@@ -376,6 +376,16 @@ def index():
                 AuditSession.is_active == True
             ).first()
 
+        # Check system setting for queue cards visibility on dashboard
+        show_queue_cards = False
+        try:
+            from models.system_settings import SystemSettings
+            setting = db.session.query(SystemSettings).filter_by(setting_key='show_queue_cards').first()
+            if setting:
+                show_queue_cards = setting.get_value()
+        except Exception as e:
+            logging.warning(f"Could not load show_queue_cards setting: {str(e)}")
+
         return render_template('home.html',
             queues=queues,
             queue_ticket_counts=queue_ticket_counts,
@@ -392,7 +402,8 @@ def index():
             recent_activities=recent_activities,
             user_count=user_count,
             ticket_counts=ticket_counts,
-            current_audit=current_audit
+            current_audit=current_audit,
+            show_queue_cards=show_queue_cards
         )
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}", exc_info=True)

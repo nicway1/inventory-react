@@ -48,6 +48,7 @@
         </div>
 
         <!-- Queue Management Card -->
+        {% if show_queue_cards %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,6 +60,7 @@
             <p class="text-gray-600">Support Queues</p>
             <a href="{{ url_for('tickets.list_queues') }}" class="mt-4 inline-block text-amber-600 hover:text-amber-800">Manage Queues →</a>
         </div>
+        {% endif %}
 
         <!-- Inventory Audit Card -->
         {% if current_user.is_authenticated and current_user.permissions.can_access_inventory_audit %}
@@ -627,6 +629,7 @@
     {% endif %}
 
     <!-- Support Queues -->
+    {% if show_queue_cards %}
     <div class="bg-white rounded-lg shadow p-6 mb-8">
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
@@ -637,7 +640,7 @@
             </div>
             <a href="{{ url_for('tickets.list_queues') }}" class="text-sm text-amber-600 hover:text-amber-800">View All →</a>
         </div>
-        
+
         {% if queues %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {% for queue in queues %}
@@ -655,6 +658,7 @@
         <p class="text-gray-500">No support queues available.</p>
         {% endif %}
     </div>
+    {% endif %}
 
     <!-- Recent Activities -->
     <div class="bg-white rounded-lg shadow p-6">

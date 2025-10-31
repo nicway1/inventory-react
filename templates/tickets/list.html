@@ -473,6 +473,306 @@
             </h1>
         </div>
 
+        <!-- Queues Display -->
+        <div class="bg-white rounded-lg shadow-sm mb-6 border border-gray-200" style="overflow: visible;">
+            <div class="px-6 py-3 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        <h2 class="text-sm font-semibold text-gray-700">Queues ({{ queues|length }})</h2>
+                    </div>
+                    <button onclick="toggleQueueExpansion()" class="px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5" id="expandQueueBtn">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        <span id="expandBtnText">Expand</span>
+                    </button>
+                </div>
+            </div>
+            <div class="p-0" style="position: relative;">
+                <!-- Scroll Left Button -->
+                <button id="scrollLeftBtn" onclick="scrollQueues('left')" class="queue-scroll-btn queue-scroll-left" style="display: none;">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <!-- Scroll Right Button -->
+                <button id="scrollRightBtn" onclick="scrollQueues('right')" class="queue-scroll-btn queue-scroll-right">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+
+                <!-- Queue Cards Container -->
+                <div id="queueContainer" class="queue-scroll-container">
+                    <div id="queueCardsWrapper" class="queue-cards-wrapper collapsed">
+                        <!-- Queue Cards -->
+                        {% for queue in queues %}
+                        {% set queue_tickets = [] %}
+                        {% for ticket in tickets %}
+                            {% if ticket.queue_id == queue.id %}
+                                {% set _ = queue_tickets.append(ticket) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set total_count = queue_tickets|length %}
+                        {% set open_count = namespace(count=0) %}
+                        {% for ticket in queue_tickets %}
+                            {% if ticket.status and ticket.status.value in ['New', 'In Progress', 'On Hold'] %}
+                                {% set open_count.count = open_count.count + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set color_index = loop.index0 % 8 %}
+                        <div class="queue-card queue-color-{{ color_index }}" onclick="filterByQueue('{{ queue.name|e }}')" data-queue="{{ queue.name|e }}">
+                            <div class="queue-card-header">
+                                <div class="queue-icon queue-icon-{{ color_index }}">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                    </svg>
+                                </div>
+                                <div class="queue-name" title="{{ queue.name }}">{{ queue.name }}</div>
+                            </div>
+                            <div class="queue-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value stat-value-{{ color_index }}">{{ total_count }}</div>
+                                    <div class="stat-label">Total</div>
+                                </div>
+                                <div class="stat-divider"></div>
+                                <div class="stat-item">
+                                    <div class="stat-value stat-open">{{ open_count.count }}</div>
+                                    <div class="stat-label">Open</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .queue-scroll-container {
+                padding: 1.25rem;
+                overflow-x: auto;
+                overflow-y: visible;
+                scrollbar-width: thin;
+                scrollbar-color: #cbd5e1 #f8fafc;
+                scroll-behavior: smooth;
+                position: relative;
+            }
+
+            .queue-scroll-container::-webkit-scrollbar {
+                height: 6px;
+            }
+
+            .queue-scroll-container::-webkit-scrollbar-track {
+                background: #f8fafc;
+                border-radius: 3px;
+            }
+
+            .queue-scroll-container::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 3px;
+            }
+
+            .queue-scroll-container::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+            .queue-cards-wrapper {
+                display: flex;
+                gap: 1rem;
+                transition: all 0.3s ease;
+            }
+
+            .queue-cards-wrapper.collapsed {
+                flex-wrap: nowrap;
+            }
+
+            .queue-cards-wrapper.expanded {
+                flex-wrap: wrap;
+            }
+
+            /* Queue Card Base Styles */
+            .queue-card {
+                flex: 0 0 220px;
+                min-width: 220px;
+                padding: 0;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                overflow: hidden;
+                border: 1px solid;
+            }
+
+            .queue-cards-wrapper.expanded .queue-card {
+                flex: 0 0 calc(25% - 0.75rem);
+                min-width: 200px;
+            }
+
+            .queue-card-header {
+                padding: 1rem 1.25rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .queue-icon {
+                width: 2.5rem;
+                height: 2.5rem;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .queue-name {
+                font-weight: 600;
+                font-size: 0.875rem;
+                color: #1e293b;
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .queue-stats {
+                padding: 0.875rem 1.25rem 1.125rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: rgba(0, 0, 0, 0.02);
+            }
+
+            .stat-item {
+                text-align: center;
+                flex: 1;
+            }
+
+            .stat-value {
+                font-size: 1.75rem;
+                font-weight: 700;
+                line-height: 1;
+                margin-bottom: 0.25rem;
+            }
+
+            .stat-label {
+                font-size: 0.7rem;
+                font-weight: 500;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .stat-divider {
+                width: 1px;
+                height: 2rem;
+                background: #e2e8f0;
+            }
+
+            .stat-open {
+                color: #10b981 !important;
+            }
+
+            /* Color Variants - Clean Flat Design */
+            .queue-color-0 { background: #f0f9ff; border-color: #0ea5e9; }
+            .queue-icon-0 { background: #0ea5e9; color: white; }
+            .stat-value-0 { color: #0ea5e9; }
+
+            .queue-color-1 { background: #fdf2f8; border-color: #ec4899; }
+            .queue-icon-1 { background: #ec4899; color: white; }
+            .stat-value-1 { color: #ec4899; }
+
+            .queue-color-2 { background: #f0fdf4; border-color: #10b981; }
+            .queue-icon-2 { background: #10b981; color: white; }
+            .stat-value-2 { color: #10b981; }
+
+            .queue-color-3 { background: #fef3c7; border-color: #f59e0b; }
+            .queue-icon-3 { background: #f59e0b; color: white; }
+            .stat-value-3 { color: #f59e0b; }
+
+            .queue-color-4 { background: #ede9fe; border-color: #8b5cf6; }
+            .queue-icon-4 { background: #8b5cf6; color: white; }
+            .stat-value-4 { color: #8b5cf6; }
+
+            .queue-color-5 { background: #fce7f3; border-color: #f472b6; }
+            .queue-icon-5 { background: #f472b6; color: white; }
+            .stat-value-5 { color: #f472b6; }
+
+            .queue-color-6 { background: #ecfccb; border-color: #84cc16; }
+            .queue-icon-6 { background: #84cc16; color: white; }
+            .stat-value-6 { color: #84cc16; }
+
+            .queue-color-7 { background: #fff7ed; border-color: #fb923c; }
+            .queue-icon-7 { background: #fb923c; color: white; }
+            .stat-value-7 { color: #fb923c; }
+
+            .queue-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                border-width: 2px;
+            }
+
+            .queue-card:active {
+                transform: translateY(0);
+            }
+
+            .queue-scroll-btn {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 10;
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: all 0.2s ease;
+            }
+
+            .queue-scroll-btn:hover {
+                background: #f8fafc;
+                border-color: #cbd5e1;
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            .queue-scroll-btn:active {
+                transform: translateY(-50%) scale(0.9);
+            }
+
+            .queue-scroll-left {
+                left: 0.5rem;
+            }
+
+            .queue-scroll-right {
+                right: 0.5rem;
+            }
+
+            .queue-cards-wrapper.expanded ~ .queue-scroll-btn {
+                display: none !important;
+            }
+
+            @media (max-width: 768px) {
+                .queue-card {
+                    flex: 0 0 200px;
+                    min-width: 200px;
+                }
+
+                .queue-cards-wrapper.expanded .queue-card {
+                    flex: 0 0 100%;
+                }
+            }
+        </style>
+
         <!-- Tabs Navigation with Action Buttons -->
         <div class="sf-tabs mb-6 rounded-t-md" style="display: flex; justify-content: space-between; align-items: center;">
             <div class="flex">
@@ -1642,6 +1942,98 @@
         clearSelectedTickets();
         hidePreview();
     }
+
+    // Filter by queue function (called from queue cards)
+    function filterByQueue(queueName) {
+        // Update the queue filter dropdown
+        const queueFilter = document.getElementById('queueFilter');
+        queueFilter.value = queueName;
+
+        // Clear search and other filters for cleaner queue filtering
+        // But keep the current tab filter active
+
+        // Trigger the main filter function
+        filterTickets();
+
+        // Smooth scroll to the table
+        const tableCard = document.querySelector('.sf-card');
+        if (tableCard) {
+            tableCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Toggle queue expansion
+    function toggleQueueExpansion() {
+        const wrapper = document.getElementById('queueCardsWrapper');
+        const btn = document.getElementById('expandQueueBtn');
+        const btnText = document.getElementById('expandBtnText');
+        const container = document.getElementById('queueContainer');
+
+        if (wrapper.classList.contains('collapsed')) {
+            // Expand
+            wrapper.classList.remove('collapsed');
+            wrapper.classList.add('expanded');
+            btnText.textContent = 'Collapse';
+            container.style.overflowX = 'visible';
+        } else {
+            // Collapse
+            wrapper.classList.add('collapsed');
+            wrapper.classList.remove('expanded');
+            btnText.textContent = 'Expand All';
+            container.style.overflowX = 'auto';
+            updateScrollButtons();
+        }
+    }
+
+    // Scroll queues left or right
+    function scrollQueues(direction) {
+        const container = document.getElementById('queueContainer');
+        const scrollAmount = 300;
+
+        if (direction === 'left') {
+            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        } else {
+            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+
+        // Update button visibility after scroll
+        setTimeout(updateScrollButtons, 300);
+    }
+
+    // Update scroll button visibility
+    function updateScrollButtons() {
+        const container = document.getElementById('queueContainer');
+        const leftBtn = document.getElementById('scrollLeftBtn');
+        const rightBtn = document.getElementById('scrollRightBtn');
+        const wrapper = document.getElementById('queueCardsWrapper');
+
+        // Don't show buttons if expanded
+        if (wrapper.classList.contains('expanded')) {
+            leftBtn.style.display = 'none';
+            rightBtn.style.display = 'none';
+            return;
+        }
+
+        const isAtStart = container.scrollLeft <= 0;
+        const isAtEnd = container.scrollLeft + container.clientWidth >= container.scrollWidth - 1;
+
+        leftBtn.style.display = isAtStart ? 'none' : 'flex';
+        rightBtn.style.display = isAtEnd ? 'none' : 'flex';
+    }
+
+    // Initialize scroll buttons on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('queueContainer');
+
+        // Update buttons on scroll
+        container.addEventListener('scroll', updateScrollButtons);
+
+        // Update buttons on window resize
+        window.addEventListener('resize', updateScrollButtons);
+
+        // Initial update
+        setTimeout(updateScrollButtons, 100);
+    });
 </script>
 
 <!-- Export Wizard Modal -->

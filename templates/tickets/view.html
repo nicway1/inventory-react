@@ -78,193 +78,25 @@
         justify-content: center;
     }
 
-    /* Enhanced Comment System Styles */
-    .comment-item {
-        transition: all 0.2s ease;
-        padding: 1rem 0;
+    /* Messenger-style Comment Styles */
+    .comment-content {
+        text-align: left;
+        word-wrap: break-word;
     }
-    
-    .comment-item:hover {
-        background-color: rgba(249, 250, 251, 0.5);
-        border-radius: 0.75rem;
-        padding: 1rem;
-        margin: 0 -1rem;
-    }
-    
-    /* FORCE LEFT ALIGNMENT - OVERRIDE EVERYTHING */
-    .comment-bubble {
-        position: relative !important;
-        display: block !important;
-        width: fit-content !important;
-        min-width: 60px !important;
-        text-align: left !important;
-        direction: ltr !important;
-        justify-content: flex-start !important;
-        align-items: flex-start !important;
-    }
-    
-    /* Comment text styling - FORCE LEFT */
-    .comment-text {
-        text-align: left !important;
-        direction: ltr !important;
-        color: #374151 !important;
-        line-height: 1.6 !important;
-        white-space: pre-wrap !important;
-        word-break: break-words !important;
-        display: block !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    /* Override any framework CSS */
-    .comment-bubble,
-    .comment-bubble *,
-    .comment-text,
-    .comment-text * {
-        text-align: left !important;
-        direction: ltr !important;
-    }
-    
-    /* Specific override for any center alignment */
-    .comment-bubble[style*="text-align: center"],
-    .comment-text[style*="text-align: center"] {
-        text-align: left !important;
-    }
-    
-    /* NUCLEAR OPTION - Target everything possible */
-    div.comment-bubble div.comment-text div,
-    div.comment-bubble div.comment-text,
-    div.comment-bubble div,
-    div.comment-bubble {
-        text-align: left !important;
-        direction: ltr !important;
-        justify-content: flex-start !important;
-        align-items: flex-start !important;
-    }
-    
-    /* Override Tailwind utilities */
-    .text-center .comment-text,
-    .justify-center .comment-text,
-    .items-center .comment-text {
-        text-align: left !important;
-        justify-content: flex-start !important;
-        align-items: flex-start !important;
-    }
-    
-    /* Ensure comment content container is left-aligned */
-    .comment-item .flex-1 {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    /* Ensure avatars stay centered */
-    .w-10.h-10.rounded-full {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-    }
-    
-    /* Chat bubble tail */
-    .comment-bubble::before {
-        content: '';
-        position: absolute;
-        left: -8px;
-        top: 12px;
-        width: 0;
-        height: 0;
-        border-style: solid;
-        border-width: 8px 8px 8px 0;
-        border-color: transparent #ffffff transparent transparent;
-        filter: drop-shadow(-1px 0px 1px rgba(0, 0, 0, 0.1));
-    }
-    
-    #message {
-        transition: all 0.2s ease;
-        min-height: 80px;
-    }
-    
-    #message:focus {
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        border-color: #3b82f6;
-    }
-    
-    .mention-suggestions {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-    
-    .mention-suggestion {
-        padding: 0.75rem;
-        cursor: pointer;
-        border-bottom: 1px solid #f3f4f6;
-    }
-    
-    .mention-suggestion:hover {
-        background-color: #f3f4f6;
-    }
-    
-    .mention-suggestion:last-child {
-        border-bottom: none;
-    }
-    
-    /* Avatar gradients */
-    .avatar-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .avatar-gradient-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-    .avatar-gradient-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-    .avatar-gradient-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-    .avatar-gradient-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-    
-    /* Smooth transitions */
-    .transition-all {
-        transition: all 0.2s ease;
-    }
-    
+
     /* Loading animation */
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
-    
+
     .animate-spin {
         animation: spin 1s linear infinite;
     }
-    
-    /* Comment actions fade in/out */
-    .comment-actions {
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-    
-    .comment-item:hover .comment-actions {
-        opacity: 1;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 640px) {
-        .comment-item .flex {
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        
-        .comment-item .flex-shrink-0 {
-            flex-shrink: 1;
-        }
-        
-        #message {
-            min-height: 60px;
-        }
+
+    /* Smooth transitions */
+    .transition-all {
+        transition: all 0.2s ease;
     }
 </style>
 
@@ -4383,207 +4215,85 @@ body.dark-theme .sf-card-body .sf-field-label {
                     {% endif %}
                 </div>
 
-                <!-- Enhanced Comments Section -->
+                <!-- Comments - Messenger Style -->
                 <div id="comments" class="mb-8">
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <!-- Comments Header -->
-                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="bg-blue-100 p-2 rounded-lg">
-                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900">Comments</h3>
-                                        <p class="text-sm text-gray-600">{{ comments|length }} comment{{ 's' if comments|length != 1 else '' }}</p>
-                                    </div>
-                                </div>
-                                <button id="toggleComments" class="text-gray-400 hover:text-gray-600 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
-                            </div>
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <i class="fas fa-comments mr-2"></i>Comments ({{ comments|length }})
+                            </h3>
                         </div>
 
-                        <!-- Comments Content -->
-                        <div id="commentsContent" class="p-6">
-                            <!-- Force left alignment for all comment content -->
-                            <style>
-                                /* Override ANY text alignment for comments */
-                                .comment-item,
-                                .comment-item *,
-                                .comment-item div,
-                                .comment-item span,
-                                .comment-item p {
-                                    text-align: left !important;
-                                    direction: ltr !important;
-                                    justify-content: flex-start !important;
-                                    align-items: flex-start !important;
-                                }
-                                
-                                .comment-content-wrapper,
-                                .comment-content-wrapper *,
-                                .comment-content-wrapper div {
-                                    text-align: left !important;
-                                    direction: ltr !important;
-                                    float: none !important;
-                                    display: block !important;
-                                    margin-left: 0 !important;
-                                    margin-right: auto !important;
-                                }
-                                
-                                /* Specific override for comment text content */
-                                .comment-text-content {
-                                    text-align: left !important;
-                                    direction: ltr !important;
-                                    width: 100% !important;
-                                    display: block !important;
-                                }
-                            </style>
-                            <!-- Comments List -->
-                            <div class="space-y-6 mb-8" id="commentsList">
-                                {% if comments and comments|length > 0 %}
-                                    {% for comment in comments %}
-                                    <div class="comment-item group" data-comment-id="{{ comment.id }}">
-                                        <div class="flex gap-4">
-                                            <!-- User Avatar -->
-                                            <div class="flex-shrink-0">
-                                                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                                                    {{ comment.user.username[0].upper() if comment.user and comment.user.username else 'A' }}
-                                                </div>
+                        <!-- Comments List - Messenger Style -->
+                        <div class="p-4 max-h-[600px] overflow-y-auto bg-gray-50" id="commentsContainer">
+                            {% if comments %}
+                                {% for comment in comments|sort(attribute='created_at') %}
+                                <div class="mb-4 {% if comment.user.id == current_user.id %}flex justify-end{% else %}flex justify-start{% endif %}">
+                                    <div class="{% if comment.user.id == current_user.id %}max-w-[75%]{% else %}max-w-[75%]{% endif %}">
+                                        <!-- User Avatar and Name -->
+                                        <div class="flex items-center mb-1 {% if comment.user.id == current_user.id %}flex-row-reverse{% endif %}">
+                                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm {% if comment.user.id == current_user.id %}bg-blue-500 ml-2{% else %}bg-gray-500 mr-2{% endif %}">
+                                                {{ comment.user.username[0].upper() if comment.user else 'U' }}
                                             </div>
-                                            
-                                            <!-- Comment Content -->
-                                            <div class="flex-1 min-w-0" style="text-align: left;">
-                                                <!-- Comment Header -->
-                                                <div class="flex items-center gap-3 mb-2">
-                                                    <span class="font-semibold text-gray-900">
-                                                        {{ comment.user.username if comment.user else 'Anonymous' }}
-                                                    </span>
-                                                    <span class="text-sm text-gray-500">
-                                                        {{ comment.created_at | singapore_time | default('N/A') }}
-                                                    </span>
-                                                    {% if comment.created_at != comment.updated_at %}
-                                                    <span class="text-sm text-gray-400 italic">
-                                                        (edited)
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                
-                                                <!-- Comment Body -->
-                                                <div class="bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-4 mb-3 shadow-sm max-w-2xl comment-bubble" style="text-align: left !important; direction: ltr !important; display: block !important;">
-                                                    <div class="comment-text" style="text-align: left !important; direction: ltr !important; display: block !important; width: 100% !important;">
-                                                        <div style="text-align: left !important; direction: ltr !important;">{{ comment.content|safe }}</div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Comment Actions -->
-                                                <div class="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <button onclick="replyToComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                                                        </svg>
-                                                        Reply
-                                                    </button>
-                                                    {% if comment.user and comment.user.id == current_user.id %}
-                                                    <button onclick="editComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-amber-600 transition-colors flex items-center gap-1">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                        </svg>
-                                                        Edit
-                                                    </button>
-                                                    <button onclick="deleteComment({{ comment.id }})" class="text-sm text-gray-500 hover:text-red-600 transition-colors flex items-center gap-1">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
-                                                        Delete
-                                                    </button>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
+                                            <span class="text-xs font-medium text-gray-700">
+                                                {{ comment.user.username if comment.user else 'Unknown' }}
+                                            </span>
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="text-center py-12">
-                                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                                            </svg>
-                                        </div>
-                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
-                                        <p class="text-gray-500">Be the first to leave a comment on this ticket.</p>
-                                    </div>
-                                {% endif %}
-                            </div>
 
-                            <!-- Add Comment Form (Now at the bottom) -->
-                            <div class="border-t border-gray-200 pt-6">
-                                <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentForm" class="space-y-4">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    
-                                    <!-- Comment Input Area -->
-                                    <div class="flex gap-4">
-                                        <!-- User Avatar -->
-                                        <div class="flex-shrink-0">
-                                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                                                {{ current_user.username[0].upper() if current_user.username else 'U' }}
-                                            </div>
+                                        <!-- Message Bubble -->
+                                        <div class="{% if comment.user.id == current_user.id %}bg-blue-500 text-white rounded-l-2xl rounded-tr-2xl{% else %}bg-white border border-gray-200 text-gray-800 rounded-r-2xl rounded-tl-2xl{% endif %} px-4 py-3 shadow-sm">
+                                            <div class="text-sm whitespace-pre-wrap break-words comment-content">{{ comment.content }}</div>
                                         </div>
-                                        
-                                        <!-- Comment Input -->
-                                        <div class="flex-1">
-                                            <div class="relative">
-                                                <textarea 
-                                                    id="message" 
-                                                    name="message" 
-                                                    rows="4" 
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
-                                                    placeholder="Write a comment... Use @ to mention users and groups"
-                                                    required></textarea>
-                                                
-                                                <!-- @mention Autocomplete Dropdown -->
-                                                <div id="mentionDropdown" class="absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto">
-                                                    <div id="mentionList" class="py-1">
-                                                        <!-- Users will be populated here -->
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Character Counter -->
-                                                <div class="absolute bottom-3 right-3 text-xs text-gray-400" id="charCounter">
-                                                    0 / 1000
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Comment Actions -->
-                                            <div class="flex items-center justify-between mt-3">
-                                                <div class="flex items-center gap-2 text-sm text-gray-500">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                    </svg>
-                                                    <span>Markdown supported</span>
-                                                </div>
-                                                <div class="flex gap-2">
-                                                    <button type="button" id="cancelComment" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" style="display: none;">
-                                                        Cancel
-                                                    </button>
-                                                    <button type="submit" id="submitComment" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                                        <span class="flex items-center gap-2">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                                            </svg>
-                                                            Post Comment
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            </div>
+
+                                        <!-- Timestamp -->
+                                        <div class="mt-1 text-xs text-gray-500 {% if comment.user.id == current_user.id %}text-right{% endif %}">
+                                            {{ comment.created_at | singapore_time | default('N/A') }}
                                         </div>
                                     </div>
-                                </form>
-                            </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-12">
+                                    <i class="fas fa-comment-slash text-gray-300 text-5xl mb-3"></i>
+                                    <p class="text-gray-500">No comments yet. Start the conversation!</p>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Comment Input - Fixed at Bottom -->
+                        <div class="border-t border-gray-200 bg-white p-4">
+                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentFormMessenger">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                <div class="flex items-end space-x-2">
+                                    <!-- Textarea with @mention -->
+                                    <div class="flex-1 relative">
+                                        <textarea name="message"
+                                                  id="commentTextarea"
+                                                  required
+                                                  rows="1"
+                                                  class="w-full border border-gray-300 rounded-2xl px-4 py-2.5 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                                  placeholder="Write a comment... Use @ to mention users"
+                                                  onkeydown="handleKeyPress(event)"
+                                                  oninput="autoResize(this); checkMention(this)"></textarea>
+
+                                        <!-- @mention Dropdown -->
+                                        <div id="mentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-20">
+                                            <!-- Will be populated by JavaScript -->
+                                        </div>
+
+                                        <!-- Send Button -->
+                                        <button type="submit"
+                                                class="absolute right-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                                            <i class="fas fa-paper-plane text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p class="mt-2 text-xs text-gray-500">
+                                    <i class="fas fa-info-circle mr-1"></i>Use <strong>@username</strong> to mention someone
+                                </p>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -10477,6 +10187,35 @@ function updateIssueIndicator(unresolvedCount, unresolvedIssues = []) {
         }
     }
 }
+
+// Messenger-style comment functions
+// Auto-resize textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
+// Handle Enter key (Shift+Enter for new line, Enter to submit)
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        document.getElementById('commentFormMessenger').submit();
+    }
+}
+
+// Check for @mention (simplified version - you can extend with user list if needed)
+function checkMention(textarea) {
+    // This is a placeholder - you can implement full mention support if needed
+    // For now, this just handles the textarea resizing
+}
+
+// Scroll to bottom of comments on load
+window.addEventListener('load', function() {
+    const container = document.getElementById('commentsContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
 
 </script>
 {% endblock %}
