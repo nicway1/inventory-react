@@ -136,15 +136,33 @@ def list_tickets():
                 filtered_tickets.append(ticket)
         tickets = filtered_tickets
 
-    # Get all queues for the filter dropdown
+    # Get all queues for the filter dropdown, sorted by ticket count (descending)
     from models.queue import Queue
+    from models.ticket import Ticket
+    from sqlalchemy import func
     db_session = db_manager.get_session()
     queues = []
+
     try:
-        queues = db_session.query(Queue).order_by(Queue.name).all()
-        logging.info(f"Loaded {len(queues)} queues for filter dropdown")
-        for queue in queues:
-            logging.info(f"  Queue: {queue.name} (ID: {queue.id})")
+        # Query queues with ticket count, sorted by count descending
+        queues_with_counts = db_session.query(
+            Queue,
+            func.count(Ticket.id).label('ticket_count')
+        ).outerjoin(
+            Ticket, Queue.id == Ticket.queue_id
+        ).group_by(
+            Queue.id
+        ).order_by(
+            func.count(Ticket.id).desc(),
+            Queue.name
+        ).all()
+
+        # Extract just the Queue objects
+        queues = [queue for queue, count in queues_with_counts]
+
+        logging.info(f"Loaded {len(queues)} queues sorted by ticket count")
+        for queue, count in queues_with_counts:
+            logging.info(f"  Queue: {queue.name} (ID: {queue.id}, Tickets: {count})")
     except Exception as e:
         logging.error(f"Error loading queues: {str(e)}")
         queues = []
@@ -1156,7 +1174,31 @@ def create_ticket():
                 'username': u.username,
                 'company': u.company.name if u.company else None
             } for u in all_users]
-        
+
+        # Get all unique countries from both enum and existing customers
+        countries_dict = {}  # Use dict with name as key to avoid duplicates
+
+        # Add predefined enum countries
+        for country in Country:
+            countries_dict[country.name] = {'name': country.name, 'value': country.value}
+
+        # Add custom countries from customer_users table
+        from models.customer_user import CustomerUser
+        custom_countries = db_session.query(CustomerUser.country)\
+            .filter(CustomerUser.country.isnot(None))\
+            .distinct()\
+            .all()
+
+        for country_tuple in custom_countries:
+            country_str = country_tuple[0]
+            if country_str and country_str not in countries_dict:
+                # Format for display: convert NORTH_KOREA to "North Korea"
+                display_value = country_str.replace('_', ' ').title()
+                countries_dict[country_str] = {'name': country_str, 'value': display_value}
+
+        # Convert dict values to sorted list (sort by display value)
+        all_countries = sorted(list(countries_dict.values()), key=lambda x: x['value'])
+
         # Helper function to generate template context
         def get_template_context(form_data=None):
             return {
@@ -1165,7 +1207,7 @@ def create_ticket():
                 'priorities': list(TicketPriority),
                 'categories': all_categories,
                 'queues': queues,
-                'Country': list(Country),
+                'Country': all_countries,
                 'is_client': is_client,
                 'user': user,
                 'companies': companies_list,
