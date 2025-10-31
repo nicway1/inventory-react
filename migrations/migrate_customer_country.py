@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import text
-from database import db_manager
+from database import SessionLocal
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +24,7 @@ def migrate_customer_country_column():
     """
     Migrate customer_users.country from ENUM to VARCHAR(100)
     """
-    db_session = db_manager.get_session()
+    db_session = SessionLocal()
 
     try:
         logger.info("Starting migration: customer_users.country ENUM -> VARCHAR(100)")
