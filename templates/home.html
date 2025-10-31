@@ -643,28 +643,49 @@
 
     <!-- Support Queues -->
     {% if show_queue_cards %}
-    <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <div class="flex items-center justify-between mb-4">
+    <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl p-8 mb-8 border border-gray-200/50 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
             <div class="flex items-center">
-                <svg class="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <h2 class="text-xl font-semibold">Support Queues</h2>
+                <div class="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/30 mr-3">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900">Support Queues</h2>
             </div>
-            <a href="{{ url_for('tickets.list_queues') }}" class="text-sm text-amber-600 hover:text-amber-800">View All →</a>
+            <a href="{{ url_for('tickets.list_queues') }}" class="text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors">View All →</a>
         </div>
 
         {% if queues %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {% for queue in queues %}
-            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <h3 class="font-semibold text-lg mb-1">{{ queue.name }}</h3>
-                <div class="text-sm text-gray-600 mb-2">
-                    <div class="font-medium">{{ queue_ticket_counts[queue.id].open }} open tickets</div>
+            <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}"
+               class="group block bg-transparent hover:bg-white/60 border border-gray-200/50 hover:border-amber-300 rounded-2xl p-5 hover:shadow-lg transition-all duration-300 transform hover:scale-105 backdrop-blur-sm">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="font-bold text-lg text-gray-900 group-hover:text-amber-600 transition-colors">{{ queue.name }}</h3>
+                    <div class="w-10 h-10 bg-gradient-to-br from-amber-100 to-amber-200 group-hover:from-amber-500 group-hover:to-amber-600 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm group-hover:shadow-md group-hover:shadow-amber-500/30">
+                        <svg class="w-5 h-5 text-amber-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="space-y-2 mb-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Open Tickets</span>
+                        <span class="text-2xl font-bold text-amber-600">{{ queue_ticket_counts[queue.id].open }}</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-amber-500 to-amber-600" style="width: {{ (queue_ticket_counts[queue.id].open / queue_ticket_counts[queue.id].total * 100) if queue_ticket_counts[queue.id].total > 0 else 0 }}%"></div>
+                    </div>
                     <div class="text-xs text-gray-500">{{ queue_ticket_counts[queue.id].total }} total tickets</div>
                 </div>
-                <a href="{{ url_for('tickets.view_queue', queue_id=queue.id) }}" class="text-amber-600 hover:text-amber-800 text-sm">View Queue →</a>
-            </div>
+                <div class="flex items-center text-sm font-semibold text-amber-600 group-hover:text-amber-700">
+                    <span>View Queue</span>
+                    <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
             {% endfor %}
         </div>
         {% else %}
