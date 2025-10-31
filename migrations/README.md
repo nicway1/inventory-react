@@ -2,6 +2,56 @@
 
 This directory contains database migration scripts for the inventory system.
 
+## Customer Country Column Migration
+
+Changes `customer_users.country` from ENUM to VARCHAR(100) to support custom country names.
+
+### Migration Options
+
+#### 1. Python Script (Recommended)
+```bash
+python3 migrations/migrate_customer_country.py
+```
+
+The script will:
+- Check current column type
+- Ask for confirmation before proceeding
+- Safely migrate the column type
+- Preserve all existing data
+- Show progress and success/failure messages
+
+#### 2. Manual SQL Execution
+```bash
+mysql -u username -p database_name < migrations/change_customer_country_to_string.sql
+```
+
+### What It Does
+
+- Creates a temporary `country_temp` column (VARCHAR)
+- Copies all data from `country` to `country_temp`
+- Drops the old ENUM `country` column
+- Renames `country_temp` to `country`
+
+### After Migration
+
+You can now:
+- Select from predefined countries (USA, Japan, Singapore, etc.)
+- Click the **+** button to enter custom country names (e.g., "North Korea")
+- Custom countries automatically appear in future dropdowns
+
+### Rollback
+
+⚠️ **Warning**: No automatic rollback. Backup your database first!
+
+To manually rollback:
+```sql
+-- Ensure all custom countries are in the Country enum first
+ALTER TABLE customer_users
+MODIFY COLUMN country ENUM('USA', 'JAPAN', ...) NOT NULL;
+```
+
+---
+
 ## Company Grouping Migration
 
 The company grouping feature adds the ability to create parent/child relationships between companies (e.g., "Wise (Firstbase)").
