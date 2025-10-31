@@ -168,11 +168,11 @@
                 <tbody id="accessoryTableBody" class="bg-white divide-y divide-gray-200">
                     {% for accessory in accessories %}
                     <tr class="hover:bg-blue-50 transition-colors duration-150 group accessory-row"
-                        data-name="{{ accessory.name }}"
-                        data-category="{{ accessory.category }}"
-                        data-manufacturer="{{ accessory.manufacturer or 'N/A' }}"
-                        data-country="{{ accessory.country or 'N/A' }}"
-                        data-status="{{ accessory.status }}">
+                        data-name="{{ accessory.name or '' }}"
+                        data-category="{{ accessory.category or '' }}"
+                        data-manufacturer="{{ accessory.manufacturer or '' }}"
+                        data-country="{{ accessory.country or '' }}"
+                        data-status="{{ accessory.status or '' }}">
                         <td class="px-6 py-4 whitespace-nowrap" onclick="event.stopPropagation();">
                             <div class="flex items-center">
                                 <input type="checkbox"
@@ -529,15 +529,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const manufacturers = new Set();
         const countries = new Set();
 
+        console.log('Initializing filters with', rows.length, 'rows');
+
         rows.forEach(row => {
             const category = row.dataset.category;
             const manufacturer = row.dataset.manufacturer;
             const country = row.dataset.country;
 
-            if (category && category !== 'N/A') categories.add(category);
-            if (manufacturer && manufacturer !== 'N/A') manufacturers.add(manufacturer);
-            if (country && country !== 'N/A') countries.add(country);
+            console.log('Row data:', { category, manufacturer, country });
+
+            // Add to sets if not empty
+            if (category && category.trim() !== '' && category !== 'N/A') {
+                categories.add(category.trim());
+            }
+            if (manufacturer && manufacturer.trim() !== '' && manufacturer !== 'N/A') {
+                manufacturers.add(manufacturer.trim());
+            }
+            if (country && country.trim() !== '' && country !== 'N/A') {
+                countries.add(country.trim());
+            }
         });
+
+        console.log('Categories found:', Array.from(categories));
+        console.log('Manufacturers found:', Array.from(manufacturers));
+        console.log('Countries found:', Array.from(countries));
 
         // Populate category filter
         const categoryFilter = document.getElementById('categoryFilter');
@@ -582,11 +597,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let visibleCount = 0;
 
         rows.forEach(row => {
-            const name = row.dataset.name.toLowerCase();
-            const category = row.dataset.category;
-            const manufacturer = row.dataset.manufacturer;
-            const country = row.dataset.country;
-            const status = row.dataset.status;
+            const name = (row.dataset.name || '').toLowerCase();
+            const category = (row.dataset.category || '').trim();
+            const manufacturer = (row.dataset.manufacturer || '').trim();
+            const country = (row.dataset.country || '').trim();
+            const status = (row.dataset.status || '').trim();
 
             // Check all filter conditions
             const matchesSearch = name.includes(searchTerm) ||
