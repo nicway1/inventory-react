@@ -2315,26 +2315,50 @@ def list_queues():
         db_session.close()
 
 @tickets_bp.route('/queues/create', methods=['POST'])
-@admin_required
+@login_required
 def create_queue():
     """Create a new support queue"""
     try:
-        name = request.form.get('name')
-        description = request.form.get('description', '')
-        
+        user = db_manager.get_user(session['user_id'])
+
+        # Only admins can create queues
+        if not user.is_admin:
+            # Check if it's a JSON request
+            if request.is_json:
+                return jsonify({'success': False, 'error': 'Permission denied'}), 403
+            flash('Permission denied', 'error')
+            return redirect(url_for('tickets.list_queues'))
+
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            name = data.get('name')
+            description = data.get('description', '')
+        else:
+            name = request.form.get('name')
+            description = request.form.get('description', '')
+
         if not name:
+            if request.is_json:
+                return jsonify({'success': False, 'error': 'Queue name is required'}), 400
             flash('Queue name is required', 'error')
             return redirect(url_for('tickets.list_queues'))
-            
+
         # Create the new queue using queue_store to ensure in-memory cache is updated
         new_queue = queue_store.add_queue(name, description)
-        
+
         # Refresh the queue_store to ensure it has the latest data
         queue_store.load_queues()
-        
+
+        if request.is_json:
+            return jsonify({'success': True, 'message': f'Queue "{name}" created successfully', 'queue_id': new_queue.id})
+
         flash(f'Queue "{name}" created successfully', 'success')
         return redirect(url_for('tickets.list_queues'))
     except Exception as e:
+        logging.error(f"Error creating queue: {str(e)}")
+        if request.is_json:
+            return jsonify({'success': False, 'error': str(e)}), 500
         flash(f'Error creating queue: {str(e)}', 'error')
         return redirect(url_for('tickets.list_queues'))
 
@@ -2343,17 +2367,17 @@ def create_queue():
 def view_queue(queue_id):
     """View a specific queue and its tickets"""
     user = db_manager.get_user(session['user_id'])
-    
+
     # Check if user has permission to access this queue
     if not user.can_access_queue(queue_id):
         flash('You do not have permission to view this queue', 'error')
         return redirect(url_for('tickets.list_queues'))
-    
+
     queue = queue_store.get_queue(queue_id)
     if not queue:
         flash('Queue not found', 'error')
         return redirect(url_for('tickets.list_queues'))
-    
+
     # Use database session directly to load tickets with all relationships
     db_session = db_manager.get_session()
     try:
@@ -2363,10 +2387,50 @@ def view_queue(queue_id):
             joinedload(Ticket.requester),
             joinedload(Ticket.assigned_to)
         ).filter(Ticket.queue_id == queue_id).order_by(Ticket.created_at.desc()).all()
-        
+
         return render_template('tickets/queue_view.html', queue=queue, tickets=tickets, user=user)
     finally:
         db_session.close()
+
+@tickets_bp.route('/queues/<int:queue_id>/delete', methods=['POST'])
+@login_required
+def delete_queue(queue_id):
+    """Delete a queue"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only admins can delete queues
+        if not user.is_admin:
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Check if queue exists
+            queue = db_session.query(Queue).filter(Queue.id == queue_id).first()
+            if not queue:
+                return jsonify({'success': False, 'error': 'Queue not found'}), 404
+
+            # Check if queue has tickets
+            ticket_count = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).count()
+            if ticket_count > 0:
+                return jsonify({'success': False, 'error': f'Cannot delete queue with {ticket_count} tickets. Please move or delete tickets first.'}), 400
+
+            # Delete the queue
+            db_session.delete(queue)
+            db_session.commit()
+
+            # Also remove from queue_store cache if it exists
+            if hasattr(queue_store, 'queues') and queue_id in queue_store.queues:
+                del queue_store.queues[queue_id]
+
+            return jsonify({'success': True, 'message': 'Queue deleted successfully'})
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error deleting queue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
 @login_required
