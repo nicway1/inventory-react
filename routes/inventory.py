@@ -252,6 +252,7 @@ def view_inventory():
             companies=companies,
             models=models,
             countries=countries,
+            statuses=statuses,
             accessories=accessories_list,
             customers=customers,
             user=user,
@@ -271,14 +272,19 @@ def view_tech_assets():
     try:
         # Get the current user
         user = db_manager.get_user(session['user_id'])
-        
+
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)  # Default 50 items per page
+        per_page = min(per_page, 200)  # Max 200 items per page
+
         # Base query for assets
         assets_query = db_session.query(Asset)
-        
+
         # Filter by country if user is Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
-        
+
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
             # Filter by company_id and also by customer field matching company name
@@ -288,26 +294,27 @@ def view_tech_assets():
                     Asset.customer == user.company.name
                 )
             )
-            # Log more detailed information for debugging client view
-            logger.info("DEBUG: Filtering assets for client user. User ID: {user.id}, Company ID: {user.company_id}, Company Name: {user.company.name}")
-            
-            # Get counts for individual filters to help debug
-            company_id_count = db_session.query(Asset).filter(Asset.company_id == user.company_id).count()
-            customer_name_count = db_session.query(Asset).filter(Asset.customer == user.company.name).count()
-            logger.info("DEBUG: Assets count by company_id: {company_id_count}, by customer name: {customer_name_count}")
+
+        # Get total count before pagination
+        total_count = assets_query.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        assets = assets_query.offset(offset).limit(per_page).all()
         
-        # Execute query
-        assets = assets_query.all()
-        
-        # Get total count
-        total_count = len(assets)
-        
-        # Log for debugging
-        logger.info("User type: {user.user_type}, Assets returned: {total_count}")
-        
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+
         # Format response
         return jsonify({
             'total_count': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages,
+            'has_next': has_next,
+            'has_prev': has_prev,
             'assets': [
                 {
                     'id': asset.id,
@@ -489,7 +496,8 @@ def filter_inventory():
         
         # Apply filters from request
         if 'country' in data and data['country']:
-            query = query.filter(Asset.country == data['country'])
+            # Use case-insensitive comparison for country filter
+            query = query.filter(func.lower(Asset.country) == func.lower(data['country']))
         
         if 'status' in data and data['status'] or 'inventory_status' in data and data['inventory_status']:
             status_value = data.get('status') or data.get('inventory_status')
@@ -526,16 +534,31 @@ def filter_inventory():
                 )
             )
         
-        # Log query information for debugging
-        if user.user_type == UserType.CLIENT:
-            logger.info("CLIENT user search results count: {query.count()}")
-        
-        # Execute query
-        assets = query.all()
-        
+        # Get pagination parameters
+        page = data.get('page', 1)
+        per_page = data.get('per_page', 50)
+        per_page = min(per_page, 200)  # Max 200 items per page
+
+        # Get total count before pagination
+        total_count = query.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        assets = query.offset(offset).limit(per_page).all()
+
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+
         # Format response
         return jsonify({
-            'total_count': len(assets),
+            'total_count': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages,
+            'has_next': has_next,
+            'has_prev': has_prev,
             'assets': [
                 {
                     'id': asset.id,

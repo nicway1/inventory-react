@@ -418,12 +418,12 @@
 
         {% if not is_client %}
         <!-- Accessories Card -->
-        <div id="accessoriesCard"
-             class="bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors">
+        <a href="{{ url_for('inventory.view_accessories') }}" id="accessoriesCard"
+             class="block bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors no-underline">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
-        </div>
+        </a>
         
         <!-- Maintenance Card -->
         <div id="maintenanceCard"
@@ -513,6 +513,25 @@
                         <!-- Table rows will be inserted here by JavaScript -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div id="paginationControls" class="flex justify-between items-center mt-4 px-4">
+                <div class="text-sm text-gray-600">
+                    Showing <span id="paginationInfo"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="prevPage" onclick="changePage(-1)"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                        Previous
+                    </button>
+                    <button id="nextPage" onclick="changePage(1)"
+                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -828,20 +847,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize variables
     var initialTechAssetCount = {% if is_client %}0{% else %}{{ tech_assets_count }}{% endif %};
 
+    // Pagination state - MUST be declared before loadTechAssets() is called
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentFilters = {};
+
     try {
         // Try to load items from localStorage
         const storedItems = JSON.parse(localStorage.getItem('checkoutItems') || '[]');
-        
+
         // Update both count displays
         const techCount = document.getElementById('checkoutCount');
         const checkoutCountAccessories = document.getElementById('checkoutCountAccessories');
-        
+
         if (techCount) techCount.textContent = storedItems.length;
         if (checkoutCountAccessories) checkoutCountAccessories.textContent = storedItems.length;
     } catch (e) {
         console.error('Error loading checkout items from storage:', e);
     }
-    
+
     // Important: Load tech assets immediately to ensure correct count display
     {% if not is_client %}
     // For non-CLIENT users, load tech assets at page load
@@ -1143,22 +1167,39 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to load tech assets with filters
-    async function loadTechAssets(filters = {}) {
+    async function loadTechAssets(filters = {}, resetPage = false) {
         try {
             setLoading(true);
-            
+
+            // Reset to page 1 if requested (when applying new filters)
+            if (resetPage) {
+                currentPage = 1;
+            }
+
+            // Save current filters
+            currentFilters = filters;
+
             let url = '/inventory/tech-assets';
             let method = 'GET';
             let body = null;
-            
-            if (Object.keys(filters).length > 0) {
+
+            // Check if there are any non-empty filters
+            const hasActiveFilters = Object.keys(filters).some(key => filters[key] && filters[key] !== '');
+
+            if (hasActiveFilters) {
                 url = '/inventory/filter';
                 method = 'POST';
+                // Add pagination to filter request
+                filters.page = currentPage;
+                filters.per_page = 50;
                 body = JSON.stringify(filters);
+            } else {
+                // Add pagination parameters for non-filtered requests
+                url += `?page=${currentPage}&per_page=50`;
             }
-            
+
             console.log(`Fetching data from ${url} with method ${method}`); // Debug log
-            
+
             const response = await fetchWithSession(url, {
                 method: method,
                 body: body
@@ -1272,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }).join('');
             
             techAssetsBody.innerHTML = rows;
-            
+
             // Re-attach checkbox handlers
             document.querySelectorAll('.asset-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('click', function(e) {
@@ -1286,7 +1327,39 @@ document.addEventListener('DOMContentLoaded', function() {
             const colSpan = isAdmin ? 9 : 8;
             techAssetsBody.innerHTML = `<tr><td colspan="${colSpan}" class="px-4 py-2 text-center text-gray-500">No assets found</td></tr>`;
         }
+
+        // Update pagination controls
+        updatePaginationControls(data);
     }
+
+    // Function to update pagination controls
+    function updatePaginationControls(data) {
+        if (!data.page || !data.total_pages) return;
+
+        totalPages = data.total_pages;
+        currentPage = data.page;
+
+        const paginationInfo = document.getElementById('paginationInfo');
+        const prevButton = document.getElementById('prevPage');
+        const nextButton = document.getElementById('nextPage');
+
+        // Calculate range
+        const start = ((currentPage - 1) * data.per_page) + 1;
+        const end = Math.min(currentPage * data.per_page, data.total_count);
+
+        // Update info text
+        paginationInfo.textContent = `${start}-${end} of ${data.total_count}`;
+
+        // Update button states
+        prevButton.disabled = !data.has_prev;
+        nextButton.disabled = !data.has_next;
+    }
+
+    // Function to change page (global scope for onclick handlers)
+    window.changePage = function(direction) {
+        currentPage += direction;
+        loadTechAssets(currentFilters);
+    };
 
     // Function to view asset details
     function viewAssetDetails(assetId) {
@@ -1658,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 country: countryFilter.value,
                 erased: erasedFilter.value
             };
-            loadTechAssets(filters);
+            loadTechAssets(filters, true);  // Reset to page 1 when applying filters
         });
     }
 
@@ -1670,7 +1743,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (modelFilter) modelFilter.value = '';
             if (countryFilter) countryFilter.value = '';
             if (erasedFilter) erasedFilter.value = '';
-            loadTechAssets();
+            loadTechAssets({}, true);  // Reset to page 1 when clearing filters
         });
     }
 
