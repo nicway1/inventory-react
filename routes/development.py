@@ -502,13 +502,25 @@ def add_feature_comment(id):
         import re
         mentions = re.findall(r'@(\w+)', content)
         if mentions:
+            logger.info(f"Found {len(mentions)} mentions in comment: {mentions}")
             mentioned_users = db_session.query(User).filter(User.username.in_(mentions)).all()
+            logger.info(f"Found {len(mentioned_users)} matching users in database")
             for mentioned_user in mentioned_users:
                 if mentioned_user.email and mentioned_user.id != current_user.id:
                     try:
-                        send_feature_mention_email(mentioned_user, current_user, feature, content)
+                        logger.info(f"Attempting to send mention email to {mentioned_user.username} ({mentioned_user.email})")
+                        success = send_feature_mention_email(mentioned_user, current_user, feature, content)
+                        if success:
+                            logger.info(f"Mention email sent successfully to {mentioned_user.email}")
+                        else:
+                            logger.error(f"Failed to send mention email to {mentioned_user.email} (returned False)")
                     except Exception as email_error:
-                        logging.error(f"Failed to send mention email: {str(email_error)}")
+                        logger.error(f"Exception sending mention email to {mentioned_user.email}: {str(email_error)}", exc_info=True)
+                else:
+                    if not mentioned_user.email:
+                        logger.warning(f"User {mentioned_user.username} has no email address")
+                    elif mentioned_user.id == current_user.id:
+                        logger.info(f"Skipping email to self ({mentioned_user.username})")
 
         flash('Comment added successfully!', 'success')
         return redirect(url_for('development.view_feature', id=id))
@@ -1594,14 +1606,25 @@ def add_bug_comment(id):
         import re
         mentions = re.findall(r'@(\w+)', content)
         if mentions:
+            logger.info(f"Found {len(mentions)} mentions in comment: {mentions}")
             mentioned_users = db_session.query(User).filter(User.username.in_(mentions)).all()
+            logger.info(f"Found {len(mentioned_users)} matching users in database")
             for mentioned_user in mentioned_users:
                 if mentioned_user.email and mentioned_user.id != current_user.id:
                     try:
-                        send_mention_email(mentioned_user, current_user, bug, content)
-                        logger.info(f"Mention email sent to {mentioned_user.email}")
+                        logger.info(f"Attempting to send mention email to {mentioned_user.username} ({mentioned_user.email})")
+                        success = send_mention_email(mentioned_user, current_user, bug, content)
+                        if success:
+                            logger.info(f"Mention email sent successfully to {mentioned_user.email}")
+                        else:
+                            logger.error(f"Failed to send mention email to {mentioned_user.email} (returned False)")
                     except Exception as email_error:
-                        logger.error(f"Failed to send mention email: {str(email_error)}")
+                        logger.error(f"Exception sending mention email to {mentioned_user.email}: {str(email_error)}", exc_info=True)
+                else:
+                    if not mentioned_user.email:
+                        logger.warning(f"User {mentioned_user.username} has no email address")
+                    elif mentioned_user.id == current_user.id:
+                        logger.info(f"Skipping email to self ({mentioned_user.username})")
 
         flash('Comment added successfully!', 'success')
         return redirect(url_for('development.view_bug', id=id))

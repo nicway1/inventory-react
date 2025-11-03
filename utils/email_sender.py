@@ -14,57 +14,67 @@ def _send_email_via_method(to_emails, subject, html_body, text_body=None, attach
     """
     Send email using the best available method (Microsoft OAuth2 or SMTP)
     """
-    # Try Microsoft Graph first if configured
-    microsoft_client = get_microsoft_email_client()
-    if microsoft_client:
-        try:
-            return microsoft_client.send_email(
-                to_emails=to_emails,
-                subject=subject,
-                body=text_body or "Please view this email in an HTML-capable client.",
-                html_body=html_body,
-                attachments=attachments
-            )
-        except Exception as e:
-            logging.warning(f"Microsoft email failed, falling back to SMTP: {e}")
-    
-    # Fallback to regular SMTP
-    if not current_app:
-        logging.error("No Flask application context")
+    try:
+        # Try Microsoft Graph first if configured
+        microsoft_client = get_microsoft_email_client()
+        if microsoft_client:
+            try:
+                logging.info(f"Attempting to send email via Microsoft Graph to {to_emails}")
+                result = microsoft_client.send_email(
+                    to_emails=to_emails,
+                    subject=subject,
+                    body=text_body or "Please view this email in an HTML-capable client.",
+                    html_body=html_body,
+                    attachments=attachments
+                )
+                logging.info(f"Microsoft Graph email sent successfully to {to_emails}")
+                return result
+            except Exception as e:
+                logging.warning(f"Microsoft email failed, falling back to SMTP: {e}", exc_info=True)
+
+        # Fallback to regular SMTP
+        if not current_app:
+            logging.error("No Flask application context for SMTP email")
+            return False
+
+        if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
+            logging.error("Mail configuration is incomplete - missing MAIL_USERNAME or MAIL_PASSWORD")
+            return False
+
+        # Convert single email to list
+        if isinstance(to_emails, str):
+            to_emails = [to_emails]
+
+        logging.info(f"Attempting to send email via SMTP to {to_emails}")
+
+        msg = Message(
+            subject,
+            sender=('TrueLog Inventory', current_app.config['MAIL_DEFAULT_SENDER']),
+            recipients=to_emails
+        )
+
+        if html_body:
+            msg.html = html_body
+        if text_body:
+            msg.body = text_body
+
+        # Add attachments if provided
+        if attachments:
+            for attachment in attachments:
+                if isinstance(attachment, str):
+                    with open(attachment, 'rb') as f:
+                        msg.attach(
+                            os.path.basename(attachment),
+                            'application/octet-stream',
+                            f.read()
+                        )
+
+        mail.send(msg)
+        logging.info(f"SMTP email sent successfully to {to_emails}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send email to {to_emails}: {str(e)}", exc_info=True)
         return False
-        
-    if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
-        logging.error("Mail configuration is incomplete")
-        return False
-    
-    # Convert single email to list
-    if isinstance(to_emails, str):
-        to_emails = [to_emails]
-    
-    msg = Message(
-        subject,
-        sender=('TrueLog Inventory', current_app.config['MAIL_DEFAULT_SENDER']),
-        recipients=to_emails
-    )
-    
-    if html_body:
-        msg.html = html_body
-    if text_body:
-        msg.body = text_body
-        
-    # Add attachments if provided
-    if attachments:
-        for attachment in attachments:
-            if isinstance(attachment, str):
-                with open(attachment, 'rb') as f:
-                    msg.attach(
-                        os.path.basename(attachment),
-                        'application/octet-stream',
-                        f.read()
-                    )
-    
-    mail.send(msg)
-    return True
 
 def send_welcome_email(user_email, username, password):
     """
