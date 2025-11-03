@@ -4278,7 +4278,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                   oninput="autoResize(this); checkMention(this)"></textarea>
 
                                         <!-- @mention Dropdown -->
-                                        <div id="mentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-20">
+                                        <div id="mentionDropdown" class="hidden absolute bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-50">
                                             <div id="mentionList">
                                                 <!-- Will be populated by JavaScript -->
                                             </div>
@@ -9466,10 +9466,15 @@ function initializeMentionAutocomplete(textarea) {
 
     // Show mention dropdown
     function showMentionDropdown(suggestions) {
+        console.log('[MENTION] showMentionDropdown called with', suggestions.length, 'suggestions');
+        console.log('[MENTION] mentionList element:', mentionList);
+        console.log('[MENTION] dropdown element:', dropdown);
+
         mentionList.innerHTML = '';
         selectedIndex = -1;
 
         suggestions.forEach((item, index) => {
+            console.log('[MENTION] Creating element for:', item.name, 'type:', item.type);
             const element = document.createElement('div');
             element.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
 
@@ -9501,10 +9506,14 @@ function initializeMentionAutocomplete(textarea) {
             mentionList.appendChild(element);
         });
 
+        console.log('[MENTION] Added', mentionList.children.length, 'items to mentionList');
+        console.log('[MENTION] Dropdown classes before:', dropdown.className);
         dropdown.classList.remove('hidden');
+        console.log('[MENTION] Dropdown classes after:', dropdown.className);
 
         // Position dropdown
         positionDropdown();
+        console.log('[MENTION] Dropdown positioned');
     }
 
     // Hide mention dropdown
@@ -9552,13 +9561,25 @@ function initializeMentionAutocomplete(textarea) {
 
     // Position dropdown relative to textarea
     function positionDropdown() {
+        console.log('[MENTION] Positioning dropdown');
         const textareaRect = textarea.getBoundingClientRect();
         const containerRect = textarea.parentElement.getBoundingClientRect();
 
-        // Position dropdown below the textarea
-        dropdown.style.top = (textareaRect.bottom - containerRect.top + 5) + 'px';
-        dropdown.style.left = '0px';
-        dropdown.style.width = '100%';
+        console.log('[MENTION] Textarea rect:', textareaRect);
+        console.log('[MENTION] Container rect:', containerRect);
+
+        // Position dropdown above the textarea (bottom-full behavior)
+        const bottom = (containerRect.bottom - textareaRect.top + 8) + 'px';
+        const left = '0px';
+        const width = textareaRect.width + 'px';
+
+        dropdown.style.bottom = bottom;
+        dropdown.style.left = left;
+        dropdown.style.width = width;
+        dropdown.style.top = 'auto'; // Clear any top value
+
+        console.log('[MENTION] Dropdown positioned at bottom:', bottom, 'left:', left, 'width:', width);
+        console.log('[MENTION] Dropdown computed style:', window.getComputedStyle(dropdown).display);
     }
 }
 
