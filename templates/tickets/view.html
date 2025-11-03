@@ -9371,17 +9371,26 @@ window.onclick = function(event) {
 document.addEventListener('DOMContentLoaded', function() {
     // Character counter for comment textarea
     const messageTextarea = document.getElementById('message');
+    const commentTextarea = document.getElementById('commentTextarea');
     const charCounter = document.getElementById('charCounter');
     const submitButton = document.getElementById('submitComment');
     const cancelButton = document.getElementById('cancelComment');
     const commentForm = document.getElementById('commentForm');
-    
+
+    // Initialize @mention for commentTextarea (messenger style)
+    if (commentTextarea) {
+        console.log('Initializing @mention for commentTextarea');
+        initializeMentionAutocomplete(commentTextarea);
+    } else {
+        console.warn('commentTextarea not found');
+    }
+
     if (messageTextarea && charCounter) {
         messageTextarea.addEventListener('input', function() {
             const length = this.value.length;
             const maxLength = 1000;
             charCounter.textContent = `${length} / ${maxLength}`;
-            
+
             // Change color based on length
             if (length > maxLength * 0.9) {
                 charCounter.classList.add('text-red-500');
@@ -9393,25 +9402,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 charCounter.classList.add('text-gray-400');
                 charCounter.classList.remove('text-red-500', 'text-yellow-500');
             }
-            
+
             // Show/hide cancel button
             if (length > 0) {
                 cancelButton.style.display = 'inline-block';
             } else {
                 cancelButton.style.display = 'none';
             }
-            
+
             // Disable submit if over limit
             submitButton.disabled = length > maxLength || length === 0;
         });
-        
+
         // Auto-resize textarea
         messageTextarea.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
-        
-        // @mention autocomplete functionality
+
+        // @mention autocomplete functionality for messageTextarea
         initializeMentionAutocomplete(messageTextarea);
         
         // Focus effects
