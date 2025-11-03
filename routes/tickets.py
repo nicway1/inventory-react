@@ -2079,13 +2079,16 @@ def view_ticket(ticket_id):
         
         # Convert users to a dictionary format for the template
         users_dict = {}
+        users_list = []  # For @mention autocomplete
         for user in all_users:
-            users_dict[str(user.id)] = {
+            user_data = {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
                 'is_active': user.is_active
             }
+            users_dict[str(user.id)] = user_data
+            users_list.append(user_data)
         
         # Get all queues
         queues = db_session.query(Queue).all()
@@ -2163,7 +2166,8 @@ def view_ticket(ticket_id):
             'tickets/view.html',
             ticket=ticket,
             owner=owner,
-            users=users_dict,
+            users=users_list,  # For @mention autocomplete (list format)
+            users_dict=users_dict,  # For other uses (dict format)
             queues=queues,
             assets_data=assets_data,
             customers=customers,
