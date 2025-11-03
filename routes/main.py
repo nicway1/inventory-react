@@ -377,14 +377,18 @@ def index():
             ).first()
 
         # Check system setting for queue cards visibility on dashboard
+        # Always show for COUNTRY_ADMIN users, otherwise check system setting
         show_queue_cards = False
-        try:
-            from models.system_settings import SystemSettings
-            setting = db.session.query(SystemSettings).filter_by(setting_key='show_queue_cards').first()
-            if setting:
-                show_queue_cards = setting.get_value()
-        except Exception as e:
-            logging.warning(f"Could not load show_queue_cards setting: {str(e)}")
+        if user.user_type == UserType.COUNTRY_ADMIN:
+            show_queue_cards = True
+        else:
+            try:
+                from models.system_settings import SystemSettings
+                setting = db.session.query(SystemSettings).filter_by(setting_key='show_queue_cards').first()
+                if setting:
+                    show_queue_cards = setting.get_value()
+            except Exception as e:
+                logging.warning(f"Could not load show_queue_cards setting: {str(e)}")
 
         return render_template('home.html',
             queues=queues,
