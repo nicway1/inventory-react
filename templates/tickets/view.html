@@ -9365,7 +9365,202 @@ window.onclick = function(event) {
     }
 }
 
+// @mention Autocomplete Functionality
+function initializeMentionAutocomplete(textarea) {
+    console.log('[MENTION] Initializing autocomplete for textarea:', textarea.id);
+    const dropdown = document.getElementById('mentionDropdown');
+    const mentionList = document.getElementById('mentionList');
+    let currentMentionStart = -1;
+    let currentMentionQuery = '';
+    let selectedIndex = -1;
+    let mentionUsers = [];
 
+    console.log('[MENTION] Dropdown element:', dropdown);
+    console.log('[MENTION] MentionList element:', mentionList);
+
+    if (!dropdown || !mentionList) {
+        console.error('[MENTION] Dropdown elements not found!', {dropdown: !!dropdown, mentionList: !!mentionList});
+        return;
+    }
+
+    console.log('[MENTION] Successfully initialized, adding input listener');
+
+    // Handle input events
+    textarea.addEventListener('input', function(e) {
+        const value = this.value;
+        const cursorPos = this.selectionStart;
+        const textBeforeCursor = value.substring(0, cursorPos);
+
+        // Look for @mention pattern
+        const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9._@-]*)$/);
+
+        if (mentionMatch) {
+            console.log('[MENTION] Detected @ mention:', mentionMatch);
+            currentMentionStart = cursorPos - mentionMatch[0].length;
+            currentMentionQuery = mentionMatch[1];
+
+            if (currentMentionQuery.length >= 0) {
+                console.log('[MENTION] Searching for query:', currentMentionQuery);
+                searchMentions(currentMentionQuery);
+            }
+        } else {
+            hideMentionDropdown();
+        }
+    });
+
+    // Handle keyboard navigation
+    textarea.addEventListener('keydown', function(e) {
+        if (!dropdown.classList.contains('hidden')) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, mentionUsers.length - 1);
+                updateSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (selectedIndex >= 0 && selectedIndex < mentionUsers.length) {
+                    e.preventDefault();
+                    selectMention(mentionUsers[selectedIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                hideMentionDropdown();
+            }
+        }
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!textarea.contains(e.target) && !dropdown.contains(e.target)) {
+            hideMentionDropdown();
+        }
+    });
+
+    // Search users and groups function
+    async function searchMentions(query) {
+        try {
+            console.log('[MENTION] Fetching suggestions for query:', query);
+            const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+            console.log('[MENTION] Fetching from URL:', url);
+
+            const response = await fetch(url);
+            console.log('[MENTION] Response status:', response.status);
+
+            const data = await response.json();
+            console.log('[MENTION] Response data:', data);
+
+            if (data.suggestions && data.suggestions.length > 0) {
+                console.log('[MENTION] Found', data.suggestions.length, 'suggestions');
+                mentionUsers = data.suggestions;
+                showMentionDropdown(data.suggestions);
+            } else {
+                console.log('[MENTION] No suggestions found');
+                hideMentionDropdown();
+            }
+        } catch (error) {
+            console.error('[MENTION] Error searching mentions:', error);
+            hideMentionDropdown();
+        }
+    }
+
+    // Show mention dropdown
+    function showMentionDropdown(suggestions) {
+        mentionList.innerHTML = '';
+        selectedIndex = -1;
+
+        suggestions.forEach((item, index) => {
+            const element = document.createElement('div');
+            element.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
+
+            if (item.type === 'user') {
+                element.innerHTML = `
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        ${item.avatar}
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">${item.name}</div>
+                        ${item.email !== item.name ? `<div class="text-sm text-gray-500">${item.email}</div>` : ''}
+                    </div>
+                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">User</div>
+                `;
+            } else if (item.type === 'group') {
+                element.innerHTML = `
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        <i class="fas fa-users text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">@${item.name}</div>
+                        <div class="text-sm text-gray-500">${item.description}</div>
+                    </div>
+                    <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Group</div>
+                `;
+            }
+
+            element.addEventListener('click', () => selectMention(item));
+            mentionList.appendChild(element);
+        });
+
+        dropdown.classList.remove('hidden');
+
+        // Position dropdown
+        positionDropdown();
+    }
+
+    // Hide mention dropdown
+    function hideMentionDropdown() {
+        dropdown.classList.add('hidden');
+        selectedIndex = -1;
+        mentionUsers = [];
+    }
+
+    // Update selection highlighting
+    function updateSelection() {
+        const items = mentionList.querySelectorAll('div');
+        items.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.classList.add('bg-blue-100');
+                item.classList.remove('hover:bg-gray-100');
+            } else {
+                item.classList.remove('bg-blue-100');
+                item.classList.add('hover:bg-gray-100');
+            }
+        });
+    }
+
+    // Select a user
+    function selectMention(item) {
+        const value = textarea.value;
+        const beforeMention = value.substring(0, currentMentionStart);
+        const afterCursor = value.substring(textarea.selectionStart);
+
+        // Insert the mention (both users and groups need @)
+        const mentionText = `@${item.name}`;
+        const newValue = beforeMention + `${mentionText} ` + afterCursor;
+        textarea.value = newValue;
+
+        // Set cursor position after the mention
+        const newCursorPos = currentMentionStart + mentionText.length + 1;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+        // Trigger input event to update character counter
+        textarea.dispatchEvent(new Event('input'));
+
+        hideMentionDropdown();
+        textarea.focus();
+    }
+
+    // Position dropdown relative to textarea
+    function positionDropdown() {
+        const textareaRect = textarea.getBoundingClientRect();
+        const containerRect = textarea.parentElement.getBoundingClientRect();
+
+        // Position dropdown below the textarea
+        dropdown.style.top = (textareaRect.bottom - containerRect.top + 5) + 'px';
+        dropdown.style.left = '0px';
+        dropdown.style.width = '100%';
+    }
+}
 
 // Enhanced Comment System JavaScript
 document.addEventListener('DOMContentLoaded', function() {
@@ -9491,186 +9686,6 @@ document.addEventListener('DOMContentLoaded', function() {
         messageTextarea.setAttribute('data-mention-initialized', 'true');
     }
 });
-
-// @mention Autocomplete Functionality
-function initializeMentionAutocomplete(textarea) {
-    const dropdown = document.getElementById('mentionDropdown');
-    const mentionList = document.getElementById('mentionList');
-    let currentMentionStart = -1;
-    let currentMentionQuery = '';
-    let selectedIndex = -1;
-    let mentionUsers = [];
-    
-    if (!dropdown || !mentionList) {
-        console.warn('Mention dropdown elements not found');
-        return;
-    }
-    
-    // Handle input events
-    textarea.addEventListener('input', function(e) {
-        const value = this.value;
-        const cursorPos = this.selectionStart;
-        const textBeforeCursor = value.substring(0, cursorPos);
-        
-        // Look for @mention pattern
-        const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9._@-]*)$/);
-        
-        if (mentionMatch) {
-            currentMentionStart = cursorPos - mentionMatch[0].length;
-            currentMentionQuery = mentionMatch[1];
-            
-            if (currentMentionQuery.length >= 0) {
-                searchMentions(currentMentionQuery);
-            }
-        } else {
-            hideMentionDropdown();
-        }
-    });
-    
-    // Handle keyboard navigation
-    textarea.addEventListener('keydown', function(e) {
-        if (!dropdown.classList.contains('hidden')) {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                selectedIndex = Math.min(selectedIndex + 1, mentionUsers.length - 1);
-                updateSelection();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                selectedIndex = Math.max(selectedIndex - 1, -1);
-                updateSelection();
-            } else if (e.key === 'Enter' || e.key === 'Tab') {
-                if (selectedIndex >= 0 && selectedIndex < mentionUsers.length) {
-                    e.preventDefault();
-                    selectMention(mentionUsers[selectedIndex]);
-                }
-            } else if (e.key === 'Escape') {
-                hideMentionDropdown();
-            }
-        }
-    });
-    
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!textarea.contains(e.target) && !dropdown.contains(e.target)) {
-            hideMentionDropdown();
-        }
-    });
-    
-    // Search users and groups function
-    async function searchMentions(query) {
-        try {
-            const response = await fetch(`/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
-            
-            if (data.suggestions && data.suggestions.length > 0) {
-                mentionUsers = data.suggestions;
-                showMentionDropdown(data.suggestions);
-            } else {
-                hideMentionDropdown();
-            }
-        } catch (error) {
-            console.error('Error searching mentions:', error);
-            hideMentionDropdown();
-        }
-    }
-    
-    // Show mention dropdown
-    function showMentionDropdown(suggestions) {
-        mentionList.innerHTML = '';
-        selectedIndex = -1;
-        
-        suggestions.forEach((item, index) => {
-            const element = document.createElement('div');
-            element.className = 'px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center space-x-3';
-            
-            if (item.type === 'user') {
-                element.innerHTML = `
-                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
-                        ${item.avatar}
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-medium text-gray-900">${item.name}</div>
-                        ${item.email !== item.name ? `<div class="text-sm text-gray-500">${item.email}</div>` : ''}
-                    </div>
-                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">User</div>
-                `;
-            } else if (item.type === 'group') {
-                element.innerHTML = `
-                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
-                        <i class="fas fa-users text-xs"></i>
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-medium text-gray-900">@${item.name}</div>
-                        <div class="text-sm text-gray-500">${item.description}</div>
-                    </div>
-                    <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Group</div>
-                `;
-            }
-            
-            element.addEventListener('click', () => selectMention(item));
-            mentionList.appendChild(element);
-        });
-        
-        dropdown.classList.remove('hidden');
-        
-        // Position dropdown
-        positionDropdown();
-    }
-    
-    // Hide mention dropdown
-    function hideMentionDropdown() {
-        dropdown.classList.add('hidden');
-        selectedIndex = -1;
-        mentionUsers = [];
-    }
-    
-    // Update selection highlighting
-    function updateSelection() {
-        const items = mentionList.querySelectorAll('div');
-        items.forEach((item, index) => {
-            if (index === selectedIndex) {
-                item.classList.add('bg-blue-100');
-                item.classList.remove('hover:bg-gray-100');
-            } else {
-                item.classList.remove('bg-blue-100');
-                item.classList.add('hover:bg-gray-100');
-            }
-        });
-    }
-    
-    // Select a user
-    function selectMention(item) {
-        const value = textarea.value;
-        const beforeMention = value.substring(0, currentMentionStart);
-        const afterCursor = value.substring(textarea.selectionStart);
-        
-        // Insert the mention (both users and groups need @)
-        const mentionText = `@${item.name}`;
-        const newValue = beforeMention + `${mentionText} ` + afterCursor;
-        textarea.value = newValue;
-        
-        // Set cursor position after the mention
-        const newCursorPos = currentMentionStart + mentionText.length + 1;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-        
-        // Trigger input event to update character counter
-        textarea.dispatchEvent(new Event('input'));
-        
-        hideMentionDropdown();
-        textarea.focus();
-    }
-    
-    // Position dropdown relative to textarea
-    function positionDropdown() {
-        const textareaRect = textarea.getBoundingClientRect();
-        const containerRect = textarea.parentElement.getBoundingClientRect();
-        
-        // Position dropdown below the textarea
-        dropdown.style.top = (textareaRect.bottom - containerRect.top + 5) + 'px';
-        dropdown.style.left = '0px';
-        dropdown.style.width = '100%';
-    }
-}
 
 // Comment action handlers
 function replyToComment(commentId) {
