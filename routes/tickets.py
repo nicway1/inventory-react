@@ -2455,6 +2455,10 @@ def delete_queue(queue_id):
             if ticket_count > 0:
                 return jsonify({'success': False, 'error': f'Cannot delete queue with {ticket_count} tickets. Please move or delete tickets first.'}), 400
 
+            # Delete all company queue permissions for this queue
+            from models.company_queue_permission import CompanyQueuePermission
+            db_session.query(CompanyQueuePermission).filter(CompanyQueuePermission.queue_id == queue_id).delete()
+
             # Delete the queue
             db_session.delete(queue)
             db_session.commit()
