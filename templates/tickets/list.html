@@ -520,26 +520,17 @@
                     <div id="queueCardsWrapper" class="queue-cards-wrapper collapsed">
                         <!-- Queue Cards -->
                         {% for queue in queues %}
-                        {% set queue_tickets = [] %}
-                        {% for ticket in tickets %}
-                            {% if ticket.queue_id == queue.id %}
-                                {% set _ = queue_tickets.append(ticket) %}
-                            {% endif %}
-                        {% endfor %}
-                        {% set total_count = queue_tickets|length %}
-                        {% set open_count = namespace(count=0) %}
-                        {% for ticket in queue_tickets %}
-                            {% if ticket.status and ticket.status.value in ['New', 'In Progress', 'On Hold'] %}
-                                {% set open_count.count = open_count.count + 1 %}
-                            {% endif %}
-                        {% endfor %}
                         {% set color_index = loop.index0 % 8 %}
+                        {% set total_count = queue_ticket_counts[queue.id].total if queue_ticket_counts and queue.id in queue_ticket_counts else 0 %}
+                        {% set open_count = queue_ticket_counts[queue.id].open if queue_ticket_counts and queue.id in queue_ticket_counts else 0 %}
                         <div class="queue-card queue-color-{{ color_index }}" onclick="filterByQueue('{{ queue.name|e }}')" data-queue="{{ queue.name|e }}" style="position: relative;">
+                            {% if user.is_super_admin or user.is_developer %}
                             <button onclick="event.stopPropagation(); deleteQueue({{ queue.id }}, '{{ queue.name|e }}')" class="queue-delete-btn" title="Delete Queue">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                             </button>
+                            {% endif %}
                             <div class="queue-card-header">
                                 <div class="queue-icon queue-icon-{{ color_index }}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -555,7 +546,7 @@
                                 </div>
                                 <div class="stat-divider"></div>
                                 <div class="stat-item">
-                                    <div class="stat-value stat-open">{{ open_count.count }}</div>
+                                    <div class="stat-value stat-open">{{ open_count }}</div>
                                     <div class="stat-label">Open</div>
                                 </div>
                             </div>

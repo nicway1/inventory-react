@@ -175,7 +175,31 @@ def list_tickets():
     finally:
         db_session.close()
 
-    return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues)
+    # Calculate queue ticket counts (show all tickets in queue, not filtered by user)
+    # This matches the behavior of the home page queue cards
+    db_session = db_manager.get_session()
+    queue_ticket_counts = {}
+    try:
+        for queue in queues:
+            # Count ALL tickets for this queue
+            total_count = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+
+            # Count OPEN tickets (non-resolved)
+            from models.ticket import TicketStatus
+            open_count = db_session.query(Ticket).filter(
+                Ticket.queue_id == queue.id,
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            ).count()
+
+            queue_ticket_counts[queue.id] = {
+                'total': total_count,
+                'open': open_count
+            }
+    finally:
+        db_session.close()
+
+    return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts)
 
 @tickets_bp.route('/export/csv')
 @login_required
