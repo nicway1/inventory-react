@@ -8878,7 +8878,7 @@ def resolve_ticket_issue(ticket_id, issue_id):
         db_session.commit()
         
         logger.info(f"Issue {issue_id} resolved by user {session.get('user_id')}")
-        
+
         return jsonify({
             'success': True,
             'message': 'Issue resolved successfully',
@@ -8890,3 +8890,190 @@ def resolve_ticket_issue(ticket_id, issue_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+@tickets_bp.route('/manager')
+@login_required
+def ticket_manager():
+    """Ticket Manager - Mass assign/reassign queues and other bulk operations"""
+    user_id = session['user_id']
+    user = db_manager.get_user(user_id)
+
+    # Only SUPER_ADMIN and DEVELOPER can access ticket manager
+    if not (user.is_super_admin or user.is_developer):
+        flash('Access denied. Only Super Admins and Developers can access the Ticket Manager.', 'error')
+        return redirect(url_for('tickets.list_tickets'))
+
+    db_session = db_manager.get_session()
+    try:
+        from models.queue import Queue
+        from models.user import User
+        from sqlalchemy import func
+
+        # Get all tickets with queue info
+        tickets = db_session.query(Ticket)\
+            .options(joinedload(Ticket.queue))\
+            .options(joinedload(Ticket.assigned_to))\
+            .options(joinedload(Ticket.requester))\
+            .order_by(Ticket.created_at.desc())\
+            .all()
+
+        # Get all queues
+        queues = db_session.query(Queue).order_by(Queue.name).all()
+
+        # Get all users for assignment
+        users = db_session.query(User).order_by(User.username).all()
+
+        # Get ticket counts by queue
+        queue_counts = db_session.query(
+            Ticket.queue_id,
+            func.count(Ticket.id).label('count')
+        ).group_by(Ticket.queue_id).all()
+
+        queue_count_dict = {qc[0]: qc[1] for qc in queue_counts}
+
+        # Count tickets without queue
+        no_queue_count = db_session.query(Ticket).filter(Ticket.queue_id.is_(None)).count()
+
+        return render_template('tickets/manager.html',
+                             tickets=tickets,
+                             queues=queues,
+                             users=users,
+                             queue_count_dict=queue_count_dict,
+                             no_queue_count=no_queue_count,
+                             user=user)
+    finally:
+        db_session.close()
+
+@tickets_bp.route('/manager/bulk-assign-queue', methods=['POST'])
+@login_required
+def bulk_assign_queue():
+    """Bulk assign tickets to a queue"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN and DEVELOPER can perform bulk operations
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        ticket_ids = data.get('ticket_ids', [])
+        queue_id = data.get('queue_id')
+
+        if not ticket_ids:
+            return jsonify({'success': False, 'error': 'No tickets selected'}), 400
+
+        # queue_id can be None to unassign from queue
+        if queue_id == '':
+            queue_id = None
+        elif queue_id:
+            queue_id = int(queue_id)
+
+        db_session = db_manager.get_session()
+        try:
+            from models.queue import Queue
+
+            # Verify queue exists if queue_id is provided
+            if queue_id:
+                queue = db_session.query(Queue).get(queue_id)
+                if not queue:
+                    return jsonify({'success': False, 'error': 'Queue not found'}), 404
+                queue_name = queue.name
+            else:
+                queue_name = None
+
+            # Update tickets
+            updated_count = 0
+            for ticket_id in ticket_ids:
+                ticket = db_session.query(Ticket).get(ticket_id)
+                if ticket:
+                    ticket.queue_id = queue_id
+                    updated_count += 1
+
+            db_session.commit()
+
+            if queue_name:
+                message = f'Successfully assigned {updated_count} ticket(s) to queue: {queue_name}'
+            else:
+                message = f'Successfully unassigned {updated_count} ticket(s) from queue'
+
+            logging.info(f"Bulk queue assignment: {updated_count} tickets to queue {queue_id} by user {user.username}")
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'updated_count': updated_count
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error in bulk queue assignment: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@tickets_bp.route('/manager/bulk-assign-user', methods=['POST'])
+@login_required
+def bulk_assign_user():
+    """Bulk assign tickets to a user"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN and DEVELOPER can perform bulk operations
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        ticket_ids = data.get('ticket_ids', [])
+        user_id = data.get('user_id')
+
+        if not ticket_ids:
+            return jsonify({'success': False, 'error': 'No tickets selected'}), 400
+
+        # user_id can be None to unassign from user
+        if user_id == '':
+            user_id = None
+        elif user_id:
+            user_id = int(user_id)
+
+        db_session = db_manager.get_session()
+        try:
+            from models.user import User
+
+            # Verify user exists if user_id is provided
+            if user_id:
+                assigned_user = db_session.query(User).get(user_id)
+                if not assigned_user:
+                    return jsonify({'success': False, 'error': 'User not found'}), 404
+                user_name = assigned_user.username
+            else:
+                user_name = None
+
+            # Update tickets
+            updated_count = 0
+            for ticket_id in ticket_ids:
+                ticket = db_session.query(Ticket).get(ticket_id)
+                if ticket:
+                    ticket.assigned_to_id = user_id
+                    updated_count += 1
+
+            db_session.commit()
+
+            if user_name:
+                message = f'Successfully assigned {updated_count} ticket(s) to user: {user_name}'
+            else:
+                message = f'Successfully unassigned {updated_count} ticket(s) from user'
+
+            logging.info(f"Bulk user assignment: {updated_count} tickets to user {user_id} by user {user.username}")
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'updated_count': updated_count
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error in bulk user assignment: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500

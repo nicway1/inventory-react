@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket Manager{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Ticket Manager</h1>
+                <p class="text-gray-600 mt-1">Mass assign/reassign queues and users for tickets</p>
+            </div>
+            <a href="{{ url_for('tickets.list_tickets') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Tickets
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Total Tickets</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ tickets|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Total Queues</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ queues|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">No Queue Assigned</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ no_queue_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Selected</p>
+                    <p class="text-2xl font-bold text-gray-900" id="selectedCount">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Bulk Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Assign to Queue</label>
+                <div class="flex gap-2">
+                    <select id="bulkQueueSelect" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select Queue --</option>
+                        <option value="">Unassign Queue</option>
+                        {% for queue in queues %}
+                        <option value="{{ queue.id }}">{{ queue.name }} ({{ queue_count_dict.get(queue.id, 0) }} tickets)</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="bulkAssignQueue()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                        Assign
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Assign to User</label>
+                <div class="flex gap-2">
+                    <select id="bulkUserSelect" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select User --</option>
+                        <option value="">Unassign User</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.username }} ({{ u.user_type.value }})</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="bulkAssignUser()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                        Assign
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Quick Actions</label>
+                <div class="flex gap-2">
+                    <button onclick="selectAll()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        Select All
+                    </button>
+                    <button onclick="clearSelection()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Filters</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Queue Filter</label>
+                <select id="filterQueue" onchange="applyFilters()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Queues</option>
+                    <option value="null">No Queue</option>
+                    {% for queue in queues %}
+                    <option value="{{ queue.id }}">{{ queue.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
+                <select id="filterStatus" onchange="applyFilters()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Status</option>
+                    <option value="NEW">New</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="RESOLVED_DELIVERED">Resolved (Delivered)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Search ticket ID or subject..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">&nbsp;</label>
+                <button onclick="clearFilters()" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200" id="ticketsTable">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for ticket in tickets %}
+                    <tr class="hover:bg-gray-50 ticket-row"
+                        data-ticket-id="{{ ticket.id }}"
+                        data-queue-id="{{ ticket.queue_id if ticket.queue_id else 'null' }}"
+                        data-status="{{ ticket.status.value if ticket.status else '' }}"
+                        data-subject="{{ ticket.subject or '' }}">
+                        <td class="px-4 py-3">
+                            <input type="checkbox" class="ticket-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="{{ ticket.id }}" onchange="updateSelectedCount()">
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium" target="_blank">
+                                {{ ticket.display_id if ticket.display_id else ticket.id }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="max-w-xs truncate">{{ ticket.subject or 'Untitled' }}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if ticket.status.value == 'NEW' %}bg-blue-100 text-blue-800
+                                {% elif ticket.status.value == 'IN_PROGRESS' %}bg-yellow-100 text-yellow-800
+                                {% elif ticket.status.value == 'RESOLVED' or ticket.status.value == 'RESOLVED_DELIVERED' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ ticket.status.value if ticket.status else 'Unknown' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if ticket.queue %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                {{ ticket.queue.name }}
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                No Queue
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {{ ticket.assigned_to.username if ticket.assigned_to else '-' }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedTickets = new Set();
+
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+        selectedTickets.clear();
+        checkboxes.forEach(cb => selectedTickets.add(parseInt(cb.value)));
+        document.getElementById('selectedCount').textContent = selectedTickets.size;
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.ticket-checkbox:not([style*="display: none"])');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (allCheckboxes.length > 0) {
+            const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = !allChecked && selectedTickets.size > 0;
+        }
+    }
+
+    function toggleSelectAll() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const visibleCheckboxes = document.querySelectorAll('.ticket-row:not([style*="display: none"]) .ticket-checkbox');
+        visibleCheckboxes.forEach(cb => {
+            cb.checked = selectAllCheckbox.checked;
+        });
+        updateSelectedCount();
+    }
+
+    function selectAll() {
+        const visibleCheckboxes = document.querySelectorAll('.ticket-row:not([style*="display: none"]) .ticket-checkbox');
+        visibleCheckboxes.forEach(cb => cb.checked = true);
+        updateSelectedCount();
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.ticket-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAllCheckbox').checked = false;
+        updateSelectedCount();
+    }
+
+    function applyFilters() {
+        const queueFilter = document.getElementById('filterQueue').value;
+        const statusFilter = document.getElementById('filterStatus').value;
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+
+        const rows = document.querySelectorAll('.ticket-row');
+        rows.forEach(row => {
+            const queueId = row.getAttribute('data-queue-id');
+            const status = row.getAttribute('data-status');
+            const subject = row.getAttribute('data-subject').toLowerCase();
+            const ticketId = row.querySelector('a').textContent.toLowerCase();
+
+            let showRow = true;
+
+            // Queue filter
+            if (queueFilter && queueFilter !== queueId) {
+                showRow = false;
+            }
+
+            // Status filter
+            if (statusFilter && statusFilter !== status) {
+                showRow = false;
+            }
+
+            // Search filter
+            if (searchText && !ticketId.includes(searchText) && !subject.includes(searchText)) {
+                showRow = false;
+            }
+
+            row.style.display = showRow ? '' : 'none';
+        });
+
+        updateSelectedCount();
+    }
+
+    function clearFilters() {
+        document.getElementById('filterQueue').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+    }
+
+    async function bulkAssignQueue() {
+        if (selectedTickets.size === 0) {
+            alert('Please select at least one ticket');
+            return;
+        }
+
+        const queueId = document.getElementById('bulkQueueSelect').value;
+        const queueName = document.getElementById('bulkQueueSelect').selectedOptions[0].text;
+
+        if (!confirm(`Are you sure you want to ${queueId ? 'assign ' + selectedTickets.size + ' ticket(s) to queue: ' + queueName : 'unassign ' + selectedTickets.size + ' ticket(s) from queue'}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("tickets.bulk_assign_queue") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ticket_ids: Array.from(selectedTickets),
+                    queue_id: queueId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function bulkAssignUser() {
+        if (selectedTickets.size === 0) {
+            alert('Please select at least one ticket');
+            return;
+        }
+
+        const userId = document.getElementById('bulkUserSelect').value;
+        const userName = document.getElementById('bulkUserSelect').selectedOptions[0].text;
+
+        if (!confirm(`Are you sure you want to ${userId ? 'assign ' + selectedTickets.size + ' ticket(s) to user: ' + userName : 'unassign ' + selectedTickets.size + ' ticket(s) from user'}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("tickets.bulk_assign_user") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ticket_ids: Array.from(selectedTickets),
+                    user_id: userId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}

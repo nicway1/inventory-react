@@ -843,6 +843,15 @@
                 <a href="#recently-viewed" class="sf-tab" onclick="filterTickets('recent'); return false;">Recently Viewed</a>
             </div>
             <div class="sf-page-actions" style="margin-right: 1rem;">
+                {% if user.is_super_admin or user.is_developer %}
+                <a href="{{ url_for('tickets.ticket_manager') }}"
+                   class="sf-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                    </svg>
+                    Ticket Manager
+                </a>
+                {% endif %}
                 <a href="{{ url_for('tickets.create_ticket') }}"
                    class="sf-button primary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
