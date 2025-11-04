@@ -206,7 +206,12 @@ class TicketStore:
             if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
                 return query.order_by(Ticket.created_at.desc()).all()
 
-            # Country admin and regular users only see their own tickets
+            # COUNTRY_ADMIN, SUPERVISOR, and ADMIN can see all tickets
+            # (queue permissions will filter which tickets they can actually access)
+            if user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR, UserType.ADMIN]:
+                return query.order_by(Ticket.created_at.desc()).all()
+
+            # CLIENT and regular users only see their own tickets
             return query.filter(
                 (Ticket.requester_id == user_id) |
                 (Ticket.assigned_to_id == user_id)
