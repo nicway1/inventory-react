@@ -4,10 +4,12 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Support Queues</h1>
-        <button onclick="toggleCreateQueueForm()" 
+        {% if user.is_super_admin or user.is_developer %}
+        <button onclick="toggleCreateQueueForm()"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
             Create New Queue
         </button>
+        {% endif %}
     </div>
 
     <!-- Create Queue Form (hidden by default) -->

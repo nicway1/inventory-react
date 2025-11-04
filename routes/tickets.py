@@ -2327,12 +2327,12 @@ def create_queue():
     try:
         user = db_manager.get_user(session['user_id'])
 
-        # Only admins can create queues
-        if not user.is_admin:
+        # Only SUPER_ADMIN and DEVELOPER can create queues
+        if not (user.is_super_admin or user.is_developer):
             # Check if it's a JSON request
             if request.is_json:
-                return jsonify({'success': False, 'error': 'Permission denied'}), 403
-            flash('Permission denied', 'error')
+                return jsonify({'success': False, 'error': 'Permission denied. Only Super Admins and Developers can create queues.'}), 403
+            flash('Permission denied. Only Super Admins and Developers can create queues.', 'error')
             return redirect(url_for('tickets.list_queues'))
 
         # Handle both JSON and form data
@@ -2405,9 +2405,9 @@ def delete_queue(queue_id):
     try:
         user = db_manager.get_user(session['user_id'])
 
-        # Only admins can delete queues
-        if not user.is_admin:
-            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+        # Only SUPER_ADMIN and DEVELOPER can delete queues
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied. Only Super Admins and Developers can delete queues.'}), 403
 
         db_session = db_manager.get_session()
         try:
