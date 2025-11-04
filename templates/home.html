@@ -93,6 +93,7 @@
         {% endif %}
 
         <!-- Development Card -->
+        {% if user.user_type.value not in ['COUNTRY_ADMIN', 'CLIENT'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,6 +106,7 @@
                 <a href="{{ url_for('development.dashboard') }}" class="block text-purple-600 hover:text-purple-800">Dashboard →</a>
             </div>
         </div>
+        {% endif %}
 
         <!-- Feedback Card -->
         {% if user.user_type.value in ['COUNTRY_ADMIN', 'CLIENT', 'SUPERVISOR'] %}
@@ -153,7 +155,7 @@
         {% endif %}
 
         <!-- Manage Customers Card -->
-        {% if user.user_type.value != 'CLIENT' %}
+        {% if user.user_type.value not in ['CLIENT', 'COUNTRY_ADMIN'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
