@@ -48,7 +48,7 @@
         </div>
 
         <!-- Queue Management Card -->
-        {% if show_queue_cards %}
+        {% if show_queue_cards and user.user_type.value not in ['COUNTRY_ADMIN', 'CLIENT'] %}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center mb-4">
                 <svg class="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
