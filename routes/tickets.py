@@ -127,14 +127,21 @@ def list_tickets():
     
     # Filter tickets based on queue access permissions
     if not user.is_super_admin and not user.is_developer:
+        logging.info(f"Filtering tickets for user {user.username} (type: {user.user_type.value})")
+        logging.info(f"Total tickets before filtering: {len(tickets)}")
         filtered_tickets = []
         for ticket in tickets:
             if ticket.queue_id and user.can_access_queue(ticket.queue_id):
                 filtered_tickets.append(ticket)
+                logging.debug(f"✓ Ticket {ticket.id} allowed (queue: {ticket.queue.name if ticket.queue else 'None'})")
             # If ticket has no queue, include it (default behavior)
             elif not ticket.queue_id:
                 filtered_tickets.append(ticket)
+                logging.debug(f"✓ Ticket {ticket.id} allowed (no queue)")
+            else:
+                logging.debug(f"✗ Ticket {ticket.id} denied (queue: {ticket.queue.name if ticket.queue else 'None'})")
         tickets = filtered_tickets
+        logging.info(f"Total tickets after filtering: {len(tickets)}")
 
     # Get queues for the filter dropdown, filtered by user permissions
     from models.queue import Queue
@@ -164,8 +171,11 @@ def list_tickets():
             logging.info(f"Loaded {len(queues)} queues for SUPER_ADMIN/DEVELOPER (all queues)")
         else:
             # Other users only see queues they have permission to access
-            queues = [queue for queue, count in queues_with_counts if user.can_access_queue(queue.id)]
-            logging.info(f"Loaded {len(queues)} queues based on user permissions")
+            all_queues = [queue for queue, count in queues_with_counts]
+            queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
+            logging.info(f"Loaded {len(queues)}/{len(all_queues)} queues based on user permissions")
+            for queue in queues:
+                logging.debug(f"✓ Queue allowed: {queue.name}")
 
         for queue in queues:
             logging.info(f"  Queue: {queue.name} (ID: {queue.id})")
