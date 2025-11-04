@@ -131,15 +131,15 @@ def list_tickets():
         logging.info(f"Total tickets before filtering: {len(tickets)}")
         filtered_tickets = []
         for ticket in tickets:
+            # Only show tickets that have a queue AND the user has access to that queue
             if ticket.queue_id and user.can_access_queue(ticket.queue_id):
                 filtered_tickets.append(ticket)
                 logging.debug(f"✓ Ticket {ticket.id} allowed (queue: {ticket.queue.name if ticket.queue else 'None'})")
-            # If ticket has no queue, include it (default behavior)
+            # For COUNTRY_ADMIN users, exclude tickets without a queue (unassigned tickets)
             elif not ticket.queue_id:
-                filtered_tickets.append(ticket)
-                logging.debug(f"✓ Ticket {ticket.id} allowed (no queue)")
+                logging.debug(f"✗ Ticket {ticket.id} denied (no queue - unassigned)")
             else:
-                logging.debug(f"✗ Ticket {ticket.id} denied (queue: {ticket.queue.name if ticket.queue else 'None'})")
+                logging.debug(f"✗ Ticket {ticket.id} denied (queue: {ticket.queue.name if ticket.queue else 'None'} - no permission)")
         tickets = filtered_tickets
         logging.info(f"Total tickets after filtering: {len(tickets)}")
 
