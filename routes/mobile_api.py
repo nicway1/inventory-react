@@ -509,17 +509,29 @@ def get_ticket_detail(ticket_id):
 @mobile_auth_required  
 def get_inventory():
     """
-    Get inventory assets
-    
-    GET /api/mobile/v1/inventory?page=1&limit=20&status=DEPLOYED&search=laptop
+    Get inventory assets with optional filters
+
+    GET /api/mobile/v1/inventory?page=1&limit=20&status=DEPLOYED&search=laptop&manufacturer=Apple&country=Singapore
     Headers: Authorization: Bearer <token>
-    
+
+    Query Parameters:
+        page (int): Page number (default: 1)
+        limit (int): Items per page (default: 20, max: 100)
+        status (str): Filter by asset status (e.g., DEPLOYED, IN_STOCK)
+        search (str): Text search across name, asset_tag, serial_num, model
+        manufacturer (str): Filter by manufacturer (case-insensitive partial match)
+        category (str): Filter by category (case-insensitive partial match)
+        country (str): Filter by country (exact match)
+        asset_type (str): Filter by asset type
+        location_id (int): Filter by location ID
+        has_assignee (str): Filter by assignment status ('true' or 'false')
+
     Response: {
         "success": true,
         "assets": [...],
         "pagination": {
             "page": 1,
-            "limit": 20, 
+            "limit": 20,
             "total": 100,
             "pages": 5
         }
@@ -538,26 +550,86 @@ def get_inventory():
         # Get parameters
         page = request.args.get('page', 1, type=int)
         limit = min(request.args.get('limit', 20, type=int), 100)
+
+        # Filter parameters
         status_filter = request.args.get('status', None)
         search = request.args.get('search', None)
-        
+        manufacturer_filter = request.args.get('manufacturer', None)
+        category_filter = request.args.get('category', None)
+        country_filter = request.args.get('country', None)
+        asset_type_filter = request.args.get('asset_type', None)
+        location_id_filter = request.args.get('location_id', None, type=int)
+        has_assignee_filter = request.args.get('has_assignee', None)
+
+        # Log active filters for debugging
+        active_filters = []
+        if status_filter:
+            active_filters.append(f"status={status_filter}")
+        if manufacturer_filter:
+            active_filters.append(f"manufacturer={manufacturer_filter}")
+        if category_filter:
+            active_filters.append(f"category={category_filter}")
+        if country_filter:
+            active_filters.append(f"country={country_filter}")
+        if asset_type_filter:
+            active_filters.append(f"asset_type={asset_type_filter}")
+        if location_id_filter:
+            active_filters.append(f"location_id={location_id_filter}")
+        if has_assignee_filter:
+            active_filters.append(f"has_assignee={has_assignee_filter}")
+        if search:
+            active_filters.append(f"search={search}")
+
+        if active_filters:
+            logger.info(f"Mobile inventory filters: {', '.join(active_filters)}")
+
         db_session = db_manager.get_session()
         try:
             # Build query based on user permissions
             query = db_session.query(Asset)
-            
+
             # Apply country restrictions for COUNTRY_ADMIN
             if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
                 query = query.filter(Asset.country == user.assigned_country.value)
-            
+
             # Apply status filter
             if status_filter:
                 try:
                     status_enum = AssetStatus[status_filter.upper()]
                     query = query.filter(Asset.status == status_enum)
                 except KeyError:
+                    logger.warning(f"Invalid status filter: {status_filter}")
                     pass
-            
+
+            # Apply manufacturer filter (case-insensitive partial match)
+            if manufacturer_filter:
+                query = query.filter(Asset.manufacturer.ilike(f"%{manufacturer_filter}%"))
+
+            # Apply category filter (case-insensitive partial match)
+            if category_filter:
+                query = query.filter(Asset.category.ilike(f"%{category_filter}%"))
+
+            # Apply country filter (exact match, unless it's from user restriction)
+            if country_filter:
+                query = query.filter(Asset.country == country_filter)
+
+            # Apply asset_type filter
+            if asset_type_filter:
+                query = query.filter(Asset.asset_type == asset_type_filter)
+
+            # Apply location filter
+            if location_id_filter:
+                query = query.filter(Asset.location_id == location_id_filter)
+
+            # Apply assignee filter
+            if has_assignee_filter is not None:
+                if has_assignee_filter.lower() == 'true':
+                    # Show only assigned assets
+                    query = query.filter(Asset.assigned_to_id.isnot(None))
+                elif has_assignee_filter.lower() == 'false':
+                    # Show only unassigned assets
+                    query = query.filter(Asset.assigned_to_id.is_(None))
+
             # Apply search filter
             if search:
                 search_term = f"%{search}%"
