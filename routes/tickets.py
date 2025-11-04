@@ -136,7 +136,7 @@ def list_tickets():
                 filtered_tickets.append(ticket)
         tickets = filtered_tickets
 
-    # Get all queues for the filter dropdown, sorted by ticket count (descending)
+    # Get queues for the filter dropdown, filtered by user permissions
     from models.queue import Queue
     from models.ticket import Ticket
     from sqlalchemy import func
@@ -157,12 +157,18 @@ def list_tickets():
             Queue.name
         ).all()
 
-        # Extract just the Queue objects
-        queues = [queue for queue, count in queues_with_counts]
+        # Filter queues based on user permissions
+        # SUPER_ADMIN and DEVELOPER can see all queues
+        if user.is_super_admin or user.is_developer:
+            queues = [queue for queue, count in queues_with_counts]
+            logging.info(f"Loaded {len(queues)} queues for SUPER_ADMIN/DEVELOPER (all queues)")
+        else:
+            # Other users only see queues they have permission to access
+            queues = [queue for queue, count in queues_with_counts if user.can_access_queue(queue.id)]
+            logging.info(f"Loaded {len(queues)} queues based on user permissions")
 
-        logging.info(f"Loaded {len(queues)} queues sorted by ticket count")
-        for queue, count in queues_with_counts:
-            logging.info(f"  Queue: {queue.name} (ID: {queue.id}, Tickets: {count})")
+        for queue in queues:
+            logging.info(f"  Queue: {queue.name} (ID: {queue.id})")
     except Exception as e:
         logging.error(f"Error loading queues: {str(e)}")
         queues = []
