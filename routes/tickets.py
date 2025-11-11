@@ -2140,8 +2140,8 @@ def view_ticket(ticket_id):
         # Filter assets based on user type and permissions
         if current_user.is_super_admin:
             assets = assets_query.all()
-        elif current_user.user_type == UserType.COUNTRY_ADMIN and current_user.assigned_country:
-            assets = assets_query.filter(Asset.country == current_user.assigned_country.value).all()
+        elif current_user.user_type == UserType.COUNTRY_ADMIN and current_user.assigned_countries:
+            assets = assets_query.filter(Asset.country == current_user.assigned_country).all()
         else:
             assets = []
         

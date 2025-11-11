@@ -176,8 +176,8 @@ def index():
         # Apply filtering to asset counts for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:
             asset_query = db.session.query(Asset)
-            if user.assigned_country:
-                asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+            if user.assigned_countries:
+                asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
             if user.company_id:
                 asset_query = asset_query.filter(Asset.company_id == user.company_id)
             tech_assets_count = asset_query.count()
@@ -198,8 +198,8 @@ def index():
         # Apply filtering to total tickets for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:
             total_ticket_query = db.session.query(Ticket)
-            if user.assigned_country:
-                total_ticket_query = total_ticket_query.filter(Ticket.country == user.assigned_country.value)
+            if user.assigned_countries:
+                total_ticket_query = total_ticket_query.filter(Ticket.country.in_(user.assigned_countries))
             if user.company_id:
                 total_ticket_query = total_ticket_query.filter(
                     or_(
@@ -238,8 +238,8 @@ def index():
             
             # Apply COUNTRY_ADMIN filtering to shipment tickets
             if user.user_type == UserType.COUNTRY_ADMIN:
-                if user.assigned_country:
-                    shipment_query = shipment_query.filter(Ticket.country == user.assigned_country.value)
+                if user.assigned_countries:
+                    shipment_query = shipment_query.filter(Ticket.country.in_(user.assigned_countries))
                 if user.company_id:
                     shipment_query = shipment_query.filter(
                         or_(
@@ -277,11 +277,11 @@ def index():
         # Get counts for dashboard with filtering for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:
             asset_query = db.session.query(Asset)
-            if user.assigned_country:
-                asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+            if user.assigned_countries:
+                asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
             if user.company_id:
                 asset_query = asset_query.filter(Asset.company_id == user.company_id)
-            
+
             total_assets = asset_query.count()
             deployed_assets = asset_query.filter(Asset.status == 'DEPLOYED').count()
             in_stock_assets = asset_query.filter(Asset.status == 'IN_STOCK').count()
@@ -303,9 +303,9 @@ def index():
                 Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
             )
             
-            if user.assigned_country:
-                open_ticket_query = open_ticket_query.filter(Ticket.country == user.assigned_country.value)
-                resolved_ticket_query = resolved_ticket_query.filter(Ticket.country == user.assigned_country.value)
+            if user.assigned_countries:
+                open_ticket_query = open_ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+                resolved_ticket_query = resolved_ticket_query.filter(Ticket.country.in_(user.assigned_countries))
                 
             if user.company_id:
                 company_filter = or_(

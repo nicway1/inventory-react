@@ -150,8 +150,9 @@ def view_inventory():
         tech_assets_query = db_session.query(Asset)
 
         # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            tech_assets_query = tech_assets_query.filter(Asset.country == user.assigned_country.value)
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
+            logger.info(f"DEBUG: Filtering by assigned countries: {user.assigned_countries}")
+            tech_assets_query = tech_assets_query.filter(Asset.country.in_(user.assigned_countries))
 
             # Additional filtering for COUNTRY_ADMIN: filter by child company permissions
             if user.user_type == UserType.COUNTRY_ADMIN:
@@ -168,10 +169,12 @@ def view_inventory():
                 if child_company_permissions:
                     # User has specific child company permissions - filter by ONLY those companies
                     permitted_company_ids = [perm.company_id for perm in child_company_permissions]
+                    logger.info(f"DEBUG: Filtering by child company IDs: {permitted_company_ids}")
 
                     # Get the actual company objects to also check by name
                     permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                     permitted_company_names = [c.name.strip() for c in permitted_companies]
+                    logger.info(f"DEBUG: Filtering by company names: {permitted_company_names}")
 
                     # Build OR conditions for flexible name matching
                     # Match by company_id OR customer name (with case-insensitive partial match)
@@ -227,7 +230,7 @@ def view_inventory():
         statuses = sorted(list(set([s[0].value for s in statuses if s[0]])))
 
         # For Country Admin or Supervisor, show actual countries from assets (not just assigned country)
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
             countries_raw = tech_assets_query.with_entities(Asset.country).distinct().all()
             # Use case-insensitive deduplication and proper capitalization
             countries_seen = set()
@@ -328,8 +331,8 @@ def view_tech_assets():
         assets_query = db_session.query(Asset)
 
         # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            assets_query = assets_query.filter(Asset.country == user.assigned_country.value)
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
+            assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
 
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
@@ -397,8 +400,8 @@ def view_accessories():
         accessories_query = db_session.query(Accessory)
         
         # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            accessories_query = accessories_query.filter(Accessory.country == user.assigned_country.value)
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
+            accessories_query = accessories_query.filter(Accessory.country.in_(user.assigned_countries))
         
         # Execute query and get accessories
         accessories = accessories_query.all()
@@ -537,8 +540,8 @@ def filter_inventory():
             logger.info("DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Country filter for Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            query = query.filter(Asset.country == user.assigned_country.value)
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
+            query = query.filter(Asset.country.in_(user.assigned_countries))
         
         # Apply filters from request
         if 'country' in data and data['country']:
@@ -1244,8 +1247,8 @@ def view_asset(asset_id):
             return redirect(url_for('inventory.view_inventory'))
         
         # Check if Country Admin has access to this asset
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            if asset.country != user.assigned_country.value:
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            if asset.country not in user.assigned_countries:
                 flash('You do not have permission to view this asset', 'error')
                 return redirect(url_for('inventory.view_inventory'))
         
@@ -1594,8 +1597,8 @@ def add_asset():
         unique_diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
         unique_asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
         
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            unique_countries = [user.assigned_country.value]
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            unique_countries = user.assigned_countries
         else:
             unique_countries_query = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
             # Use case-insensitive deduplication and proper capitalization
@@ -2633,10 +2636,10 @@ def search():
             logger.info("DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
 
         # Filter by country for country admins
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
-            accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
-            ticket_query = ticket_query.filter(Ticket.country == user.assigned_country.value)
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+            accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+            ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
             # Note: Customers don't have a country field, so no filtering needed
 
         # Search assets
@@ -2767,8 +2770,8 @@ def export_inventory(item_type):
 
             # Apply user permission filters
             if not current_user.is_super_admin:
-                if current_user.is_country_admin and current_user.assigned_country:
-                    query = query.filter(Asset.country == current_user.assigned_country.value)
+                if current_user.is_country_admin and current_user.assigned_countries:
+                    query = query.filter(Asset.country == current_user.assigned_country)
 
             # Apply filters from query parameters (from inventory view)
             status_filter = request.args.get('status')
@@ -2903,8 +2906,8 @@ def export_inventory(item_type):
 
             # Apply user permission filters
             if not current_user.is_super_admin:
-                if current_user.is_country_admin and current_user.assigned_country:
-                    query = query.filter(Accessory.country == current_user.assigned_country.value)
+                if current_user.is_country_admin and current_user.assigned_countries:
+                    query = query.filter(Accessory.country == current_user.assigned_country)
 
             accessories = query.all()
 
@@ -3687,11 +3690,11 @@ def get_assets_api():
         # Filter assets based on user type and permissions
         if user.is_super_admin:
             assets = assets_query.all()
-        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            assets = assets_query.filter(Asset.country == user.assigned_country.value).all()
-        elif user.user_type == UserType.SUPERVISOR and user.assigned_country:
+        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            assets = assets_query.filter(Asset.country.in_(user.assigned_countries)).all()
+        elif user.user_type == UserType.SUPERVISOR and user.assigned_countries:
             # Supervisors can see assets from their assigned country
-            assets = assets_query.filter(Asset.country == user.assigned_country.value).all()
+            assets = assets_query.filter(Asset.country.in_(user.assigned_countries)).all()
         elif user.user_type == UserType.CLIENT and user.company:
             # Clients can see assets from their company
             assets = assets_query.filter(
@@ -4245,8 +4248,8 @@ def get_maintenance_assets():
             logger.info("DEBUG: Filtering maintenance assets for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
         
         # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            query = query.filter(Asset.country == user.assigned_country.value)
+        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
+            query = query.filter(Asset.country.in_(user.assigned_countries))
         
         # Apply search if provided
         if search_term:
@@ -4435,11 +4438,11 @@ def audit_inventory():
             # Super admin can audit any country with assets
             countries_raw = country_query.all()
             available_countries = sorted([country[0] for country in countries_raw if country[0]])
-        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+        elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
             # Country admin can only audit their assigned country if it has assets
-            country_assets = country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country.value)).first()
+            country_assets = country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country)).first()
             if country_assets:
-                available_countries = [user.assigned_country.value]
+                available_countries = [user.assigned_country]
         elif user.user_type == UserType.SUPERVISOR:
             # Supervisors can audit all countries with assets
             countries_raw = country_query.all()
@@ -4452,8 +4455,8 @@ def audit_inventory():
                 Asset.country != '',
                 Asset.company_id == user.company_id
             )
-            if user.assigned_country:
-                company_country_query = company_country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country.value))
+            if user.assigned_countries:
+                company_country_query = company_country_query.filter(func.lower(Asset.country) == func.lower(user.assigned_country))
             
             company_countries_raw = company_country_query.all()
             available_countries = sorted([country[0] for country in company_countries_raw if country[0]])
@@ -4498,8 +4501,8 @@ def start_audit():
             return jsonify({'error': 'Country is required'}), 400
         
         # Validate country permissions
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            if selected_country != user.assigned_country.value:
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            if selected_country .notin_(user.assigned_countries):
                 return jsonify({'error': 'You can only audit your assigned country'}), 403
         
         # Get inventory for the selected country (case-insensitive)
@@ -4616,9 +4619,9 @@ def view_audit_reports():
         # Get audit sessions based on user permissions
         query = db_session.query(AuditSession).filter(AuditSession.completed_at.isnot(None))
         
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
             # Country admin can only see reports for their assigned country
-            query = query.filter(func.lower(AuditSession.country) == func.lower(user.assigned_country.value))
+            query = query.filter(func.lower(AuditSession.country) == func.lower(user.assigned_country))
         
         # Order by completion date, most recent first
         audit_reports = query.order_by(AuditSession.completed_at.desc()).all()
@@ -4683,8 +4686,8 @@ def view_audit_report_detail(audit_id):
             return redirect(url_for('inventory.view_audit_reports'))
         
         # Check if user has permission to view this specific report
-        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-            if audit_session.country.lower() != user.assigned_country.value.lower():
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            if audit_session.country.lower() != user.assigned_country.lower():
                 flash('You do not have permission to view this audit report')
                 return redirect(url_for('inventory.view_audit_reports'))
         
@@ -5566,7 +5569,7 @@ def debug_audit_data():
         # Check user permissions
         user_info = {
             'user_type': user.user_type.value if user.user_type else None,
-            'assigned_country': user.assigned_country.value if user.assigned_country else None,
+            'assigned_country': user.assigned_country if user.assigned_country else None,
             'company_id': user.company_id
         }
         

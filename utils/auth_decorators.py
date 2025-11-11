@@ -41,7 +41,7 @@ def check_country_access(f):
         elif current_user.user_type == UserType.COUNTRY_ADMIN:
             # Add logic to check if the requested data belongs to the admin's country
             country = kwargs.get('country')
-            if country and country != current_user.assigned_country:
+            if country and country != current_user.assigned_countries:
                 abort(403)
         elif current_user.user_type == UserType.SUPERVISOR:
             # Supervisors can only view data

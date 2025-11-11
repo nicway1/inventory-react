@@ -80,15 +80,20 @@
                 </div>
 
                 <div id="countrySelect" style="display: none;">
-                    <label for="assigned_country" class="block text-sm font-medium text-gray-700">Assigned Country</label>
-                    <select id="assigned_country"
-                            name="assigned_country"
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">-- Select Country --</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Countries</label>
+                    <div class="border border-gray-300 rounded-md p-3 max-h-60 overflow-y-auto">
                         {% for country in available_countries %}
-                        <option value="{{ country }}">{{ country }}</option>
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox"
+                                   id="country_{{ loop.index }}"
+                                   name="assigned_countries"
+                                   value="{{ country }}"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="country_{{ loop.index }}" class="ml-2 text-sm text-gray-700">{{ country }}</label>
+                        </div>
                         {% endfor %}
-                    </select>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Select which countries this Country Admin can access</p>
                 </div>
 
                 <div id="countryAdminCompanySelect" style="display: none;">
@@ -157,13 +162,11 @@ document.addEventListener('DOMContentLoaded', function() {
             countrySelect.style.display = 'block';
             countryAdminCompanySelect.style.display = 'block';
             queueSelect.style.display = 'block';
-            document.getElementById('assigned_country').required = true;
         } else {
             countrySelect.style.display = 'none';
             countryAdminCompanySelect.style.display = 'none';
             childCompanySelect.style.display = 'none';
             queueSelect.style.display = 'none';
-            document.getElementById('assigned_country').required = false;
         }
 
         // Handle company requirement

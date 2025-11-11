@@ -23,8 +23,8 @@
                 {% if user.company %}
                 <p class="text-sm text-gray-500">Company: {{ user.company.name }}</p>
                 {% endif %}
-                {% if user.assigned_country %}
-                <p class="text-sm text-gray-500">Assigned Country: {{ user.assigned_country.value }}</p>
+                {% if user.assigned_countries %}
+                <p class="text-sm text-gray-500">Assigned Countries: {{ user.assigned_countries | join(', ') }}</p>
                 {% endif %}
             </div>
             <div class="flex items-center space-x-4">

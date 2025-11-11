@@ -22,6 +22,9 @@ class Country(str, PyEnum):
     VIETNAM = "VIETNAM"
     SOUTH_KOREA = "SOUTH_KOREA"
     INDONESIA = "INDONESIA"
+    GUYANA = "GUYANA"
+    UNITED_KINGDOM = "UNITED_KINGDOM"
+    UAE = "UAE"
     IN = "IN"  # Support for existing database records
     SG = "SG"  # Support for existing database records
     TW = "TW"  # Support for Taiwan
@@ -35,4 +38,7 @@ class Country(str, PyEnum):
     IL = "IL"  # Support for Israel
     CA = "CA"  # Support for Canada
     CANADA = "CANADA"
-    SINGAPORE = "SINGAPORE" 
+    SINGAPORE = "SINGAPORE"
+    UK = "UK"  # Support for United Kingdom
+    GB = "GB"  # Support for United Kingdom
+    AE = "AE"  # Support for UAE 

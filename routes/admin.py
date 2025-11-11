@@ -339,7 +339,7 @@ def create_user():
             password = request.form.get('password')
             company_id = request.form.get('company_id')
             user_type = request.form.get('user_type')
-            assigned_country = request.form.get('assigned_country')
+            assigned_countries = request.form.getlist('assigned_countries')  # Changed to getlist for multiple countries
             country_admin_company = request.form.get('country_admin_company')
             child_company_ids = request.form.getlist('child_company_ids')
             queue_ids = request.form.getlist('queue_ids')
@@ -363,44 +363,16 @@ def create_user():
                     'user_type': UserType[user_type]
                 }
 
-                # Add assigned country for Country Admin
+                # Add assigned countries for Country Admin
                 if user_type == 'COUNTRY_ADMIN':
-                    if not assigned_country:
-                        flash('Country selection is required for Country Admin', 'error')
+                    if not assigned_countries:
+                        flash('At least one country selection is required for Country Admin', 'error')
                         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                         parent_companies_data = _format_parent_companies(parent_companies)
                         queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                         return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
-                    # Try to convert to Country enum - match by value or name
-                    matching_country = None
 
-                    # First try exact match by value
-                    matching_country = next((c for c in Country if c.value == assigned_country), None)
-
-                    # If not found, try by name
-                    if not matching_country:
-                        try:
-                            matching_country = Country[assigned_country]
-                        except KeyError:
-                            pass
-
-                    # If still not found, try with formatting (uppercase, replace spaces with underscores)
-                    if not matching_country:
-                        try:
-                            formatted_name = assigned_country.replace(' ', '_').upper()
-                            matching_country = Country[formatted_name]
-                        except KeyError:
-                            pass
-
-                    # If we found a match, use it; otherwise raise error
-                    if matching_country:
-                        user_data['assigned_country'] = matching_country
-                    else:
-                        flash(f'Invalid country: {assigned_country}. Please select a valid country.', 'error')
-                        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                        parent_companies_data = _format_parent_companies(parent_companies)
-                        queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
+                    logger.info(f"DEBUG: Assigned countries: {assigned_countries}")
 
                     # Set company for Country Admin (to filter assets by parent company)
                     if country_admin_company:
@@ -417,6 +389,17 @@ def create_user():
                 user = User(**user_data)
                 db_session.add(user)
                 db_session.flush()  # Get the user ID before committing
+
+                # Create country permissions for Country Admin
+                if user_type == 'COUNTRY_ADMIN' and assigned_countries:
+                    from models.user_country_permission import UserCountryPermission
+                    for country in assigned_countries:
+                        country_permission = UserCountryPermission(
+                            user_id=user.id,
+                            country=country
+                        )
+                        db_session.add(country_permission)
+                        logger.info(f"DEBUG: Created country permission for {country}")
 
                 # Create child company permissions for Country Admin
                 if user_type == 'COUNTRY_ADMIN' and child_company_ids:
@@ -499,7 +482,11 @@ def edit_user(user_id):
     # Get existing permissions for COUNTRY_ADMIN users
     existing_child_companies = []
     existing_queues = []
+    existing_countries = []
     if user.user_type == UserType.COUNTRY_ADMIN:
+        # Get assigned countries
+        existing_countries = user.assigned_countries
+
         # Get child company permissions
         company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
         existing_child_companies = [str(perm.company_id) for perm in company_permissions]
@@ -515,12 +502,12 @@ def edit_user(user_id):
         company_id = request.form.get('company_id')
         user_type = request.form.get('user_type')
         password = request.form.get('password')
-        assigned_country = request.form.get('assigned_country')
+        assigned_countries = request.form.getlist('assigned_countries')  # Changed to getlist for multiple countries
         country_admin_company = request.form.get('country_admin_company')
         child_company_ids = request.form.getlist('child_company_ids')
         queue_ids = request.form.getlist('queue_ids')
 
-        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}, assigned_country={assigned_country}")
+        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
 
         try:
@@ -548,7 +535,8 @@ def edit_user(user_id):
                 return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                      parent_companies=parent_companies_data, queues=queues_data,
                                      existing_child_companies=existing_child_companies,
-                                     existing_queues=existing_queues, available_countries=available_countries)
+                                     existing_queues=existing_queues, available_countries=available_countries,
+                                     existing_countries=existing_countries)
 
             # Update password if provided
             if password:
@@ -556,48 +544,30 @@ def edit_user(user_id):
 
             # Handle country assignment
             if user_type == 'COUNTRY_ADMIN':
-                if not assigned_country:
-                    flash('Country selection is required for Country Admin', 'error')
+                if not assigned_countries:
+                    flash('At least one country selection is required for Country Admin', 'error')
                     companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                     parent_companies_data = _format_parent_companies(parent_companies)
                     queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                          parent_companies=parent_companies_data, queues=queues_data,
                                          existing_child_companies=existing_child_companies,
-                                         existing_queues=existing_queues, available_countries=available_countries)
-                # Try to convert to Country enum - match by value or name
-                matching_country = None
+                                         existing_queues=existing_queues, available_countries=available_countries,
+                                         existing_countries=existing_countries)
 
-                # First try exact match by value
-                matching_country = next((c for c in Country if c.value == assigned_country), None)
+                # Delete existing country permissions
+                from models.user_country_permission import UserCountryPermission
+                db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
+                logger.info(f"DEBUG: Deleted existing country permissions for user {user.id}")
 
-                # If not found, try by name
-                if not matching_country:
-                    try:
-                        matching_country = Country[assigned_country]
-                    except KeyError:
-                        pass
-
-                # If still not found, try with formatting (uppercase, replace spaces with underscores)
-                if not matching_country:
-                    try:
-                        formatted_name = assigned_country.replace(' ', '_').upper()
-                        matching_country = Country[formatted_name]
-                    except KeyError:
-                        pass
-
-                # If we found a match, use it; otherwise raise error
-                if matching_country:
-                    user.assigned_country = matching_country
-                else:
-                    flash(f'Invalid country: {assigned_country}. Please select a valid country.', 'error')
-                    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                    parent_companies_data = _format_parent_companies(parent_companies)
-                    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                    return render_template('admin/edit_user.html', user=user, companies=companies_data,
-                                         parent_companies=parent_companies_data, queues=queues_data,
-                                         existing_child_companies=existing_child_companies,
-                                         existing_queues=existing_queues, available_countries=available_countries)
+                # Create new country permissions
+                for country in assigned_countries:
+                    country_permission = UserCountryPermission(
+                        user_id=user.id,
+                        country=country
+                    )
+                    db_session.add(country_permission)
+                    logger.info(f"DEBUG: Created country permission for {country}")
 
                 # Update child company permissions
                 # Delete existing permissions
@@ -634,8 +604,9 @@ def edit_user(user_id):
                             )
                             db_session.add(permission)
             else:
-                user.assigned_country = None
                 # Clean up permissions if changing from COUNTRY_ADMIN to another type
+                from models.user_country_permission import UserCountryPermission
+                db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
 
             db_session.commit()
@@ -655,7 +626,8 @@ def edit_user(user_id):
     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                          parent_companies=parent_companies_data, queues=queues_data,
                          existing_child_companies=existing_child_companies,
-                         existing_queues=existing_queues, available_countries=available_countries)
+                         existing_queues=existing_queues, available_countries=available_countries,
+                         existing_countries=existing_countries)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
@@ -2195,7 +2167,7 @@ def get_billing_tickets():
                 'status': ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                 'created_at': ticket.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'requester': ticket.requester.username if ticket.requester else 'Unknown',
-                'country': ticket.requester.assigned_country.value if ticket.requester and ticket.requester.assigned_country else 'Unknown',
+                'country': ticket.requester.assigned_country if ticket.requester and ticket.requester.assigned_country else 'Unknown',
                 'company': ticket.requester.company.name if ticket.requester and ticket.requester.company else 'Unknown',
                 'category': ticket.category.name if ticket.category else 'Unknown',
                 'priority': ticket.priority.value if hasattr(ticket.priority, 'value') else str(ticket.priority) if ticket.priority else 'Normal'
@@ -2245,7 +2217,7 @@ def generate_billing_report():
         billing_data = {}
         
         for ticket in tickets:
-            country = ticket.requester.assigned_country.value if ticket.requester and ticket.requester.assigned_country else 'Unknown'
+            country = ticket.requester.assigned_country if ticket.requester and ticket.requester.assigned_country else 'Unknown'
             
             if country not in billing_data:
                 billing_data[country] = {

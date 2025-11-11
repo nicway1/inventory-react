@@ -344,8 +344,8 @@ def get_complete_inventory():
             query = db_session.query(Asset)
             
             # Apply country restrictions for COUNTRY_ADMIN
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Asset.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Asset.country.in_(user.assigned_countries))
             
             # Apply status filter
             if status_filter:
@@ -451,8 +451,8 @@ def get_complete_asset(asset_id):
             query = db_session.query(Asset).filter(Asset.id == asset_id)
             
             # Apply country restrictions for COUNTRY_ADMIN
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Asset.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Asset.country.in_(user.assigned_countries))
             
             asset = query.first()
             
@@ -545,8 +545,8 @@ def get_complete_accessories():
             query = db_session.query(Accessory)
             
             # Apply country restrictions for COUNTRY_ADMIN
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Accessory.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Accessory.country.in_(user.assigned_countries))
             
             # Apply status filter
             if status_filter:
@@ -659,8 +659,8 @@ def get_complete_accessory(accessory_id):
             query = db_session.query(Accessory).filter(Accessory.id == accessory_id)
             
             # Apply country restrictions for COUNTRY_ADMIN
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Accessory.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Accessory.country.in_(user.assigned_countries))
             
             accessory = query.first()
             

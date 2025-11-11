@@ -15,6 +15,7 @@ from models.comment import Comment
 from models.ticket_attachment import TicketAttachment
 from models.intake_ticket import IntakeTicket
 from models.user_company_permission import UserCompanyPermission
+from models.user_country_permission import UserCountryPermission
 from models.company_queue_permission import CompanyQueuePermission
 from models.company_customer_permission import CompanyCustomerPermission
 from models.tracking_history import TrackingHistory
@@ -65,6 +66,7 @@ __all__ = [
     "TicketAttachment",
     "IntakeTicket",
     "UserCompanyPermission",
+    "UserCountryPermission",
     "CompanyQueuePermission",
     "CompanyCustomerPermission",
     "TrackingHistory",

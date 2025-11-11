@@ -147,11 +147,40 @@ def manage_user(user_id):
         flash('User settings updated successfully')
         return redirect(url_for('users.manage_user', user_id=user_id))
 
+    # Get countries from tech assets and match with Country enum
+    db_session = db_manager.get_session()
+    try:
+        from models.asset import Asset
+        countries_raw = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        asset_countries = set([c[0] for c in countries_raw if c[0]])
+
+        # Create a mapping of asset countries to Country enum values
+        enum_country_values = {c.value: c.value for c in Country}
+        # Also try matching by uppercase
+        enum_upper_map = {c.value.upper(): c.value for c in Country}
+
+        # Match asset countries to enum values
+        matched_countries = []
+        for asset_country in asset_countries:
+            # Try exact match first
+            if asset_country in enum_country_values:
+                matched_countries.append(asset_country)
+            # Try uppercase match
+            elif asset_country.upper() in enum_upper_map:
+                matched_countries.append(enum_upper_map[asset_country.upper()])
+            # If no match, still include it (will need to add to enum later)
+            else:
+                matched_countries.append(asset_country)
+
+        countries = sorted(list(set(matched_countries)))
+    finally:
+        db_session.close()
+
     return render_template(
         'users/manage.html',
         user=user,
         user_types=[ut.value for ut in UserType],
-        countries=[c.value for c in Country if not c.value in ['IN', 'SG', 'TW', 'CN']]  # Exclude legacy codes
+        countries=countries
     )
 
 @users_bp.route('/manage/<int:user_id>/reset-password', methods=['POST'])
@@ -177,7 +206,38 @@ def reset_user_password(user_id):
 @super_admin_required
 def create_user():
     form = UserCreateForm()
-    
+
+    # Get countries from tech assets and match with Country enum
+    db_session = db_manager.get_session()
+    try:
+        from models.asset import Asset
+        countries_raw = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        asset_countries = set([c[0] for c in countries_raw if c[0]])
+
+        # Create a mapping of asset countries to Country enum values
+        enum_country_values = {c.value: c.value for c in Country}
+        # Also try matching by uppercase
+        enum_upper_map = {c.value.upper(): c.value for c in Country}
+
+        # Match asset countries to enum values
+        matched_countries = []
+        for asset_country in asset_countries:
+            # Try exact match first
+            if asset_country in enum_country_values:
+                matched_countries.append(asset_country)
+            # Try uppercase match
+            elif asset_country.upper() in enum_upper_map:
+                matched_countries.append(enum_upper_map[asset_country.upper()])
+            # If no match, still include it (will need to add to enum later)
+            else:
+                matched_countries.append(asset_country)
+
+        countries = sorted(list(set(matched_countries)))
+        # Update form choices dynamically
+        form.assigned_country.choices = [('', '-- Select Country --')] + [(c, c) for c in countries]
+    finally:
+        db_session.close()
+
     if request.method == 'POST' and form.validate_on_submit():
         try:
             user_data = {

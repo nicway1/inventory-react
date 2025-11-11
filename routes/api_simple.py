@@ -733,7 +733,7 @@ def get_user_permissions():
                     'permissions': permissions,
                     'capabilities': capabilities,
                     'company_id': user.company_id if hasattr(user, 'company_id') else None,
-                    'assigned_country': user.assigned_country.value if hasattr(user, 'assigned_country') and user.assigned_country else None
+                    'assigned_country': user.assigned_country if hasattr(user, 'assigned_country') and user.assigned_country else None
                 }
                 
                 return jsonify(create_success_response(
@@ -825,7 +825,7 @@ def get_user_profile():
                     'user_type': user.user_type.value if hasattr(user, 'user_type') and user.user_type else 'USER',
                     'company_id': user.company_id if hasattr(user, 'company_id') else None,
                     'company_name': user.company.name if hasattr(user, 'company') and user.company else None,
-                    'assigned_country': user.assigned_country.value if hasattr(user, 'assigned_country') and user.assigned_country else None,
+                    'assigned_country': user.assigned_country if hasattr(user, 'assigned_country') and user.assigned_country else None,
                     'role': user.role if hasattr(user, 'role') else None,
                     'theme_preference': user.theme_preference if hasattr(user, 'theme_preference') else 'light',
                     'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
@@ -1350,9 +1350,9 @@ def audit_countries():
             if user.user_type == UserType.SUPER_ADMIN:
                 # Super admins can audit any country
                 countries = [country.value for country in Country]
-            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
                 # Country admins can only audit their assigned country
-                countries = [user.assigned_country.value]
+                countries = [user.assigned_country]
             elif user.user_type == UserType.SUPERVISOR:
                 # Supervisors can audit all countries
                 countries = [country.value for country in Country]
@@ -1442,8 +1442,8 @@ def start_audit():
             
             # Validate country access
             from models.user import UserType
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                if country != user.assigned_country.value:
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                if country != user.assigned_countries:
                     return jsonify(create_error_response(
                         "INVALID_COUNTRY",
                         "You can only audit your assigned country",

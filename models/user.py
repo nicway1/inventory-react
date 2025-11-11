@@ -18,7 +18,7 @@ class User(Base, UserMixin):
     password_hash = Column(String(128))
     user_type = Column(Enum(UserType), default=UserType.SUPERVISOR)
     company_id = Column(Integer, ForeignKey('companies.id'))
-    assigned_country = Column(Enum(Country), nullable=True)
+    assigned_country = Column(String(100), nullable=True)  # Match Asset.country field
     role = Column(String(50), nullable=True, default='user')
     theme_preference = Column(String(20), default='light')  # 'light' or 'dark'
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -37,6 +37,7 @@ class User(Base, UserMixin):
     asset_changes = relationship("AssetHistory", back_populates="user")
     accessory_changes = relationship("AccessoryHistory", back_populates="user")
     company_permissions = relationship("UserCompanyPermission", back_populates="user")
+    country_permissions = relationship("UserCountryPermission", back_populates="user", cascade="all, delete-orphan")
     queue_notifications = relationship("QueueNotification", back_populates="user")
     notifications = relationship("Notification", back_populates="user", order_by="Notification.created_at.desc()")
     created_groups = relationship("Group", back_populates="created_by")
@@ -52,6 +53,28 @@ class User(Base, UserMixin):
     def check_password(self, password):
         """Check password hash"""
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def assigned_countries(self):
+        """Get list of assigned countries for this user"""
+        from sqlalchemy.orm import object_session
+        from models.user_country_permission import UserCountryPermission
+
+        # Try to use the session from the object first
+        session = object_session(self)
+        if session:
+            permissions = session.query(UserCountryPermission).filter_by(user_id=self.id).all()
+            return [perm.country for perm in permissions]
+
+        # Fallback: create a new session
+        from database import engine
+        from sqlalchemy.orm import Session
+        session = Session(engine)
+        try:
+            permissions = session.query(UserCountryPermission).filter_by(user_id=self.id).all()
+            return [perm.country for perm in permissions]
+        finally:
+            session.close()
 
     @staticmethod
     def create(username, password, user_type='user', company=None, fixed_id=None):
@@ -260,7 +283,7 @@ class User(Base, UserMixin):
             'user_type': self.user_type.value if self.user_type else None,
             'company_id': self.company_id,
             'company': self.company.name if self.company else None,
-            'assigned_country': self.assigned_country.value if self.assigned_country else None,
+            'assigned_country': self.assigned_country if self.assigned_country else None,
             'role': self.role or 'user',  # Return default role if None
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

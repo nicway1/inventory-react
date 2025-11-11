@@ -589,8 +589,8 @@ def get_inventory():
             query = db_session.query(Asset)
 
             # Apply country restrictions for COUNTRY_ADMIN
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Asset.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Asset.country.in_(user.assigned_countries))
 
             # Apply status filter
             if status_filter:
@@ -753,8 +753,8 @@ def get_dashboard():
                 asset_query = db_session.query(Asset)
                 
                 # Apply country restrictions
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
                 
                 total_assets = asset_query.count()
                 available_assets = asset_query.filter(Asset.status == AssetStatus.READY_TO_DEPLOY).count()

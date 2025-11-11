@@ -194,8 +194,8 @@ def global_search():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
                 
                 # Apply search filters (matching web version)
                 assets = asset_query.filter(
@@ -221,8 +221,8 @@ def global_search():
                 accessory_query = db_session.query(Accessory)
                 
                 # Apply user permission filters
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
                 
                 accessories = accessory_query.filter(
                     or_(
@@ -263,8 +263,8 @@ def global_search():
                 ticket_query = db_session.query(Ticket)
                 
                 # Apply user permission filters
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    ticket_query = ticket_query.filter(Ticket.country == user.assigned_country.value)
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
                 
                 # Build ticket search filters
                 ticket_filters = [
@@ -323,8 +323,8 @@ def global_search():
                         related_tickets_query = db_session.query(Ticket)
                         
                         # Apply user permission filters
-                        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                            related_tickets_query = related_tickets_query.filter(Ticket.country == user.assigned_country.value)
+                        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                            related_tickets_query = related_tickets_query.filter(Ticket.country.in_(user.assigned_countries))
                         
                         related_tickets = related_tickets_query.filter(or_(*related_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
                         
@@ -439,8 +439,8 @@ def search_assets():
                         Asset.customer == user.company.name
                     )
                 )
-            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Asset.country == user.assigned_country.value)
+            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Asset.country.in_(user.assigned_countries))
             
             # Apply search filters
             query = query.filter(
@@ -602,8 +602,8 @@ def search_accessories():
             query = db_session.query(Accessory)
             
             # Apply user permission filters
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                query = query.filter(Accessory.country == user.assigned_country.value)
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                query = query.filter(Accessory.country.in_(user.assigned_countries))
             
             # Apply search filters
             query = query.filter(
@@ -749,8 +749,8 @@ def search_suggestions():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
                 
                 # Get distinct suggestions from various fields
                 from sqlalchemy import distinct
@@ -777,8 +777,8 @@ def search_suggestions():
                 # Get accessory suggestions
                 accessory_query = db_session.query(Accessory)
                 
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
                 
                 from sqlalchemy import distinct
                 
@@ -856,8 +856,8 @@ def get_search_filters():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    asset_query = asset_query.filter(Asset.country == user.assigned_country.value)
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
                 
                 from sqlalchemy import distinct
                 
@@ -879,8 +879,8 @@ def get_search_filters():
             elif entity_type == 'accessories' and user.permissions and user.permissions.can_view_assets:
                 accessory_query = db_session.query(Accessory)
                 
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
-                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country.value)
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
                 
                 from sqlalchemy import distinct
                 
