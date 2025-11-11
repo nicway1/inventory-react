@@ -503,11 +503,11 @@ def edit_user(user_id):
         user_type = request.form.get('user_type')
         password = request.form.get('password')
         assigned_countries = request.form.getlist('assigned_countries')  # Changed to getlist for multiple countries
-        country_admin_company = request.form.get('country_admin_company')
+        parent_company_ids = request.form.getlist('parent_company_ids')  # Multiple parent companies
         child_company_ids = request.form.getlist('child_company_ids')
         queue_ids = request.form.getlist('queue_ids')
 
-        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}, assigned_countries={assigned_countries}")
+        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, parent_company_ids={parent_company_ids}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
 
         try:
@@ -520,8 +520,9 @@ def edit_user(user_id):
             if user_type == 'CLIENT':
                 user.company_id = company_id if company_id else None
             elif user_type == 'COUNTRY_ADMIN':
-                # Set parent company for COUNTRY_ADMIN
-                user.company_id = country_admin_company if country_admin_company else None
+                # Set first parent company as the primary company for COUNTRY_ADMIN
+                # (for backwards compatibility, but permissions will work with all selected parents)
+                user.company_id = int(parent_company_ids[0]) if parent_company_ids else None
             else:
                 user.company_id = None
 
