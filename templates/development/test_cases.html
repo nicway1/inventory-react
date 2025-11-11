@@ -108,6 +108,7 @@
                                   action="{{ url_for('development.delete_test_case', id=tc.id) }}"
                                   class="inline"
                                   onsubmit="return confirm('Are you sure you want to delete this test case?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit"
                                         class="text-red-600 hover:text-red-900"
                                         title="Delete">
