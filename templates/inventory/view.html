@@ -184,55 +184,123 @@
   transition: all 0.3s ease;
 }
 
-/* SF Button Color Variants - Updated Palette */
+/* SF Button Color Variants - Hexagonal Pattern Background */
 .sf-button.green {
-  background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
+  position: relative;
+  overflow: hidden;
   color: white;
   border: none;
   box-shadow: 0 4px 8px rgba(69, 165, 154, 0.3);
 }
 
+.sf-button.green::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  --s: 80px;
+  --c1: #1d1d1d;
+  --c2: #45a59a;
+  --c3: #3a8a82;
+  background: repeating-conic-gradient(from 30deg, #0000 0 120deg, var(--c3) 0 180deg) calc(0.5 * var(--s)) calc(0.5 * var(--s) * 0.577),
+              repeating-conic-gradient(from 30deg, var(--c1) 0 60deg, var(--c2) 0 120deg, var(--c3) 0 180deg);
+  background-size: var(--s) calc(var(--s) * 0.577);
+  z-index: -1;
+}
+
 .sf-button.green:hover {
-  background: linear-gradient(135deg, #3a8a82 0%, #2d6f6d 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(69, 165, 154, 0.4);
 }
 
 .sf-button.purple {
-  background: linear-gradient(135deg, #2d6f6d 0%, #1f504e 100%);
+  position: relative;
+  overflow: hidden;
   color: white;
   border: none;
   box-shadow: 0 4px 8px rgba(45, 111, 109, 0.3);
 }
 
+.sf-button.purple::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  --s: 80px;
+  --c1: #1d1d1d;
+  --c2: #2d6f6d;
+  --c3: #1f504e;
+  background: repeating-conic-gradient(from 30deg, #0000 0 120deg, var(--c3) 0 180deg) calc(0.5 * var(--s)) calc(0.5 * var(--s) * 0.577),
+              repeating-conic-gradient(from 30deg, var(--c1) 0 60deg, var(--c2) 0 120deg, var(--c3) 0 180deg);
+  background-size: var(--s) calc(var(--s) * 0.577);
+  z-index: -1;
+}
+
 .sf-button.purple:hover {
-  background: linear-gradient(135deg, #1f504e 0%, #16403e 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(45, 111, 109, 0.4);
 }
 
 .sf-button.blue {
-  background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
+  position: relative;
+  overflow: hidden;
   color: white;
   border: none;
   box-shadow: 0 4px 8px rgba(69, 165, 154, 0.3);
 }
 
+.sf-button.blue::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  --s: 80px;
+  --c1: #1d1d1d;
+  --c2: #45a59a;
+  --c3: #3a8a82;
+  background: repeating-conic-gradient(from 30deg, #0000 0 120deg, var(--c3) 0 180deg) calc(0.5 * var(--s)) calc(0.5 * var(--s) * 0.577),
+              repeating-conic-gradient(from 30deg, var(--c1) 0 60deg, var(--c2) 0 120deg, var(--c3) 0 180deg);
+  background-size: var(--s) calc(var(--s) * 0.577);
+  z-index: -1;
+}
+
 .sf-button.blue:hover {
-  background: linear-gradient(135deg, #3a8a82 0%, #2d6f6d 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(69, 165, 154, 0.4);
 }
 
 .sf-button.gray {
-  background: linear-gradient(135deg, #8d9091 0%, #707375 100%);
+  position: relative;
+  overflow: hidden;
   color: white;
   border: none;
   box-shadow: 0 4px 8px rgba(141, 144, 145, 0.3);
 }
 
+.sf-button.gray::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  --s: 80px;
+  --c1: #1d1d1d;
+  --c2: #8d9091;
+  --c3: #707375;
+  background: repeating-conic-gradient(from 30deg, #0000 0 120deg, var(--c3) 0 180deg) calc(0.5 * var(--s)) calc(0.5 * var(--s) * 0.577),
+              repeating-conic-gradient(from 30deg, var(--c1) 0 60deg, var(--c2) 0 120deg, var(--c3) 0 180deg);
+  background-size: var(--s) calc(var(--s) * 0.577);
+  z-index: -1;
+}
+
 .sf-button.gray:hover {
-  background: linear-gradient(135deg, #707375 0%, #5a5d5f 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(141, 144, 145, 0.4);
 }
