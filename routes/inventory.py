@@ -156,6 +156,7 @@ def view_inventory():
             # Additional filtering for COUNTRY_ADMIN: filter by child company permissions
             if user.user_type == UserType.COUNTRY_ADMIN:
                 from models.user_company_permission import UserCompanyPermission
+                from models.company import Company
 
                 # Get child companies this user has permission to view
                 child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
@@ -166,19 +167,42 @@ def view_inventory():
                 if child_company_permissions:
                     # User has specific child company permissions - filter by those companies
                     permitted_company_ids = [perm.company_id for perm in child_company_permissions]
-                    tech_assets_query = tech_assets_query.filter(Asset.company_id.in_(permitted_company_ids))
+
+                    # Get the actual company objects to also check by name
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    permitted_company_names = [c.name.strip() for c in permitted_companies]
+
+                    # Build OR conditions for flexible name matching
+                    # Match by company_id OR customer name (with case-insensitive partial match)
+                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in permitted_company_names]
+                    tech_assets_query = tech_assets_query.filter(
+                        or_(
+                            Asset.company_id.in_(permitted_company_ids),
+                            *name_conditions
+                        )
+                    )
                     logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(permitted_company_ids)} child companies: {permitted_company_ids}")
+                    logger.info(f"DEBUG: Also filtering by company names (partial match): {permitted_company_names}")
                 elif user.company_id:
                     # No specific child permissions, but user has parent company - show all assets under parent company
-                    from models.company import Company
                     parent_company = db_session.query(Company).get(user.company_id)
                     if parent_company and parent_company.is_parent_company:
                         # Get all child companies under this parent
                         child_companies = db_session.query(Company).filter_by(parent_company_id=parent_company.id).all()
                         child_company_ids = [c.id for c in child_companies]
+                        child_company_names = [c.name.strip() for c in child_companies]
+
                         if child_company_ids:
-                            tech_assets_query = tech_assets_query.filter(Asset.company_id.in_(child_company_ids))
+                            # Build OR conditions for flexible name matching
+                            name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in child_company_names]
+                            tech_assets_query = tech_assets_query.filter(
+                                or_(
+                                    Asset.company_id.in_(child_company_ids),
+                                    *name_conditions
+                                )
+                            )
                             logger.info(f"DEBUG: COUNTRY_ADMIN filtering by all {len(child_company_ids)} child companies under parent {parent_company.name}")
+                            logger.info(f"DEBUG: Also filtering by company names (partial match): {child_company_names}")
 
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
