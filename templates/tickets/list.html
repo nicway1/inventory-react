@@ -638,7 +638,7 @@
                         {# Detect country from queue name and assign color #}
                         {% set queue_name_lower = queue.name|lower %}
                         {% if 'singapore' in queue_name_lower or 'sg' in queue_name_lower %}
-                            {% set color_index = 0 %}  {# Teal #}
+                            {% set color_index = 5 %}  {# Coral/Red #}
                         {% elif 'israel' in queue_name_lower or 'il' in queue_name_lower %}
                             {% set color_index = 5 %}  {# Coral/Pink #}
                         {% elif 'firstbase' in queue_name_lower %}
