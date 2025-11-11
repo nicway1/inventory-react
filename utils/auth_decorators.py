@@ -59,7 +59,10 @@ def permission_required(permission_name):
                 return redirect(url_for('auth.login', next=request.url))
 
             # Super admins and developers bypass all permission checks
-            if current_user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # Use the property methods for reliable checking
+            if hasattr(current_user, 'is_super_admin') and current_user.is_super_admin:
+                return f(*args, **kwargs)
+            if hasattr(current_user, 'is_developer') and current_user.is_developer:
                 return f(*args, **kwargs)
 
             # Check if user has the required permission
