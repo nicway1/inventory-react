@@ -434,8 +434,11 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-{% if is_client %}1{% else %}3{% endif %} gap-6 mb-8">
         <!-- Tech Assets Card -->
-        <div id="techAssetsCard" 
-             class="bg-blue-500 text-white rounded-lg p-6 cursor-pointer hover:bg-blue-600 transition-colors">
+        <div id="techAssetsCard"
+             class="text-white rounded-lg p-6 cursor-pointer transition-colors"
+             style="background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);"
+             onmouseover="this.style.background='linear-gradient(135deg, #3a8a82 0%, #2d6f6d 100%)'"
+             onmouseout="this.style.background='linear-gradient(135deg, #45a59a 0%, #3a8a82 100%)'">
             <h2 class="text-xl font-semibold mb-2">Tech Assets</h2>
             <p class="text-sm opacity-80 mb-4">Laptops, Desktops, Monitors, etc.</p>
             <p class="text-3xl font-bold" id="techAssetsCount">{{ tech_assets_count }}</p>
@@ -444,15 +447,21 @@
         {% if not is_client %}
         <!-- Accessories Card -->
         <a href="{{ url_for('inventory.view_accessories') }}" id="accessoriesCard"
-             class="block bg-green-500 text-white rounded-lg p-6 cursor-pointer hover:bg-green-600 transition-colors no-underline">
+             class="block text-white rounded-lg p-6 cursor-pointer transition-colors no-underline"
+             style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"
+             onmouseover="this.style.background='linear-gradient(135deg, #059669 0%, #047857 100%)'"
+             onmouseout="this.style.background='linear-gradient(135deg, #10b981 0%, #059669 100%)'">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
         </a>
-        
+
         <!-- Maintenance Card -->
         <div id="maintenanceCard"
-             class="bg-orange-500 text-white rounded-lg p-6 cursor-pointer hover:bg-orange-600 transition-colors">
+             class="text-white rounded-lg p-6 cursor-pointer transition-colors"
+             style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);"
+             onmouseover="this.style.background='linear-gradient(135deg, #ea580c 0%, #c2410c 100%)'"
+             onmouseout="this.style.background='linear-gradient(135deg, #f97316 0%, #ea580c 100%)'">
             <h2 class="text-xl font-semibold mb-2">Maintenance</h2>
             <p class="text-sm opacity-80 mb-4">Assets needing erasure attention</p>
             <p class="text-3xl font-bold" id="maintenanceCount">{{ maintenance_assets_count }}</p>
