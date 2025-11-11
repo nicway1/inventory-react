@@ -433,6 +433,10 @@ def create_user():
 @admin_required
 def edit_user(user_id):
     """Edit an existing user"""
+    from models.queue import Queue
+    from models.company_queue_permission import CompanyQueuePermission
+    from models.user_company_permission import UserCompanyPermission
+
     logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
     db_session = db_manager.get_session()
     user = db_session.query(User).get(user_id)
@@ -443,7 +447,22 @@ def edit_user(user_id):
 
     logger.info("DEBUG: User found: {user.username}, type={user.user_type}")
     companies = db_session.query(Company).all()
+    parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
+    queues = db_session.query(Queue).all()
     logger.info("DEBUG: Found {len(companies)} companies")
+
+    # Get existing permissions for COUNTRY_ADMIN users
+    existing_child_companies = []
+    existing_queues = []
+    if user.user_type == UserType.COUNTRY_ADMIN:
+        # Get child company permissions
+        company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
+        existing_child_companies = [str(perm.company_id) for perm in company_permissions]
+
+        # Get queue permissions via company
+        if user.company_id:
+            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
+            existing_queues = [str(perm.queue_id) for perm in queue_permissions]
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -452,6 +471,9 @@ def edit_user(user_id):
         user_type = request.form.get('user_type')
         password = request.form.get('password')
         assigned_country = request.form.get('assigned_country')
+        country_admin_company = request.form.get('country_admin_company')
+        child_company_ids = request.form.getlist('child_company_ids')
+        queue_ids = request.form.getlist('queue_ids')
 
         logger.info("DEBUG: Form submission - company_id={company_id}, user_type={user_type}")
 
@@ -462,13 +484,25 @@ def edit_user(user_id):
             user.user_type = UserType[user_type]
 
             # Handle company assignment
-            user.company_id = company_id if company_id else None
-            
+            if user_type == 'CLIENT':
+                user.company_id = company_id if company_id else None
+            elif user_type == 'COUNTRY_ADMIN':
+                # Set parent company for COUNTRY_ADMIN
+                user.company_id = country_admin_company if country_admin_company else None
+            else:
+                user.company_id = None
+
             # Company is required for CLIENT users
             if user_type == 'CLIENT' and not company_id:
                 logger.info("DEBUG: CLIENT type but no company selected")
                 flash('Company selection is required for Client users', 'error')
-                return render_template('admin/edit_user.html', user=user, companies=companies)
+                companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                parent_companies_data = _format_parent_companies(parent_companies)
+                queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                return render_template('admin/edit_user.html', user=user, companies=companies_data,
+                                     parent_companies=parent_companies_data, queues=queues_data,
+                                     existing_child_companies=existing_child_companies,
+                                     existing_queues=existing_queues)
 
             # Update password if provided
             if password:
@@ -478,10 +512,48 @@ def edit_user(user_id):
             if user_type == 'COUNTRY_ADMIN':
                 if not assigned_country:
                     flash('Country selection is required for Country Admin', 'error')
-                    return render_template('admin/edit_user.html', user=user, companies=companies)
+                    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                    parent_companies_data = _format_parent_companies(parent_companies)
+                    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                    return render_template('admin/edit_user.html', user=user, companies=companies_data,
+                                         parent_companies=parent_companies_data, queues=queues_data,
+                                         existing_child_companies=existing_child_companies,
+                                         existing_queues=existing_queues)
                 user.assigned_country = Country[assigned_country]
+
+                # Update child company permissions
+                # Delete existing permissions
+                db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
+                # Add new permissions
+                if child_company_ids:
+                    for child_company_id in child_company_ids:
+                        company_permission = UserCompanyPermission(
+                            user_id=user.id,
+                            company_id=int(child_company_id),
+                            can_view=True,
+                            can_edit=False,
+                            can_delete=False
+                        )
+                        db_session.add(company_permission)
+
+                # Update queue permissions
+                # Delete existing queue permissions for this company
+                if user.company_id:
+                    db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).delete()
+                    # Add new queue permissions
+                    if queue_ids:
+                        for queue_id in queue_ids:
+                            permission = CompanyQueuePermission(
+                                company_id=user.company_id,
+                                queue_id=int(queue_id),
+                                can_view=True,
+                                can_create=True
+                            )
+                            db_session.add(permission)
             else:
                 user.assigned_country = None
+                # Clean up permissions if changing from COUNTRY_ADMIN to another type
+                db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
 
             db_session.commit()
             flash('User updated successfully', 'success')
@@ -494,7 +566,13 @@ def edit_user(user_id):
             db_session.close()
 
     logger.info("DEBUG: Rendering edit_user template")
-    return render_template('admin/edit_user.html', user=user, companies=companies)
+    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+    parent_companies_data = _format_parent_companies(parent_companies)
+    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+    return render_template('admin/edit_user.html', user=user, companies=companies_data,
+                         parent_companies=parent_companies_data, queues=queues_data,
+                         existing_child_companies=existing_child_companies,
+                         existing_queues=existing_queues)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
