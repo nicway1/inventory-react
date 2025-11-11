@@ -98,7 +98,7 @@
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a country...</option>
                         {% for country in available_countries %}
-                        <option value="{{ country }}" {% if user.assigned_country and user.assigned_country.name == country %}selected{% endif %}>{{ country }}</option>
+                        <option value="{{ country.name }}" {% if user.assigned_country and user.assigned_country == country %}selected{% endif %}>{{ country.value }}</option>
                         {% endfor %}
                     </select>
                 </div>
