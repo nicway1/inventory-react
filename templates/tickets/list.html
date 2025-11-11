@@ -265,14 +265,129 @@
         color: white;
     }
     .secondary-button {
-        background: #6b7280;
-        color: white;
-        border-color: #6b7280;
+        background: white;
+        color: #4b5563;
+        border-color: #d1d5db;
     }
+
     .secondary-button:hover {
-        background: #4b5563;
-        border-color: #4b5563;
+        background: #f9fafb;
+        border-color: #9ca3af;
+        color: #1f2937;
+    }
+
+    .manager-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
+        border: none;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    }
+
+    .manager-button:hover {
+        background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        transform: translateY(-1px);
+    }
+
+    /* Ticket Actions Toolbar */
+    .ticket-actions-toolbar {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .action-buttons-left,
+    .action-buttons-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .action-buttons-left {
+        flex: 1;
+    }
+
+    .action-buttons-right {
+        border-left: 1px solid #e5e7eb;
+        padding-left: 1rem;
+    }
+
+    /* Tabs Container */
+    .ticket-tabs-container {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .sf-tabs {
+        border-bottom: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+        .ticket-actions-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .action-buttons-left,
+        .action-buttons-right {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .action-buttons-right {
+            border-left: none;
+            border-top: 1px solid #e5e7eb;
+            padding-left: 0;
+            padding-top: 1rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .ticket-actions-toolbar {
+            padding: 0.875rem 1rem;
+        }
+
+        .sf-tabs {
+            padding: 0 0.25rem;
+        }
+
+        .sf-tab {
+            padding: 0.875rem 1rem;
+            font-size: 0.8125rem;
+        }
+
+        .sf-button {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .sf-button svg {
+            width: 0.875rem !important;
+            height: 0.875rem !important;
+        }
+
+        .button-text {
+            display: none;
+        }
+
+        .action-buttons-left,
+        .action-buttons-right {
+            gap: 0.375rem;
+        }
     }
 
     .sf-search {
@@ -525,6 +640,11 @@
                         {% set open_count = queue_ticket_counts[queue.id].open if queue_ticket_counts and queue.id in queue_ticket_counts else 0 %}
                         <div class="queue-card queue-color-{{ color_index }}" onclick="filterByQueue('{{ queue.name|e }}')" data-queue="{{ queue.name|e }}" style="position: relative;">
                             {% if user.is_super_admin or user.is_developer %}
+                            <button onclick="event.stopPropagation(); editQueue({{ queue.id }}, '{{ queue.name|e }}')" class="queue-edit-btn" title="Edit Queue">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
                             <button onclick="event.stopPropagation(); deleteQueue({{ queue.id }}, '{{ queue.name|e }}')" class="queue-delete-btn" title="Delete Queue">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -834,53 +954,55 @@
             }
         </style>
 
-        <!-- Tabs Navigation with Action Buttons -->
-        <div class="sf-tabs mb-6 rounded-t-md" style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="flex">
-                <a href="#all" class="sf-tab active" onclick="filterTickets('all'); return false;">All Tickets</a>
-                <a href="#open" class="sf-tab" onclick="filterTickets('open'); return false;">Open</a>
-                <a href="#my-tickets" class="sf-tab" onclick="filterTickets('my'); return false;">My Tickets</a>
-                <a href="#recently-viewed" class="sf-tab" onclick="filterTickets('recent'); return false;">Recently Viewed</a>
-            </div>
-            <div class="sf-page-actions" style="margin-right: 1rem;">
+        <!-- Action Buttons Bar -->
+        <div class="ticket-actions-toolbar mb-4">
+            <div class="action-buttons-left">
                 {% if user.is_super_admin or user.is_developer %}
-                <a href="{{ url_for('tickets.ticket_manager') }}"
-                   class="sf-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <a href="{{ url_for('tickets.ticket_manager') }}" class="sf-button manager-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                     </svg>
-                    Ticket Manager
+                    <span>Ticket Manager</span>
                 </a>
                 {% endif %}
-                <a href="{{ url_for('tickets.create_ticket') }}"
-                   class="sf-button primary-button">
+                <a href="{{ url_for('tickets.create_ticket') }}" class="sf-button primary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    New Ticket
+                    <span>New Ticket</span>
                 </a>
-                <a href="{{ url_for('inventory.add_customer_user') }}"
-                   class="sf-button success-button">
+                <a href="{{ url_for('inventory.add_customer_user') }}" class="sf-button success-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
                     </svg>
-                    Add Customer
+                    <span>Add Customer</span>
                 </a>
+            </div>
+            <div class="action-buttons-right">
                 <button onclick="showExportWizard()" class="sf-button secondary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Ticket Export Wizard
+                    <span class="button-text">Export</span>
                 </button>
                 {% if current_user.is_admin %}
-                <a href="{{ url_for('admin.csv_import') }}" 
-                   class="sf-button">
+                <a href="{{ url_for('admin.csv_import') }}" class="sf-button secondary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
                     </svg>
-                    CSV Import
+                    <span class="button-text">Import</span>
                 </a>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="ticket-tabs-container mb-6">
+            <div class="sf-tabs">
+                <a href="#all" class="sf-tab active" onclick="filterTickets('all'); return false;">All Tickets</a>
+                <a href="#open" class="sf-tab" onclick="filterTickets('open'); return false;">Open</a>
+                <a href="#my-tickets" class="sf-tab" onclick="filterTickets('my'); return false;">My Tickets</a>
+                <a href="#recently-viewed" class="sf-tab" onclick="filterTickets('recent'); return false;">Recently Viewed</a>
             </div>
         </div>
 
@@ -2674,6 +2796,31 @@
     }
 }
 
+/* Queue edit button */
+.queue-edit-btn {
+    position: absolute;
+    top: 8px;
+    right: 42px;
+    background: rgba(59, 130, 246, 0.9);
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.queue-card:hover .queue-edit-btn {
+    opacity: 1;
+}
+
+.queue-edit-btn:hover {
+    background: rgba(37, 99, 235, 1);
+    transform: scale(1.1);
+}
+
 /* Queue delete button */
 .queue-delete-btn {
     position: absolute;
@@ -2721,6 +2868,34 @@
                 <button type="submit"
                         class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600">
                     Create Queue
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Queue Modal -->
+<div id="editQueueModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Edit Queue</h3>
+        </div>
+        <form id="editQueueForm" onsubmit="updateQueue(event)">
+            <input type="hidden" id="editQueueId">
+            <div class="px-6 py-4">
+                <label for="editQueueName" class="block text-sm font-medium text-gray-700 mb-2">Queue Name</label>
+                <input type="text" id="editQueueName" name="name" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Enter queue name">
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2 rounded-b-lg">
+                <button type="button" onclick="hideEditQueueModal()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600">
+                    Update Queue
                 </button>
             </div>
         </form>
@@ -2874,18 +3049,100 @@ async function deleteQueue(queueId, queueName) {
     }
 }
 
-// Close modal when clicking outside
+// Show edit queue modal
+function editQueue(queueId, queueName) {
+    document.getElementById('editQueueId').value = queueId;
+    document.getElementById('editQueueName').value = queueName;
+    document.getElementById('editQueueModal').style.display = 'flex';
+    document.getElementById('editQueueName').focus();
+}
+
+// Hide edit queue modal
+function hideEditQueueModal() {
+    document.getElementById('editQueueModal').style.display = 'none';
+    document.getElementById('editQueueForm').reset();
+}
+
+// Update queue
+async function updateQueue(event) {
+    event.preventDefault();
+
+    const queueId = document.getElementById('editQueueId').value;
+    const queueName = document.getElementById('editQueueName').value.trim();
+
+    if (!queueName) {
+        alert('Please enter a queue name');
+        return;
+    }
+
+    try {
+        console.log('Updating queue:', queueId, queueName);
+
+        const csrfToken = getCsrfToken();
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
+        const response = await fetch(`/tickets/queues/${queueId}/edit`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ name: queueName })
+        });
+
+        console.log('Response status:', response.status);
+
+        // Read response as text first
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
+        // Try to parse as JSON
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error('Failed to parse JSON:', e);
+            alert('Server error: ' + responseText);
+            return;
+        }
+
+        console.log('Response data:', data);
+
+        if (data.success) {
+            alert('Queue updated successfully!');
+            hideEditQueueModal();
+            // Reload page to show updated queue
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to update queue'));
+        }
+    } catch (error) {
+        console.error('Error updating queue:', error);
+        alert('Failed to update queue. Error: ' + error.message);
+    }
+}
+
+// Close modals when clicking outside
 document.addEventListener('click', function(event) {
-    const modal = document.getElementById('createQueueModal');
-    if (event.target === modal) {
+    const createModal = document.getElementById('createQueueModal');
+    const editModal = document.getElementById('editQueueModal');
+
+    if (event.target === createModal) {
         hideCreateQueueModal();
+    }
+    if (event.target === editModal) {
+        hideEditQueueModal();
     }
 });
 
-// Close modal with Escape key
+// Close modals with Escape key
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         hideCreateQueueModal();
+        hideEditQueueModal();
     }
 });
 </script>

@@ -38,6 +38,7 @@ class TicketCategory(enum.Enum):
     ASSET_CHECKOUT_CLAW = "Asset Checkout (claw)"
     ASSET_RETURN_CLAW = "Asset Return (claw)"
     ASSET_INTAKE = "Asset Intake"
+    INTERNAL_TRANSFER = "Internal Transfer"
 
 class RMAStatus(enum.Enum):
     PENDING_APPROVAL = "Pending Approval"

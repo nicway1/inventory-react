@@ -2,6 +2,10 @@
 
 {% block title %}Ticket Manager{% endblock %}
 
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-6">
     <div class="mb-6">
@@ -349,11 +353,20 @@
         }
 
         try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
             const response = await fetch('{{ url_for("tickets.bulk_assign_queue") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     ticket_ids: Array.from(selectedTickets),
                     queue_id: queueId
@@ -387,11 +400,20 @@
         }
 
         try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
             const response = await fetch('{{ url_for("tickets.bulk_assign_user") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     ticket_ids: Array.from(selectedTickets),
                     user_id: userId
@@ -430,11 +452,20 @@
         }
 
         try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
             const response = await fetch('{{ url_for("tickets.bulk_update_status") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     ticket_ids: Array.from(selectedTickets),
                     status: status

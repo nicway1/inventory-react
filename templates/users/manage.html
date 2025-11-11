@@ -49,7 +49,7 @@
                     <select name="assigned_country" id="assigned_country" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                         <option value="">-- Select Country --</option>
                         {% for country in countries %}
-                        <option value="{{ country }}" {% if user.assigned_country and user.assigned_country.value == country %}selected{% endif %}>
+                        <option value="{{ country }}" {% if user.assigned_country == country %}selected{% endif %}>
                             {{ country|replace('_', ' ')|title }}
                         </option>
                         {% endfor %}

@@ -1,0 +1,934 @@
+"""
+Search API Routes for iOS App Integration
+
+This module provides comprehensive search functionality that matches the web version:
+- Global search across assets, accessories, customers, and tickets
+- Advanced filtering and sorting options
+- User permission-based results
+- Related item discovery
+"""
+
+from flask import Blueprint, request, jsonify
+from datetime import datetime
+import logging
+from sqlalchemy import or_, and_
+
+from models.user import User, UserType
+from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
+from models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
+from models.customer_user import CustomerUser
+from models.company import Company
+from utils.db_manager import DatabaseManager
+from routes.inventory_api import dual_auth_required, format_asset_complete, format_accessory_complete
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Create Search API blueprint
+search_api_bp = Blueprint('search_api', __name__, url_prefix='/api/v1/search')
+db_manager = DatabaseManager()
+
+def format_customer_complete(customer):
+    """Format customer with complete information"""
+    def safe_str(value):
+        if value is None:
+            return None
+        return str(value).strip() if str(value).strip() else None
+    
+    return {
+        "id": customer.id,
+        "name": safe_str(customer.name),
+        "email": safe_str(customer.email),
+        "contact_number": safe_str(customer.contact_number),
+        "address": safe_str(customer.address),
+        "company": customer.company.name if customer.company else None,
+        "company_id": customer.company_id,
+        "created_at": customer.created_at.isoformat() if customer.created_at else None,
+        "updated_at": customer.updated_at.isoformat() if customer.updated_at else None,
+        "item_type": "customer"
+    }
+
+def format_ticket_complete(ticket):
+    """Format ticket with complete information"""
+    def safe_str(value):
+        if value is None:
+            return None
+        return str(value).strip() if str(value).strip() else None
+    
+    return {
+        "id": ticket.id,
+        "display_id": ticket.display_id,
+        "subject": safe_str(ticket.subject),
+        "description": safe_str(ticket.description),
+        "notes": safe_str(ticket.notes),
+        "status": ticket.status.value if ticket.status else None,
+        "priority": ticket.priority.value if ticket.priority else None,
+        "category": ticket.category.value if ticket.category else None,
+        "serial_number": safe_str(ticket.serial_number),
+        "damage_description": safe_str(ticket.damage_description),
+        "return_description": safe_str(ticket.return_description),
+        "shipping_tracking": safe_str(ticket.shipping_tracking),
+        "return_tracking": safe_str(ticket.return_tracking),
+        "shipping_tracking_2": safe_str(ticket.shipping_tracking_2),
+        "requester": {
+            "id": ticket.requester.id,
+            "name": ticket.requester.username,
+            "email": ticket.requester.email
+        } if ticket.requester else None,
+        "assigned_to": {
+            "id": ticket.assigned_to.id,
+            "name": ticket.assigned_to.username,
+            "email": ticket.assigned_to.email
+        } if ticket.assigned_to else None,
+        "queue": {
+            "id": ticket.queue.id,
+            "name": ticket.queue.name
+        } if ticket.queue else None,
+        "asset": {
+            "id": ticket.asset.id,
+            "name": ticket.asset.name,
+            "asset_tag": ticket.asset.asset_tag,
+            "serial_num": ticket.asset.serial_num
+        } if ticket.asset else None,
+        "country": safe_str(ticket.country),
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+        "item_type": "ticket"
+    }
+
+@search_api_bp.route('/global', methods=['GET'])
+@dual_auth_required
+def global_search():
+    """
+    Global search across all entities (assets, accessories, customers, tickets)
+    
+    GET /api/v1/search/global?q=search_term&page=1&limit=20&types=assets,accessories
+    Headers: Authorization: Bearer <token>
+    
+    Query Parameters:
+    - q: Search term (required)
+    - page: Page number (default: 1)
+    - limit: Results per page (default: 20, max: 100)
+    - types: Comma-separated list of types to search (assets,accessories,customers,tickets)
+    - include_related: Include related tickets for found assets (default: true)
+    
+    Response: {
+        "data": {
+            "assets": [...],
+            "accessories": [...],
+            "customers": [...],
+            "tickets": [...],
+            "related_tickets": [...]
+        },
+        "query": "search_term",
+        "counts": {
+            "assets": 5,
+            "accessories": 3,
+            "customers": 2,
+            "tickets": 8,
+            "related_tickets": 1,
+            "total": 19
+        },
+        "pagination": {
+            "page": 1,
+            "limit": 20,
+            "total": 19,
+            "pages": 1
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Get search parameters
+        search_term = request.args.get('q', '').strip()
+        if not search_term:
+            return jsonify({
+                'error': 'Search term is required',
+                'message': 'Please provide a search term using the "q" parameter'
+            }), 400
+        
+        page = request.args.get('page', 1, type=int)
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        
+        # Parse entity types to search
+        types_param = request.args.get('types', 'assets,accessories,customers,tickets')
+        search_types = [t.strip() for t in types_param.split(',') if t.strip()]
+        valid_types = {'assets', 'accessories', 'customers', 'tickets'}
+        search_types = [t for t in search_types if t in valid_types]
+        
+        if not search_types:
+            search_types = list(valid_types)
+        
+        include_related = request.args.get('include_related', 'true').lower() == 'true'
+        
+        db_session = db_manager.get_session()
+        try:
+            results = {
+                'assets': [],
+                'accessories': [],
+                'customers': [],
+                'tickets': [],
+                'related_tickets': []
+            }
+            
+            counts = {
+                'assets': 0,
+                'accessories': 0,
+                'customers': 0,
+                'tickets': 0,
+                'related_tickets': 0,
+                'total': 0
+            }
+            
+            # Search Assets
+            if 'assets' in search_types:
+                asset_query = db_session.query(Asset)
+                
+                # Apply user permission filters
+                if user.user_type == UserType.CLIENT and user.company:
+                    asset_query = asset_query.filter(
+                        or_(
+                            Asset.company_id == user.company_id,
+                            Asset.customer == user.company.name
+                        )
+                    )
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    asset_query = asset_query.filter(Asset.country == user.assigned_country)
+                
+                # Apply search filters (matching web version)
+                assets = asset_query.filter(
+                    or_(
+                        Asset.name.ilike(f'%{search_term}%'),
+                        Asset.model.ilike(f'%{search_term}%'),
+                        Asset.serial_num.ilike(f'%{search_term}%'),
+                        Asset.asset_tag.ilike(f'%{search_term}%'),
+                        Asset.category.ilike(f'%{search_term}%'),
+                        Asset.customer.ilike(f'%{search_term}%'),
+                        Asset.country.ilike(f'%{search_term}%'),
+                        Asset.hardware_type.ilike(f'%{search_term}%'),
+                        Asset.cpu_type.ilike(f'%{search_term}%'),
+                        Asset.manufacturer.ilike(f'%{search_term}%')
+                    )
+                ).order_by(Asset.created_at.desc()).limit(limit).all()
+                
+                results['assets'] = [format_asset_complete(asset) for asset in assets]
+                counts['assets'] = len(results['assets'])
+            
+            # Search Accessories
+            if 'accessories' in search_types:
+                accessory_query = db_session.query(Accessory)
+                
+                # Apply user permission filters
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country)
+                
+                accessories = accessory_query.filter(
+                    or_(
+                        Accessory.name.ilike(f'%{search_term}%'),
+                        Accessory.category.ilike(f'%{search_term}%'),
+                        Accessory.manufacturer.ilike(f'%{search_term}%'),
+                        Accessory.model_no.ilike(f'%{search_term}%'),
+                        Accessory.country.ilike(f'%{search_term}%'),
+                        Accessory.notes.ilike(f'%{search_term}%')
+                    )
+                ).order_by(Accessory.created_at.desc()).limit(limit).all()
+                
+                results['accessories'] = [format_accessory_complete(accessory) for accessory in accessories]
+                counts['accessories'] = len(results['accessories'])
+            
+            # Search Customers
+            if 'customers' in search_types:
+                customer_query = db_session.query(CustomerUser)
+                
+                # Apply company filtering for non-SUPER_ADMIN users
+                if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+                    customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
+                
+                customers = customer_query.filter(
+                    or_(
+                        CustomerUser.name.ilike(f'%{search_term}%'),
+                        CustomerUser.email.ilike(f'%{search_term}%'),
+                        CustomerUser.contact_number.ilike(f'%{search_term}%'),
+                        CustomerUser.address.ilike(f'%{search_term}%')
+                    )
+                ).order_by(CustomerUser.created_at.desc()).limit(limit).all()
+                
+                results['customers'] = [format_customer_complete(customer) for customer in customers]
+                counts['customers'] = len(results['customers'])
+            
+            # Search Tickets
+            if 'tickets' in search_types:
+                ticket_query = db_session.query(Ticket)
+                
+                # Apply user permission filters
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    ticket_query = ticket_query.filter(Ticket.country == user.assigned_country)
+                
+                # Build ticket search filters
+                ticket_filters = [
+                    Ticket.subject.ilike(f'%{search_term}%'),
+                    Ticket.description.ilike(f'%{search_term}%'),
+                    Ticket.notes.ilike(f'%{search_term}%'),
+                    Ticket.serial_number.ilike(f'%{search_term}%'),
+                    Ticket.damage_description.ilike(f'%{search_term}%'),
+                    Ticket.return_description.ilike(f'%{search_term}%'),
+                    Ticket.shipping_tracking.ilike(f'%{search_term}%'),
+                    Ticket.return_tracking.ilike(f'%{search_term}%'),
+                    Ticket.shipping_tracking_2.ilike(f'%{search_term}%')
+                ]
+                
+                # Search by ticket ID (e.g., "TICK-1001" or just "1001")
+                if search_term.replace('TICK-', '').replace('#', '').isdigit():
+                    ticket_id = int(search_term.replace('TICK-', '').replace('#', ''))
+                    ticket_filters.append(Ticket.id == ticket_id)
+                
+                tickets = ticket_query.filter(or_(*ticket_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
+                
+                results['tickets'] = [format_ticket_complete(ticket) for ticket in tickets]
+                counts['tickets'] = len(results['tickets'])
+            
+            # Find Related Tickets for found assets
+            if include_related and 'assets' in search_types and results['assets']:
+                asset_serial_numbers = [asset['serial_number'] for asset in results['assets'] if asset.get('serial_number')]
+                asset_tags = [asset['asset_tag'] for asset in results['assets'] if asset.get('asset_tag')]
+                asset_ids = [asset['id'] for asset in results['assets']]
+                
+                if asset_serial_numbers or asset_tags or asset_ids:
+                    related_filters = []
+                    
+                    if asset_serial_numbers:
+                        related_filters.append(Ticket.serial_number.in_(asset_serial_numbers))
+                    
+                    if asset_ids:
+                        related_filters.append(Ticket.asset_id.in_(asset_ids))
+                    
+                    # Search for asset tags/serials mentioned in descriptions/notes
+                    for tag in asset_tags:
+                        if tag:
+                            related_filters.extend([
+                                Ticket.description.ilike(f'%{tag}%'),
+                                Ticket.notes.ilike(f'%{tag}%')
+                            ])
+                    
+                    for serial in asset_serial_numbers:
+                        if serial:
+                            related_filters.extend([
+                                Ticket.description.ilike(f'%{serial}%'),
+                                Ticket.notes.ilike(f'%{serial}%')
+                            ])
+                    
+                    if related_filters:
+                        related_tickets_query = db_session.query(Ticket)
+                        
+                        # Apply user permission filters
+                        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                            related_tickets_query = related_tickets_query.filter(Ticket.country == user.assigned_country)
+                        
+                        related_tickets = related_tickets_query.filter(or_(*related_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
+                        
+                        # Remove duplicates if a ticket appears in both direct search and related search
+                        ticket_ids = [t['id'] for t in results['tickets']]
+                        related_tickets = [t for t in related_tickets if t.id not in ticket_ids]
+                        
+                        results['related_tickets'] = [format_ticket_complete(ticket) for ticket in related_tickets]
+                        counts['related_tickets'] = len(results['related_tickets'])
+            
+            # Calculate total count
+            counts['total'] = sum(counts[key] for key in ['assets', 'accessories', 'customers', 'tickets', 'related_tickets'])
+            
+            # Calculate pagination
+            pages = (counts['total'] + limit - 1) // limit if counts['total'] > 0 else 1
+            
+            return jsonify({
+                'data': results,
+                'query': search_term,
+                'counts': counts,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': counts['total'],
+                    'pages': pages
+                },
+                'search_types': search_types
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Global search error: {str(e)}")
+        return jsonify({
+            'error': 'Search failed',
+            'message': str(e)
+        }), 500
+
+@search_api_bp.route('/assets', methods=['GET'])
+@dual_auth_required
+def search_assets():
+    """
+    Advanced asset search with filtering
+    
+    GET /api/v1/search/assets?q=search_term&status=available&category=laptop&page=1&limit=20
+    Headers: Authorization: Bearer <token>
+    
+    Query Parameters:
+    - q: Search term (required)
+    - status: Asset status filter (available, deployed, repair, etc.)
+    - category: Asset type/category filter
+    - country: Country filter
+    - manufacturer: Manufacturer filter
+    - condition: Condition filter
+    - assigned: Filter by assignment status (true/false)
+    - page: Page number (default: 1)
+    - limit: Results per page (default: 20, max: 100)
+    - sort: Sort field (name, created_at, updated_at, receiving_date)
+    - order: Sort order (asc, desc)
+    
+    Response: {
+        "data": [...],
+        "query": "search_term",
+        "filters": {...},
+        "pagination": {...}
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Check permissions
+        if not user.permissions or not user.permissions.can_view_assets:
+            return jsonify({
+                'error': 'Insufficient permissions',
+                'message': 'User does not have permission to view assets'
+            }), 403
+        
+        # Get search parameters
+        search_term = request.args.get('q', '').strip()
+        if not search_term:
+            return jsonify({
+                'error': 'Search term is required',
+                'message': 'Please provide a search term using the "q" parameter'
+            }), 400
+        
+        page = request.args.get('page', 1, type=int)
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        
+        # Get filter parameters
+        status_filter = request.args.get('status')
+        category_filter = request.args.get('category')
+        country_filter = request.args.get('country')
+        manufacturer_filter = request.args.get('manufacturer')
+        condition_filter = request.args.get('condition')
+        assigned_filter = request.args.get('assigned')
+        
+        # Get sort parameters
+        sort_field = request.args.get('sort', 'created_at')
+        sort_order = request.args.get('order', 'desc')
+        
+        db_session = db_manager.get_session()
+        try:
+            # Build base query
+            query = db_session.query(Asset)
+            
+            # Apply user permission filters
+            if user.user_type == UserType.CLIENT and user.company:
+                query = query.filter(
+                    or_(
+                        Asset.company_id == user.company_id,
+                        Asset.customer == user.company.name
+                    )
+                )
+            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                query = query.filter(Asset.country == user.assigned_country)
+            
+            # Apply search filters
+            query = query.filter(
+                or_(
+                    Asset.name.ilike(f'%{search_term}%'),
+                    Asset.model.ilike(f'%{search_term}%'),
+                    Asset.serial_num.ilike(f'%{search_term}%'),
+                    Asset.asset_tag.ilike(f'%{search_term}%'),
+                    Asset.category.ilike(f'%{search_term}%'),
+                    Asset.customer.ilike(f'%{search_term}%'),
+                    Asset.country.ilike(f'%{search_term}%'),
+                    Asset.hardware_type.ilike(f'%{search_term}%'),
+                    Asset.cpu_type.ilike(f'%{search_term}%'),
+                    Asset.manufacturer.ilike(f'%{search_term}%')
+                )
+            )
+            
+            # Apply additional filters
+            if status_filter:
+                try:
+                    status_map = {
+                        'available': AssetStatus.READY_TO_DEPLOY,
+                        'in_stock': AssetStatus.IN_STOCK,
+                        'deployed': AssetStatus.DEPLOYED,
+                        'shipped': AssetStatus.SHIPPED,
+                        'repair': AssetStatus.REPAIR,
+                        'archived': AssetStatus.ARCHIVED,
+                        'disposed': AssetStatus.DISPOSED
+                    }
+                    
+                    if status_filter.lower() in status_map:
+                        query = query.filter(Asset.status == status_map[status_filter.lower()])
+                    else:
+                        status_enum = AssetStatus[status_filter.upper()]
+                        query = query.filter(Asset.status == status_enum)
+                except (KeyError, ValueError):
+                    pass
+            
+            if category_filter:
+                query = query.filter(Asset.asset_type.ilike(f'%{category_filter}%'))
+            
+            if country_filter:
+                query = query.filter(Asset.country.ilike(f'%{country_filter}%'))
+            
+            if manufacturer_filter:
+                query = query.filter(Asset.manufacturer.ilike(f'%{manufacturer_filter}%'))
+            
+            if condition_filter:
+                query = query.filter(Asset.condition.ilike(f'%{condition_filter}%'))
+            
+            if assigned_filter is not None:
+                if assigned_filter.lower() == 'true':
+                    query = query.filter(Asset.assigned_to_id.isnot(None))
+                elif assigned_filter.lower() == 'false':
+                    query = query.filter(Asset.assigned_to_id.is_(None))
+            
+            # Apply sorting
+            valid_sort_fields = ['name', 'created_at', 'updated_at', 'receiving_date', 'asset_tag', 'serial_num']
+            if sort_field in valid_sort_fields:
+                sort_column = getattr(Asset, sort_field)
+                if sort_order.lower() == 'asc':
+                    query = query.order_by(sort_column.asc())
+                else:
+                    query = query.order_by(sort_column.desc())
+            else:
+                query = query.order_by(Asset.created_at.desc())
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            offset = (page - 1) * limit
+            assets = query.offset(offset).limit(limit).all()
+            
+            # Format assets
+            assets_data = [format_asset_complete(asset) for asset in assets]
+            
+            pages = (total + limit - 1) // limit
+            
+            return jsonify({
+                'data': assets_data,
+                'query': search_term,
+                'filters': {
+                    'status': status_filter,
+                    'category': category_filter,
+                    'country': country_filter,
+                    'manufacturer': manufacturer_filter,
+                    'condition': condition_filter,
+                    'assigned': assigned_filter
+                },
+                'sorting': {
+                    'field': sort_field,
+                    'order': sort_order
+                },
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'pages': pages
+                }
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Asset search error: {str(e)}")
+        return jsonify({
+            'error': 'Asset search failed',
+            'message': str(e)
+        }), 500
+
+@search_api_bp.route('/accessories', methods=['GET'])
+@dual_auth_required
+def search_accessories():
+    """
+    Advanced accessory search with filtering
+    
+    GET /api/v1/search/accessories?q=search_term&status=available&category=mouse&page=1&limit=20
+    Headers: Authorization: Bearer <token>
+    
+    Similar to asset search but for accessories
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Check permissions
+        if not user.permissions or not user.permissions.can_view_assets:
+            return jsonify({
+                'error': 'Insufficient permissions',
+                'message': 'User does not have permission to view accessories'
+            }), 403
+        
+        # Get search parameters
+        search_term = request.args.get('q', '').strip()
+        if not search_term:
+            return jsonify({
+                'error': 'Search term is required',
+                'message': 'Please provide a search term using the "q" parameter'
+            }), 400
+        
+        page = request.args.get('page', 1, type=int)
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        
+        # Get filter parameters
+        status_filter = request.args.get('status')
+        category_filter = request.args.get('category')
+        country_filter = request.args.get('country')
+        manufacturer_filter = request.args.get('manufacturer')
+        available_only = request.args.get('available_only', 'false').lower() == 'true'
+        
+        # Get sort parameters
+        sort_field = request.args.get('sort', 'created_at')
+        sort_order = request.args.get('order', 'desc')
+        
+        db_session = db_manager.get_session()
+        try:
+            # Build base query
+            query = db_session.query(Accessory)
+            
+            # Apply user permission filters
+            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                query = query.filter(Accessory.country == user.assigned_country)
+            
+            # Apply search filters
+            query = query.filter(
+                or_(
+                    Accessory.name.ilike(f'%{search_term}%'),
+                    Accessory.category.ilike(f'%{search_term}%'),
+                    Accessory.manufacturer.ilike(f'%{search_term}%'),
+                    Accessory.model_no.ilike(f'%{search_term}%'),
+                    Accessory.country.ilike(f'%{search_term}%'),
+                    Accessory.notes.ilike(f'%{search_term}%')
+                )
+            )
+            
+            # Apply additional filters
+            if status_filter:
+                status_map = {
+                    'available': 'Available',
+                    'checked_out': 'Checked Out',
+                    'unavailable': 'Unavailable',
+                    'maintenance': 'Maintenance',
+                    'retired': 'Retired'
+                }
+                
+                if status_filter.lower() in status_map:
+                    query = query.filter(Accessory.status == status_map[status_filter.lower()])
+                else:
+                    query = query.filter(Accessory.status.ilike(f'%{status_filter}%'))
+            
+            if category_filter:
+                query = query.filter(Accessory.category.ilike(f'%{category_filter}%'))
+            
+            if country_filter:
+                query = query.filter(Accessory.country.ilike(f'%{country_filter}%'))
+            
+            if manufacturer_filter:
+                query = query.filter(Accessory.manufacturer.ilike(f'%{manufacturer_filter}%'))
+            
+            if available_only:
+                query = query.filter(Accessory.available_quantity > 0)
+            
+            # Apply sorting
+            valid_sort_fields = ['name', 'created_at', 'updated_at', 'category', 'manufacturer']
+            if sort_field in valid_sort_fields:
+                sort_column = getattr(Accessory, sort_field)
+                if sort_order.lower() == 'asc':
+                    query = query.order_by(sort_column.asc())
+                else:
+                    query = query.order_by(sort_column.desc())
+            else:
+                query = query.order_by(Accessory.created_at.desc())
+            
+            # Get total count
+            total = query.count()
+            
+            # Apply pagination
+            offset = (page - 1) * limit
+            accessories = query.offset(offset).limit(limit).all()
+            
+            # Format accessories
+            accessories_data = [format_accessory_complete(accessory) for accessory in accessories]
+            
+            pages = (total + limit - 1) // limit
+            
+            return jsonify({
+                'data': accessories_data,
+                'query': search_term,
+                'filters': {
+                    'status': status_filter,
+                    'category': category_filter,
+                    'country': country_filter,
+                    'manufacturer': manufacturer_filter,
+                    'available_only': available_only
+                },
+                'sorting': {
+                    'field': sort_field,
+                    'order': sort_order
+                },
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'pages': pages
+                }
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Accessory search error: {str(e)}")
+        return jsonify({
+            'error': 'Accessory search failed',
+            'message': str(e)
+        }), 500
+
+@search_api_bp.route('/suggestions', methods=['GET'])
+@dual_auth_required
+def search_suggestions():
+    """
+    Get search suggestions/autocomplete
+    
+    GET /api/v1/search/suggestions?q=mac&type=assets&limit=10
+    Headers: Authorization: Bearer <token>
+    
+    Query Parameters:
+    - q: Partial search term (required, min 2 characters)
+    - type: Entity type (assets, accessories, customers, tickets)
+    - limit: Number of suggestions (default: 10, max: 20)
+    
+    Response: {
+        "suggestions": [
+            {"text": "MacBook Pro", "type": "asset_name", "count": 5},
+            {"text": "MacBook Air", "type": "asset_name", "count": 3}
+        ]
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        # Get parameters
+        search_term = request.args.get('q', '').strip()
+        if len(search_term) < 2:
+            return jsonify({
+                'suggestions': []
+            }), 200
+        
+        entity_type = request.args.get('type', 'assets')
+        limit = min(request.args.get('limit', 10, type=int), 20)
+        
+        db_session = db_manager.get_session()
+        try:
+            suggestions = []
+            
+            if entity_type == 'assets' and user.permissions and user.permissions.can_view_assets:
+                # Get asset suggestions
+                asset_query = db_session.query(Asset)
+                
+                # Apply user permission filters
+                if user.user_type == UserType.CLIENT and user.company:
+                    asset_query = asset_query.filter(
+                        or_(
+                            Asset.company_id == user.company_id,
+                            Asset.customer == user.company.name
+                        )
+                    )
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    asset_query = asset_query.filter(Asset.country == user.assigned_country)
+                
+                # Get distinct suggestions from various fields
+                from sqlalchemy import distinct
+                
+                # Asset names
+                names = asset_query.filter(Asset.name.ilike(f'%{search_term}%')).with_entities(distinct(Asset.name)).limit(limit).all()
+                for (name,) in names:
+                    if name:
+                        suggestions.append({"text": name, "type": "asset_name"})
+                
+                # Models
+                models = asset_query.filter(Asset.model.ilike(f'%{search_term}%')).with_entities(distinct(Asset.model)).limit(limit).all()
+                for (model,) in models:
+                    if model:
+                        suggestions.append({"text": model, "type": "asset_model"})
+                
+                # Manufacturers
+                manufacturers = asset_query.filter(Asset.manufacturer.ilike(f'%{search_term}%')).with_entities(distinct(Asset.manufacturer)).limit(limit).all()
+                for (manufacturer,) in manufacturers:
+                    if manufacturer:
+                        suggestions.append({"text": manufacturer, "type": "asset_manufacturer"})
+            
+            elif entity_type == 'accessories' and user.permissions and user.permissions.can_view_assets:
+                # Get accessory suggestions
+                accessory_query = db_session.query(Accessory)
+                
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country)
+                
+                from sqlalchemy import distinct
+                
+                # Accessory names
+                names = accessory_query.filter(Accessory.name.ilike(f'%{search_term}%')).with_entities(distinct(Accessory.name)).limit(limit).all()
+                for (name,) in names:
+                    if name:
+                        suggestions.append({"text": name, "type": "accessory_name"})
+                
+                # Categories
+                categories = accessory_query.filter(Accessory.category.ilike(f'%{search_term}%')).with_entities(distinct(Accessory.category)).limit(limit).all()
+                for (category,) in categories:
+                    if category:
+                        suggestions.append({"text": category, "type": "accessory_category"})
+            
+            # Remove duplicates and limit results
+            seen = set()
+            unique_suggestions = []
+            for suggestion in suggestions:
+                if suggestion["text"] not in seen:
+                    seen.add(suggestion["text"])
+                    unique_suggestions.append(suggestion)
+                    if len(unique_suggestions) >= limit:
+                        break
+            
+            return jsonify({
+                'suggestions': unique_suggestions[:limit]
+            }), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Search suggestions error: {str(e)}")
+        return jsonify({
+            'suggestions': []
+        }), 200
+
+@search_api_bp.route('/filters', methods=['GET'])
+@dual_auth_required
+def get_search_filters():
+    """
+    Get available filter options for search
+    
+    GET /api/v1/search/filters?type=assets
+    Headers: Authorization: Bearer <token>
+    
+    Response: {
+        "assets": {
+            "statuses": ["available", "deployed", "repair"],
+            "categories": ["Laptop", "Desktop", "Phone"],
+            "manufacturers": ["Apple", "Dell", "HP"],
+            "countries": ["Singapore", "Malaysia"],
+            "conditions": ["NEW", "GOOD", "FAIR"]
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        
+        entity_type = request.args.get('type', 'assets')
+        
+        db_session = db_manager.get_session()
+        try:
+            filters = {}
+            
+            if entity_type == 'assets' and user.permissions and user.permissions.can_view_assets:
+                asset_query = db_session.query(Asset)
+                
+                # Apply user permission filters
+                if user.user_type == UserType.CLIENT and user.company:
+                    asset_query = asset_query.filter(
+                        or_(
+                            Asset.company_id == user.company_id,
+                            Asset.customer == user.company.name
+                        )
+                    )
+                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    asset_query = asset_query.filter(Asset.country == user.assigned_country)
+                
+                from sqlalchemy import distinct
+                
+                # Get unique values for filter options
+                statuses = [status.value for status in AssetStatus]
+                categories = [cat[0] for cat in asset_query.with_entities(distinct(Asset.asset_type)).filter(Asset.asset_type.isnot(None)).all() if cat[0]]
+                manufacturers = [mfg[0] for mfg in asset_query.with_entities(distinct(Asset.manufacturer)).filter(Asset.manufacturer.isnot(None)).all() if mfg[0]]
+                countries = [country[0] for country in asset_query.with_entities(distinct(Asset.country)).filter(Asset.country.isnot(None)).all() if country[0]]
+                conditions = [cond[0] for cond in asset_query.with_entities(distinct(Asset.condition)).filter(Asset.condition.isnot(None)).all() if cond[0]]
+                
+                filters['assets'] = {
+                    'statuses': sorted(statuses),
+                    'categories': sorted(categories),
+                    'manufacturers': sorted(manufacturers),
+                    'countries': sorted(countries),
+                    'conditions': sorted(conditions)
+                }
+            
+            elif entity_type == 'accessories' and user.permissions and user.permissions.can_view_assets:
+                accessory_query = db_session.query(Accessory)
+                
+                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_country:
+                    accessory_query = accessory_query.filter(Accessory.country == user.assigned_country)
+                
+                from sqlalchemy import distinct
+                
+                statuses = ['Available', 'Checked Out', 'Unavailable', 'Maintenance', 'Retired']
+                categories = [cat[0] for cat in accessory_query.with_entities(distinct(Accessory.category)).filter(Accessory.category.isnot(None)).all() if cat[0]]
+                manufacturers = [mfg[0] for mfg in accessory_query.with_entities(distinct(Accessory.manufacturer)).filter(Accessory.manufacturer.isnot(None)).all() if mfg[0]]
+                countries = [country[0] for country in accessory_query.with_entities(distinct(Accessory.country)).filter(Accessory.country.isnot(None)).all() if country[0]]
+                
+                filters['accessories'] = {
+                    'statuses': sorted(statuses),
+                    'categories': sorted(categories),
+                    'manufacturers': sorted(manufacturers),
+                    'countries': sorted(countries)
+                }
+            
+            return jsonify(filters), 200
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Get search filters error: {str(e)}")
+        return jsonify({
+            'error': 'Failed to get search filters'
+        }), 500
+
+@search_api_bp.route('/health', methods=['GET'])
+def search_health_check():
+    """
+    Health check for search API
+    
+    GET /api/v1/search/health
+    
+    Response: {
+        "status": "healthy",
+        "timestamp": "2025-08-12T...",
+        "endpoints": [...]
+    }
+    """
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'version': 'v1',
+        'endpoints': [
+            '/api/v1/search/global',
+            '/api/v1/search/assets',
+            '/api/v1/search/accessories',
+            '/api/v1/search/suggestions',
+            '/api/v1/search/filters'
+        ]
+    }), 200

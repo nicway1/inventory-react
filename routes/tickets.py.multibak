@@ -1307,29 +1307,24 @@ def create_ticket():
                 if custom_category:
                     is_custom_category = True
             
-            # Validate asset selection (skip for Asset Intake, Asset Return Claw, Internal Transfer, and custom categories)
-            if (category != 'ASSET_INTAKE' and
-                category != 'ASSET_RETURN_CLAW' and
-                category != 'INTERNAL_TRANSFER' and
-                not is_custom_category and
+            # Validate asset selection (skip for Asset Intake, Asset Return Claw, and custom categories)
+            if (category != 'ASSET_INTAKE' and 
+                category != 'ASSET_RETURN_CLAW' and 
+                not is_custom_category and 
                 (not serial_number or serial_number == "")):
                 flash('Please select an asset', 'error')
                 return render_template('tickets/create.html', **get_template_context(request.form))
 
-            # Find the asset (skip for Asset Intake, Asset Return Claw, Internal Transfer, and custom categories)
+            # Find the asset (skip for Asset Intake, Asset Return Claw, and custom categories)
             asset = None
-            if (category != 'ASSET_INTAKE' and
-                category != 'ASSET_RETURN_CLAW' and
-                category != 'INTERNAL_TRANSFER' and
-                not is_custom_category and
+            if (category != 'ASSET_INTAKE' and 
+                category != 'ASSET_RETURN_CLAW' and 
+                not is_custom_category and 
                 serial_number):
                 asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
                 if not asset:
                     flash(f'Asset not found with serial number: {serial_number}', 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
-            elif category == 'INTERNAL_TRANSFER' and serial_number:
-                # For Internal Transfer, asset is optional but should be loaded if provided
-                asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
 
             # Include ASSET_CHECKOUT_AUTO and CLAW in the main checkout logic block
             if category == 'ASSET_CHECKOUT' or \
@@ -1876,94 +1871,7 @@ Shipping Method: Claw (Ship24)"""
                     db_session.rollback()
                     flash('Error creating ticket: ' + str(e), 'error')
                     return render_template('tickets/create.html', **get_template_context(request.form))
-
-            elif category == 'INTERNAL_TRANSFER':
-                # Internal Transfer logic
-                transfer_name = request.form.get('transfer_name')
-                transfer_address = request.form.get('transfer_address')
-                transfer_tracking = request.form.get('transfer_tracking', '')
-                customer_id = request.form.get('customer_id')
-                transfer_client = request.form.get('transfer_client', '')
-                notes = request.form.get('notes', '')
-
-                logger.info(f"Processing INTERNAL_TRANSFER - Name: {transfer_name}, Customer ID: {customer_id}")
-
-                # Validate required fields
-                if not transfer_name:
-                    flash('Please provide a recipient name', 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
-
-                if not transfer_address:
-                    flash('Please provide a transfer address', 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
-
-                # Get customer details if provided
-                customer = None
-                customer_name = 'N/A'
-                customer_company = 'N/A'
-                if customer_id:
-                    customer = db_session.query(CustomerUser).options(
-                        joinedload(CustomerUser.company)
-                    ).filter(CustomerUser.id == customer_id).first()
-
-                    if customer:
-                        customer_name = customer.name
-                        if customer.company:
-                            try:
-                                customer_company = customer.company.name
-                            except Exception as e:
-                                logger.info(f"Error accessing company name: {str(e)}")
-                                customer_company = 'N/A'
-
-                # Get asset details if provided
-                asset_info = 'N/A'
-                if serial_number and asset:
-                    asset_info = f"{asset.model} - {serial_number} (Tag: {asset.asset_tag})"
-
-                # Prepare description
-                description = f"""Internal Transfer Details:
-Recipient Name: {transfer_name}
-Transfer Address: {transfer_address}
-Tracking Link: {transfer_tracking if transfer_tracking else 'Not provided'}
-
-Customer Information:
-Name: {customer_name}
-Company: {customer_company}
-
-Client Company: {transfer_client if transfer_client else 'N/A'}
-
-Asset Equipment:
-{asset_info}
-
-Additional Notes:
-{notes if notes else 'None'}"""
-
-                try:
-                    # Create the ticket
-                    ticket_id = ticket_store.create_ticket(
-                        subject=f"Internal Transfer - {transfer_name}",
-                        description=description,
-                        requester_id=user_id,
-                        category=TicketCategory.INTERNAL_TRANSFER,
-                        priority=TicketPriority.MEDIUM,  # Default priority
-                        asset_id=asset.id if asset else None,
-                        customer_id=customer_id if customer_id else None,
-                        shipping_address=transfer_address,
-                        shipping_tracking=transfer_tracking if transfer_tracking else None,
-                        queue_id=queue_id,
-                        notes=notes,
-                        case_owner_id=int(case_owner_id) if case_owner_id else None
-                    )
-
-                    logger.info(f"Internal Transfer ticket created successfully with ID: {ticket_id}")
-                    flash('Internal transfer ticket created successfully')
-                    return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-                except Exception as e:
-                    logger.info(f"Error creating ticket: {str(e)}")
-                    db_session.rollback()
-                    flash('Error creating ticket: ' + str(e), 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
-
+                                       
             elif category == 'ASSET_REPAIR':
                 damage_description = request.form.get('damage_description')
                 if not damage_description:
@@ -2232,7 +2140,7 @@ def view_ticket(ticket_id):
         # Filter assets based on user type and permissions
         if current_user.is_super_admin:
             assets = assets_query.all()
-        elif current_user.user_type == UserType.COUNTRY_ADMIN and current_user.assigned_countries:
+        elif current_user.user_type == UserType.COUNTRY_ADMIN and current_user.assigned_country:
             assets = assets_query.filter(Asset.country == current_user.assigned_country).all()
         else:
             assets = []
@@ -2566,57 +2474,6 @@ def delete_queue(queue_id):
 
     except Exception as e:
         logging.error(f"Error deleting queue: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@tickets_bp.route('/queues/<int:queue_id>/edit', methods=['POST'])
-@login_required
-def edit_queue(queue_id):
-    """Edit a queue name"""
-    try:
-        user = db_manager.get_user(session['user_id'])
-
-        # Only SUPER_ADMIN and DEVELOPER can edit queues
-        if not (user.is_super_admin or user.is_developer):
-            return jsonify({'success': False, 'error': 'Permission denied. Only Super Admins and Developers can edit queues.'}), 403
-
-        # Get the new name from request
-        data = request.get_json()
-        new_name = data.get('name', '').strip()
-
-        if not new_name:
-            return jsonify({'success': False, 'error': 'Queue name is required'}), 400
-
-        db_session = db_manager.get_session()
-        try:
-            # Check if queue exists
-            queue = db_session.query(Queue).filter(Queue.id == queue_id).first()
-            if not queue:
-                return jsonify({'success': False, 'error': 'Queue not found'}), 404
-
-            # Check if another queue with this name already exists
-            existing_queue = db_session.query(Queue).filter(
-                Queue.name == new_name,
-                Queue.id != queue_id
-            ).first()
-            if existing_queue:
-                return jsonify({'success': False, 'error': f'A queue with the name "{new_name}" already exists'}), 400
-
-            # Update the queue name
-            old_name = queue.name
-            queue.name = new_name
-            db_session.commit()
-
-            # Reload queue_store cache
-            queue_store.load_queues()
-
-            logging.info(f"Queue {queue_id} renamed from '{old_name}' to '{new_name}' by user {user.username}")
-            return jsonify({'success': True, 'message': f'Queue renamed to "{new_name}" successfully'})
-
-        finally:
-            db_session.close()
-
-    except Exception as e:
-        logging.error(f"Error editing queue: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
