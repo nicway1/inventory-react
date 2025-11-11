@@ -57,17 +57,21 @@ def permission_required(permission_name):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 return redirect(url_for('auth.login', next=request.url))
-            
+
+            # Super admins and developers bypass all permission checks
+            if current_user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+                return f(*args, **kwargs)
+
             # Check if user has the required permission
             if not hasattr(current_user, 'permissions') or not current_user.permissions:
                 abort(403)
-            
+
             if not hasattr(current_user.permissions, permission_name):
                 abort(403)
-            
+
             if not getattr(current_user.permissions, permission_name):
                 abort(403)
-            
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator 
