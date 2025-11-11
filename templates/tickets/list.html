@@ -635,7 +635,51 @@
                     <div id="queueCardsWrapper" class="queue-cards-wrapper collapsed">
                         <!-- Queue Cards -->
                         {% for queue in queues %}
-                        {% set color_index = loop.index0 % 8 %}
+                        {# Detect country from queue name and assign color #}
+                        {% set queue_name_lower = queue.name|lower %}
+                        {% if 'singapore' in queue_name_lower or 'sg' in queue_name_lower %}
+                            {% set color_index = 0 %}  {# Teal #}
+                        {% elif 'israel' in queue_name_lower or 'il' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral/Pink #}
+                        {% elif 'firstbase' in queue_name_lower %}
+                            {% set color_index = 2 %}  {# Green #}
+                        {% elif 'inbound' in queue_name_lower or 'inbou' in queue_name_lower %}
+                            {% set color_index = 3 %}  {# Yellow #}
+                        {% elif 'philippines' in queue_name_lower or 'ph' in queue_name_lower %}
+                            {% set color_index = 4 %}  {# Dark Teal/Purple #}
+                        {% elif 'usa' in queue_name_lower or 'united states' in queue_name_lower or 'us' in queue_name_lower %}
+                            {% set color_index = 6 %}  {# Teal #}
+                        {% elif 'japan' in queue_name_lower or 'jp' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral #}
+                        {% elif 'australia' in queue_name_lower or 'au' in queue_name_lower %}
+                            {% set color_index = 2 %}  {# Green #}
+                        {% elif 'india' in queue_name_lower or 'in' in queue_name_lower %}
+                            {% set color_index = 1 %}  {# Orange #}
+                        {% elif 'taiwan' in queue_name_lower or 'tw' in queue_name_lower %}
+                            {% set color_index = 3 %}  {# Yellow #}
+                        {% elif 'china' in queue_name_lower or 'cn' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral #}
+                        {% elif 'hong kong' in queue_name_lower or 'hk' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral #}
+                        {% elif 'malaysia' in queue_name_lower or 'my' in queue_name_lower %}
+                            {% set color_index = 3 %}  {# Yellow #}
+                        {% elif 'thailand' in queue_name_lower or 'th' in queue_name_lower %}
+                            {% set color_index = 4 %}  {# Dark Teal #}
+                        {% elif 'vietnam' in queue_name_lower or 'vn' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral #}
+                        {% elif 'korea' in queue_name_lower or 'kr' in queue_name_lower %}
+                            {% set color_index = 4 %}  {# Dark Teal #}
+                        {% elif 'indonesia' in queue_name_lower or 'id' in queue_name_lower %}
+                            {% set color_index = 1 %}  {# Orange #}
+                        {% elif 'canada' in queue_name_lower or 'ca' in queue_name_lower %}
+                            {% set color_index = 5 %}  {# Coral #}
+                        {% elif 'uk' in queue_name_lower or 'united kingdom' in queue_name_lower or 'britain' in queue_name_lower %}
+                            {% set color_index = 4 %}  {# Dark Teal #}
+                        {% elif 'uae' in queue_name_lower or 'dubai' in queue_name_lower or 'emirates' in queue_name_lower %}
+                            {% set color_index = 1 %}  {# Orange #}
+                        {% else %}
+                            {% set color_index = loop.index0 % 8 %}  {# Fallback to rotation #}
+                        {% endif %}
                         {% set total_count = queue_ticket_counts[queue.id].total if queue_ticket_counts and queue.id in queue_ticket_counts else 0 %}
                         {% set open_count = queue_ticket_counts[queue.id].open if queue_ticket_counts and queue.id in queue_ticket_counts else 0 %}
                         <div class="queue-card queue-color-{{ color_index }}" onclick="filterByQueue('{{ queue.name|e }}')" data-queue="{{ queue.name|e }}" style="position: relative;">
