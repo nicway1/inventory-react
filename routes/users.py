@@ -117,6 +117,8 @@ def my_profile():
 @users_bp.route('/manage/<int:user_id>', methods=['GET', 'POST'])
 @admin_required  # Make sure only admins can access this
 def manage_user(user_id):
+    from models.enums import UserType, Country
+
     user = user_store.get_user_by_id(user_id)
     if not user:
         flash('User not found')
@@ -127,8 +129,19 @@ def manage_user(user_id):
         user.username = request.form.get('username', user.username)
         user.company = request.form.get('company', user.company)
         user.role = request.form.get('role', user.role)
-        user.user_type = request.form.get('user_type', user.user_type)
-        
+
+        # Update user type
+        user_type_value = request.form.get('user_type')
+        if user_type_value:
+            user.user_type = UserType(user_type_value)
+
+        # Update assigned country for COUNTRY_ADMIN
+        assigned_country_value = request.form.get('assigned_country')
+        if user.user_type == UserType.COUNTRY_ADMIN and assigned_country_value:
+            user.assigned_country = Country(assigned_country_value)
+        elif user.user_type != UserType.COUNTRY_ADMIN:
+            user.assigned_country = None
+
         # Save changes
         user_store.save_users()
         flash('User settings updated successfully')
@@ -137,7 +150,8 @@ def manage_user(user_id):
     return render_template(
         'users/manage.html',
         user=user,
-        user_types=['admin', 'user']
+        user_types=[ut.value for ut in UserType],
+        countries=[c.value for c in Country if not c.value in ['IN', 'SG', 'TW', 'CN']]  # Exclude legacy codes
     )
 
 @users_bp.route('/manage/<int:user_id>/reset-password', methods=['POST'])

@@ -35,10 +35,22 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">User Type</label>
-                    <select name="user_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <select name="user_type" id="user_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                         {% for type in user_types %}
                         <option value="{{ type }}" {% if user.user_type == type %}selected{% endif %}>
                             {{ type|title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="countrySelect" style="{% if user.user_type.value != 'COUNTRY_ADMIN' %}display: none;{% endif %}">
+                    <label class="block text-sm font-medium text-gray-700">Assigned Country</label>
+                    <select name="assigned_country" id="assigned_country" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Select Country --</option>
+                        {% for country in countries %}
+                        <option value="{{ country }}" {% if user.assigned_country and user.assigned_country.value == country %}selected{% endif %}>
+                            {{ country|replace('_', ' ')|title }}
                         </option>
                         {% endfor %}
                     </select>
@@ -91,4 +103,24 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.getElementById('user_type');
+    const countrySelect = document.getElementById('countrySelect');
+
+    userTypeSelect.addEventListener('change', function() {
+        if (this.value === 'COUNTRY_ADMIN') {
+            countrySelect.style.display = 'block';
+            document.getElementById('assigned_country').required = true;
+        } else {
+            countrySelect.style.display = 'none';
+            document.getElementById('assigned_country').required = false;
+        }
+    });
+
+    // Trigger the change event on load to handle initial state
+    userTypeSelect.dispatchEvent(new Event('change'));
+});
+</script>
 {% endblock %} 
