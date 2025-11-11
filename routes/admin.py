@@ -520,7 +520,7 @@ def edit_user(user_id):
         child_company_ids = request.form.getlist('child_company_ids')
         queue_ids = request.form.getlist('queue_ids')
 
-        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}")
+        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}, assigned_country={assigned_country}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
 
         try:
