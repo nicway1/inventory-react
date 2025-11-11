@@ -9077,3 +9077,61 @@ def bulk_assign_user():
     except Exception as e:
         logging.error(f"Error in bulk user assignment: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@tickets_bp.route('/manager/bulk-update-status', methods=['POST'])
+@login_required
+def bulk_update_status():
+    """Bulk update ticket status"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN and DEVELOPER can perform bulk operations
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        ticket_ids = data.get('ticket_ids', [])
+        status = data.get('status')
+
+        if not ticket_ids:
+            return jsonify({'success': False, 'error': 'No tickets selected'}), 400
+
+        if not status:
+            return jsonify({'success': False, 'error': 'No status selected'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            from models.ticket import TicketStatus
+
+            # Verify status is valid
+            try:
+                ticket_status = TicketStatus[status]
+            except KeyError:
+                return jsonify({'success': False, 'error': 'Invalid status'}), 400
+
+            # Update tickets
+            updated_count = 0
+            for ticket_id in ticket_ids:
+                ticket = db_session.query(Ticket).get(ticket_id)
+                if ticket:
+                    ticket.status = ticket_status
+                    updated_count += 1
+
+            db_session.commit()
+
+            message = f'Successfully updated {updated_count} ticket(s) to status: {ticket_status.value}'
+
+            logging.info(f"Bulk status update: {updated_count} tickets to status {status} by user {user.username}")
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'updated_count': updated_count
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error in bulk status update: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
