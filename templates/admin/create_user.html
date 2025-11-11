@@ -85,13 +85,9 @@
                             name="assigned_country"
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <option value="">-- Select Country --</option>
-                        <option value="USA">USA</option>
-                        <option value="JAPAN">Japan</option>
-                        <option value="PHILIPPINES">Philippines</option>
-                        <option value="AUSTRALIA">Australia</option>
-                        <option value="ISRAEL">Israel</option>
-                        <option value="INDIA">India</option>
-                        <option value="SINGAPORE">Singapore</option>
+                        {% for country in available_countries %}
+                        <option value="{{ country }}">{{ country }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 

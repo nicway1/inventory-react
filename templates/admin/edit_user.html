@@ -97,13 +97,9 @@
                             name="assigned_country"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a country...</option>
-                        <option value="USA" {% if user.assigned_country and user.assigned_country.name == 'USA' %}selected{% endif %}>USA</option>
-                        <option value="JAPAN" {% if user.assigned_country and user.assigned_country.name == 'JAPAN' %}selected{% endif %}>Japan</option>
-                        <option value="PHILIPPINES" {% if user.assigned_country and user.assigned_country.name == 'PHILIPPINES' %}selected{% endif %}>Philippines</option>
-                        <option value="AUSTRALIA" {% if user.assigned_country and user.assigned_country.name == 'AUSTRALIA' %}selected{% endif %}>Australia</option>
-                        <option value="ISRAEL" {% if user.assigned_country and user.assigned_country.name == 'ISRAEL' %}selected{% endif %}>Israel</option>
-                        <option value="INDIA" {% if user.assigned_country and user.assigned_country.name == 'INDIA' %}selected{% endif %}>India</option>
-                        <option value="SINGAPORE" {% if user.assigned_country and user.assigned_country.name == 'SINGAPORE' %}selected{% endif %}>Singapore</option>
+                        {% for country in available_countries %}
+                        <option value="{{ country }}" {% if user.assigned_country and user.assigned_country.name == country %}selected{% endif %}>{{ country }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 

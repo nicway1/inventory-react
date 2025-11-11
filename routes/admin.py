@@ -325,6 +325,13 @@ def create_user():
         parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
         queues = db_session.query(Queue).all()
 
+        # Get unique countries from customer users for COUNTRY_ADMIN dropdown
+        customer_countries = db_session.query(CustomerUser.country).filter(
+            CustomerUser.country.isnot(None),
+            CustomerUser.country != ''
+        ).distinct().all()
+        available_countries = sorted([c[0] for c in customer_countries if c[0]])
+
         if request.method == 'POST':
             username = request.form.get('username')
             email = request.form.get('email')
@@ -343,7 +350,7 @@ def create_user():
                 companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                 parent_companies_data = _format_parent_companies(parent_companies)
                 queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
+                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
 
             try:
                 # Create user data dictionary
@@ -362,7 +369,7 @@ def create_user():
                         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                         parent_companies_data = _format_parent_companies(parent_companies)
                         queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
+                        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
                     user_data['assigned_country'] = Country[assigned_country]
 
                     # Set company for Country Admin (to filter assets by parent company)
@@ -375,7 +382,7 @@ def create_user():
                     companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                     parent_companies_data = _format_parent_companies(parent_companies)
                     queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                    return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
+                    return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
 
                 user = User(**user_data)
                 db_session.add(user)
@@ -419,13 +426,13 @@ def create_user():
                 companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                 parent_companies_data = _format_parent_companies(parent_companies)
                 queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
+                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
 
         # Convert companies, parent companies and queues to list of dicts to avoid detached instance errors
         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
         parent_companies_data = _format_parent_companies(parent_companies)
         queues_data = [{'id': q.id, 'name': q.name} for q in queues]
-        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data)
+        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
     finally:
         db_session.close()
 
@@ -450,6 +457,13 @@ def edit_user(user_id):
     parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
     queues = db_session.query(Queue).all()
     logger.info("DEBUG: Found {len(companies)} companies")
+
+    # Get unique countries from customer users for COUNTRY_ADMIN dropdown
+    customer_countries = db_session.query(CustomerUser.country).filter(
+        CustomerUser.country.isnot(None),
+        CustomerUser.country != ''
+    ).distinct().all()
+    available_countries = sorted([c[0] for c in customer_countries if c[0]])
 
     # Get existing permissions for COUNTRY_ADMIN users
     existing_child_companies = []
@@ -503,7 +517,7 @@ def edit_user(user_id):
                 return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                      parent_companies=parent_companies_data, queues=queues_data,
                                      existing_child_companies=existing_child_companies,
-                                     existing_queues=existing_queues)
+                                     existing_queues=existing_queues, available_countries=available_countries)
 
             # Update password if provided
             if password:
@@ -519,7 +533,7 @@ def edit_user(user_id):
                     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                          parent_companies=parent_companies_data, queues=queues_data,
                                          existing_child_companies=existing_child_companies,
-                                         existing_queues=existing_queues)
+                                         existing_queues=existing_queues, available_countries=available_countries)
                 user.assigned_country = Country[assigned_country]
 
                 # Update child company permissions
@@ -578,7 +592,7 @@ def edit_user(user_id):
     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                          parent_companies=parent_companies_data, queues=queues_data,
                          existing_child_companies=existing_child_companies,
-                         existing_queues=existing_queues)
+                         existing_queues=existing_queues, available_countries=available_countries)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required

@@ -2253,22 +2253,39 @@ def list_customer_users():
         if user.user_type == UserType.CLIENT:
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('main.dashboard'))
-        
+
         # Use the centralized customer filtering function
         customers = get_filtered_customers(db_session, user)
-        
-        # Debug print
-        for customer in customers:
-            logger.info("Customer {customer.name}:")
-            logger.info("Company: {customer.company.name if customer.company else 'N/A'}")
-            logger.info("Country: {customer.country.value if customer.country else 'N/A'}")
-            logger.info("Assets: {len(customer.assigned_assets)}")
-            logger.info("Accessories: {len(customer.assigned_accessories)}")
-            
-        return render_template('inventory/customer_users.html', 
-                             customers=customers, 
+
+        # Get filter parameters from request
+        search_name = request.args.get('search_name', '').strip()
+        filter_company = request.args.get('filter_company', '').strip()
+        filter_country = request.args.get('filter_country', '').strip()
+
+        # Apply filters
+        if search_name:
+            customers = [c for c in customers if search_name.lower() in c.name.lower()]
+
+        if filter_company:
+            customers = [c for c in customers if c.company and filter_company.lower() in c.company.name.lower()]
+
+        if filter_country:
+            customers = [c for c in customers if c.country and filter_country.upper() == c.country.upper()]
+
+        # Get unique companies and countries for filter dropdowns
+        all_customers = get_filtered_customers(db_session, user)
+        companies = sorted(set([c.company.name for c in all_customers if c.company]), key=str.lower)
+        countries = sorted(set([c.country for c in all_customers if c.country]))
+
+        return render_template('inventory/customer_users.html',
+                             customers=customers,
                              len=len,
-                             Country=Country)  # Pass Country enum to template
+                             Country=Country,
+                             companies=companies,
+                             countries=countries,
+                             search_name=search_name,
+                             filter_company=filter_company,
+                             filter_country=filter_country)
     finally:
         db_session.close()
 
