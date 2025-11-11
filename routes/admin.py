@@ -371,18 +371,36 @@ def create_user():
                         parent_companies_data = _format_parent_companies(parent_companies)
                         queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                         return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
-                    # Try to convert to Country enum, or use the string value if not in enum
-                    try:
-                        user_data['assigned_country'] = Country[assigned_country]
-                    except KeyError:
-                        # If country not in enum, store the raw string value in a compatible enum entry
-                        # Find a matching enum by value or use the name directly
-                        matching_country = next((c for c in Country if c.value == assigned_country), None)
-                        if matching_country:
-                            user_data['assigned_country'] = matching_country
-                        else:
-                            # Use the name as-is if it exists in the enum
-                            user_data['assigned_country'] = Country[assigned_country.replace(' ', '_').upper()]
+                    # Try to convert to Country enum - match by value or name
+                    matching_country = None
+
+                    # First try exact match by value
+                    matching_country = next((c for c in Country if c.value == assigned_country), None)
+
+                    # If not found, try by name
+                    if not matching_country:
+                        try:
+                            matching_country = Country[assigned_country]
+                        except KeyError:
+                            pass
+
+                    # If still not found, try with formatting (uppercase, replace spaces with underscores)
+                    if not matching_country:
+                        try:
+                            formatted_name = assigned_country.replace(' ', '_').upper()
+                            matching_country = Country[formatted_name]
+                        except KeyError:
+                            pass
+
+                    # If we found a match, use it; otherwise raise error
+                    if matching_country:
+                        user_data['assigned_country'] = matching_country
+                    else:
+                        flash(f'Invalid country: {assigned_country}. Please select a valid country.', 'error')
+                        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                        parent_companies_data = _format_parent_companies(parent_companies)
+                        queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                        return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries)
 
                     # Set company for Country Admin (to filter assets by parent company)
                     if country_admin_company:
@@ -547,17 +565,39 @@ def edit_user(user_id):
                                          parent_companies=parent_companies_data, queues=queues_data,
                                          existing_child_companies=existing_child_companies,
                                          existing_queues=existing_queues, available_countries=available_countries)
-                # Try to convert to Country enum, or use the string value if not in enum
-                try:
-                    user.assigned_country = Country[assigned_country]
-                except KeyError:
-                    # If country not in enum, find a matching enum by value
-                    matching_country = next((c for c in Country if c.value == assigned_country), None)
-                    if matching_country:
-                        user.assigned_country = matching_country
-                    else:
-                        # Use the name as-is if it exists in the enum
-                        user.assigned_country = Country[assigned_country.replace(' ', '_').upper()]
+                # Try to convert to Country enum - match by value or name
+                matching_country = None
+
+                # First try exact match by value
+                matching_country = next((c for c in Country if c.value == assigned_country), None)
+
+                # If not found, try by name
+                if not matching_country:
+                    try:
+                        matching_country = Country[assigned_country]
+                    except KeyError:
+                        pass
+
+                # If still not found, try with formatting (uppercase, replace spaces with underscores)
+                if not matching_country:
+                    try:
+                        formatted_name = assigned_country.replace(' ', '_').upper()
+                        matching_country = Country[formatted_name]
+                    except KeyError:
+                        pass
+
+                # If we found a match, use it; otherwise raise error
+                if matching_country:
+                    user.assigned_country = matching_country
+                else:
+                    flash(f'Invalid country: {assigned_country}. Please select a valid country.', 'error')
+                    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                    parent_companies_data = _format_parent_companies(parent_companies)
+                    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                    return render_template('admin/edit_user.html', user=user, companies=companies_data,
+                                         parent_companies=parent_companies_data, queues=queues_data,
+                                         existing_child_companies=existing_child_companies,
+                                         existing_queues=existing_queues, available_countries=available_countries)
 
                 # Update child company permissions
                 # Delete existing permissions
