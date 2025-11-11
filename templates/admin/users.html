@@ -231,7 +231,6 @@
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Username</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Type</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Country</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
                     <th class="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -273,15 +272,6 @@
                             {% else %}badge-client{% endif %}">
                             {{ user_type_value.replace('_', ' ') }}
                         </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {% if user.assigned_country %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {{ user.assigned_country.value }}
-                            </span>
-                        {% else %}
-                            <span class="text-gray-400">-</span>
-                        {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}
