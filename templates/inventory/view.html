@@ -310,11 +310,29 @@
     }
 </script>
 
+<!-- SVG Filters for Island Effect -->
+<svg style="position: absolute; width: 0; height: 0;">
+    <defs>
+        <filter id="octave1">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" />
+            <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <filter id="octave2">
+            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" />
+            <feColorMatrix type="saturate" values="0" />
+        </filter>
+    </defs>
+</svg>
+
 <div class="container mx-auto px-4 py-8">
-    <!-- Header Card with Neumorphic Design -->
+    <!-- Header Card with Neumorphic Design and Island Background -->
     <div class="mb-8">
-        <div style="border-radius: 30px; background: #e0e0e0; box-shadow: 20px 20px 60px #bebebe, -20px -20px 60px #ffffff; padding: 1.5rem 2rem;">
-            <h1 class="text-3xl font-bold text-gray-800" style="margin: 0;">IT Asset Inventory</h1>
+        <div style="position: relative; border-radius: 30px; overflow: hidden; box-shadow: 20px 20px 60px #bebebe, -20px -20px 60px #ffffff; padding: 1.5rem 2rem;">
+            <!-- Island background layers -->
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.65; background: rgb(52, 65, 73); filter: url(#octave1) brightness(20) contrast(1); z-index: 0;"></div>
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.5; background: rgb(52, 65, 73); filter: url(#octave2) brightness(20) contrast(1); z-index: 1;"></div>
+            <!-- Content -->
+            <h1 class="text-3xl font-bold text-gray-800" style="margin: 0; position: relative; z-index: 2;">IT Asset Inventory</h1>
         </div>
     </div>
 
