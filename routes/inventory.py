@@ -2421,7 +2421,13 @@ def edit_customer_user(id):
     try:
         customer = db_session.query(CustomerUser).get(id)
         companies = db_session.query(Company).all()
-        countries = list(Country)
+
+        # Get unique countries from customer users for dropdown
+        customer_countries = db_session.query(CustomerUser.country).filter(
+            CustomerUser.country.isnot(None),
+            CustomerUser.country != ''
+        ).distinct().all()
+        available_countries = sorted([c[0] for c in customer_countries if c[0]])
         
         if not customer:
             flash('Customer user not found', 'error')
@@ -2433,16 +2439,20 @@ def edit_customer_user(id):
             customer.email = request.form['email']
             customer.address = request.form['address']
             customer.company_id = request.form['company_id']
-            customer.country = Country(request.form['country'])
-            
+
+            # Handle country - normalize the format
+            country_name = request.form.get('country')
+            if country_name:
+                customer.country = country_name.upper().replace(' ', '_')
+
             db_session.commit()
             flash('Customer user updated successfully', 'success')
             return redirect(url_for('inventory.list_customer_users'))
             
-        return render_template('inventory/edit_customer_user.html', 
+        return render_template('inventory/edit_customer_user.html',
                              customer=customer,
                              companies=companies,
-                             countries=countries)
+                             available_countries=available_countries)
     finally:
         db_session.close()
 
