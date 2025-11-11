@@ -148,11 +148,38 @@ def view_inventory():
         
         # Base query for tech assets
         tech_assets_query = db_session.query(Asset)
-        
+
         # Filter by country if user is Country Admin or Supervisor
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
             tech_assets_query = tech_assets_query.filter(Asset.country == user.assigned_country.value)
-        
+
+            # Additional filtering for COUNTRY_ADMIN: filter by child company permissions
+            if user.user_type == UserType.COUNTRY_ADMIN:
+                from models.user_company_permission import UserCompanyPermission
+
+                # Get child companies this user has permission to view
+                child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id,
+                    can_view=True
+                ).all()
+
+                if child_company_permissions:
+                    # User has specific child company permissions - filter by those companies
+                    permitted_company_ids = [perm.company_id for perm in child_company_permissions]
+                    tech_assets_query = tech_assets_query.filter(Asset.company_id.in_(permitted_company_ids))
+                    logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(permitted_company_ids)} child companies: {permitted_company_ids}")
+                elif user.company_id:
+                    # No specific child permissions, but user has parent company - show all assets under parent company
+                    from models.company import Company
+                    parent_company = db_session.query(Company).get(user.company_id)
+                    if parent_company and parent_company.is_parent_company:
+                        # Get all child companies under this parent
+                        child_companies = db_session.query(Company).filter_by(parent_company_id=parent_company.id).all()
+                        child_company_ids = [c.id for c in child_companies]
+                        if child_company_ids:
+                            tech_assets_query = tech_assets_query.filter(Asset.company_id.in_(child_company_ids))
+                            logger.info(f"DEBUG: COUNTRY_ADMIN filtering by all {len(child_company_ids)} child companies under parent {parent_company.name}")
+
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
             # Filter by company_id and also by customer field matching company name
