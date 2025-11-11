@@ -2,6 +2,7 @@
 
 {% block content %}
 <!-- Add CSRF token -->
+
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
@@ -183,83 +184,96 @@
   transition: all 0.3s ease;
 }
 
-/* SF Button Color Variants */
+/* SF Button Color Variants - Updated Palette */
 .sf-button.green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 8px rgba(69, 165, 154, 0.3);
 }
 
 .sf-button.green:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #3a8a82 0%, #2d6f6d 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 16px rgba(69, 165, 154, 0.4);
 }
 
 .sf-button.purple {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #2d6f6d 0%, #1f504e 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 8px rgba(45, 111, 109, 0.3);
 }
 
 .sf-button.purple:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #1f504e 0%, #16403e 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 16px rgba(45, 111, 109, 0.4);
 }
 
 .sf-button.blue {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 8px rgba(69, 165, 154, 0.3);
 }
 
 .sf-button.blue:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3a8a82 0%, #2d6f6d 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 16px rgba(69, 165, 154, 0.4);
 }
 
 .sf-button.gray {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  background: linear-gradient(135deg, #8d9091 0%, #707375 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3);
+  box-shadow: 0 4px 8px rgba(141, 144, 145, 0.3);
 }
 
 .sf-button.gray:hover {
-  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  background: linear-gradient(135deg, #707375 0%, #5a5d5f 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(107, 114, 128, 0.4);
+  box-shadow: 0 8px 16px rgba(141, 144, 145, 0.4);
 }
 
 .sf-button.red {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, #e58b7c 0%, #d97163 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 8px rgba(229, 139, 124, 0.3);
 }
 
 .sf-button.red:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: linear-gradient(135deg, #d97163 0%, #cd574a 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 8px 16px rgba(229, 139, 124, 0.4);
 }
 
 .sf-button.yellow {
-  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  background: linear-gradient(135deg, #f4d079 0%, #e8bd5d 100%);
   color: white;
   border: none;
-  box-shadow: 0 4px 8px rgba(234, 179, 8, 0.3);
+  box-shadow: 0 4px 8px rgba(244, 208, 121, 0.3);
 }
 
 .sf-button.yellow:hover {
-  background: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
+  background: linear-gradient(135deg, #e8bd5d 0%, #dca941 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(234, 179, 8, 0.4);
+  box-shadow: 0 8px 16px rgba(244, 208, 121, 0.4);
+}
+
+.sf-button.orange {
+  background: linear-gradient(135deg, #f5a962 0%, #e99346 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 8px rgba(245, 169, 98, 0.3);
+}
+
+.sf-button.orange:hover {
+  background: linear-gradient(135deg, #e99346 0%, #dd7d2a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(245, 169, 98, 0.4);
 }
 </style>
 
