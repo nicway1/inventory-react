@@ -226,9 +226,18 @@ def view_inventory():
         statuses = tech_assets_query.with_entities(Asset.status).distinct().all()
         statuses = sorted(list(set([s[0].value for s in statuses if s[0]])))
 
-        # For Country Admin or Supervisor, only show their assigned country
+        # For Country Admin or Supervisor, show actual countries from assets (not just assigned country)
         if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_country:
-            countries = [user.assigned_country.value]
+            countries_raw = tech_assets_query.with_entities(Asset.country).distinct().all()
+            # Use case-insensitive deduplication and proper capitalization
+            countries_seen = set()
+            countries = []
+            for c in sorted([c[0] for c in countries_raw if c[0]]):
+                country_lower = c.lower()
+                if country_lower not in countries_seen:
+                    countries_seen.add(country_lower)
+                    # Use proper case format
+                    countries.append(c.title())
         # For Client users, only show countries relevant to their company's assets
         elif user.user_type == UserType.CLIENT and user.company:
             countries_raw = tech_assets_query.with_entities(Asset.country).distinct().all()
@@ -2277,12 +2286,16 @@ def list_customer_users():
         companies = sorted(set([c.company.name for c in all_customers if c.company]), key=str.lower)
         countries = sorted(set([c.country for c in all_customers if c.country]))
 
+        # Get all companies for bulk update dropdown
+        all_companies = db_session.query(Company).order_by(Company.name).all()
+
         return render_template('inventory/customer_users.html',
                              customers=customers,
                              len=len,
                              Country=Country,
                              companies=companies,
                              countries=countries,
+                             all_companies=all_companies,
                              search_name=search_name,
                              filter_company=filter_company,
                              filter_country=filter_country)
@@ -2476,6 +2489,89 @@ def delete_customer_user(id):
             flash(f'Error deleting customer: {str(e)}', 'error')
         
         return redirect(url_for('inventory.list_customer_users'))
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/bulk-update-country', methods=['POST'])
+@login_required
+def bulk_update_customers_country():
+    """Bulk update customer country"""
+    db_session = db_manager.get_session()
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Check permissions - only super admin and developer can bulk update
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        customer_ids = data.get('customer_ids', [])
+        country = data.get('country')
+
+        if not customer_ids:
+            return jsonify({'success': False, 'error': 'No customers selected'})
+
+        if not country:
+            return jsonify({'success': False, 'error': 'No country specified'})
+
+        # Update customers
+        updated_count = 0
+        for customer_id in customer_ids:
+            customer = db_session.query(CustomerUser).get(customer_id)
+            if customer:
+                customer.country = country
+                updated_count += 1
+
+        db_session.commit()
+        return jsonify({'success': True, 'message': f'Successfully updated {updated_count} customer(s) country to {country}'})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@inventory_bp.route('/customer-users/bulk-update-company', methods=['POST'])
+@login_required
+def bulk_update_customers_company():
+    """Bulk update customer company"""
+    db_session = db_manager.get_session()
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Check permissions - only super admin and developer can bulk update
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        customer_ids = data.get('customer_ids', [])
+        company_id = data.get('company_id')
+
+        if not customer_ids:
+            return jsonify({'success': False, 'error': 'No customers selected'})
+
+        if not company_id:
+            return jsonify({'success': False, 'error': 'No company specified'})
+
+        # Verify company exists
+        company = db_session.query(Company).get(company_id)
+        if not company:
+            return jsonify({'success': False, 'error': 'Company not found'})
+
+        # Update customers
+        updated_count = 0
+        for customer_id in customer_ids:
+            customer = db_session.query(CustomerUser).get(customer_id)
+            if customer:
+                customer.company_id = company_id
+                updated_count += 1
+
+        db_session.commit()
+        return jsonify({'success': True, 'message': f'Successfully updated {updated_count} customer(s) company to {company.name}'})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
 
