@@ -720,182 +720,181 @@
                 flex-wrap: wrap;
             }
 
-            /* Queue Card Base Styles */
+            /* Queue Card Base Styles - Neumorphic Design */
             .queue-card {
-                flex: 0 0 220px;
-                min-width: 220px;
+                flex: 0 0 252px;
+                min-width: 252px;
+                height: 265px;
                 padding: 0;
-                border-radius: 12px;
+                background: white;
+                border-radius: 30px;
                 cursor: pointer;
-                transition: all 0.2s ease;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                transition: all 0.2s ease-in-out;
+                box-shadow: 15px 15px 30px #bebebe, -15px -15px 30px #ffffff;
                 overflow: hidden;
-                border: 1px solid;
+                border: none;
             }
 
             .queue-cards-wrapper.expanded .queue-card {
                 flex: 0 0 calc(25% - 0.75rem);
-                min-width: 200px;
+                min-width: 230px;
             }
 
             .queue-card-header {
-                padding: 1rem 1.25rem;
+                width: 100%;
+                height: 50%;
+                border-top-left-radius: 30px;
+                border-top-right-radius: 30px;
                 display: flex;
-                align-items: center;
-                gap: 0.75rem;
+                align-items: flex-start;
+                justify-content: space-between;
+                padding: 20px;
+                position: relative;
             }
 
             .queue-icon {
-                width: 2.5rem;
-                height: 2.5rem;
+                width: 40px;
+                height: 40px;
+                background-color: rgba(255, 255, 255, 0.3);
+                backdrop-filter: blur(10px);
                 border-radius: 10px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
+                transition: all 0.2s ease-in-out;
+            }
+
+            .queue-icon svg {
+                width: 20px;
+                height: 20px;
+                color: white;
             }
 
             .queue-name {
+                position: absolute;
+                bottom: 20px;
+                left: 20px;
+                right: 20px;
                 font-weight: 600;
-                font-size: 0.875rem;
-                color: #1e293b;
-                flex: 1;
+                font-size: 0.95rem;
+                color: white;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
 
             .queue-stats {
-                padding: 0.875rem 1.25rem 1.125rem;
+                padding: 20px;
                 display: flex;
-                align-items: center;
-                justify-content: space-between;
-                background: rgba(0, 0, 0, 0.02);
+                flex-direction: column;
+                gap: 15px;
+                height: 50%;
+                background: white;
             }
 
             .stat-item {
-                text-align: center;
-                flex: 1;
+                display: flex;
+                align-items: center;
+                padding: 10px;
+                border-radius: 10px;
+                transition: all 0.2s ease;
             }
 
             .stat-value {
-                font-size: 1.75rem;
+                font-size: 1.5rem;
                 font-weight: 700;
                 line-height: 1;
-                margin-bottom: 0.25rem;
+                margin-right: 10px;
             }
 
             .stat-label {
-                font-size: 0.7rem;
+                font-size: 0.75rem;
                 font-weight: 500;
-                color: #64748b;
+                color: #999999;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
             }
 
             .stat-divider {
-                width: 1px;
-                height: 2rem;
-                background: #e2e8f0;
+                display: none;
             }
 
             .stat-open {
                 color: #10b981 !important;
             }
 
-            /* Color Variants - Updated Teal/Yellow/Orange/Coral Palette */
-            .queue-color-0 {
-                background: linear-gradient(135deg, #d5f3f0 0%, #b3e8e3 100%);
-                border-color: rgba(69, 165, 154, 0.3);
-            }
-            .queue-icon-0 {
+            /* Color Variants - Neumorphic Style with New Palette */
+            .queue-color-0 .queue-card-header {
                 background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(69, 165, 154, 0.3);
             }
-            .stat-value-0 { color: #3a8a82; }
+            .queue-color-0 .stat-item {
+                background-color: #e3fff9;
+            }
+            .stat-value-0 { color: #45a59a; }
 
-            .queue-color-1 {
-                background: linear-gradient(135deg, #fef4e6 0%, #fde9cc 100%);
-                border-color: rgba(245, 169, 98, 0.3);
-            }
-            .queue-icon-1 {
+            .queue-color-1 .queue-card-header {
                 background: linear-gradient(135deg, #f5a962 0%, #e99346 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(245, 169, 98, 0.3);
             }
-            .stat-value-1 { color: #e99346; }
+            .queue-color-1 .stat-item {
+                background-color: #fff3e6;
+            }
+            .stat-value-1 { color: #f5a962; }
 
-            .queue-color-2 {
-                background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-                border-color: rgba(16, 185, 129, 0.3);
-            }
-            .queue-icon-2 {
+            .queue-color-2 .queue-card-header {
                 background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
             }
-            .stat-value-2 { color: #059669; }
+            .queue-color-2 .stat-item {
+                background-color: #e3fff9;
+            }
+            .stat-value-2 { color: #10b981; }
 
-            .queue-color-3 {
-                background: linear-gradient(135deg, #fef9e7 0%, #fef3d0 100%);
-                border-color: rgba(244, 208, 121, 0.3);
-            }
-            .queue-icon-3 {
+            .queue-color-3 .queue-card-header {
                 background: linear-gradient(135deg, #f4d079 0%, #e8bd5d 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(244, 208, 121, 0.3);
             }
-            .stat-value-3 { color: #e8bd5d; }
+            .queue-color-3 .stat-item {
+                background-color: #fffbeb;
+            }
+            .stat-value-3 { color: #f4d079; }
 
-            .queue-color-4 {
-                background: linear-gradient(135deg, #dce9e8 0%, #c3dbd9 100%);
-                border-color: rgba(45, 111, 109, 0.3);
-            }
-            .queue-icon-4 {
+            .queue-color-4 .queue-card-header {
                 background: linear-gradient(135deg, #2d6f6d 0%, #1f504e 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(45, 111, 109, 0.3);
             }
-            .stat-value-4 { color: #1f504e; }
+            .queue-color-4 .stat-item {
+                background-color: #e0f0ef;
+            }
+            .stat-value-4 { color: #2d6f6d; }
 
-            .queue-color-5 {
-                background: linear-gradient(135deg, #fce9e6 0%, #f9d8d2 100%);
-                border-color: rgba(229, 139, 124, 0.3);
-            }
-            .queue-icon-5 {
+            .queue-color-5 .queue-card-header {
                 background: linear-gradient(135deg, #e58b7c 0%, #d97163 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(229, 139, 124, 0.3);
             }
-            .stat-value-5 { color: #d97163; }
+            .queue-color-5 .stat-item {
+                background-color: #ffebe6;
+            }
+            .stat-value-5 { color: #e58b7c; }
 
-            .queue-color-6 {
-                background: linear-gradient(135deg, #d5f3f0 0%, #b3e8e3 100%);
-                border-color: rgba(69, 165, 154, 0.3);
-            }
-            .queue-icon-6 {
+            .queue-color-6 .queue-card-header {
                 background: linear-gradient(135deg, #45a59a 0%, #3a8a82 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(69, 165, 154, 0.3);
             }
-            .stat-value-6 { color: #3a8a82; }
+            .queue-color-6 .stat-item {
+                background-color: #e3fff9;
+            }
+            .stat-value-6 { color: #45a59a; }
 
-            .queue-color-7 {
-                background: linear-gradient(135deg, #fef4e6 0%, #fde9cc 100%);
-                border-color: rgba(245, 169, 98, 0.3);
-            }
-            .queue-icon-7 {
+            .queue-color-7 .queue-card-header {
                 background: linear-gradient(135deg, #f5a962 0%, #e99346 100%);
-                color: white;
-                box-shadow: 0 4px 12px rgba(245, 169, 98, 0.3);
             }
-            .stat-value-7 { color: #e99346; }
+            .queue-color-7 .stat-item {
+                background-color: #fff3e6;
+            }
+            .stat-value-7 { color: #f5a962; }
 
             .queue-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                border-width: 2px;
+                cursor: pointer;
+                box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+            }
+
+            .queue-card:hover .queue-icon {
+                transform: scale(1.1) rotate(10deg);
             }
 
             .queue-card:active {
