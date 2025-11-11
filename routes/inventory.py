@@ -159,13 +159,14 @@ def view_inventory():
                 from models.company import Company
 
                 # Get child companies this user has permission to view
+                # ONLY use UserCompanyPermission - ignore user.company_id
                 child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
                     user_id=user.id,
                     can_view=True
                 ).all()
 
                 if child_company_permissions:
-                    # User has specific child company permissions - filter by those companies
+                    # User has specific child company permissions - filter by ONLY those companies
                     permitted_company_ids = [perm.company_id for perm in child_company_permissions]
 
                     # Get the actual company objects to also check by name
@@ -181,42 +182,13 @@ def view_inventory():
                             *name_conditions
                         )
                     )
-                    logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(permitted_company_ids)} child companies: {permitted_company_ids}")
+                    logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(permitted_company_ids)} assigned child companies: {permitted_company_ids}")
                     logger.info(f"DEBUG: Also filtering by company names (partial match): {permitted_company_names}")
-                elif user.company_id:
-                    # No specific child permissions - determine parent company
-                    user_company = db_session.query(Company).get(user.company_id)
-
-                    if user_company:
-                        # Find the parent company (could be the user's company itself, or its parent)
-                        if user_company.is_parent_company:
-                            parent_company = user_company
-                        elif user_company.parent_company_id:
-                            parent_company = db_session.query(Company).get(user_company.parent_company_id)
-                        else:
-                            # Company is neither parent nor has a parent - just show that company's assets
-                            parent_company = None
-                            child_companies = [user_company]
-
-                        if parent_company:
-                            # Get all child companies under this parent
-                            child_companies = db_session.query(Company).filter_by(parent_company_id=parent_company.id).all()
-                            logger.info(f"DEBUG: Found parent company {parent_company.name}, loading its {len(child_companies)} children")
-
-                        if child_companies:
-                            child_company_ids = [c.id for c in child_companies]
-                            child_company_names = [c.name.strip() for c in child_companies]
-
-                            # Build OR conditions for flexible name matching
-                            name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in child_company_names]
-                            tech_assets_query = tech_assets_query.filter(
-                                or_(
-                                    Asset.company_id.in_(child_company_ids),
-                                    *name_conditions
-                                )
-                            )
-                            logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(child_company_ids)} child companies: {child_company_ids}")
-                            logger.info(f"DEBUG: Also filtering by company names (partial match): {child_company_names}")
+                else:
+                    # No child company permissions assigned - show NO assets
+                    # This forces admin to explicitly assign companies through the UI
+                    tech_assets_query = tech_assets_query.filter(Asset.id == -1)  # Impossible condition = no results
+                    logger.info(f"DEBUG: COUNTRY_ADMIN has NO child company permissions - showing 0 assets")
 
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
