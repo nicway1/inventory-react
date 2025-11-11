@@ -325,14 +325,21 @@
 </svg>
 
 <div class="container mx-auto px-4 py-8">
-    <!-- Header Card with Neumorphic Design and Island Background -->
+    <!-- Header Card with Neumorphic Design and Hexagonal Pattern Background -->
     <div class="mb-8">
         <div style="position: relative; border-radius: 30px; overflow: hidden; box-shadow: 20px 20px 60px #bebebe, -20px -20px 60px #ffffff; padding: 1.5rem 2rem;">
-            <!-- Island background layers -->
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.65; background: rgb(52, 65, 73); filter: url(#octave1) brightness(20) contrast(1); z-index: 0;"></div>
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.5; background: rgb(52, 65, 73); filter: url(#octave2) brightness(20) contrast(1); z-index: 1;"></div>
+            <!-- Hexagonal pattern background -->
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                        --s: 200px;
+                        --c1: #1d1d1d;
+                        --c2: #4e4f51;
+                        --c3: #3c3c3c;
+                        background: repeating-conic-gradient(from 30deg, #0000 0 120deg, var(--c3) 0 180deg) calc(0.5 * var(--s)) calc(0.5 * var(--s) * 0.577),
+                                    repeating-conic-gradient(from 30deg, var(--c1) 0 60deg, var(--c2) 0 120deg, var(--c3) 0 180deg);
+                        background-size: var(--s) calc(var(--s) * 0.577);
+                        z-index: 0;"></div>
             <!-- Content -->
-            <h1 class="text-3xl font-bold text-gray-800" style="margin: 0; position: relative; z-index: 2;">IT Asset Inventory</h1>
+            <h1 class="text-3xl font-bold text-white" style="margin: 0; position: relative; z-index: 2;">IT Asset Inventory</h1>
         </div>
     </div>
 
