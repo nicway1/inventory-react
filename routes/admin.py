@@ -475,7 +475,8 @@ def edit_user(user_id):
         child_company_ids = request.form.getlist('child_company_ids')
         queue_ids = request.form.getlist('queue_ids')
 
-        logger.info("DEBUG: Form submission - company_id={company_id}, user_type={user_type}")
+        logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, country_admin_company={country_admin_company}")
+        logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
 
         try:
             # Update basic user information
@@ -523,9 +524,11 @@ def edit_user(user_id):
 
                 # Update child company permissions
                 # Delete existing permissions
-                db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
+                deleted_count = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
+                logger.info(f"DEBUG: Deleted {deleted_count} existing child company permissions for user {user.id}")
                 # Add new permissions
                 if child_company_ids:
+                    logger.info(f"DEBUG: Adding {len(child_company_ids)} new child company permissions: {child_company_ids}")
                     for child_company_id in child_company_ids:
                         company_permission = UserCompanyPermission(
                             user_id=user.id,
@@ -535,6 +538,9 @@ def edit_user(user_id):
                             can_delete=False
                         )
                         db_session.add(company_permission)
+                        logger.info(f"DEBUG: Added permission for user {user.id} to view company {child_company_id}")
+                else:
+                    logger.info(f"DEBUG: No child company IDs provided - user will see all child companies under parent")
 
                 # Update queue permissions
                 # Delete existing queue permissions for this company
