@@ -8,6 +8,7 @@ from datetime import datetime
 from utils.timezone_utils import singapore_now_as_utc
 from models.user import User
 from models.permission import Permission
+from database import SessionLocal
 import logging
 
 # Set up logging for this module
@@ -154,13 +155,19 @@ def profile():
 
     # Get ticket statistics for the user
     from models.ticket import Ticket
-    total_tickets = Ticket.query.filter_by(owner_id=current_user.id).count()
-    open_tickets = Ticket.query.filter_by(owner_id=current_user.id).filter(
-        Ticket.status.in_(['open', 'in_progress', 'pending'])
-    ).count()
-    closed_tickets = Ticket.query.filter_by(owner_id=current_user.id).filter(
-        Ticket.status == 'closed'
-    ).count()
+    db = SessionLocal()
+    try:
+        total_tickets = db.query(Ticket).filter(Ticket.owner_id == current_user.id).count()
+        open_tickets = db.query(Ticket).filter(
+            Ticket.owner_id == current_user.id,
+            Ticket.status.in_(['open', 'in_progress', 'pending'])
+        ).count()
+        closed_tickets = db.query(Ticket).filter(
+            Ticket.owner_id == current_user.id,
+            Ticket.status == 'closed'
+        ).count()
+    finally:
+        db.close()
 
     ticket_stats = {
         'total': total_tickets,
