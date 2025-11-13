@@ -865,35 +865,46 @@
     <div class="liquid-glass-bg"></div>
     {% endif %}
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex">
+    <nav class="bg-white shadow-lg border-b border-gray-200">
+        <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %}">
+            <div class="flex items-center gap-6 h-20 w-full">
+                <!-- Left side: Logo and primary navigation -->
+                <div class="flex items-center gap-4 flex-wrap min-w-fit">
                     <!-- Logo and Name -->
-                    <div class="flex-shrink-0 flex items-center">
-                        <a href="{{ url_for('main.index') }}" class="flex items-center space-x-4">
-                            <img src="{{ url_for('static', filename='images/truelglogo.png') }}" 
-                                 alt="TrueLog Logo" 
-                                 class="h-12 w-auto object-contain">
-                            <span class="text-xl font-bold text-truelog-dark">Asset Management</span>
-                        </a>
-                    </div>
+                    <a href="{{ url_for('main.index') }}" class="flex items-center space-x-3">
+                        <img src="{{ url_for('static', filename='images/truelglogo.png') }}"
+                             alt="TrueLog Logo"
+                             class="h-14 w-auto object-contain">
+                        <span class="text-2xl font-bold text-truelog-dark">Asset Management</span>
+                    </a>
 
                     {% if session.get('user_id') %}
-                    <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
+                    <!-- Vertical Divider -->
+                    <div class="hidden lg:block h-10 w-px bg-gray-300"></div>
+
+                    <div class="flex flex-wrap items-center gap-2">
                         <!-- Inventory Button -->
                         <a href="{{ url_for('inventory.view_inventory') }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                             </svg>
                             Inventory
                         </a>
 
+                        <!-- Tickets Button -->
+                        <a href="{{ url_for('tickets.list_tickets') }}"
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                            Tickets
+                        </a>
+
                         {% if session.get('user_type') == 'SUPER_ADMIN' %}
                         <!-- History Button (Super Admin Only) -->
                         <a href="{{ url_for('admin.view_history') }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
@@ -903,45 +914,38 @@
 
                         <!-- Import Button -->
                         <a href="{{ url_for('inventory.import_inventory') }}"
-                           class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/>
                             </svg>
                             Import
                         </a>
-
-
-
-
-
                     </div>
                     {% endif %}
                 </div>
 
-                <!-- Search Bar -->
                 {% if session.get('user_id') %}
-                <div class="flex-1 flex items-center justify-center px-2 lg:ml-6 lg:justify-end">
-                    <form action="{{ url_for('inventory.search') }}" method="GET" class="max-w-lg w-full lg:max-w-xs">
-                        <label for="search" class="sr-only">Search</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                            </div>
-                            <input type="search" 
-                                   name="q" 
-                                   id="search" 
-                                   class="block w-full pl-10 pr-3 py-2 border border-truelog-light rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-truelog focus:border-truelog sm:text-sm" 
-                                   placeholder="Search assets, tickets, accessories..."
-                                   aria-label="Search assets, tickets, accessories">
+                <!-- Centered Search -->
+                <form action="{{ url_for('inventory.search') }}" method="GET" class="flex-1 w-full max-w-3xl">
+                    <label for="search" class="sr-only">Search</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
                         </div>
-                    </form>
-                </div>
+                        <input type="search"
+                               name="q"
+                               id="search"
+                               class="block w-full pl-10 pr-3 py-2.5 border border-truelog-light rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-truelog focus:border-truelog text-sm"
+                               placeholder="Search assets, tickets, accessories..."
+                               aria-label="Search assets, tickets, accessories">
+                    </div>
+                </form>
                 {% endif %}
 
                 <!-- Right side navigation -->
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center gap-3 ml-auto">
                     {% if session.get('user_id') %}
                     <!-- Theme Toggle -->
                     <form method="POST" action="{{ url_for('admin.update_user_theme') }}" class="inline">
@@ -1036,7 +1040,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-            <div class="max-w-7xl mx-auto px-4 py-2">
+            <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-2{% else %}w-full px-8 py-2{% endif %}">
                 <div class="bg-{{ category }}-100 border border-{{ category }}-400 text-{{ category }}-700 px-4 py-3 rounded">
                     {{ message }}
                 </div>
@@ -1051,7 +1055,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-8">
+    <main class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-8{% else %}w-full{% endif %}">
         {% block content %}{% endblock %}
     </main>
     
