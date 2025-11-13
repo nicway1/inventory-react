@@ -425,63 +425,61 @@
 
         <!-- Ticket Import Card for Supervisors -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
-        <div class="bg-white rounded-lg shadow p-8 border border-gray-200 flex flex-col">
-            <div class="flex items-center mb-3">
-                <div class="flex-shrink-0 mr-3" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="flex items-center p-4 border-b border-gray-100">
+                <div class="flex-shrink-0 mr-3" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-xl font-semibold text-gray-900">Import Tickets</h3>
-                    <p class="text-sm text-gray-500">Upload Ticket Orders</p>
+                    <h3 class="text-base font-semibold text-gray-900">Import Tickets</h3>
+                    <p class="text-xs text-gray-500">Upload Ticket Orders</p>
                 </div>
             </div>
-            <form method="POST" enctype="multipart/form-data" class="space-y-2 flex-grow flex flex-col">
+            <form method="POST" enctype="multipart/form-data" class="p-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="import_type" value="ticket">
-                <input type="file" name="file" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer" required>
-                <div class="flex-grow"></div>
-                <button type="submit" class="w-full bg-purple-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-purple-700 transition mt-4">Import Tickets</button>
-                <div class="text-sm text-gray-500 pt-1 text-center">
-                    <p>→ FirstBase New Orders queue</p>
-                </div>
+                <input type="file" name="file" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer mb-3" required>
+                <button type="submit" class="w-full bg-purple-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-purple-700 transition">Import Tickets</button>
+                <p class="text-xs text-gray-400 mt-2 text-center">→ FirstBase New Orders queue</p>
             </form>
         </div>
         {% endif %}
 
         <!-- Billing Generator Card (Only for Admin) -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'ADMIN'] %}
-        <div class="bg-white rounded-lg shadow p-8 border border-gray-200 flex flex-col h-full">
-            <div class="flex items-center mb-3">
-                <div class="flex-shrink-0 mr-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="flex items-center p-4 border-b border-gray-100">
+                <div class="flex-shrink-0 mr-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-xl font-semibold text-gray-900">Billing Generator</h3>
-                    <p class="text-sm text-gray-500">Generate invoices and reports</p>
+                    <h3 class="text-base font-semibold text-gray-900">Billing Generator</h3>
+                    <p class="text-xs text-gray-500">Generate invoices and reports</p>
                 </div>
             </div>
-            <div class="space-y-1 mb-3 text-sm text-gray-600">
-                <div class="flex items-center gap-2 py-1">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                    <span>Customer Invoices</span>
+            <div class="p-4">
+                <div class="space-y-1.5 mb-4 text-xs text-gray-600">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
+                        <span>Customer Invoices</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
+                        <span>Billing Reports</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
+                        <span>Usage Analytics</span>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 py-1">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                    <span>Billing Reports</span>
-                </div>
-                <div class="flex items-center gap-2 py-1">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                    <span>Usage Analytics</span>
-                </div>
+                <a href="{{ url_for('admin.billing_generator') }}" class="w-full bg-emerald-600 text-white text-center py-2 px-4 rounded-md text-sm font-medium hover:bg-emerald-700 transition block">
+                    Generate →
+                </a>
             </div>
-            <div class="flex-grow"></div>
-            <a href="{{ url_for('admin.billing_generator') }}" class="w-full bg-emerald-600 text-white text-center py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-emerald-700 transition block mt-4">
-                Generate →
-            </a>
         </div>
         {% endif %}
 
