@@ -13,7 +13,8 @@
     .sf-container {
         background: #f4f6f9;
         min-height: 100vh;
-        padding: 1.5rem;
+        padding: 2rem 3rem;
+        max-width: 100%;
     }
 
     .sf-page-header {
@@ -327,6 +328,9 @@
         border-radius: 0.5rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         overflow: hidden;
+        margin-left: -3rem;
+        margin-right: -3rem;
+        padding-left: 3rem;
     }
 
     .sf-tabs {
@@ -573,12 +577,245 @@
         color: #d1d5db;
         cursor: not-allowed;
     }
+
+    /* Animated New Ticket Button */
+    .new-ticket-container {
+        background-color: #ffffff;
+        display: flex;
+        width: 220px;
+        height: 50px;
+        position: relative;
+        border-radius: 6px;
+        transition: 0.3s ease-in-out;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .new-ticket-container:hover {
+        transform: scale(1.03);
+        width: 220px;
+    }
+
+    .new-ticket-container:hover .left-side {
+        width: 100%;
+    }
+
+    .new-ticket-container .left-side {
+        background-color: #5de2a3;
+        width: 70px;
+        height: 50px;
+        border-radius: 4px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: 0.3s;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .new-ticket-container .right-side {
+        width: calc(100% - 70px);
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        cursor: pointer;
+        justify-content: space-between;
+        white-space: nowrap;
+        transition: 0.3s;
+    }
+
+    .new-ticket-container .right-side:hover {
+        background-color: #f9f7f9;
+    }
+
+    .new-ticket-container .arrow {
+        width: 20px;
+        height: 20px;
+        margin-right: 12px;
+    }
+
+    .new-ticket-container .new {
+        font-size: 16px;
+        font-weight: 500;
+        margin-left: 12px;
+        color: #444444;
+    }
+
+    .new-ticket-container .card {
+        width: 35px;
+        height: 23px;
+        background-color: #c7ffbc;
+        border-radius: 6px;
+        position: absolute;
+        display: flex;
+        z-index: 10;
+        flex-direction: column;
+        align-items: center;
+        -webkit-box-shadow: 9px 9px 9px -2px rgba(77, 200, 143, 0.72);
+        -moz-box-shadow: 9px 9px 9px -2px rgba(77, 200, 143, 0.72);
+        box-shadow: 9px 9px 9px -2px rgba(77, 200, 143, 0.72);
+    }
+
+    .new-ticket-container .card-line {
+        width: 30px;
+        height: 6px;
+        background-color: #80ea69;
+        border-radius: 2px;
+        margin-top: 4px;
+    }
+
+    .new-ticket-container .buttons {
+        width: 4px;
+        height: 4px;
+        background-color: #379e1f;
+        box-shadow: 0 -5px 0 0 #26850e, 0 5px 0 0 #56be3e;
+        border-radius: 50%;
+        margin-top: 3px;
+        transform: rotate(90deg);
+        margin: 5px 0 0 -15px;
+    }
+
+    .new-ticket-container:hover .card {
+        animation: slide-top 1.2s cubic-bezier(0.645, 0.045, 0.355, 1) both;
+    }
+
+    .new-ticket-container:hover .post {
+        animation: slide-post 1s cubic-bezier(0.165, 0.84, 0.44, 1) both;
+    }
+
+    @keyframes slide-top {
+        0% {
+            -webkit-transform: translateY(0);
+            transform: translateY(0);
+        }
+
+        50% {
+            -webkit-transform: translateY(-35px) rotate(90deg);
+            transform: translateY(-35px) rotate(90deg);
+        }
+
+        60% {
+            -webkit-transform: translateY(-35px) rotate(90deg);
+            transform: translateY(-35px) rotate(90deg);
+        }
+
+        100% {
+            -webkit-transform: translateY(-4px) rotate(90deg);
+            transform: translateY(-4px) rotate(90deg);
+        }
+    }
+
+    .new-ticket-container .post {
+        width: 32px;
+        height: 38px;
+        background-color: #dddde0;
+        position: absolute;
+        z-index: 11;
+        bottom: 5px;
+        top: 60px;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .new-ticket-container .post-line {
+        width: 24px;
+        height: 5px;
+        background-color: #545354;
+        position: absolute;
+        border-radius: 0px 0px 3px 3px;
+        right: 4px;
+        top: 4px;
+    }
+
+    .new-ticket-container .post-line:before {
+        content: "";
+        position: absolute;
+        width: 24px;
+        height: 5px;
+        background-color: #757375;
+        top: -5px;
+    }
+
+    .new-ticket-container .screen {
+        width: 24px;
+        height: 12px;
+        background-color: #ffffff;
+        position: absolute;
+        top: 11px;
+        right: 4px;
+        border-radius: 3px;
+    }
+
+    .new-ticket-container .numbers {
+        width: 6px;
+        height: 6px;
+        background-color: #838183;
+        box-shadow: 0 -9px 0 0 #838183, 0 9px 0 0 #838183;
+        border-radius: 2px;
+        position: absolute;
+        transform: rotate(90deg);
+        left: 13px;
+        top: 26px;
+    }
+
+    .new-ticket-container .numbers-line2 {
+        width: 6px;
+        height: 6px;
+        background-color: #aaa9ab;
+        box-shadow: 0 -9px 0 0 #aaa9ab, 0 9px 0 0 #aaa9ab;
+        border-radius: 2px;
+        position: absolute;
+        transform: rotate(90deg);
+        left: 13px;
+        top: 34px;
+    }
+
+    @keyframes slide-post {
+        50% {
+            -webkit-transform: translateY(0);
+            transform: translateY(0);
+        }
+
+        100% {
+            -webkit-transform: translateY(-35px);
+            transform: translateY(-35px);
+        }
+    }
+
+    .new-ticket-container .dollar {
+        position: absolute;
+        font-size: 12px;
+        font-weight: bold;
+        width: 100%;
+        left: 0;
+        top: 0;
+        color: #4b953b;
+        text-align: center;
+    }
+
+    .new-ticket-container:hover .dollar {
+        animation: fade-in-fwd 0.3s 1s backwards;
+    }
+
+    @keyframes fade-in-fwd {
+        0% {
+            opacity: 0;
+            transform: translateY(-3px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="sf-container">
-    <div class="max-w-7xl mx-auto">
+    <div class="w-full">
         <!-- Page Header -->
         <div class="sf-page-header">
             <h1 class="sf-page-title">
@@ -1008,11 +1245,27 @@
                     <span>Ticket Manager</span>
                 </a>
                 {% endif %}
-                <a href="{{ url_for('tickets.create_ticket') }}" class="sf-button primary-button">
-                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <span>New Ticket</span>
+                <a href="{{ url_for('tickets.create_ticket') }}" class="new-ticket-container">
+                    <div class="left-side">
+                        <div class="card">
+                            <div class="card-line"></div>
+                            <div class="buttons"></div>
+                        </div>
+                        <div class="post">
+                            <div class="post-line"></div>
+                            <div class="screen">
+                                <div class="dollar">+</div>
+                            </div>
+                            <div class="numbers"></div>
+                            <div class="numbers-line2"></div>
+                        </div>
+                    </div>
+                    <div class="right-side">
+                        <div class="new">New Ticket</div>
+                        <svg viewBox="0 0 512 512" class="arrow" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M294.1 256L167 129c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.3 34 0L345 239c9.1 9.1 9.3 23.7.7 33.1L201.1 417c-4.7 4.7-10.9 7-17 7s-12.3-2.3-17-7c-9.4-9.4-9.4-24.6 0-33.9l127-127.1z" fill="currentColor"></path>
+                        </svg>
+                    </div>
                 </a>
                 <a href="{{ url_for('inventory.add_customer_user') }}" class="sf-button success-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1034,6 +1287,14 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
                     </svg>
                     <span class="button-text">Import</span>
+                </a>
+                {% endif %}
+                {% if current_user.is_admin or current_user.is_supervisor or current_user.is_developer %}
+                <a href="{{ url_for('tickets.bulk_import_asset_return') }}" class="sf-button secondary-button" title="Bulk import Asset Return tickets from CSV">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="button-text">Bulk Import Returns</span>
                 </a>
                 {% endif %}
             </div>
