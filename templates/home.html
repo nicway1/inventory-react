@@ -1077,12 +1077,16 @@
             });
     }
 
-    // Initialize clock with current time
+    // Initialize clock with current time (GMT+8)
     function initClock() {
+        // Get current time in GMT+8 (Singapore/Malaysia time)
         const now = new Date();
-        const hours = now.getHours() % 12;
-        const minutes = now.getMinutes();
-        const seconds = now.getSeconds();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const gmt8Time = new Date(utc + (3600000 * 8));
+
+        const hours = gmt8Time.getHours() % 12;
+        const minutes = gmt8Time.getMinutes();
+        const seconds = gmt8Time.getSeconds();
 
         const hourHand = document.querySelector('.hour');
         const minuteHand = document.querySelector('.minute');
