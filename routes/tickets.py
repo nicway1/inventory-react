@@ -735,8 +735,8 @@ def export_tickets_csv():
                 filter_parts.append(f"pri{priority_filter}")
             if status_filter and status_filter != 'all':
                 filter_parts.append(f"status{status_filter}")
-            if country_filter and country_filter != 'all':
-                filter_parts.append(f"country{country_filter}")
+            if queue_filter and queue_filter != 'all':
+                filter_parts.append(f"queue{queue_filter}")
             if company_filter and company_filter != 'all':
                 filter_parts.append(f"company{company_filter}")
 
