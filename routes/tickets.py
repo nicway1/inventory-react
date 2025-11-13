@@ -226,7 +226,7 @@ def export_tickets_csv():
     category_filter = request.args.get('category')
     priority_filter = request.args.get('priority')
     status_filter = request.args.get('status')
-    country_filter = request.args.get('country')
+    queue_filter = request.args.get('queue')  # Changed from country_filter
     company_filter = request.args.get('company')
     ticket_ids = request.args.get('ticket_ids')
 
@@ -306,15 +306,13 @@ def export_tickets_csv():
                 except ValueError:
                     pass
 
-            # Apply country filter
-            if country_filter and country_filter != 'all':
-                # Filter by customer's country
-                query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id, isouter=True).filter(
-                    or_(
-                        CustomerUser.country == country_filter,
-                        Ticket.country == country_filter
-                    )
-                )
+            # Apply queue filter
+            if queue_filter and queue_filter != 'all':
+                # Filter by queue name
+                from models.queue import Queue
+                queue_obj = db_session.query(Queue).filter(Queue.name == queue_filter).first()
+                if queue_obj:
+                    query = query.filter(Ticket.queue_id == queue_obj.id)
 
             # Apply company filter
             if company_filter and company_filter != 'all':
