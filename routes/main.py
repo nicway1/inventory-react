@@ -369,6 +369,53 @@ def index():
             except Exception as e:
                 logging.warning(f"Could not load show_queue_cards setting: {str(e)}")
 
+        # Calculate weekly ticket data (Monday to Friday)
+        from datetime import datetime, timedelta
+        weekly_ticket_data = []
+
+        # Get current week's Monday
+        today = datetime.now()
+        weekday = today.weekday()  # 0 = Monday, 6 = Sunday
+        monday = today - timedelta(days=weekday)
+
+        # Get ticket counts for Monday through Friday
+        for i in range(5):  # 0-4 for Mon-Fri
+            day = monday + timedelta(days=i)
+            day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # Query tickets created on this day
+            day_query = db.session.query(Ticket).filter(
+                Ticket.created_at >= day_start,
+                Ticket.created_at <= day_end
+            )
+
+            # Apply same filtering as other ticket queries for COUNTRY_ADMIN
+            if user.user_type == UserType.COUNTRY_ADMIN:
+                if user.assigned_countries:
+                    day_query = day_query.filter(Ticket.country.in_(user.assigned_countries))
+                if user.company_id:
+                    day_query = day_query.filter(
+                        or_(
+                            Ticket.requester_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.assigned_to_id.in_(
+                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                            ),
+                            Ticket.subject.in_(
+                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            )
+                        )
+                    )
+
+            count = day_query.count()
+            weekly_ticket_data.append({
+                'day': day.strftime('%a'),  # Mon, Tue, Wed, Thu, Fri
+                'date': day.strftime('%m/%d'),
+                'count': count
+            })
+
         return render_template('home.html',
             queues=queues,
             queue_ticket_counts=queue_ticket_counts,
@@ -386,7 +433,8 @@ def index():
             user_count=user_count,
             ticket_counts=ticket_counts,
             current_audit=current_audit,
-            show_queue_cards=show_queue_cards
+            show_queue_cards=show_queue_cards,
+            weekly_ticket_data=weekly_ticket_data
         )
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}", exc_info=True)

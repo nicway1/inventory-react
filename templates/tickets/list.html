@@ -810,6 +810,70 @@
             transform: translateY(0);
         }
     }
+
+    /* Ticket Manager Button - Purple/Violet theme */
+    .ticket-manager-container .left-side {
+        background-color: #8b5cf6 !important;
+    }
+
+    .ticket-manager-container .card {
+        background-color: #ddd6fe !important;
+    }
+
+    .ticket-manager-container .card-line {
+        background-color: #a78bfa !important;
+    }
+
+    .ticket-manager-container .buttons {
+        background-color: #6d28d9 !important;
+        box-shadow: 0 -5px 0 0 #5b21b6, 0 5px 0 0 #7c3aed !important;
+    }
+
+    .ticket-manager-container .dollar {
+        color: #6d28d9 !important;
+    }
+
+    /* Add Customer Button - Blue/Cyan theme */
+    .add-customer-container .left-side {
+        background-color: #06b6d4 !important;
+    }
+
+    .add-customer-container .card {
+        background-color: #cffafe !important;
+    }
+
+    .add-customer-container .card-line {
+        background-color: #67e8f9 !important;
+    }
+
+    .add-customer-container .buttons {
+        background-color: #0891b2 !important;
+        box-shadow: 0 -5px 0 0 #0e7490, 0 5px 0 0 #06b6d4 !important;
+    }
+
+    .add-customer-container .dollar {
+        color: #0891b2 !important;
+    }
+
+    /* Button Icon Styles for Ticket Manager and Add Customer */
+    .button-icon {
+        width: 36px;
+        height: 36px;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+
+    .new-ticket-container:hover .button-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    .ticket-manager-container .button-icon {
+        color: white;
+    }
+
+    .add-customer-container .button-icon {
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -1238,13 +1302,37 @@
         <div class="ticket-actions-toolbar mb-4">
             <div class="action-buttons-left">
                 {% if user.is_super_admin or user.is_developer %}
-                <a href="{{ url_for('tickets.ticket_manager') }}" class="sf-button manager-button">
-                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                    </svg>
-                    <span>Ticket Manager</span>
+                <a href="{{ url_for('tickets.ticket_manager') }}" class="new-ticket-container ticket-manager-container">
+                    <div class="left-side">
+                        <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+                            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                        </svg>
+                    </div>
+                    <div class="right-side">
+                        <div class="new">Ticket Manager</div>
+                        <svg viewBox="0 0 512 512" class="arrow" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M294.1 256L167 129c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.3 34 0L345 239c9.1 9.1 9.3 23.7.7 33.1L201.1 417c-4.7 4.7-10.9 7-17 7s-12.3-2.3-17-7c-9.4-9.4-9.4-24.6 0-33.9l127-127.1z" fill="currentColor"></path>
+                        </svg>
+                    </div>
                 </a>
                 {% endif %}
+                <a href="{{ url_for('inventory.add_customer_user') }}" class="new-ticket-container add-customer-container">
+                    <div class="left-side">
+                        <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <line x1="19" y1="8" x2="19" y2="14"/>
+                            <line x1="22" y1="11" x2="16" y2="11"/>
+                        </svg>
+                    </div>
+                    <div class="right-side">
+                        <div class="new">Add Customer</div>
+                        <svg viewBox="0 0 512 512" class="arrow" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M294.1 256L167 129c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.3 34 0L345 239c9.1 9.1 9.3 23.7.7 33.1L201.1 417c-4.7 4.7-10.9 7-17 7s-12.3-2.3-17-7c-9.4-9.4-9.4-24.6 0-33.9l127-127.1z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                </a>
                 <a href="{{ url_for('tickets.create_ticket') }}" class="new-ticket-container">
                     <div class="left-side">
                         <div class="card">
@@ -1266,12 +1354,6 @@
                             <path d="M294.1 256L167 129c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.3 34 0L345 239c9.1 9.1 9.3 23.7.7 33.1L201.1 417c-4.7 4.7-10.9 7-17 7s-12.3-2.3-17-7c-9.4-9.4-9.4-24.6 0-33.9l127-127.1z" fill="currentColor"></path>
                         </svg>
                     </div>
-                </a>
-                <a href="{{ url_for('inventory.add_customer_user') }}" class="sf-button success-button">
-                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                    </svg>
-                    <span>Add Customer</span>
                 </a>
             </div>
             <div class="action-buttons-right">
@@ -1443,7 +1525,7 @@
                         </thead>
                         <tbody>
                             {% for ticket in tickets %}
-                            <tr data-ticket-id="{{ ticket.id }}" data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}" data-description="{{ (ticket.description or '')|e }}" data-notes="{{ (ticket.notes or '')|e }}" data-return-description="{{ (ticket.return_description or '')|e }}">
+                            <tr data-ticket-id="{{ ticket.id }}" data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}" data-description="{{ (ticket.description or '')|e }}" data-notes="{{ (ticket.notes or '')|e }}" data-return-description="{{ (ticket.return_description or '')|e }}" data-queue="{{ ticket.queue.name if ticket.queue else '' }}" data-company-id="{{ ticket.requester.company_id if ticket.requester and ticket.requester.company_id else '' }}">
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
                                     {% if ticket.id %}
@@ -1615,7 +1697,7 @@
 <script>
     // Pagination variables
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let itemsPerPage = 50;
     let filteredItems = [];
     
     // Current user ID for filtering
@@ -2040,14 +2122,17 @@
         const tickets = document.querySelectorAll('#ticketsTable tbody tr');
         const categories = new Set();
         const priorities = new Set();
+        const queues = new Set();
 
         tickets.forEach(row => {
             if (row.style.display !== 'none') { // Only from visible tickets
                 const category = row.getAttribute('data-category');
                 const priority = row.getAttribute('data-priority');
+                const queue = row.getAttribute('data-queue');
 
                 if (category) categories.add(category);
                 if (priority) priorities.add(priority);
+                if (queue) queues.add(queue);
             }
         });
 
@@ -2063,6 +2148,13 @@
         prioritySelect.innerHTML = '<option value="all">All Priorities</option>';
         priorities.forEach(pri => {
             prioritySelect.innerHTML += `<option value="${pri}">${pri}</option>`;
+        });
+
+        // Update queue filter options
+        const queueSelect = document.getElementById('exportQueueFilter');
+        queueSelect.innerHTML = '<option value="all">All Queues</option>';
+        queues.forEach(queue => {
+            queueSelect.innerHTML += `<option value="${queue}">${queue}</option>`;
         });
 
         // Load companies dynamically
@@ -2185,6 +2277,11 @@
         }
     }
 
+    function updateExportFilters() {
+        // Manually trigger preview update when user clicks "Update Filter" button
+        showPreview();
+    }
+
     function executeExport() {
         const form = document.getElementById('exportForm');
         const formData = new FormData(form);
@@ -2201,7 +2298,7 @@
             if (formData.get('categoryFilter') !== 'all') params.append('category', formData.get('categoryFilter'));
             if (formData.get('priorityFilter') !== 'all') params.append('priority', formData.get('priorityFilter'));
             if (formData.get('statusFilter') !== 'all') params.append('status', formData.get('statusFilter'));
-            if (formData.get('countryFilter') !== 'all') params.append('country', formData.get('countryFilter'));
+            if (formData.get('queueFilter') !== 'all') params.append('queue', formData.get('queueFilter'));
             if (formData.get('companyFilter') !== 'all') params.append('company', formData.get('companyFilter'));
         } else if (mode === 'selected') {
             const selectedTickets = Array.from(form.querySelectorAll('input[name="selectedTickets"]:checked'))
@@ -2308,6 +2405,8 @@
         const categoryFilter = formData.get('categoryFilter');
         const priorityFilter = formData.get('priorityFilter');
         const statusFilter = formData.get('statusFilter');
+        const queueFilter = formData.get('queueFilter');
+        const companyFilter = formData.get('companyFilter');
 
         const ticketRows = document.querySelectorAll('#ticketsTable tbody tr');
         const filteredTickets = [];
@@ -2344,6 +2443,18 @@
             if (statusFilter && statusFilter !== 'all') {
                 const ticketStatus = row.getAttribute('data-status');
                 if (ticketStatus !== statusFilter) matchesFilter = false;
+            }
+
+            // Queue filter
+            if (queueFilter && queueFilter !== 'all') {
+                const ticketQueue = row.getAttribute('data-queue');
+                if (ticketQueue !== queueFilter) matchesFilter = false;
+            }
+
+            // Company filter (based on company ID)
+            if (companyFilter && companyFilter !== 'all') {
+                const ticketCompanyId = row.getAttribute('data-company-id');
+                if (ticketCompanyId !== companyFilter) matchesFilter = false;
             }
 
             if (matchesFilter) {
@@ -2559,29 +2670,29 @@
                     <div class="export-filter-group">
                         <label class="export-label">Date Range:</label>
                         <div class="date-range-inputs">
-                            <input type="date" name="dateFrom" class="export-input" placeholder="From" onchange="refreshPreviewIfVisible()">
+                            <input type="date" name="dateFrom" class="export-input" placeholder="From">
                             <span class="date-separator">to</span>
-                            <input type="date" name="dateTo" class="export-input" placeholder="To" onchange="refreshPreviewIfVisible()">
+                            <input type="date" name="dateTo" class="export-input" placeholder="To">
                         </div>
                     </div>
 
                     <div class="export-filter-group">
                         <label class="export-label">Category:</label>
-                        <select id="exportCategoryFilter" name="categoryFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                        <select id="exportCategoryFilter" name="categoryFilter" class="export-select">
                             <option value="all">All Categories</option>
                         </select>
                     </div>
 
                     <div class="export-filter-group">
                         <label class="export-label">Priority:</label>
-                        <select id="exportPriorityFilter" name="priorityFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                        <select id="exportPriorityFilter" name="priorityFilter" class="export-select">
                             <option value="all">All Priorities</option>
                         </select>
                     </div>
 
                     <div class="export-filter-group">
                         <label class="export-label">Status:</label>
-                        <select id="exportStatusFilter" name="statusFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                        <select id="exportStatusFilter" name="statusFilter" class="export-select">
                             <option value="all">All Statuses</option>
                             <option value="New">New</option>
                             <option value="Open">Open</option>
@@ -2593,37 +2704,30 @@
                     </div>
 
                     <div class="export-filter-group">
-                        <label class="export-label">Country:</label>
-                        <select id="exportCountryFilter" name="countryFilter" class="export-select" onchange="refreshPreviewIfVisible()">
-                            <option value="all">All Countries</option>
-                            <option value="USA">USA</option>
-                            <option value="JAPAN">Japan</option>
-                            <option value="PHILIPPINES">Philippines</option>
-                            <option value="AUSTRALIA">Australia</option>
-                            <option value="ISRAEL">Israel</option>
-                            <option value="INDIA">India</option>
-                            <option value="TAIWAN">Taiwan</option>
-                            <option value="CHINA">China</option>
-                            <option value="HONG_KONG">Hong Kong</option>
-                            <option value="MALAYSIA">Malaysia</option>
-                            <option value="THAILAND">Thailand</option>
-                            <option value="VIETNAM">Vietnam</option>
-                            <option value="SOUTH_KOREA">South Korea</option>
-                            <option value="INDONESIA">Indonesia</option>
-                            <option value="CANADA">Canada</option>
-                            <option value="SINGAPORE">Singapore</option>
-                            <option value="IN">IN</option>
-                            <option value="SG">SG</option>
+                        <label class="export-label">Queue:</label>
+                        <select id="exportQueueFilter" name="queueFilter" class="export-select">
+                            <option value="all">All Queues</option>
+                            <!-- Queues will be loaded dynamically -->
                         </select>
                     </div>
 
                     <div class="export-filter-group">
                         <label class="export-label">Company:</label>
-                        <select id="exportCompanyFilter" name="companyFilter" class="export-select" onchange="refreshPreviewIfVisible()">
+                        <select id="exportCompanyFilter" name="companyFilter" class="export-select">
                             <option value="all">All Companies</option>
                             <!-- Companies will be loaded dynamically -->
                         </select>
                     </div>
+                </div>
+
+                <!-- Update Filter Button -->
+                <div style="margin-top: 20px; text-align: center;">
+                    <button type="button" onclick="updateExportFilters()" class="sf-button primary-button" style="padding: 10px 24px; font-size: 14px; font-weight: 600;">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Update Filter
+                    </button>
                 </div>
             </div>
 
