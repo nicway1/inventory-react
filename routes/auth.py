@@ -151,7 +151,24 @@ def register():
 def profile():
     # Get a fresh user object from the database with company relationship loaded
     user = db_manager.get_user_by_id(current_user.id)
-    return render_template('profile.html', user=user)
+
+    # Get ticket statistics for the user
+    from models.ticket import Ticket
+    total_tickets = Ticket.query.filter_by(owner_id=current_user.id).count()
+    open_tickets = Ticket.query.filter_by(owner_id=current_user.id).filter(
+        Ticket.status.in_(['open', 'in_progress', 'pending'])
+    ).count()
+    closed_tickets = Ticket.query.filter_by(owner_id=current_user.id).filter(
+        Ticket.status == 'closed'
+    ).count()
+
+    ticket_stats = {
+        'total': total_tickets,
+        'open': open_tickets,
+        'closed': closed_tickets
+    }
+
+    return render_template('profile.html', user=user, ticket_stats=ticket_stats)
 
 @auth_bp.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
