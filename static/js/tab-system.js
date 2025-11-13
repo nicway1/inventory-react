@@ -112,7 +112,7 @@ class TabSystem {
         tabBar.className = 'sf-tab-system';
         tabBar.innerHTML = `
             <div class="sf-tab-container">
-                <div class="max-w-7xl mx-auto">
+                <div class="sf-tab-wrapper">
                     <div class="sf-tab-nav">
                         <div class="sf-tab-list" id="sf-tab-list">
                             <!-- Tabs will be rendered here -->
@@ -247,6 +247,10 @@ class TabSystem {
 
             .sf-tab-container {
                 background-color: #f8f9fa;
+            }
+
+            .sf-tab-wrapper {
+                padding: 0 2rem;
             }
 
             .sf-tab-nav {

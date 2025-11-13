@@ -200,6 +200,7 @@ class TicketStore:
         try:
             query = db_session.query(Ticket)\
                 .options(self.db_manager.joinedload(Ticket.assigned_to))\
+                .options(self.db_manager.joinedload(Ticket.requester))\
                 .options(self.db_manager.joinedload(Ticket.queue))
 
             # Super admin and developer can see all tickets

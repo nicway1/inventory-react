@@ -1460,6 +1460,147 @@ body.dark-theme .sf-card-body .sf-field-label {
             </div>
             {% endif %}
 
+            <!-- Shipment Progress Action Bar (for Asset Checkout claw without tracking) -->
+            {% if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW' and not ticket.shipping_tracking %}
+            <div class="sf-card mb-6">
+                <div class="sf-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h2 class="sf-card-title flex items-center gap-2 text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        Shipment Progress (No Tracking)
+                    </h2>
+                </div>
+                <div class="sf-card-body p-6">
+                    <div class="flex items-center justify-between mb-8">
+                        <!-- Step 1: Item Packed -->
+                        <div class="flex flex-col items-center flex-1">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center {% if ticket.item_packed %}bg-green-500{% else %}bg-gray-300{% endif %} text-white shadow-md">
+                                {% if ticket.item_packed %}
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {% else %}
+                                <span class="font-bold text-lg">1</span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-3 text-center">
+                                <div class="font-semibold text-sm">Item Packed</div>
+                                {% if ticket.item_packed_at %}
+                                <div class="text-xs text-gray-500 mt-1">{{ ticket.item_packed_at | singapore_time }}</div>
+                                {% else %}
+                                <div class="text-xs text-gray-400 mt-1">Pending</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Progress Line 1 -->
+                        <div class="flex-1 h-2 mx-3 rounded-full overflow-hidden bg-gray-300">
+                            <div class="h-full {% if ticket.shipping_tracking_created_at %}bg-green-500{% endif %} transition-all duration-500"></div>
+                        </div>
+
+                        <!-- Step 2: Package Shipped -->
+                        <div class="flex flex-col items-center flex-1">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center {% if ticket.shipping_tracking_created_at %}bg-green-500{% else %}bg-gray-300{% endif %} text-white shadow-md">
+                                {% if ticket.shipping_tracking_created_at %}
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {% else %}
+                                <span class="font-bold text-lg">2</span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-3 text-center">
+                                <div class="font-semibold text-sm">Package Shipped</div>
+                                {% if ticket.shipping_tracking_created_at %}
+                                <div class="text-xs text-gray-500 mt-1">{{ ticket.shipping_tracking_created_at | singapore_time }}</div>
+                                {% else %}
+                                <div class="text-xs text-gray-400 mt-1">Pending</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Progress Line 2 -->
+                        <div class="flex-1 h-2 mx-3 rounded-full overflow-hidden bg-gray-300">
+                            <div class="h-full {% if ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED'] %}bg-green-500{% endif %} transition-all duration-500"></div>
+                        </div>
+
+                        <!-- Step 3: Customer Received -->
+                        <div class="flex flex-col items-center flex-1">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center {% if ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED'] %}bg-green-500{% else %}bg-gray-300{% endif %} text-white shadow-md">
+                                {% if ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED'] %}
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {% else %}
+                                <span class="font-bold text-lg">3</span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-3 text-center">
+                                <div class="font-semibold text-sm">Customer Received</div>
+                                {% if ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED'] %}
+                                <div class="text-xs text-gray-500 mt-1">Delivered</div>
+                                {% else %}
+                                <div class="text-xs text-gray-400 mt-1">Pending</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3 justify-center">
+                        {% if not ticket.item_packed %}
+                        <button onclick="updateShipmentProgress('item_packed', {{ ticket.id }})"
+                                class="sf-button primary-button flex items-center gap-2 px-6 py-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Mark as Item Packed
+                        </button>
+                        {% elif not ticket.shipping_tracking_created_at %}
+                        <button onclick="updateShipmentProgress('package_shipped', {{ ticket.id }})"
+                                class="sf-button primary-button flex items-center gap-2 px-6 py-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/>
+                            </svg>
+                            Mark as Package Shipped
+                        </button>
+                        {% elif ticket.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED'] %}
+                        <button onclick="updateShipmentProgress('customer_received', {{ ticket.id }})"
+                                class="sf-button success-button flex items-center gap-2 px-6 py-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Mark as Customer Received
+                        </button>
+                        {% else %}
+                        <div class="text-center">
+                            <div class="inline-flex items-center px-6 py-3 rounded-lg bg-green-50 text-green-700 font-medium">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Shipment Completed
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Information Panel -->
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                            <div>
+                                <h4 class="text-sm font-semibold text-blue-900 mb-1">Manual Progress Tracking</h4>
+                                <p class="text-xs text-blue-700">This shipment has no tracking number. Use the buttons above to manually update the shipment progress as each stage is completed.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Case Progression Bar for Asset Return (claw) -->
             {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
             <div class="sf-card mb-6">
@@ -2226,6 +2367,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                     <!-- Multi-Package Tracking Section for Asset Checkout (claw) -->
                     {% if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW' %}
                     {% set packages = ticket.get_all_packages() %}
+
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
@@ -10263,6 +10405,41 @@ window.addEventListener('load', function() {
         container.scrollTop = container.scrollHeight;
     }
 });
+
+// Update shipment progress for Asset Checkout (claw) without tracking
+function updateShipmentProgress(progressType, ticketId) {
+    if (!confirm(`Are you sure you want to mark this shipment as ${progressType.replace('_', ' ')}?`)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    fetch(`/tickets/${ticketId}/update-shipment-progress`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            progress_type: progressType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(data.message || 'Progress updated successfully');
+            // Reload the page to show updated progress
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to update progress');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating progress');
+    });
+}
 
 </script>
 {% endblock %}

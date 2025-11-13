@@ -166,17 +166,23 @@ def dashboard():
             }
         }
 
-        # Get recent items
+        # Get ALL active items (no limit for widescreen dashboard)
         recent_features = db_session.query(FeatureRequest)\
             .options(joinedload(FeatureRequest.requester))\
             .filter(FeatureRequest.requester_id.isnot(None))\
-            .order_by(desc(FeatureRequest.updated_at)).limit(5).all()
+            .filter(FeatureRequest.status.in_([
+                FeatureStatus.IN_PLANNING,
+                FeatureStatus.IN_DEVELOPMENT,
+                FeatureStatus.IN_TESTING,
+                FeatureStatus.PENDING_APPROVAL
+            ]))\
+            .order_by(desc(FeatureRequest.updated_at)).all()
 
         recent_bugs = db_session.query(BugReport)\
             .options(joinedload(BugReport.reporter))\
-            .filter(BugReport.status.in_([BugStatus.OPEN, BugStatus.IN_PROGRESS]))\
+            .filter(BugReport.status.in_([BugStatus.OPEN, BugStatus.IN_PROGRESS, BugStatus.REOPENED]))\
             .filter(BugReport.reporter_id.isnot(None))\
-            .order_by(desc(BugReport.updated_at)).limit(5).all()
+            .order_by(desc(BugReport.updated_at)).all()
 
         active_releases = db_session.query(Release)\
             .filter(Release.status.in_([

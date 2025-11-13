@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6">
+<div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto px-4{% else %}w-full px-8{% endif %} py-6">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Development Dashboard</h1>
         <div class="flex space-x-3">
@@ -72,17 +72,16 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Recent Features -->
+        <!-- Active Features -->
         <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-medium text-gray-900">Recent Features</h3>
-                <a href="{{ url_for('development.features') }}" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Active Features</h3>
             </div>
-            <div class="p-6">
+            <div class="p-6 max-h-[600px] overflow-y-auto">
                 {% if recent_features %}
                     <div class="space-y-4">
                         {% for feature in recent_features %}
-                        <div class="border-l-4 border-blue-400 pl-4">
+                        <div class="border-l-4 border-blue-400 pl-4 py-2 hover:bg-gray-50 transition">
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
                                     <a href="{{ url_for('development.view_feature', id=feature.id) }}"
@@ -101,22 +100,21 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-gray-500 text-center">No features found</p>
+                    <p class="text-gray-500 text-center">No active features found</p>
                 {% endif %}
             </div>
         </div>
 
         <!-- Open Bugs -->
         <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-medium text-gray-900">Open Bugs</h3>
-                <a href="{{ url_for('development.bugs') }}" class="text-red-600 hover:text-red-800 text-sm">View All</a>
             </div>
-            <div class="p-6">
+            <div class="p-6 max-h-[600px] overflow-y-auto">
                 {% if recent_bugs %}
                     <div class="space-y-4">
                         {% for bug in recent_bugs %}
-                        <div class="border-l-4 border-red-400 pl-4">
+                        <div class="border-l-4 border-red-400 pl-4 py-2 hover:bg-gray-50 transition">
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
                                     <a href="{{ url_for('development.view_bug', id=bug.id) }}"

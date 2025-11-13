@@ -366,6 +366,95 @@
   width: 1rem;
   height: 1rem;
 }
+
+/* Modern Gradient Button Styles */
+.modern-btn {
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 17px;
+  padding: 0.8em 1.3em 0.8em 0.9em;
+  color: white;
+  background: #ad5389;
+  background: linear-gradient(to right, #0f0c29, #302b63, #24243e);
+  border: none;
+  letter-spacing: 0.05em;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.modern-btn svg {
+  margin-right: 8px;
+  transform: rotate(30deg);
+  transition: transform 0.5s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.modern-btn span {
+  transition: transform 0.5s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.modern-btn:hover svg {
+  transform: translateX(5px) rotate(90deg);
+}
+
+.modern-btn:hover span {
+  transform: translateX(7px);
+}
+
+.modern-btn:hover {
+  box-shadow: 0 8px 20px rgba(15, 12, 41, 0.3);
+}
+
+/* Dark Red Modern Button for Delete */
+.modern-btn-red {
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 17px;
+  padding: 0.8em 1.3em 0.8em 0.9em;
+  color: white;
+  background: linear-gradient(to right, #5a0000, #8b0000, #6b0000);
+  border: none;
+  letter-spacing: 0.05em;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.modern-btn-red svg {
+  margin-right: 8px;
+  transform: rotate(30deg);
+  transition: transform 0.5s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.modern-btn-red span {
+  transition: transform 0.5s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.modern-btn-red:hover svg {
+  transform: translateX(5px) rotate(90deg);
+}
+
+.modern-btn-red:hover span {
+  transform: translateX(7px);
+}
+
+.modern-btn-red:hover {
+  box-shadow: 0 8px 20px rgba(139, 0, 0, 0.4);
+}
+
+.modern-btn-red:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modern-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>
 
 <!-- Add global variables for use in JavaScript -->
@@ -415,7 +504,7 @@
     </defs>
 </svg>
 
-<div class="container mx-auto px-4 py-8">
+<div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto px-4{% else %}w-full px-8{% endif %} py-8">
     <!-- Header Card with Neumorphic Design and Hexagonal Pattern Background -->
     <div class="mb-8">
         <div style="position: relative; border-radius: 30px; overflow: hidden; box-shadow: 20px 20px 60px #bebebe, -20px -20px 60px #ffffff; padding: 1.5rem 2rem;">
@@ -430,7 +519,12 @@
                         background-size: var(--s) calc(var(--s) * 0.577);
                         z-index: 0;"></div>
             <!-- Content -->
-            <h1 class="text-3xl font-bold text-white" style="margin: 0; position: relative; z-index: 2;">IT Asset Inventory</h1>
+            <h1 class="text-3xl font-bold text-white flex items-center" style="margin: 0; position: relative; z-index: 2;">
+                <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                IT Asset Inventory
+            </h1>
         </div>
     </div>
 
@@ -510,42 +604,42 @@
     <!-- Filter Button -->
     <div class="flex flex-wrap justify-end mb-6 gap-2">
         {% if user and (user.is_admin or user.is_supervisor) %}
-        <button id="exportToCsvBtn" class="sf-button green flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button id="exportToCsvBtn" class="modern-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Export to CSV
+            <span>Export to CSV</span>
         </button>
-        <a href="{{ url_for('assets.labels_dashboard') }}" 
-           class="sf-button purple flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{{ url_for('assets.labels_dashboard') }}"
+           class="modern-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
             </svg>
-            Asset Labels
+            <span>Asset Labels</span>
         </a>
         {% endif %}
         {% if is_admin %}
-        <a href="{{ url_for('inventory.add_asset') }}" 
-           class="sf-button green flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{{ url_for('inventory.add_asset') }}"
+           class="modern-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Add Asset
+            <span>Add Asset</span>
         </a>
         {% endif %}
-        <button id="applyFiltersBtn" 
-                class="sf-button blue flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button id="applyFiltersBtn"
+                class="modern-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            Apply Filters
+            <span>Apply Filters</span>
         </button>
-        <button id="clearFiltersBtn" 
-                class="sf-button gray flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button id="clearFiltersBtn"
+                class="modern-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            Clear Filters
+            <span>Clear Filters</span>
         </button>
     </div>
 
@@ -611,8 +705,8 @@
                     <input type="hidden" name="selected_accessory_ids" id="selectedAccessoryIdsDelete" value="[]">
                     
                     <button type="button" id="bulkDeleteBtn" disabled
-                            class="sf-button red disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="modern-btn-red">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                         <span id="bulkDeleteText">Delete Selected</span>
@@ -621,32 +715,32 @@
 
                 <!-- Remove Serial Prefix Button -->
                 <button id="removeSerialPrefix" disabled
-                        class="sf-button yellow disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="modern-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
-                    Remove Serial Prefix
+                    <span>Remove Serial Prefix</span>
                 </button>
                 {% endif %}
                 
                 <!-- Checkout List Buttons -->
                 {% if is_admin %}
                 <button id="addToCheckoutList" disabled
-                        class="sf-button blue disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="modern-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Add to Checkout List
+                    <span>Add to Checkout List</span>
                 </button>
                 <button id="viewCheckoutList"
-                        class="sf-button green flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="modern-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    View Checkout List
+                    <span>View Checkout List
                     <span id="checkoutCount" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         0
-                    </span>
+                    </span></span>
                 </button>
                 {% endif %}
             </div>

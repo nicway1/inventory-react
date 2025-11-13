@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Import Asset Return Tickets{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Bulk Import Asset Return Tickets</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file to create multiple Asset Return tickets with automatic customer creation</p>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-blue-900 mb-3">📋 Instructions</h2>
+            <ol class="list-decimal list-inside space-y-2 text-blue-800">
+                <li>Download the CSV template or view the sample file below</li>
+                <li>Fill in your data following the format guidelines</li>
+                <li>Upload the completed CSV file</li>
+                <li>Review the import results</li>
+            </ol>
+        </div>
+
+        <!-- Download Templates -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Download Templates</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="{{ url_for('static', filename='csv_templates/asset_return_bulk_import_template.csv') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Template (Empty)
+                </a>
+                <a href="{{ url_for('static', filename='csv_templates/asset_return_bulk_import_sample.csv') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Sample (With Examples)
+                </a>
+            </div>
+            <div class="mt-4">
+                <a href="{{ url_for('static', filename='csv_templates/ASSET_RETURN_IMPORT_README.md') }}"
+                   download
+                   class="text-blue-600 hover:text-blue-800 text-sm">
+                    📖 View Full Documentation (README.md)
+                </a>
+            </div>
+        </div>
+
+        <!-- CSV Format Requirements -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">CSV Format Requirements</h2>
+
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Required Columns:</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                    <li><code class="bg-gray-100 px-1 rounded">customer_name</code> - Full name of the customer</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_email</code> - Customer's email (used for auto-creation)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_country</code> - Must be: SINGAPORE, USA, INDIA, or JAPAN</li>
+                    <li><code class="bg-gray-100 px-1 rounded">return_description</code> - Description of the return/issue</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Optional Columns:</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                    <li><code class="bg-gray-100 px-1 rounded">customer_phone</code> - Customer's phone number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_company</code> - Company name (will be auto-created if needed)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">asset_serial_number</code> - Serial number of the asset</li>
+                    <li><code class="bg-gray-100 px-1 rounded">priority</code> - Low, Medium, High, Critical (default: Medium)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">queue_name</code> - Queue to assign the ticket</li>
+                    <li><code class="bg-gray-100 px-1 rounded">case_owner_email</code> - Email of the case owner</li>
+                    <li><code class="bg-gray-100 px-1 rounded">notes</code> - Additional notes</li>
+                </ul>
+            </div>
+
+            <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+                <p class="text-sm text-yellow-800">
+                    <strong>Auto Customer Creation:</strong> If a customer with the provided email doesn't exist,
+                    a new customer will be automatically created with the information from the CSV.
+                </p>
+            </div>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload CSV File</h2>
+
+            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-2">
+                        Select CSV File
+                    </label>
+                    <input type="file"
+                           id="csv_file"
+                           name="csv_file"
+                           accept=".csv"
+                           required
+                           class="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-4
+                                  file:rounded-md file:border-0
+                                  file:text-sm file:font-semibold
+                                  file:bg-blue-50 file:text-blue-700
+                                  hover:file:bg-blue-100
+                                  cursor-pointer">
+                    <p class="mt-1 text-sm text-gray-500">Maximum file size: 10MB</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-4">
+                    <a href="{{ url_for('tickets.list_tickets') }}"
+                       class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Upload and Import
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Important Notes -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Important Notes:</h3>
+            <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <li>Column headers are case-sensitive and must match exactly</li>
+                <li>Empty cells are allowed for optional fields</li>
+                <li>If a row has errors, it will be skipped and reported</li>
+                <li>Valid rows will still be imported even if some rows fail</li>
+                <li>All tickets will be created with category "Asset Return (claw)"</li>
+                <li>You will receive a detailed summary after import completes</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

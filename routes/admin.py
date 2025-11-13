@@ -1468,6 +1468,18 @@ def update_user_theme():
     finally:
         db_session.close()
 
+@admin_bp.route('/toggle-layout', methods=['POST'])
+@login_required
+def toggle_layout():
+    """Toggle between widescreen and centered layout"""
+    current_layout = session.get('layout_mode', 'widescreen')
+    new_layout = 'centered' if current_layout == 'widescreen' else 'widescreen'
+
+    session['layout_mode'] = new_layout
+
+    flash(f'Layout changed to {new_layout} mode', 'success')
+    return redirect(request.referrer or url_for('main.index'))
+
 @admin_bp.route('/changelog')
 @login_required
 def changelog():

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto px-4{% else %}w-full px-8{% endif %} py-8">
     <div class="flex items-center gap-4 mb-8">
         <img src="{{ url_for('static', filename='images/truelglogo.png') }}" 
              alt="TrueLog Logo" 

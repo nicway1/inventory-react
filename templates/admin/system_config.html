@@ -24,6 +24,34 @@
             </div>
         </div>
 
+        <!-- Layout Configuration -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Layout Configuration</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Page Width</h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Current layout: <span class="font-semibold">{{ session.get('layout_mode', 'widescreen').title() }}</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Toggle between widescreen (full width) and centered (1280px max width) layout.
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin.toggle_layout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit"
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                            </svg>
+                            Switch to {{ 'Centered' if session.get('layout_mode', 'widescreen') == 'widescreen' else 'Widescreen' }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- Firecrawl API Configuration -->
         <div class="mb-8">
             <h2 class="text-xl font-semibold mb-4">Firecrawl API Configuration</h2>

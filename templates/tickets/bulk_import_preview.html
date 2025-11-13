@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Preview Bulk Import{% endblock %}
+
+{% block head %}
+<style>
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+    .preview-table th {
+        background-color: #f3f4f6;
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #e5e7eb;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .preview-table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .preview-table input,
+    .preview-table select,
+    .preview-table textarea {
+        width: 100%;
+        padding: 0.375rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+    .preview-table input:focus,
+    .preview-table select:focus,
+    .preview-table textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        ring: 2px;
+        ring-color: #3b82f6;
+    }
+    .preview-table textarea {
+        min-height: 60px;
+        resize: vertical;
+    }
+    .required-field {
+        border-left: 3px solid #ef4444;
+    }
+    .table-container {
+        max-height: calc(100vh - 300px);
+        overflow: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+    }
+    .row-number {
+        background-color: #f9fafb;
+        font-weight: 600;
+        text-align: center;
+    }
+    .field-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    .required-star {
+        color: #ef4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-full">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Preview and Edit Import Data</h1>
+            <p class="mt-2 text-gray-600">Review and modify the data before importing. Required fields are marked with <span class="required-star">*</span></p>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p class="text-blue-900">
+                <strong>{{ preview_data|length }} rows</strong> ready to import.
+                Review the data below and fill in any missing required fields before proceeding.
+            </p>
+        </div>
+
+        <form method="POST" action="{{ url_for('tickets.bulk_import_asset_return') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="import">
+            <input type="hidden" name="row_count" value="{{ preview_data|length }}">
+
+            <!-- Preview Table -->
+            <div class="table-container mb-6">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 60px;">Row</th>
+                            <th style="min-width: 150px;">Customer Name <span class="required-star">*</span></th>
+                            <th style="min-width: 150px;">Email <span class="required-star">*</span></th>
+                            <th style="min-width: 120px;">Phone</th>
+                            <th style="min-width: 120px;">Company</th>
+                            <th style="min-width: 120px;">Country <span class="required-star">*</span></th>
+                            <th style="min-width: 200px;">Return Description <span class="required-star">*</span></th>
+                            <th style="min-width: 120px;">Asset Serial</th>
+                            <th style="min-width: 100px;">Priority</th>
+                            <th style="min-width: 120px;">Queue</th>
+                            <th style="min-width: 120px;">Case Owner</th>
+                            <th style="min-width: 200px;">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preview_data %}
+                        <tr>
+                            <td class="row-number">
+                                {{ row.row_number }}
+                                <input type="hidden" name="row_{{ loop.index0 }}_number" value="{{ row.row_number }}">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="row_{{ loop.index0 }}_customer_name"
+                                       value="{{ row.customer_name }}"
+                                       class="required-field"
+                                       required
+                                       placeholder="Enter customer name">
+                            </td>
+                            <td>
+                                <input type="email"
+                                       name="row_{{ loop.index0 }}_customer_email"
+                                       value="{{ row.customer_email }}"
+                                       class="required-field"
+                                       required
+                                       placeholder="email@example.com">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="row_{{ loop.index0 }}_customer_phone"
+                                       value="{{ row.customer_phone }}"
+                                       placeholder="+65-1234-5678">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="row_{{ loop.index0 }}_customer_company"
+                                       value="{{ row.customer_company }}"
+                                       placeholder="Company name">
+                            </td>
+                            <td>
+                                <select name="row_{{ loop.index0 }}_customer_country"
+                                        class="required-field"
+                                        required>
+                                    <option value="">Select country</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}"
+                                            {% if row.customer_country == country %}selected{% endif %}>
+                                        {{ country }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <textarea name="row_{{ loop.index0 }}_return_description"
+                                          class="required-field"
+                                          required
+                                          placeholder="Describe the return issue">{{ row.return_description }}</textarea>
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="row_{{ loop.index0 }}_asset_serial_number"
+                                       value="{{ row.asset_serial_number }}"
+                                       placeholder="Serial number">
+                            </td>
+                            <td>
+                                <select name="row_{{ loop.index0 }}_priority">
+                                    <option value="Low" {% if row.priority == 'Low' %}selected{% endif %}>Low</option>
+                                    <option value="Medium" {% if row.priority == 'Medium' or not row.priority %}selected{% endif %}>Medium</option>
+                                    <option value="High" {% if row.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Critical" {% if row.priority == 'Critical' %}selected{% endif %}>Critical</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select name="row_{{ loop.index0 }}_queue_name">
+                                    <option value="">None</option>
+                                    {% for queue in queues %}
+                                    <option value="{{ queue.name }}"
+                                            {% if row.queue_name == queue.name %}selected{% endif %}>
+                                        {{ queue.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="row_{{ loop.index0 }}_case_owner_email">
+                                    <option value="">None</option>
+                                    {% for case_user in users %}
+                                    <option value="{{ case_user.email }}"
+                                            {% if row.case_owner_email == case_user.email %}selected{% endif %}>
+                                        {{ case_user.username }} ({{ case_user.email }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <textarea name="row_{{ loop.index0 }}_notes"
+                                          placeholder="Additional notes">{{ row.notes }}</textarea>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between bg-white p-6 rounded-lg shadow-md">
+                <a href="{{ url_for('tickets.bulk_import_asset_return') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Confirm and Import {{ preview_data|length }} Ticket(s)
+                </button>
+            </div>
+        </form>
+
+        <!-- Instructions -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Instructions:</h3>
+            <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <li>Fields marked with <span class="required-star">*</span> are required and must be filled</li>
+                <li>You can edit any field directly in the table before importing</li>
+                <li>Invalid or incomplete rows will be skipped during import</li>
+                <li>Click "Confirm and Import" when you're ready to create the tickets</li>
+                <li>The table is scrollable - scroll horizontally to see all fields</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
