@@ -154,17 +154,17 @@ def profile():
     user = db_manager.get_user_by_id(current_user.id)
 
     # Get ticket statistics for the user
-    from models.ticket import Ticket
+    from models.ticket import Ticket, TicketStatus
     db = SessionLocal()
     try:
-        total_tickets = db.query(Ticket).filter(Ticket.owner_id == current_user.id).count()
+        total_tickets = db.query(Ticket).filter(Ticket.assigned_to_id == current_user.id).count()
         open_tickets = db.query(Ticket).filter(
-            Ticket.owner_id == current_user.id,
-            Ticket.status.in_(['open', 'in_progress', 'pending'])
+            Ticket.assigned_to_id == current_user.id,
+            Ticket.status.in_([TicketStatus.NEW, TicketStatus.IN_PROGRESS, TicketStatus.PROCESSING, TicketStatus.ON_HOLD])
         ).count()
         closed_tickets = db.query(Ticket).filter(
-            Ticket.owner_id == current_user.id,
-            Ticket.status == 'closed'
+            Ticket.assigned_to_id == current_user.id,
+            Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
         ).count()
     finally:
         db.close()
