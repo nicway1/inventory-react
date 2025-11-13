@@ -425,59 +425,144 @@
 
         <!-- Ticket Import Card for Supervisors -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN', 'SUPERVISOR'] %}
-        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div class="flex items-center p-3 border-b border-gray-100">
-                <div class="flex-shrink-0 mr-2.5" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="flex items-center p-6" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);">
+                <div class="flex-shrink-0 mr-4" style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-sm font-semibold text-gray-900">Import Tickets</h3>
-                    <p class="text-xs text-gray-500">Upload Ticket Orders</p>
+                    <h3 class="text-2xl font-bold text-white">Import Tickets</h3>
+                    <p class="text-purple-100 mt-1">Upload and process ticket orders</p>
                 </div>
             </div>
-            <form method="POST" enctype="multipart/form-data" class="p-3">
+            <form method="POST" enctype="multipart/form-data" class="p-6">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="import_type" value="ticket">
-                <input type="file" name="file" accept=".csv" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer mb-2" required>
-                <button type="submit" class="w-full bg-purple-600 text-white py-1.5 px-3 rounded text-xs font-medium hover:bg-purple-700 transition">Import Tickets</button>
-                <p class="text-xs text-gray-400 mt-1.5 text-center">→ FirstBase New Orders queue</p>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">Upload CSV File</label>
+                    <div class="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-500 transition">
+                        <svg class="mx-auto h-12 w-12 text-purple-400 mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <input type="file" name="file" accept=".csv" class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer" required>
+                        <p class="text-xs text-gray-500 mt-2">Supported format: CSV</p>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 rounded-lg p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-purple-900 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Import Details
+                    </h4>
+                    <div class="space-y-2 text-sm text-purple-800">
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                            <span>Destination: <strong>FirstBase New Orders queue</strong></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                            <span>Auto-validation of ticket data</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                            <span>Bulk processing with error reports</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-purple-600 text-white py-4 px-6 rounded-lg text-base font-semibold hover:bg-purple-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Import Tickets Now
+                    </span>
+                </button>
             </form>
         </div>
         {% endif %}
 
         <!-- Billing Generator Card (Only for Admin) -->
         {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'ADMIN'] %}
-        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div class="flex items-center p-3 border-b border-gray-100">
-                <div class="flex-shrink-0 mr-2.5" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="flex items-center p-6" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="flex-shrink-0 mr-4" style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-sm font-semibold text-gray-900">Billing Generator</h3>
-                    <p class="text-xs text-gray-500">Generate invoices and reports</p>
+                    <h3 class="text-2xl font-bold text-white">Billing Generator</h3>
+                    <p class="text-emerald-100 mt-1">Create invoices and financial reports</p>
                 </div>
             </div>
-            <div class="p-3">
-                <div class="space-y-1 mb-2.5 text-xs text-gray-600">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
-                        <span>Customer Invoices</span>
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4 mb-6">
+                    <!-- Feature Cards -->
+                    <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h4 class="text-sm font-semibold text-emerald-900">Customer Invoices</h4>
+                                <p class="text-xs text-emerald-700 mt-1">Generate detailed invoices for customer orders and services</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
-                        <span>Billing Reports</span>
+
+                    <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h4 class="text-sm font-semibold text-emerald-900">Billing Reports</h4>
+                                <p class="text-xs text-emerald-700 mt-1">Comprehensive billing reports with payment tracking</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
-                        <span>Usage Analytics</span>
+
+                    <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h4 class="text-sm font-semibold text-emerald-900">Usage Analytics</h4>
+                                <p class="text-xs text-emerald-700 mt-1">Track usage patterns and generate analytical reports</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <a href="{{ url_for('admin.billing_generator') }}" class="w-full bg-emerald-600 text-white text-center py-1.5 px-3 rounded text-xs font-medium hover:bg-emerald-700 transition block">
-                    Generate →
+
+                <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-4 mb-6 border border-emerald-200">
+                    <div class="flex items-center text-sm text-emerald-800">
+                        <svg class="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span><strong>Export Formats:</strong> PDF, Excel, CSV</span>
+                    </div>
+                </div>
+
+                <a href="{{ url_for('admin.billing_generator') }}" class="w-full bg-emerald-600 text-white text-center py-4 px-6 rounded-lg text-base font-semibold hover:bg-emerald-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 block">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Open Billing Generator
+                    </span>
                 </a>
             </div>
         </div>
