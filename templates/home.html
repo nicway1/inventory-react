@@ -89,7 +89,7 @@
         transform-origin: 2px 47px;
         box-shadow: 0 0 5px #0005, inset 1.5px 3px 0px #333, inset -1.5px -3px 0px #333;
         z-index: 1;
-        animation: watch 43200s linear infinite;
+        transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
     }
 
     .minute {
@@ -103,7 +103,7 @@
         transform-origin: 2px 65px;
         box-shadow: 0 0 5px #0005, inset 1.5px 3px 0px #333, inset -1.5px -3px 0px #333;
         z-index: 2;
-        animation: watch 3600s linear infinite;
+        transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
     }
 
     .second {
@@ -116,7 +116,7 @@
         border-radius: 50%;
         border: 1px solid #eee;
         z-index: 3;
-        animation: watch 60s steps(60, end) 0s infinite;
+        transition: transform 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
     }
 
     .second::before {
@@ -161,15 +161,6 @@
         transform: rotate(-90deg);
         text-shadow: 0 158px 0 #333;
         z-index: 1;
-    }
-
-    @keyframes watch {
-        0% {
-            transform: rotate(0deg);
-        }
-        100% {
-            transform: rotate(360deg);
-        }
     }
 </style>
 {% endblock %}
@@ -1077,8 +1068,8 @@
             });
     }
 
-    // Initialize clock with current time (GMT+8)
-    function initClock() {
+    // Update clock with current time (GMT+8)
+    function updateClock() {
         // Get current time in GMT+8 (Singapore/Malaysia time)
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -1108,8 +1099,11 @@
         }
     }
 
-    // Initialize clock when page loads
-    document.addEventListener('DOMContentLoaded', initClock);
+    // Initialize clock when page loads and update every second
+    document.addEventListener('DOMContentLoaded', function() {
+        updateClock(); // Set initial time
+        setInterval(updateClock, 1000); // Update every second
+    });
 
 </script>
 
