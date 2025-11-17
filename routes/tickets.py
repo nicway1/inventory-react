@@ -9636,3 +9636,295 @@ def bulk_import_asset_return():
         logger.error(f"Error in bulk import asset return: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('tickets.list_tickets'))
+
+
+@tickets_bp.route('/bulk-import-1stbase', methods=['GET', 'POST'])
+@login_required
+def bulk_import_1stbase():
+    """Bulk import 1stbase tickets from CSV with automatic customer creation"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+        user_id = user.id
+
+        # Only SUPER_ADMIN, DEVELOPER, and SUPERVISOR can perform bulk imports
+        if not (user.is_super_admin or user.is_developer or user.is_supervisor):
+            flash('Permission denied. Only SUPER_ADMIN, DEVELOPER, and SUPERVISOR can perform bulk imports.', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        if request.method == 'GET':
+            # Render the import form
+            db_session = db_manager.get_session()
+            try:
+                # Get queues for dropdown
+                queues = db_session.query(Queue).order_by(Queue.name).all()
+
+                return render_template('tickets/bulk_import_1stbase.html',
+                                     user=user,
+                                     queues=queues)
+            finally:
+                db_session.close()
+
+        # POST request - process the CSV file or preview data
+        # Check if this is a preview request (initial upload) or final import
+        is_preview = request.form.get('action') != 'import'
+
+        if is_preview:
+            # Handle initial CSV upload for preview
+            if 'csv_file' not in request.files:
+                flash('No file uploaded', 'error')
+                return redirect(request.url)
+
+            file = request.files['csv_file']
+
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(request.url)
+
+            if not file.filename.endswith('.csv'):
+                flash('Invalid file type. Please upload a CSV file.', 'error')
+                return redirect(request.url)
+
+            db_session = db_manager.get_session()
+            try:
+                # Read CSV file
+                stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+                csv_reader = csv.DictReader(stream)
+
+                # Validate headers - 1stbase format
+                required_headers = ['ship_to_first_name', 'ship_to_last_name', 'email', 'country']
+                headers = csv_reader.fieldnames
+
+                missing_headers = [h for h in required_headers if h not in headers]
+                if missing_headers:
+                    flash(f'Missing required columns: {", ".join(missing_headers)}', 'error')
+                    return redirect(request.url)
+
+                # Read all rows for preview
+                preview_data = []
+                row_number = 1
+                for row in csv_reader:
+                    row_number += 1
+                    # Combine first and last name
+                    customer_name = f"{row.get('ship_to_first_name', '').strip()} {row.get('ship_to_last_name', '').strip()}".strip()
+
+                    preview_data.append({
+                        'row_number': row_number,
+                        'customer_name': customer_name,
+                        'customer_email': row.get('email', ''),
+                        'customer_phone': row.get('san', ''),
+                        'customer_company': row.get('company', ''),
+                        'customer_country': row.get('country', ''),
+                        'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_description', 'N/A')} | Serial: {row.get('serial_number1Z83RR694236566929', 'N/A')}",
+                        'asset_serial_number': row.get('serial_number1Z83RR694236566929', ''),
+                        'order_id': row.get('order_id', ''),
+                        'product_description': row.get('product_description', ''),
+                        'address_line_1': row.get('address_line_1', ''),
+                        'address_line_2': row.get('address_line_2', ''),
+                        'city': row.get('city', ''),
+                        'state': row.get('state', ''),
+                        'zip': row.get('zip', ''),
+                        'secondary_email': row.get('secondary_email', ''),
+                        'priority': 'Medium',
+                        'queue_name': row.get('country', ''),  # Use country as queue name
+                        'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', '')
+                    })
+
+                # Get available countries, queues, and users for dropdowns
+                countries = [country.name for country in Country]
+                queues = db_session.query(Queue).order_by(Queue.name).all()
+                users = db_session.query(User).filter(
+                    User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
+                ).order_by(User.username).all()
+
+                return render_template('tickets/bulk_import_preview.html',
+                                     user=user,
+                                     preview_data=preview_data,
+                                     countries=countries,
+                                     queues=queues,
+                                     users=users,
+                                     import_type='1stbase')
+            finally:
+                db_session.close()
+
+        # Final import after preview confirmation
+        db_session = db_manager.get_session()
+        try:
+            # Get the number of rows from form data
+            row_count = int(request.form.get('row_count', 0))
+
+            # Process each row from form data
+            successful_imports = []
+            failed_imports = []
+
+            for i in range(row_count):
+                row_number = int(request.form.get(f'row_{i}_number', i + 2))
+                try:
+                    # Validate required fields
+                    customer_name = request.form.get(f'row_{i}_customer_name', '').strip()
+                    customer_email = request.form.get(f'row_{i}_customer_email', '').strip()
+                    customer_country = request.form.get(f'row_{i}_customer_country', '').strip().upper()
+                    return_description = request.form.get(f'row_{i}_return_description', '').strip()
+
+                    if not customer_name or not customer_email or not customer_country or not return_description:
+                        failed_imports.append({
+                            'row': row_number,
+                            'reason': 'Missing required fields (customer_name, customer_email, customer_country, or return_description)'
+                        })
+                        continue
+
+                    # Validate country
+                    try:
+                        country_enum = Country[customer_country]
+                    except KeyError:
+                        failed_imports.append({
+                            'row': row_number,
+                            'reason': f'Invalid country: {customer_country}. Must be one of: {", ".join([c.name for c in Country])}'
+                        })
+                        continue
+
+                    # Get optional fields first
+                    customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
+                    customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip()
+
+                    # Get or create customer
+                    customer = db_session.query(CustomerUser).filter_by(email=customer_email).first()
+
+                    if not customer:
+                        # Get or create company if provided
+                        company_id = None
+                        if customer_company_name:
+                            company = db_session.query(Company).filter_by(name=customer_company_name).first()
+                            if not company:
+                                company = Company(
+                                    name=customer_company_name
+                                )
+                                db_session.add(company)
+                                db_session.flush()
+                            company_id = company.id
+
+                        customer = CustomerUser(
+                            name=customer_name,
+                            email=customer_email,
+                            contact_number=customer_phone if customer_phone else 'N/A',
+                            address='N/A',  # Required field - can be updated later
+                            company_id=company_id,
+                            country=customer_country  # Store as string
+                        )
+                        db_session.add(customer)
+                        db_session.flush()
+                        logger.info(f"Created new customer: {customer_name} ({customer_email})")
+
+                    # Get remaining optional fields
+                    asset_serial_number = request.form.get(f'row_{i}_asset_serial_number', '').strip()
+                    priority_str = request.form.get(f'row_{i}_priority', 'Medium').strip()
+                    queue_name = request.form.get(f'row_{i}_queue_name', '').strip()
+                    case_owner_email = request.form.get(f'row_{i}_case_owner_email', '').strip()
+                    notes = request.form.get(f'row_{i}_notes', '').strip()
+
+                    # Validate priority
+                    try:
+                        priority = TicketPriority[priority_str.upper()]
+                    except (KeyError, AttributeError):
+                        priority = TicketPriority.MEDIUM
+
+                    # Find asset if provided
+                    asset_id = None
+                    if asset_serial_number:
+                        asset = db_session.query(Asset).filter_by(serial_num=asset_serial_number).first()
+                        if asset:
+                            asset_id = asset.id
+                        else:
+                            logger.warning(f"Asset not found with serial: {asset_serial_number}")
+
+                    # Find queue if provided
+                    queue_id = None
+                    if queue_name:
+                        queue = db_session.query(Queue).filter_by(name=queue_name).first()
+                        if queue:
+                            queue_id = queue.id
+
+                    # Find case owner if provided
+                    case_owner_id = None
+                    if case_owner_email:
+                        case_owner = db_session.query(User).filter_by(email=case_owner_email).first()
+                        if case_owner:
+                            case_owner_id = case_owner.id
+
+                    # Prepare description
+                    description = return_description
+                    if asset_serial_number:
+                        description += f"\n\nAsset Serial Number: {asset_serial_number}"
+
+                    # Determine case owner - use case_owner_id if provided, otherwise default to requester
+                    assigned_to_id = case_owner_id if case_owner_id else user_id
+
+                    # Create the ticket
+                    ticket = Ticket(
+                        subject=f"1stbase Return - {customer_name}",
+                        description=description,
+                        requester_id=user_id,
+                        assigned_to_id=assigned_to_id,
+                        category=TicketCategory.ASSET_RETURN_CLAW,
+                        priority=priority,
+                        asset_id=asset_id,
+                        customer_id=customer.id,
+                        return_description=return_description,
+                        queue_id=queue_id,
+                        notes=notes if notes else None,
+                        shipping_carrier='singpost'
+                    )
+                    db_session.add(ticket)
+                    db_session.flush()
+                    ticket_id = ticket.id
+
+                    # Commit immediately after each successful row
+                    db_session.commit()
+
+                    successful_imports.append({
+                        'row': row_number,
+                        'ticket_id': ticket_id,
+                        'customer': customer_name
+                    })
+                    logger.info(f"Created 1stbase ticket {ticket_id} for customer {customer_name}")
+
+                except Exception as row_error:
+                    db_session.rollback()
+                    logger.error(f"Error processing row {row_number}: {str(row_error)}")
+                    failed_imports.append({
+                        'row': row_number,
+                        'reason': str(row_error)
+                    })
+                    continue
+
+            # Prepare result message
+            success_count = len(successful_imports)
+            fail_count = len(failed_imports)
+
+            if success_count > 0:
+                flash(f'Successfully imported {success_count} 1stbase ticket(s)', 'success')
+
+            if fail_count > 0:
+                flash(f'Failed to import {fail_count} row(s). Check the error log below.', 'warning')
+                for failure in failed_imports:
+                    flash(f'Row {failure["row"]}: {failure["reason"]}', 'error')
+
+            return render_template('tickets/bulk_import_result.html',
+                                 user=user,
+                                 successful_imports=successful_imports,
+                                 failed_imports=failed_imports,
+                                 success_count=success_count,
+                                 fail_count=fail_count,
+                                 import_type='1stbase')
+
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f"Error in bulk import: {str(e)}")
+            flash(f'Error processing CSV file: {str(e)}', 'error')
+            return redirect(request.url)
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error in bulk import 1stbase: {str(e)}")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('tickets.list_tickets'))
