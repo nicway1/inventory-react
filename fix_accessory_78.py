@@ -22,12 +22,15 @@ try:
     else:
         print(f"Found accessory: {accessory.name}")
         print(f"Current quantity: {accessory.available_quantity}")
+        print(f"Current status: {accessory.status}")
 
-        # Set it to 1
+        # Set it to 1 and update status
         accessory.available_quantity = 1
+        accessory.status = "Available"
         session.commit()
 
         print(f"✅ Updated quantity to: {accessory.available_quantity}")
+        print(f"✅ Updated status to: {accessory.status}")
 
 except Exception as e:
     session.rollback()
