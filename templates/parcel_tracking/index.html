@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .parcel-tracking-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .tracking-card {
+        background: white;
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        margin-bottom: 24px;
+    }
+
+    .tracking-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .tracking-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .tracking-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #000;
+    }
+
+    .tracking-subtitle {
+        font-size: 14px;
+        color: #78858F;
+        margin-top: 4px;
+    }
+
+    .input-group {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .tracking-input {
+        flex: 1;
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 15px;
+        transition: all 0.3s;
+    }
+
+    .tracking-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .carrier-select {
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 15px;
+        min-width: 180px;
+        transition: all 0.3s;
+    }
+
+    .carrier-select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .track-button {
+        padding: 14px 32px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .track-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .track-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .bulk-tracking {
+        margin-top: 24px;
+        padding: 24px;
+        background: #f9fafb;
+        border-radius: 12px;
+    }
+
+    .bulk-textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 15px;
+        font-family: monospace;
+        resize: vertical;
+    }
+
+    .bulk-textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .results-container {
+        margin-top: 32px;
+    }
+
+    .result-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 16px;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .result-card.error {
+        border-left-color: #ef4444;
+    }
+
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 16px;
+    }
+
+    .tracking-number {
+        font-size: 18px;
+        font-weight: 700;
+        color: #000;
+        font-family: monospace;
+    }
+
+    .carrier-badge {
+        padding: 6px 12px;
+        background: #667eea;
+        color: white;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .info-item {
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    .info-label {
+        font-size: 12px;
+        color: #78858F;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        font-size: 14px;
+        color: #000;
+        font-weight: 600;
+    }
+
+    .events-timeline {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    .timeline-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #000;
+        margin-bottom: 16px;
+    }
+
+    .event-item {
+        position: relative;
+        padding-left: 24px;
+        padding-bottom: 16px;
+        border-left: 2px solid #e5e7eb;
+        margin-left: 8px;
+    }
+
+    .event-item:last-child {
+        border-left-color: transparent;
+    }
+
+    .event-dot {
+        position: absolute;
+        left: -9px;
+        top: 0;
+        width: 16px;
+        height: 16px;
+        background: #667eea;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #667eea;
+    }
+
+    .event-description {
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.6;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+        padding: 16px;
+        background: #fee2e2;
+        color: #dc2626;
+        border-radius: 8px;
+        margin-top: 16px;
+    }
+</style>
+
+<div class="parcel-tracking-container">
+    <!-- Header Card -->
+    <div class="tracking-card">
+        <div class="tracking-header">
+            <div class="tracking-icon">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="tracking-title">Parcel Tracking</h1>
+                <p class="tracking-subtitle">Track parcels from Ship24.com - Developer Only</p>
+            </div>
+        </div>
+
+        <!-- Single Tracking -->
+        <div class="input-group">
+            <input
+                type="text"
+                id="trackingNumber"
+                class="tracking-input"
+                placeholder="Enter tracking number (e.g., 1234567890)"
+                autocomplete="off"
+            >
+            <select id="carrierSelect" class="carrier-select">
+                <option value="">Auto-detect carrier</option>
+            </select>
+            <button id="trackButton" class="track-button" onclick="trackParcel()">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                Track Parcel
+            </button>
+        </div>
+
+        <!-- Bulk Tracking Section -->
+        <div class="bulk-tracking">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Bulk Tracking</h3>
+            <p style="font-size: 13px; color: #78858F; margin-bottom: 12px;">
+                Enter multiple tracking numbers (one per line, max 10)
+            </p>
+            <textarea
+                id="bulkTrackingNumbers"
+                class="bulk-textarea"
+                placeholder="1234567890&#10;0987654321&#10;1122334455"
+            ></textarea>
+            <button class="track-button" style="margin-top: 12px;" onclick="trackBulkParcels()">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                </svg>
+                Track All
+            </button>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="resultsContainer" class="results-container"></div>
+</div>
+
+<script>
+// Load carriers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCarriers();
+});
+
+// Load available carriers
+async function loadCarriers() {
+    try {
+        const response = await fetch('/parcel-tracking/carriers');
+        const data = await response.json();
+
+        if (data.success) {
+            const select = document.getElementById('carrierSelect');
+            data.carriers.forEach(carrier => {
+                const option = document.createElement('option');
+                option.value = carrier.code;
+                option.textContent = carrier.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading carriers:', error);
+    }
+}
+
+// Track single parcel
+async function trackParcel() {
+    const trackingNumber = document.getElementById('trackingNumber').value.trim();
+    const carrier = document.getElementById('carrierSelect').value;
+
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+
+    const button = document.getElementById('trackButton');
+    button.disabled = true;
+    button.innerHTML = '<span class="loading-spinner"></span> Tracking...';
+
+    try {
+        const response = await fetch('/parcel-tracking/track', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tracking_number: trackingNumber,
+                carrier: carrier || null
+            })
+        });
+
+        const result = await response.json();
+        displayResults([result]);
+
+    } catch (error) {
+        console.error('Error tracking parcel:', error);
+        displayError('Failed to track parcel. Please try again.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Track Parcel
+        `;
+    }
+}
+
+// Track multiple parcels
+async function trackBulkParcels() {
+    const textarea = document.getElementById('bulkTrackingNumbers');
+    const trackingNumbers = textarea.value
+        .split('\n')
+        .map(tn => tn.trim())
+        .filter(tn => tn.length > 0)
+        .slice(0, 10);
+
+    if (trackingNumbers.length === 0) {
+        alert('Please enter at least one tracking number');
+        return;
+    }
+
+    const button = event.target;
+    button.disabled = true;
+    button.innerHTML = '<span class="loading-spinner"></span> Tracking...';
+
+    try {
+        const response = await fetch('/parcel-tracking/track/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tracking_numbers: trackingNumbers
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            displayResults(data.results);
+        } else {
+            displayError(data.error || 'Failed to track parcels');
+        }
+
+    } catch (error) {
+        console.error('Error tracking parcels:', error);
+        displayError('Failed to track parcels. Please try again.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+            Track All
+        `;
+    }
+}
+
+// Display tracking results
+function displayResults(results) {
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = '';
+
+    results.forEach(result => {
+        const card = document.createElement('div');
+        card.className = 'result-card' + (result.success ? '' : ' error');
+
+        if (result.success) {
+            card.innerHTML = `
+                <div class="result-header">
+                    <div>
+                        <div class="tracking-number">${result.tracking_number}</div>
+                    </div>
+                    <div class="carrier-badge">${result.carrier}</div>
+                </div>
+
+                <div class="status-badge">${result.status}</div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Current Location</div>
+                        <div class="info-value">${result.current_location}</div>
+                    </div>
+                    ${result.estimated_delivery ? `
+                        <div class="info-item">
+                            <div class="info-label">Estimated Delivery</div>
+                            <div class="info-value">${result.estimated_delivery}</div>
+                        </div>
+                    ` : ''}
+                    <div class="info-item">
+                        <div class="info-label">Last Updated</div>
+                        <div class="info-value">${new Date(result.last_updated).toLocaleString()}</div>
+                    </div>
+                </div>
+
+                ${result.events && result.events.length > 0 ? `
+                    <div class="events-timeline">
+                        <div class="timeline-title">Tracking History</div>
+                        ${result.events.map(event => `
+                            <div class="event-item">
+                                <div class="event-dot"></div>
+                                <div class="event-description">${event.description}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+        } else {
+            card.innerHTML = `
+                <div class="result-header">
+                    <div>
+                        <div class="tracking-number">${result.tracking_number}</div>
+                    </div>
+                </div>
+                <div class="error-message">
+                    <strong>Error:</strong> ${result.message || result.error}
+                </div>
+            `;
+        }
+
+        container.appendChild(card);
+    });
+}
+
+// Display error message
+function displayError(message) {
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = `
+        <div class="result-card error">
+            <div class="error-message">
+                <strong>Error:</strong> ${message}
+            </div>
+        </div>
+    `;
+}
+
+// Allow Enter key to track
+document.getElementById('trackingNumber').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        trackParcel();
+    }
+});
+</script>
+{% endblock %}

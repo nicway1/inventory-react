@@ -1378,6 +1378,18 @@
                     </svg>
                     <span class="button-text">Bulk Import Returns</span>
                 </a>
+                <a href="{{ url_for('tickets.bulk_import_1stbase') }}" class="sf-button secondary-button" title="Bulk import 1stbase Returns from CSV">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <span class="button-text">1stbase Import</span>
+                </a>
+                <a href="{{ url_for('tickets.import_from_retool') }}" class="sf-button secondary-button" title="Import from Retool">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    <span class="button-text">Import from Retool</span>
+                </a>
                 {% endif %}
             </div>
         </div>

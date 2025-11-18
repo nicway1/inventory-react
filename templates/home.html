@@ -360,6 +360,22 @@
         </div>
         {% endif %}
 
+        <!-- Parcel Tracking Card -->
+        {% if session.get('user_type') == 'DEVELOPER' %}
+        <div class="stat-card">
+            <div class="icon-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+            <div class="stat-title">Parcel Tracking</div>
+            <p class="text-gray-600 text-sm mb-3">Track parcels via Ship24</p>
+            <a href="{{ url_for('parcel_tracking.index') }}" class="action-btn" style="background: #ede9fe; color: #7c3aed;">
+                Track Parcels →
+            </a>
+        </div>
+        {% endif %}
+
         </div>
 
         <!-- Additional Sections -->

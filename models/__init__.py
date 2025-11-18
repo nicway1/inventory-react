@@ -5,6 +5,7 @@ from models.enums import UserType, Country
 from models.company import Company
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
+from models.accessory_alias import AccessoryAlias
 from models.customer_user import CustomerUser
 from models.activity import Activity
 from models.queue import Queue
@@ -50,6 +51,7 @@ __all__ = [
     "Asset",
     "AssetStatus",
     "Accessory",
+    "AccessoryAlias",
     "Country",
     "CustomerUser",
     "Activity",

@@ -1,0 +1,2 @@
+customer_name,customer_email,customer_phone,customer_company,customer_country,return_description,asset_serial_number,outbound_tracking,inbound_tracking,inbound_carrier,priority,queue_name,case_owner_email,notes
+Test Customer,test@example.com,+65-1234-5678,Test Company,SINGAPORE,Testing bulk import functionality,,,TEST123,singpost,Medium,,admin@example.com,This is a test import

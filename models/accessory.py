@@ -27,6 +27,7 @@ class Accessory(Base):
     customer_user = relationship("CustomerUser", back_populates="assigned_accessories")
     history = relationship("AccessoryHistory", back_populates="accessory", order_by="desc(AccessoryHistory.created_at)")
     transactions = relationship("AccessoryTransaction", back_populates="accessory", order_by="desc(AccessoryTransaction.transaction_date)")
+    aliases = relationship("AccessoryAlias", back_populates="accessory", cascade="all, delete-orphan")
     
     def track_change(self, user_id, action, changes, notes=None):
         """Create a history entry for accessory changes
@@ -77,6 +78,7 @@ class Accessory(Base):
             'status': self.status,
             'notes': self.notes,
             'customer_id': self.customer_id,
+            'aliases': [alias.alias_name for alias in self.aliases] if self.aliases else [],
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,
             'return_date': self.return_date.isoformat() if self.return_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

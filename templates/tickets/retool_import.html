@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('tickets.list_tickets') }}"
+           class="text-blue-600 hover:text-blue-800">
+            &larr; Back to Tickets
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Import from Retool</h2>
+            <p class="mt-1 text-sm text-gray-600">Download the CSV from Retool and it will be automatically imported.</p>
+        </div>
+
+        <div class="p-6">
+            <!-- Quick Upload Section (Prominent) -->
+            <div class="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Quick Import from Retool</h3>
+                <p class="text-sm text-gray-600 mb-4">Download the CSV from Retool, then drag and drop it here:</p>
+
+                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- Drag and Drop Zone -->
+                    <div id="dropZone"
+                         class="border-2 border-dashed border-green-300 rounded-lg p-8 text-center bg-white hover:bg-green-50 transition-colors cursor-pointer">
+                        <input type="file"
+                               id="csvFile"
+                               name="file"
+                               accept=".csv"
+                               class="hidden">
+                        <div id="dropZoneContent">
+                            <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p class="mt-2 text-sm text-gray-600">
+                                <span class="font-semibold text-green-600">Click to browse</span> or drag and drop
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500">CSV file from Retool</p>
+                        </div>
+                        <div id="fileSelected" class="hidden">
+                            <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="mt-2 text-sm font-semibold text-green-600" id="fileName"></p>
+                            <p class="mt-1 text-xs text-gray-500">Click button below to import</p>
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                            id="uploadBtn"
+                            class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
+                        <span id="uploadBtnText">Import CSV to System</span>
+                        <span id="uploadBtnLoading" class="hidden">Processing...</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-sm font-semibold text-blue-900 mb-2">How to import from Retool:</h3>
+                <ol class="list-decimal list-inside text-sm text-blue-800 space-y-2">
+                    <li>Use the Retool interface below to view and filter 3PL Orders</li>
+                    <li>Click the "Download" button in Retool to download the CSV</li>
+                    <li>Drag and drop the downloaded CSV file into the box above (or click to browse)</li>
+                    <li>Click "Import CSV to System" and review the data before final import</li>
+                </ol>
+            </div>
+
+            <!-- Retool Iframe -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-gray-900 mb-3">Retool 3PL Orders</h3>
+                <div class="border-2 border-gray-300 rounded-lg overflow-hidden" style="height: 800px;">
+                    <iframe
+                        id="retoolFrame"
+                        src="{{ retool_url }}"
+                        width="100%"
+                        height="100%"
+                        frameborder="0"
+                        allow="clipboard-write"
+                        style="border: none;">
+                    </iframe>
+                </div>
+            </div>
+
+            <!-- Advanced: Direct URL Fetch -->
+            <details class="border-t border-gray-200 pt-6">
+                <summary class="cursor-pointer text-sm font-semibold text-gray-900 mb-3 hover:text-blue-600">
+                    Advanced: Fetch directly from URL (if you have a direct CSV export URL)
+                </summary>
+                <div class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p class="text-sm text-gray-600 mb-4">If you have a direct CSV export URL from Retool API:</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="retoolExportUrl" class="block text-sm font-medium text-gray-700 mb-2">CSV Export URL</label>
+                            <input type="url"
+                                   id="retoolExportUrl"
+                                   placeholder="https://..."
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <button id="fetchBtn"
+                                class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                            <span id="fetchBtnText">Fetch from URL</span>
+                            <span id="fetchBtnLoading" class="hidden">Fetching...</span>
+                        </button>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadForm');
+    const csvFileInput = document.getElementById('csvFile');
+    const dropZone = document.getElementById('dropZone');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const fileSelected = document.getElementById('fileSelected');
+    const fileName = document.getElementById('fileName');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadBtnText = document.getElementById('uploadBtnText');
+    const uploadBtnLoading = document.getElementById('uploadBtnLoading');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const fetchBtnText = document.getElementById('fetchBtnText');
+    const fetchBtnLoading = document.getElementById('fetchBtnLoading');
+    const retoolExportUrl = document.getElementById('retoolExportUrl');
+
+    // Click on drop zone to select file
+    dropZone.addEventListener('click', function() {
+        csvFileInput.click();
+    });
+
+    // File input change handler
+    csvFileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            displaySelectedFile(this.files[0]);
+        }
+    });
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.add('border-green-500', 'bg-green-100');
+    });
+
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('border-green-500', 'bg-green-100');
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('border-green-500', 'bg-green-100');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.csv')) {
+                csvFileInput.files = files;
+                displaySelectedFile(file);
+            } else {
+                alert('Please drop a CSV file');
+            }
+        }
+    });
+
+    function displaySelectedFile(file) {
+        dropZoneContent.classList.add('hidden');
+        fileSelected.classList.remove('hidden');
+        fileName.textContent = file.name;
+        uploadBtn.disabled = false;
+    }
+
+    // Handle manual file upload
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const file = csvFileInput.files[0];
+        if (!file) {
+            alert('Please select a CSV file');
+            return;
+        }
+
+        if (!file.name.endsWith('.csv')) {
+            alert('Please select a valid CSV file');
+            return;
+        }
+
+        // Show loading state
+        uploadBtn.disabled = true;
+        uploadBtnText.classList.add('hidden');
+        uploadBtnLoading.classList.remove('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Add CSRF token
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        formData.append('csrf_token', csrfToken);
+
+        try {
+            const response = await fetch('{{ url_for("tickets.import_from_retool") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Redirect to the CSV import page with the file_id
+                window.location.href = '/admin/csv-import?file_id=' + result.file_id;
+            } else {
+                alert('Error: ' + (result.error || 'Unknown error occurred'));
+
+                // Reset button state
+                uploadBtn.disabled = false;
+                uploadBtnText.classList.remove('hidden');
+                uploadBtnLoading.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Error uploading file. Please try again.');
+
+            // Reset button state
+            uploadBtn.disabled = false;
+            uploadBtnText.classList.remove('hidden');
+            uploadBtnLoading.classList.add('hidden');
+        }
+    });
+
+    // Handle direct fetch from Retool
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', async function() {
+            const exportUrl = retoolExportUrl.value.trim();
+
+            if (!exportUrl) {
+                alert('Please enter the Retool CSV export URL');
+                retoolExportUrl.focus();
+                return;
+            }
+
+            // Basic URL validation
+            if (!exportUrl.startsWith('http')) {
+                alert('Please enter a valid URL');
+                retoolExportUrl.focus();
+                return;
+            }
+
+            // Show loading state
+            fetchBtn.disabled = true;
+            fetchBtnText.classList.add('hidden');
+            fetchBtnLoading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('{{ url_for("tickets.fetch_from_retool") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        export_url: exportUrl
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Redirect to CSV import page
+                    window.location.href = result.redirect_url;
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to fetch data from Retool'));
+
+                    // Reset button state
+                    fetchBtn.disabled = false;
+                    fetchBtnText.classList.remove('hidden');
+                    fetchBtnLoading.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                alert('Error fetching data from Retool. Please try again or use manual upload.');
+
+                // Reset button state
+                fetchBtn.disabled = false;
+                fetchBtnText.classList.remove('hidden');
+                fetchBtnLoading.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

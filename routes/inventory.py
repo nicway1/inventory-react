@@ -582,7 +582,26 @@ def filter_inventory():
                     Asset.customer.ilike(search)
                 )
             )
-        
+
+        # Date created filter
+        if 'date_from' in data and data['date_from']:
+            try:
+                from datetime import datetime
+                date_from = datetime.strptime(data['date_from'], '%Y-%m-%d')
+                query = query.filter(Asset.created_at >= date_from)
+            except (ValueError, TypeError):
+                pass
+
+        if 'date_to' in data and data['date_to']:
+            try:
+                from datetime import datetime, timedelta
+                date_to = datetime.strptime(data['date_to'], '%Y-%m-%d')
+                # Add one day to include the entire end date
+                date_to_end = date_to + timedelta(days=1)
+                query = query.filter(Asset.created_at < date_to_end)
+            except (ValueError, TypeError):
+                pass
+
         # Get pagination parameters
         page = data.get('page', 1)
         per_page = data.get('per_page', 50)
@@ -1419,10 +1438,22 @@ def add_accessory():
                 status='Available',
                 notes=request.form.get('notes', '')
             )
-            
+
             db_session.add(new_accessory)
-            db_session.commit()
-            
+            db_session.flush()  # Flush to get the accessory ID
+
+            # Handle aliases
+            from models.accessory_alias import AccessoryAlias
+            aliases_str = request.form.get('aliases', '').strip()
+            if aliases_str:
+                alias_names = [alias.strip() for alias in aliases_str.split(',') if alias.strip()]
+                for alias_name in alias_names:
+                    new_alias = AccessoryAlias(
+                        accessory_id=new_accessory.id,
+                        alias_name=alias_name
+                    )
+                    db_session.add(new_alias)
+
             # Add activity tracking
             activity = Activity(
                 user_id=current_user.id,
@@ -1475,16 +1506,41 @@ def edit_accessory(id):
                 accessory.model_no = request.form['model_no']
                 new_total = int(request.form['total_quantity'])
                 accessory.country = request.form['country']
-                
+
                 # Update available quantity proportionally
                 if accessory.total_quantity > 0:
                     ratio = accessory.available_quantity / accessory.total_quantity
                     accessory.available_quantity = int(new_total * ratio)
                 else:
                     accessory.available_quantity = new_total
-                
+
                 accessory.total_quantity = new_total
                 accessory.notes = request.form.get('notes', '')
+
+                # Handle aliases - get comma-separated string and split into individual aliases
+                from models.accessory_alias import AccessoryAlias
+                aliases_str = request.form.get('aliases', '').strip()
+                if aliases_str:
+                    new_aliases = [alias.strip() for alias in aliases_str.split(',') if alias.strip()]
+                else:
+                    new_aliases = []
+
+                # Get current aliases
+                current_aliases = [alias.alias_name for alias in accessory.aliases]
+
+                # Remove aliases that are no longer in the list
+                for alias in accessory.aliases[:]:  # Use slice to avoid modifying list while iterating
+                    if alias.alias_name not in new_aliases:
+                        db_session.delete(alias)
+
+                # Add new aliases that don't exist yet
+                for alias_name in new_aliases:
+                    if alias_name not in current_aliases:
+                        new_alias = AccessoryAlias(
+                            accessory_id=accessory.id,
+                            alias_name=alias_name
+                        )
+                        db_session.add(new_alias)
 
                 # Track changes
                 changes = {}

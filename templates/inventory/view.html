@@ -545,17 +545,17 @@
         </div>
 
         <!-- Filters -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select id="statusFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">All Statuses</option>
-                    <option value="IN STOCK">IN STOCK</option>
+                    <option value="In Stock">In Stock</option>
                     <option value="Ready to Deploy">Ready to Deploy</option>
-                    <option value="SHIPPED">SHIPPED</option>
-                    <option value="DEPLOYED">DEPLOYED</option>
-                    <option value="REPAIR">REPAIR</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Deployed">Deployed</option>
+                    <option value="Repair">Repair</option>
+                    <option value="Archived">Archived</option>
                 </select>
             </div>
             <div>
@@ -597,6 +597,18 @@
                     <option value="PHYSICALLY DEFECTIVE">PHYSICALLY DEFECTIVE</option>
                     <option value="RECOVERY KEY ID">RECOVERY KEY ID</option>
                 </select>
+            </div>
+        </div>
+
+        <!-- Date Range Filters -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date Created From</label>
+                <input type="date" id="dateFromFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date Created To</label>
+                <input type="date" id="dateToFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
         </div>
     </div>
@@ -1146,6 +1158,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelFilter = document.getElementById('modelFilter');
     const countryFilter = document.getElementById('countryFilter');
     const erasedFilter = document.getElementById('erasedFilter');
+    const dateFromFilter = document.getElementById('dateFromFilter');
+    const dateToFilter = document.getElementById('dateToFilter');
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const selectAllAssets = document.getElementById('selectAllAssets');
@@ -1987,7 +2001,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 company: companyFilter.value,
                 model: modelFilter.value,
                 country: countryFilter.value,
-                erased: erasedFilter.value
+                erased: erasedFilter.value,
+                date_from: dateFromFilter.value,
+                date_to: dateToFilter.value
             };
             loadTechAssets(filters, true);  // Reset to page 1 when applying filters
         });
@@ -2001,6 +2017,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (modelFilter) modelFilter.value = '';
             if (countryFilter) countryFilter.value = '';
             if (erasedFilter) erasedFilter.value = '';
+            if (dateFromFilter) dateFromFilter.value = '';
+            if (dateToFilter) dateToFilter.value = '';
             loadTechAssets({}, true);  // Reset to page 1 when clearing filters
         });
     }
@@ -2026,6 +2044,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (countryFilter && countryFilter.value) {
                 params.append('country', countryFilter.value);
+            }
+            if (dateFromFilter && dateFromFilter.value) {
+                params.append('date_from', dateFromFilter.value);
+            }
+            if (dateToFilter && dateToFilter.value) {
+                params.append('date_to', dateToFilter.value);
             }
 
             // Build the export URL with filters

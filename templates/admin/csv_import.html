@@ -1547,5 +1547,64 @@ function populateAssetInfo(assets) {
     
     container.innerHTML = html;
 }
+
+// Check for file_id in URL parameters and auto-load data
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fileId = urlParams.get('file_id');
+
+    if (fileId) {
+        // Auto-load data from the file_id
+        loadDataFromFileId(fileId);
+    }
+});
+
+async function loadDataFromFileId(fileId) {
+    try {
+        // Read the temporary file
+        const tempFile = `/tmp/csv_import_${fileId}.json`;
+
+        // Make a request to get the data
+        const response = await fetch(`/admin/csv-import/load-data?file_id=${fileId}`);
+
+        if (!response.ok) {
+            throw new Error('Failed to load CSV data');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Store file_id globally
+            currentFileId = result.file_id;
+            window.csvFileId = result.file_id;
+
+            // Show the CSV data section
+            document.getElementById('csvDataSection').classList.remove('hidden');
+
+            let statsText = `✅ Loaded ${result.total_count} tickets from CSV file`;
+            if (result.duplicate_count > 0 || result.processing_count > 0) {
+                statsText += ` (${result.duplicate_count} duplicates, ${result.processing_count} processing)`;
+            }
+
+            if (result.duplicate_count > 0) {
+                statsText += `<br>⚠️ ${result.duplicate_count} duplicate order(s) detected and will be skipped`;
+            }
+            if (result.processing_count > 0) {
+                statsText += `<br>⚠️ ${result.processing_count} order(s) still processing and will be skipped`;
+            }
+
+            document.getElementById('csvStats').innerHTML = statsText;
+
+            // Populate the data table
+            csvData = result.data;
+            displayCSVData(csvData);
+        } else {
+            alert('Error loading CSV data: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error loading data:', error);
+        alert('Error loading CSV data. The file may have expired. Please upload again.');
+    }
+}
 </script>
 {% endblock %} 

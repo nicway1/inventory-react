@@ -58,6 +58,7 @@ from routes.ticket_categories.asset_checkout_claw import asset_checkout_claw_bp
 from routes.ticket_categories.asset_return_claw import asset_return_claw_bp
 from routes.knowledge import knowledge_bp
 from routes.feedback import feedback_bp
+from routes.parcel_tracking import parcel_tracking_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -118,6 +119,9 @@ def create_app():
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
 
+    # Exempt parcel tracking API routes from CSRF (protected by developer_required decorator)
+    csrf.exempt(parcel_tracking_bp)
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
         # Check if this is an API request
@@ -129,9 +133,9 @@ def create_app():
                     'details': str(e)
                 }
             }), 400
-        
+
         logging.error(f"CSRF Error: {str(e)}")
-        return render_template('error.html', 
+        return render_template('error.html',
                              error="CSRF token validation failed. Please try again.",
                              details=str(e)), 400
 
@@ -209,6 +213,7 @@ def create_app():
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(feedback_bp)
+    app.register_blueprint(parcel_tracking_bp)  # Prefix is defined in the blueprint file
 
     @app.context_processor
     def utility_processor():

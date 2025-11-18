@@ -2,33 +2,152 @@
 
 {% block title %}System Configuration{% endblock %}
 
+{% block head %}
+<style>
+    .button2 {
+        display: inline-block;
+        transition: all 0.2s ease-in;
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+        color: #090909;
+        padding: 0.7em 1.7em;
+        cursor: pointer;
+        font-size: 16px;
+        border-radius: 0.5em;
+        background: #e8e8e8;
+        border: 1px solid #e8e8e8;
+        box-shadow: 6px 6px 12px #c5c5c5, -6px -6px 12px #ffffff;
+        text-decoration: none;
+    }
+
+    .button2:active {
+        color: #666;
+        box-shadow: inset 4px 4px 12px #c5c5c5, inset -4px -4px 12px #ffffff;
+    }
+
+    .button2:before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%) scaleY(1) scaleX(1.25);
+        top: 100%;
+        width: 140%;
+        height: 180%;
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 50%;
+        display: block;
+        transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+        z-index: -1;
+    }
+
+    .button2:after {
+        content: "";
+        position: absolute;
+        left: 55%;
+        transform: translateX(-50%) scaleY(1) scaleX(1.45);
+        top: 180%;
+        width: 160%;
+        height: 190%;
+        background-color: #009087;
+        border-radius: 50%;
+        display: block;
+        transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+        z-index: -1;
+    }
+
+    .button2:hover {
+        color: #ffffff;
+        border: 1px solid #009087;
+    }
+
+    .button2:hover:before {
+        top: -35%;
+        background-color: #009087;
+        transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+    }
+
+    .button2:hover:after {
+        top: -45%;
+        background-color: #009087;
+        transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+    }
+
+    /* Custom colors for each button */
+    .button2-blue:after,
+    .button2-blue:hover:before,
+    .button2-blue:hover:after {
+        background-color: #3b82f6;
+    }
+
+    .button2-blue:hover {
+        border: 1px solid #3b82f6;
+    }
+
+    .button2-green:after,
+    .button2-green:hover:before,
+    .button2-green:hover:after {
+        background-color: #10b981;
+    }
+
+    .button2-green:hover {
+        border: 1px solid #10b981;
+    }
+
+    .button2-orange:after,
+    .button2-orange:hover:before,
+    .button2-orange:hover:after {
+        background-color: #f97316;
+    }
+
+    .button2-orange:hover {
+        border: 1px solid #f97316;
+    }
+
+    .button2-purple:after,
+    .button2-purple:hover:before,
+    .button2-purple:hover:after {
+        background-color: #a855f7;
+    }
+
+    .button2-purple:hover {
+        border: 1px solid #a855f7;
+    }
+
+    .button2 i {
+        margin-right: 0.5em;
+        transition: transform 0.3s ease;
+    }
+
+    .button2:hover i {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold">System Configuration</h1>
-            <div class="flex space-x-3">
-                <a href="{{ url_for('admin.csv_import') }}"
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                    <i class="fas fa-file-csv mr-2"></i>CSV Import
+            <div class="flex gap-3 items-center">
+                <a href="{{ url_for('admin.csv_import') }}" class="button2 button2-blue">
+                    <i class="fas fa-file-csv"></i>CSV Import
                 </a>
-                <a href="{{ url_for('admin.test_email') }}"
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
-                    <i class="fas fa-envelope-check mr-2"></i>Test Email
+                <a href="{{ url_for('admin.test_email') }}" class="button2 button2-green">
+                    <i class="fas fa-envelope-check"></i>Test Email
                 </a>
-                <a href="{{ url_for('admin.manage_queue_permissions') }}"
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700">
-                    <i class="fas fa-layer-group mr-2"></i>Queue Management
+                <a href="{{ url_for('admin.manage_queue_permissions') }}" class="button2 button2-orange">
+                    <i class="fas fa-layer-group"></i>Queue Management
                 </a>
-                <a href="{{ url_for('admin.manage_queue_notifications') }}"
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
-                    <i class="fas fa-bell mr-2"></i>Queue Notifications
+                <a href="{{ url_for('admin.manage_queue_notifications') }}" class="button2 button2-purple">
+                    <i class="fas fa-bell"></i>Queue Notifications
                 </a>
-            <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-800">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-            </a>
+                <a href="{{ url_for('main.index') }}" class="text-gray-600 hover:text-gray-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </a>
             </div>
         </div>
 

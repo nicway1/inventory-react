@@ -101,6 +101,7 @@
                             <th style="min-width: 150px;">Email <span class="required-star">*</span></th>
                             <th style="min-width: 120px;">Phone</th>
                             <th style="min-width: 120px;">Company</th>
+                            <th style="min-width: 250px;">Customer Address</th>
                             <th style="min-width: 120px;">Country <span class="required-star">*</span></th>
                             <th style="min-width: 200px;">Return Description <span class="required-star">*</span></th>
                             <th style="min-width: 120px;">Asset Serial</th>
@@ -144,6 +145,14 @@
                                        name="row_{{ loop.index0 }}_customer_company"
                                        value="{{ row.customer_company }}"
                                        placeholder="Company name">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="row_{{ loop.index0 }}_customer_address"
+                                       value="{{ row.customer_address }}"
+                                       placeholder="Full address"
+                                       readonly
+                                       style="background-color: #f9fafb;">
                             </td>
                             <td>
                                 <select name="row_{{ loop.index0 }}_customer_country"

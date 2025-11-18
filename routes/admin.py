@@ -2550,6 +2550,49 @@ def csv_import_upload():
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to process CSV: {str(e)}'})
 
+
+@admin_bp.route('/csv-import/load-data', methods=['GET'])
+@admin_required
+def csv_import_load_data():
+    """Load CSV data from a file_id parameter"""
+    try:
+        file_id = request.args.get('file_id')
+
+        if not file_id:
+            return jsonify({'success': False, 'error': 'Missing file_id parameter'})
+
+        # Load data from temporary file
+        temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. The file may have expired. Please upload again.'})
+
+        with open(temp_file, 'r') as f:
+            display_data = json.load(f)
+
+        # Calculate statistics
+        duplicate_count = sum(1 for row in display_data if row.get('is_duplicate', False))
+        processing_count = sum(1 for row in display_data if row.get('is_processing', False))
+        cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+        importable_count = len(display_data) - cannot_import_count
+
+        return jsonify({
+            'success': True,
+            'file_id': file_id,
+            'total_count': len(display_data),
+            'duplicate_count': duplicate_count,
+            'processing_count': processing_count,
+            'importable_count': importable_count,
+            'data': display_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error loading CSV data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to load CSV data: {str(e)}'})
+
+
 def cleanup_old_csv_files():
     """Clean up CSV files older than 1 hour"""
     try:
@@ -2907,33 +2950,54 @@ def csv_import_preview_ticket():
                             })
                 
                 # 4. Search for accessories - IMPROVED ALGORITHM
+                from models.accessory_alias import AccessoryAlias
                 accessory_query = db_session.query(Accessory)
-                
+
                 # Debug logging for accessory matching
                 logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
-                
+
                 # Search by exact product name in accessories (highest priority)
                 if product_title:
-                    # First try exact phrase matches
+                    # First try exact phrase matches (including aliases)
+                    # Get accessories that match by name, model, or alias
+                    alias_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                        AccessoryAlias.alias_name.ilike(f'%{product_title}%')
+                    ).subquery()
+
                     exact_accessory_matches = accessory_query.filter(
                         or_(
                             Accessory.name.ilike(f'%{product_title}%'),
-                            Accessory.model_no.ilike(f'%{product_title}%')
+                            Accessory.model_no.ilike(f'%{product_title}%'),
+                            Accessory.id.in_(alias_subquery)
                         )
                     ).limit(3).all()
                     
                     logger.info(f"CSV_ACCESSORY_DEBUG: Found {len(exact_accessory_matches)} exact phrase matches")
-                    
+
                     for accessory in exact_accessory_matches:
                         is_available = accessory.available_quantity > 0
                         availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
-                        
+
+                        # Check if this match was via alias
+                        matched_via_alias = False
+                        matched_alias_name = None
+                        for alias in accessory.aliases:
+                            if product_title.lower() in alias.alias_name.lower():
+                                matched_via_alias = True
+                                matched_alias_name = alias.alias_name
+                                break
+
+                        match_type = 'Exact Phrase (Accessory - Alias)' if matched_via_alias else 'Exact Phrase (Accessory)'
+                        identifier = f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}"
+                        if matched_via_alias:
+                            identifier = f"Matched via alias: {matched_alias_name} | {identifier}"
+
                         matches.append({
-                            'match_type': 'Exact Phrase (Accessory)',
+                            'match_type': match_type,
                             'item_type': 'accessory',
                             'id': accessory.id,
                             'name': accessory.name,
-                            'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                            'identifier': identifier,
                             'availability': availability_text,
                             'is_available': is_available,
                             'confidence': 'High'
@@ -2943,24 +3007,30 @@ def csv_import_preview_ticket():
                 if len(matches) < 5:
                     # Extract meaningful keywords (filter out common words)
                     common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
-                    search_terms = [term.lower() for term in product_title.split() 
+                    search_terms = [term.lower() for term in product_title.split()
                                   if len(term) > 3 and term.lower() not in common_words] if product_title else []
-                    
+
                     logger.info(f"CSV_ACCESSORY_DEBUG: Intelligent search terms: {search_terms}")
-                    
+
                     if search_terms:
                         # Try multi-term matching for better relevance
                         conditions = []
                         for term in search_terms[:3]:  # Limit to first 3 meaningful terms
+                            # Create subquery for alias matching
+                            alias_term_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                                AccessoryAlias.alias_name.ilike(f'%{term}%')
+                            ).subquery()
+
                             conditions.append(
                                 or_(
                                     Accessory.name.ilike(f'%{term}%'),
                                     Accessory.category.ilike(f'%{term}%'),
                                     Accessory.manufacturer.ilike(f'%{term}%'),
-                                    Accessory.model_no.ilike(f'%{term}%')
+                                    Accessory.model_no.ilike(f'%{term}%'),
+                                    Accessory.id.in_(alias_term_subquery)
                                 )
                             )
-                        
+
                         # Try to find accessories that match multiple terms
                         if len(conditions) >= 2:
                             logger.info(f"CSV_ACCESSORY_DEBUG: Searching for multi-term matches")
@@ -2989,13 +3059,19 @@ def csv_import_preview_ticket():
                             # Use only the most specific term (usually the product type)
                             primary_term = search_terms[0]  # Usually the most important term
                             logger.info(f"CSV_ACCESSORY_DEBUG: Searching single term matches for: '{primary_term}'")
-                            
+
+                            # Create subquery for alias matching
+                            alias_single_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                                AccessoryAlias.alias_name.ilike(f'%{primary_term}%')
+                            ).subquery()
+
                             single_term_matches = accessory_query.filter(
                                 or_(
                                     Accessory.name.ilike(f'%{primary_term}%'),
                                     Accessory.category.ilike(f'%{primary_term}%'),
                                     Accessory.manufacturer.ilike(f'%{primary_term}%'),
-                                    Accessory.model_no.ilike(f'%{primary_term}%')
+                                    Accessory.model_no.ilike(f'%{primary_term}%'),
+                                    Accessory.id.in_(alias_single_subquery)
                                 )
                             ).limit(2).all()
                             

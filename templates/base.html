@@ -912,6 +912,17 @@
                         </a>
                         {% endif %}
 
+                        {% if session.get('user_type') == 'DEVELOPER' %}
+                        <!-- Parcel Tracking Button (Developer Only) -->
+                        <a href="{{ url_for('parcel_tracking.index') }}"
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                            Parcel Tracking
+                        </a>
+                        {% endif %}
+
                         <!-- Import Button -->
                         <a href="{{ url_for('inventory.import_inventory') }}"
                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">

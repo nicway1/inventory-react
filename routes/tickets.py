@@ -7994,25 +7994,25 @@ def remove_accessory(ticket_id, accessory_id):
             original_accessory = db_session.query(Accessory).filter(Accessory.id == original_id).with_for_update().first()
             
             if original_accessory:
-                # Decrease inventory quantity when removing from ticket
+                # Increase inventory quantity when removing from ticket (returning to stock)
                 logger.info("=== INVENTORY UPDATE START ===")
-                logger.info(f"REMOVING ACCESSORY: {quantity} {accessory_name}")
+                logger.info(f"REMOVING ACCESSORY FROM TICKET: {quantity} {accessory_name}")
                 logger.info(f"Previous inventory quantity: {original_accessory.available_quantity}")
-                
-                # Decrease the available quantity to reduce inventory
-                original_accessory.available_quantity -= quantity
+
+                # Increase the available quantity to return to inventory
+                original_accessory.available_quantity += quantity
                 logger.info(f"New inventory quantity: {original_accessory.available_quantity}")
                 logger.info("=== INVENTORY UPDATE END ===")
-                
+
                 # Create a transaction record
                 try:
                     transaction = AccessoryTransaction(
                         accessory_id=original_id,
                         transaction_type="Ticket Removal",
                         quantity=quantity,
-                        transaction_number=f"OUT-{ticket_id}-{original_id}-{int(datetime.datetime.now().timestamp())}",
+                        transaction_number=f"IN-{ticket_id}-{original_id}-{int(datetime.datetime.now().timestamp())}",
                         user_id=current_user.id,
-                        notes=f"Accessory removed from ticket #{ticket_id} - inventory decreased"
+                        notes=f"Accessory removed from ticket #{ticket_id} - inventory increased (returned to stock)"
                     )
                     db_session.add(transaction)
                 except Exception as tx_error:
@@ -9707,6 +9707,23 @@ def bulk_import_1stbase():
                     # Combine first and last name
                     customer_name = f"{row.get('ship_to_first_name', '').strip()} {row.get('ship_to_last_name', '').strip()}".strip()
 
+                    # Build customer address from components
+                    address_parts = []
+                    if row.get('address_line_1', '').strip():
+                        address_parts.append(row.get('address_line_1', '').strip())
+                    if row.get('address_line_2', '').strip():
+                        address_parts.append(row.get('address_line_2', '').strip())
+                    city_state_zip = []
+                    if row.get('city', '').strip():
+                        city_state_zip.append(row.get('city', '').strip())
+                    if row.get('state', '').strip():
+                        city_state_zip.append(row.get('state', '').strip())
+                    if row.get('zip', '').strip():
+                        city_state_zip.append(row.get('zip', '').strip())
+                    if city_state_zip:
+                        address_parts.append(', '.join(city_state_zip))
+                    customer_address = ', '.join(address_parts) if address_parts else ''
+
                     preview_data.append({
                         'row_number': row_number,
                         'customer_name': customer_name,
@@ -9714,6 +9731,7 @@ def bulk_import_1stbase():
                         'customer_phone': row.get('san', ''),
                         'customer_company': row.get('company', ''),
                         'customer_country': row.get('country', ''),
+                        'customer_address': customer_address,
                         'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_description', 'N/A')} | Serial: {row.get('serial_number1Z83RR694236566929', 'N/A')}",
                         'asset_serial_number': row.get('serial_number1Z83RR694236566929', ''),
                         'order_id': row.get('order_id', ''),
@@ -9926,5 +9944,230 @@ def bulk_import_1stbase():
 
     except Exception as e:
         logger.error(f"Error in bulk import 1stbase: {str(e)}")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('tickets.list_tickets'))
+
+
+@tickets_bp.route('/import-from-retool/fetch', methods=['POST'])
+@login_required
+def fetch_from_retool():
+    """Fetch CSV data directly from Retool URL"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN, DEVELOPER, and SUPERVISOR can access Retool import
+        if not (user.is_super_admin or user.is_developer or user.is_supervisor):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        # The Retool URL that exports CSV
+        retool_export_url = request.json.get('export_url')
+
+        if not retool_export_url:
+            return jsonify({'success': False, 'error': 'No export URL provided'}), 400
+
+        # Fetch the CSV from Retool
+        logger.info(f"Fetching CSV from Retool: {retool_export_url}")
+        response = requests.get(retool_export_url, timeout=30)
+
+        if response.status_code != 200:
+            return jsonify({'success': False, 'error': f'Failed to fetch CSV from Retool: HTTP {response.status_code}'}), 500
+
+        # Process the CSV content
+        import io
+        import tempfile
+        from routes.admin import clean_csv_row, group_orders_by_id
+
+        # Generate unique file ID
+        file_id = str(uuid.uuid4())
+
+        # Parse CSV
+        csv_content = response.text
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+
+        # Convert to list and validate
+        raw_data = []
+        for row in csv_reader:
+            cleaned_row = clean_csv_row(row)
+            if cleaned_row:
+                raw_data.append(cleaned_row)
+
+        if not raw_data:
+            return jsonify({'success': False, 'error': 'No valid data found in CSV'})
+
+        # Group orders by order_id
+        grouped_data, individual_data = group_orders_by_id(raw_data)
+        display_data = grouped_data + individual_data
+
+        # Check for duplicates
+        db_session = db_manager.get_session()
+        try:
+            existing_order_ids = set()
+            existing_tickets = db_session.query(Ticket).filter(
+                Ticket.firstbaseorderid.isnot(None)
+            ).all()
+            existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+        except:
+            existing_order_ids = set()
+        finally:
+            db_session.close()
+
+        # Mark tickets as duplicate or processing
+        duplicate_count = 0
+        processing_count = 0
+        for row in display_data:
+            order_id = row.get('order_id', '').strip()
+            status = row.get('status', '').upper()
+
+            row['is_duplicate'] = order_id and order_id in existing_order_ids
+            row['is_processing'] = status == 'PROCESSING'
+            row['cannot_import'] = row['is_duplicate'] or row['is_processing']
+
+            if row['is_duplicate']:
+                duplicate_count += 1
+            if row['is_processing']:
+                processing_count += 1
+
+        # Store in temporary file
+        temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+        with open(temp_file, 'w') as f:
+            json.dump(display_data, f)
+
+        # Calculate importable count
+        cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+        importable_count = len(display_data) - cannot_import_count
+
+        logger.info(f"Successfully fetched and processed {len(display_data)} records from Retool")
+
+        return jsonify({
+            'success': True,
+            'file_id': file_id,
+            'total_count': len(display_data),
+            'importable_count': importable_count,
+            'duplicate_count': duplicate_count,
+            'processing_count': processing_count,
+            'redirect_url': f'/admin/csv-import?file_id={file_id}'
+        })
+
+    except requests.RequestException as e:
+        logger.error(f"Error fetching from Retool: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to fetch data from Retool: {str(e)}'}), 500
+    except Exception as e:
+        logger.error(f"Error in Retool fetch: {str(e)}")
+        return jsonify({'success': False, 'error': f'Error: {str(e)}'}), 500
+
+
+@tickets_bp.route('/import-from-retool', methods=['GET', 'POST'])
+@login_required
+def import_from_retool():
+    """Display Retool iframe for CSV import or handle file upload"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN, DEVELOPER, and SUPERVISOR can access Retool import
+        if not (user.is_super_admin or user.is_developer or user.is_supervisor):
+            flash('Permission denied. Only SUPER_ADMIN, DEVELOPER, and SUPERVISOR can access Retool import.', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        if request.method == 'POST':
+            # This endpoint will forward the uploaded file to the CSV import upload endpoint
+            if 'file' not in request.files:
+                return jsonify({'success': False, 'error': 'No file provided'}), 400
+
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+            if not file.filename.lower().endswith('.csv'):
+                return jsonify({'success': False, 'error': 'File must be a CSV'}), 400
+
+            # Forward to the admin CSV import upload endpoint
+            # We'll make an internal request to reuse the existing logic
+            import io
+            import tempfile
+
+            # Generate unique file ID
+            file_id = str(uuid.uuid4())
+
+            # Read and parse CSV
+            csv_content = file.read().decode('utf-8')
+            csv_reader = csv.DictReader(io.StringIO(csv_content))
+
+            # Import the helper functions from admin routes
+            from routes.admin import clean_csv_row, group_orders_by_id
+
+            # Convert to list and validate
+            raw_data = []
+            for row in csv_reader:
+                # Clean and validate the row
+                cleaned_row = clean_csv_row(row)
+                if cleaned_row:  # Only add valid rows
+                    raw_data.append(cleaned_row)
+
+            if not raw_data:
+                return jsonify({'success': False, 'error': 'No valid data found in CSV'})
+
+            # Group orders by order_id
+            grouped_data, individual_data = group_orders_by_id(raw_data)
+
+            # Combine grouped and individual data for display
+            display_data = grouped_data + individual_data
+
+            # Check for duplicates against existing database tickets
+            db_session = db_manager.get_session()
+            try:
+                existing_order_ids = set()
+                existing_tickets = db_session.query(Ticket).filter(
+                    Ticket.firstbaseorderid.isnot(None)
+                ).all()
+                existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+            except:
+                existing_order_ids = set()
+            finally:
+                db_session.close()
+
+            # Mark tickets as duplicate or processing
+            duplicate_count = 0
+            processing_count = 0
+            for row in display_data:
+                order_id = row.get('order_id', '').strip()
+                status = row.get('status', '').upper()
+
+                row['is_duplicate'] = order_id and order_id in existing_order_ids
+                row['is_processing'] = status == 'PROCESSING'
+                row['cannot_import'] = row['is_duplicate'] or row['is_processing']
+
+                if row['is_duplicate']:
+                    duplicate_count += 1
+                if row['is_processing']:
+                    processing_count += 1
+
+            # Store in temporary file with file_id
+            temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
+            with open(temp_file, 'w') as f:
+                json.dump(display_data, f)
+
+            # Calculate importable count
+            cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+            importable_count = len(display_data) - cannot_import_count
+
+            return jsonify({
+                'success': True,
+                'file_id': file_id,
+                'total_count': len(display_data),
+                'importable_count': importable_count,
+                'duplicate_count': duplicate_count,
+                'processing_count': processing_count,
+                'data': display_data
+            })
+
+        # GET request - show the Retool iframe
+        retool_url = 'https://retool.firstbase.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders'
+
+        return render_template('tickets/retool_import.html',
+                             user=user,
+                             retool_url=retool_url)
+
+    except Exception as e:
+        logger.error(f"Error in Retool import: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('tickets.list_tickets'))
