@@ -7559,11 +7559,21 @@ def add_accessory(ticket_id):
                         return jsonify({'success': False, 'message': f'Not enough quantity available. Only {accessory.available_quantity} units available.'}), 400
                     accessory.available_quantity -= quantity
                     logger.info(f"CHECKOUT: Decreasing inventory by {quantity}")
+
+                    # Update status based on quantity
+                    if accessory.available_quantity == 0:
+                        accessory.status = 'Out of Stock'
+                    else:
+                        accessory.status = 'Available'
                 else:
                     # Return/Intake: add to inventory
                     accessory.available_quantity += quantity
                     logger.info(f"RETURN/INTAKE: Increasing inventory by {quantity}")
-                
+
+                    # Update status - if we have stock, it's available
+                    if accessory.available_quantity > 0:
+                        accessory.status = 'Available'
+
                 logger.info(f"New available quantity: {accessory.available_quantity}")
                 logger.info("=== INVENTORY UPDATE END ===")
 
@@ -8002,6 +8012,11 @@ def remove_accessory(ticket_id, accessory_id):
                 # Increase the available quantity to return to inventory
                 original_accessory.available_quantity += quantity
                 logger.info(f"New inventory quantity: {original_accessory.available_quantity}")
+
+                # Update status - if we have stock, it's available
+                if original_accessory.available_quantity > 0:
+                    original_accessory.status = 'Available'
+
                 logger.info("=== INVENTORY UPDATE END ===")
 
                 # Create a transaction record
