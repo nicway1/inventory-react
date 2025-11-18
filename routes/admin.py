@@ -6077,3 +6077,159 @@ def run_screenshot_migration():
 
     return redirect(url_for('admin.dashboard'))
 
+
+@admin_bp.route('/manage-ticket-statuses', methods=['GET', 'POST'])
+@admin_required
+def manage_ticket_statuses():
+    """Manage custom ticket statuses"""
+    from models.custom_ticket_status import CustomTicketStatus
+    from sqlalchemy import func
+
+    db_session = db_manager.get_session()
+
+    try:
+        if request.method == 'POST':
+            action = request.form.get('action') or request.json.get('action')
+
+            if action == 'add':
+                # Add new status
+                name = request.form.get('name', '').strip()
+                display_name = request.form.get('display_name', '').strip()
+                color = request.form.get('color', 'gray')
+
+                if not name or not display_name:
+                    return jsonify({'success': False, 'error': 'Name and display name are required'}), 400
+
+                # Check if status already exists
+                existing = db_session.query(CustomTicketStatus).filter(
+                    CustomTicketStatus.name == name
+                ).first()
+
+                if existing:
+                    return jsonify({'success': False, 'error': 'Status with this name already exists'}), 400
+
+                # Get max sort_order
+                max_order = db_session.query(func.max(CustomTicketStatus.sort_order)).scalar() or 0
+
+                new_status = CustomTicketStatus(
+                    name=name,
+                    display_name=display_name,
+                    color=color,
+                    is_active=True,
+                    is_system=False,
+                    sort_order=max_order + 1
+                )
+
+                db_session.add(new_status)
+                db_session.commit()
+
+                flash(f'Status "{display_name}" added successfully', 'success')
+                return jsonify({'success': True, 'status': new_status.to_dict()})
+
+            elif action == 'update':
+                # Update existing status
+                status_id = request.form.get('status_id') or request.json.get('status_id')
+                display_name = request.form.get('display_name', '').strip() or request.json.get('display_name', '').strip()
+                color = request.form.get('color', 'gray') or request.json.get('color', 'gray')
+                is_active = request.form.get('is_active') == 'true' if request.form.get('is_active') else request.json.get('is_active', True)
+
+                status = db_session.query(CustomTicketStatus).get(status_id)
+                if not status:
+                    return jsonify({'success': False, 'error': 'Status not found'}), 404
+
+                status.display_name = display_name
+                status.color = color
+                status.is_active = is_active
+
+                db_session.commit()
+
+                flash(f'Status "{display_name}" updated successfully', 'success')
+                return jsonify({'success': True, 'status': status.to_dict()})
+
+            elif action == 'delete':
+                # Delete status (only if not system and not in use)
+                status_id = request.form.get('status_id') or request.json.get('status_id')
+
+                status = db_session.query(CustomTicketStatus).get(status_id)
+                if not status:
+                    return jsonify({'success': False, 'error': 'Status not found'}), 404
+
+                if status.is_system:
+                    return jsonify({'success': False, 'error': 'Cannot delete system status'}), 400
+
+                # TODO: Check if status is in use by any tickets
+                # For now, just delete it
+
+                db_session.delete(status)
+                db_session.commit()
+
+                flash(f'Status "{status.display_name}" deleted successfully', 'success')
+                return jsonify({'success': True})
+
+            elif action == 'reorder':
+                # Update sort order
+                order_data = request.json.get('order', [])
+
+                for item in order_data:
+                    status = db_session.query(CustomTicketStatus).get(item['id'])
+                    if status:
+                        status.sort_order = item['order']
+
+                db_session.commit()
+
+                return jsonify({'success': True})
+
+        # GET request - show management page
+        statuses = db_session.query(CustomTicketStatus).order_by(
+            CustomTicketStatus.sort_order,
+            CustomTicketStatus.name
+        ).all()
+
+        return render_template('admin/manage_ticket_statuses.html',
+                             statuses=statuses)
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f'Error managing ticket statuses: {str(e)}')
+        if request.is_json:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/api/ticket-statuses', methods=['GET'])
+@login_required
+def get_ticket_statuses():
+    """API endpoint to get all active ticket statuses for dropdowns"""
+    from models.custom_ticket_status import CustomTicketStatus
+    from models.ticket import TicketStatus
+
+    db_session = db_manager.get_session()
+
+    try:
+        # Get system statuses (from enum)
+        system_statuses = [
+            {'name': status.name, 'display_name': status.value, 'color': 'blue', 'is_system': True}
+            for status in TicketStatus
+        ]
+
+        # Get custom statuses
+        custom_statuses = db_session.query(CustomTicketStatus).filter(
+            CustomTicketStatus.is_active == True
+        ).order_by(CustomTicketStatus.sort_order).all()
+
+        custom_statuses_list = [status.to_dict() for status in custom_statuses]
+
+        return jsonify({
+            'success': True,
+            'system_statuses': system_statuses,
+            'custom_statuses': custom_statuses_list
+        })
+
+    except Exception as e:
+        logger.error(f'Error fetching ticket statuses: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()

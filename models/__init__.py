@@ -42,6 +42,7 @@ from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority, Bu
 from models.release import Release, ReleaseStatus, ReleaseType
 from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.ticket_issue import TicketIssue
+from models.custom_ticket_status import CustomTicketStatus
 
 __all__ = [
     "Base",
@@ -106,5 +107,6 @@ __all__ = [
     "ReleaseType",
     "ChangelogEntry",
     "ChangelogEntryType",
-    "TicketIssue"
+    "TicketIssue",
+    "CustomTicketStatus"
 ]
