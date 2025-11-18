@@ -2687,7 +2687,9 @@ def update_ticket(ticket_id):
         # Update status
         status_value = request.form.get('status')
         logger.info(f"DEBUG - Form status value: {status_value}")
-        
+
+        old_status = ticket.status  # Store old status before update
+
         if status_value:
             try:
                 # Try to get enum by name
@@ -2696,6 +2698,10 @@ def update_ticket(ticket_id):
                 ticket.status = new_status
             except KeyError:
                 logger.info(f"DEBUG - KeyError: {status_value} is not a valid TicketStatus name")
+                # Check if it's a custom status
+                if status_value == "CLOSED_DUPLICATED":
+                    logger.info(f"DEBUG - Custom status CLOSED_DUPLICATED detected")
+                    ticket.custom_status = status_value
         
         # Update priority
         priority_value = request.form.get('priority')
@@ -2771,13 +2777,78 @@ def update_ticket(ticket_id):
                         pass
         
         # Commit the changes directly to database
+        # Check if status changed to CLOSED_DUPLICATED - auto-return assets/accessories
+        if status_value == "CLOSED_DUPLICATED":
+            logger.info("=== AUTO-RETURN FOR CLOSED_DUPLICATED STATUS ===")
+
+            # Return all accessories from this ticket
+            ticket_accessories = db_session.query(TicketAccessory).filter(
+                TicketAccessory.ticket_id == ticket_id
+            ).all()
+
+            for ticket_acc in ticket_accessories:
+                if ticket_acc.original_accessory_id:
+                    original_accessory = db_session.query(Accessory).filter(
+                        Accessory.id == ticket_acc.original_accessory_id
+                    ).first()
+
+                    if original_accessory:
+                        # Return to inventory
+                        quantity = ticket_acc.quantity
+                        original_accessory.available_quantity += quantity
+
+                        # Update status if needed
+                        if original_accessory.available_quantity > 0:
+                            original_accessory.status = 'Available'
+
+                        logger.info(f"Returned {quantity}x {original_accessory.name} to inventory")
+
+                        # Create transaction record
+                        from models.accessory_transaction import AccessoryTransaction
+                        transaction = AccessoryTransaction(
+                            accessory_id=original_accessory.id,
+                            transaction_type="Auto-Return (Closed-Duplicated)",
+                            quantity=quantity,
+                            transaction_number=f"AUTORET-{ticket_id}-{original_accessory.id}-{int(datetime.datetime.now().timestamp())}",
+                            user_id=current_user.id,
+                            notes=f"Auto-returned from ticket #{ticket_id} when status changed to Closed-Duplicated"
+                        )
+                        db_session.add(transaction)
+
+            # Return asset if assigned
+            if ticket.asset_id:
+                asset = db_session.query(Asset).filter(Asset.id == ticket.asset_id).first()
+                if asset:
+                    # Return asset to available status
+                    from models.asset import AssetStatus
+                    asset.status = AssetStatus.AVAILABLE
+                    asset.customer_id = None
+
+                    logger.info(f"Returned asset {asset.serial_number} to inventory")
+
+                    # Create asset transaction record
+                    from models.asset_transaction import AssetTransaction
+                    asset_transaction = AssetTransaction(
+                        asset_id=asset.id,
+                        transaction_type="Auto-Return (Closed-Duplicated)",
+                        transaction_number=f"AUTORET-ASSET-{ticket_id}-{asset.id}-{int(datetime.datetime.now().timestamp())}",
+                        user_id=current_user.id,
+                        notes=f"Auto-returned from ticket #{ticket_id} when status changed to Closed-Duplicated"
+                    )
+                    db_session.add(asset_transaction)
+
+            logger.info("=== AUTO-RETURN COMPLETED ===")
+
         db_session.commit()
         logger.info("DEBUG - Committed changes to database")
         logger.info(f"DEBUG - Status after commit: {ticket.status}")
         if ticket.status:
             logger.info(f"DEBUG - Status value after commit: {ticket.status.value}")
-        
-        flash('Ticket updated successfully')
+
+        if status_value == "CLOSED_DUPLICATED":
+            flash('Ticket marked as Closed-Duplicated. All assets and accessories have been automatically returned to inventory.', 'success')
+        else:
+            flash('Ticket updated successfully')
         
     except Exception as e:
         db_session.rollback()
