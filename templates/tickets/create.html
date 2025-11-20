@@ -2025,10 +2025,46 @@ $(document).ready(function() {
             
             console.log('Submit validation passed for Asset Intake. Submitting form...');
             return true;
+        } else if (category === 'INTERNAL_TRANSFER') {
+            console.log('Validating INTERNAL_TRANSFER category...');
+            // Validate required fields for Internal Transfer
+            const transferName = $('#transfer_name').val();
+            if (!transferName) {
+                console.log('Submit validation failed: Transfer name not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a recipient name');
+                return false;
+            }
+
+            const transferAddress = $('#transfer_address').val();
+            if (!transferAddress) {
+                console.log('Submit validation failed: Transfer address not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide a transfer address');
+                return false;
+            }
+
+            // Auto-populate subject field with transfer name
+            const subjectText = 'Internal Transfer to ' + transferName;
+            $('#subject').val(subjectText);
+
+            // Auto-populate description if not set
+            if (!$('#description').val()) {
+                const descText = 'Transfer to: ' + transferName + '\nAddress: ' + transferAddress;
+                const transferTracking = $('#transfer_tracking').val();
+                if (transferTracking) {
+                    $('#description').val(descText + '\nTracking: ' + transferTracking);
+                } else {
+                    $('#description').val(descText);
+                }
+            }
+
+            console.log('Submit validation passed for Internal Transfer. Submitting form...');
+            return true;
         }
-        
+
         // Check if this is a custom category (not one of the hardcoded enum values)
-        const knownCategories = ['PIN_REQUEST', 'ASSET_REPAIR', 'ASSET_CHECKOUT_CLAW', 'ASSET_INTAKE', 'ASSET_RETURN_CLAW'];
+        const knownCategories = ['PIN_REQUEST', 'ASSET_REPAIR', 'ASSET_CHECKOUT_CLAW', 'ASSET_INTAKE', 'ASSET_RETURN_CLAW', 'INTERNAL_TRANSFER'];
         const isCustomCategory = category && !knownCategories.includes(category);
         
         if (isCustomCategory) {
