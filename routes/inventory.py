@@ -4437,15 +4437,18 @@ def update_erase_status():
         asset = db_session.query(Asset).filter_by(id=asset_id).first()
         if not asset:
             return jsonify({'error': f'Asset with ID {asset_id} not found'}), 404
-            
+
+        # Store old value before updating
+        old_erased_status = asset.erased
+
         # Update the asset
         asset.erased = erased_status
-        
+
         # Track changes in asset history
         history_entry = asset.track_change(
             user_id=session.get('user_id'),
             action="UPDATE",
-            changes={'erased': {'from': asset.erased, 'to': erased_status}},
+            changes={'erased': {'from': old_erased_status, 'to': erased_status}},
             notes=f"Erase status updated to {erased_status}"
         )
         db_session.add(history_entry)
