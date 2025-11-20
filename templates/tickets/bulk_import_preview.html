@@ -153,6 +153,12 @@
                                        placeholder="Full address"
                                        readonly
                                        style="background-color: #f9fafb;">
+                                <!-- Hidden fields for address components -->
+                                <input type="hidden" name="row_{{ loop.index0 }}_address_line_1" value="{{ row.address_line_1 or '' }}">
+                                <input type="hidden" name="row_{{ loop.index0 }}_address_line_2" value="{{ row.address_line_2 or '' }}">
+                                <input type="hidden" name="row_{{ loop.index0 }}_city" value="{{ row.city or '' }}">
+                                <input type="hidden" name="row_{{ loop.index0 }}_state" value="{{ row.state or '' }}">
+                                <input type="hidden" name="row_{{ loop.index0 }}_zip" value="{{ row.zip or '' }}">
                             </td>
                             <td>
                                 <select name="row_{{ loop.index0 }}_customer_country"

@@ -9509,6 +9509,24 @@ def bulk_import_asset_return():
                 row_number = 1
                 for row in csv_reader:
                     row_number += 1
+
+                    # Build customer address from components if available
+                    address_parts = []
+                    if row.get('address_line_1', '').strip():
+                        address_parts.append(row.get('address_line_1', '').strip())
+                    if row.get('address_line_2', '').strip():
+                        address_parts.append(row.get('address_line_2', '').strip())
+                    city_state_zip = []
+                    if row.get('city', '').strip():
+                        city_state_zip.append(row.get('city', '').strip())
+                    if row.get('state', '').strip():
+                        city_state_zip.append(row.get('state', '').strip())
+                    if row.get('zip', '').strip():
+                        city_state_zip.append(row.get('zip', '').strip())
+                    if city_state_zip:
+                        address_parts.append(', '.join(city_state_zip))
+                    customer_address = ', '.join(address_parts) if address_parts else ''
+
                     preview_data.append({
                         'row_number': row_number,
                         'customer_name': row.get('customer_name', ''),
@@ -9516,12 +9534,18 @@ def bulk_import_asset_return():
                         'customer_phone': row.get('customer_phone', ''),
                         'customer_company': row.get('customer_company', ''),
                         'customer_country': row.get('customer_country', ''),
+                        'customer_address': customer_address,
                         'return_description': row.get('return_description', ''),
                         'asset_serial_number': row.get('asset_serial_number', ''),
                         'priority': row.get('priority', 'Medium'),
                         'queue_name': row.get('queue_name', ''),
                         'case_owner_email': row.get('case_owner_email', ''),
-                        'notes': row.get('notes', '')
+                        'notes': row.get('notes', ''),
+                        'address_line_1': row.get('address_line_1', ''),
+                        'address_line_2': row.get('address_line_2', ''),
+                        'city': row.get('city', ''),
+                        'state': row.get('state', ''),
+                        'zip': row.get('zip', '')
                     })
 
                 # Get available countries, queues, and users for dropdowns
