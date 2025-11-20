@@ -9596,17 +9596,41 @@ def bulk_import_asset_return():
                                 db_session.flush()
                             company_id = company.id
 
+                        # Get address components
+                        address_line_1 = request.form.get(f'row_{i}_address_line_1', '').strip()
+                        address_line_2 = request.form.get(f'row_{i}_address_line_2', '').strip()
+                        city = request.form.get(f'row_{i}_city', '').strip()
+                        state = request.form.get(f'row_{i}_state', '').strip()
+                        zip_code = request.form.get(f'row_{i}_zip', '').strip()
+
+                        # Build full address
+                        address_parts = []
+                        if address_line_1:
+                            address_parts.append(address_line_1)
+                        if address_line_2:
+                            address_parts.append(address_line_2)
+                        city_state_zip = []
+                        if city:
+                            city_state_zip.append(city)
+                        if state:
+                            city_state_zip.append(state)
+                        if zip_code:
+                            city_state_zip.append(zip_code)
+                        if city_state_zip:
+                            address_parts.append(', '.join(city_state_zip))
+                        full_address = ', '.join(address_parts) if address_parts else 'N/A'
+
                         customer = CustomerUser(
                             name=customer_name,
                             email=customer_email,
                             contact_number=customer_phone if customer_phone else 'N/A',
-                            address='N/A',  # Required field - can be updated later
+                            address=full_address,  # Use the built address from CSV
                             company_id=company_id,
                             country=customer_country  # Store as string
                         )
                         db_session.add(customer)
                         db_session.flush()
-                        logger.info(f"Created new customer: {customer_name} ({customer_email})")
+                        logger.info(f"Created new customer: {customer_name} ({customer_email}) with address: {full_address}")
 
                     # Get remaining optional fields
                     asset_serial_number = request.form.get(f'row_{i}_asset_serial_number', '').strip()
@@ -9906,17 +9930,41 @@ def bulk_import_1stbase():
                                 db_session.flush()
                             company_id = company.id
 
+                        # Get address components
+                        address_line_1 = request.form.get(f'row_{i}_address_line_1', '').strip()
+                        address_line_2 = request.form.get(f'row_{i}_address_line_2', '').strip()
+                        city = request.form.get(f'row_{i}_city', '').strip()
+                        state = request.form.get(f'row_{i}_state', '').strip()
+                        zip_code = request.form.get(f'row_{i}_zip', '').strip()
+
+                        # Build full address
+                        address_parts = []
+                        if address_line_1:
+                            address_parts.append(address_line_1)
+                        if address_line_2:
+                            address_parts.append(address_line_2)
+                        city_state_zip = []
+                        if city:
+                            city_state_zip.append(city)
+                        if state:
+                            city_state_zip.append(state)
+                        if zip_code:
+                            city_state_zip.append(zip_code)
+                        if city_state_zip:
+                            address_parts.append(', '.join(city_state_zip))
+                        full_address = ', '.join(address_parts) if address_parts else 'N/A'
+
                         customer = CustomerUser(
                             name=customer_name,
                             email=customer_email,
                             contact_number=customer_phone if customer_phone else 'N/A',
-                            address='N/A',  # Required field - can be updated later
+                            address=full_address,  # Use the built address from CSV
                             company_id=company_id,
                             country=customer_country  # Store as string
                         )
                         db_session.add(customer)
                         db_session.flush()
-                        logger.info(f"Created new customer: {customer_name} ({customer_email})")
+                        logger.info(f"Created new customer: {customer_name} ({customer_email}) with address: {full_address}")
 
                     # Get remaining optional fields
                     asset_serial_number = request.form.get(f'row_{i}_asset_serial_number', '').strip()
