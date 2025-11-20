@@ -1203,8 +1203,31 @@ def confirm_import():
                     db_session.add(activity)
                     db_session.commit()
             except Exception as e:
-                error_msg = f"Row {index}: {str(e)}"
-                logger.error(error_msg)
+                # Parse the error to make it user-friendly
+                error_str = str(e)
+
+                # Check for duplicate serial number
+                if 'UNIQUE constraint failed: assets.serial_num' in error_str:
+                    serial = clean_value(row.get('Serial Number', 'Unknown'))
+                    error_msg = f"Row {index}: Duplicate serial number '{serial}' - this asset already exists in the system"
+                # Check for duplicate asset tag
+                elif 'UNIQUE constraint failed: assets.asset_tag' in error_str:
+                    tag = clean_value(row.get('Asset Tag', 'Unknown'))
+                    error_msg = f"Row {index}: Duplicate asset tag '{tag}' - this tag is already in use"
+                # Check for duplicate accessory name
+                elif 'UNIQUE constraint failed: accessories.name' in error_str:
+                    name = clean_value(row.get('Name', 'Unknown'))
+                    error_msg = f"Row {index}: Duplicate accessory name '{name}' - this accessory already exists"
+                # Other errors
+                else:
+                    # Clean up the error message by removing SQL details
+                    if '[SQL:' in error_str:
+                        error_str = error_str.split('[SQL:')[0].strip()
+                    if '(Background on this error' in error_str:
+                        error_str = error_str.split('(Background on this error')[0].strip()
+                    error_msg = f"Row {index}: {error_str}"
+
+                logger.error(f"Import error on row {index}: {str(e)}")
                 errors.append(error_msg)
                 failed += 1
                 db_session.rollback()  # Rollback on error for this row
@@ -1222,11 +1245,33 @@ def confirm_import():
             db_session.commit()
             flash(f'Successfully imported {successful} items.', 'success')
         else:
-            error_summary = f"Failed to import {failed} items. Please check the following rows:"
-            error_details = '<br>'.join(errors[:10])
+            # Create a more helpful error summary
+            if successful > 0:
+                error_summary = f"Partially successful: Imported {successful} items, but {failed} items failed."
+            else:
+                error_summary = f"Import failed for all {failed} items."
+
+            # Add helpful suggestions based on error types
+            has_duplicate_serial = any('Duplicate serial number' in e for e in errors)
+            has_duplicate_tag = any('Duplicate asset tag' in e for e in errors)
+
+            suggestions = []
+            if has_duplicate_serial or has_duplicate_tag:
+                suggestions.append("💡 Tip: These items already exist in the system. To update existing items, search for them in the inventory and edit them individually, or remove the duplicate rows from your CSV.")
+
+            error_details = '<br><br>'.join(errors[:10])
             if len(errors) > 10:
-                error_details += f'<br>... and {len(errors) - 10} more errors'
-            flash(f'{error_summary}<br><br>{error_details}', 'error')
+                error_details += f'<br><br>... and {len(errors) - 10} more errors'
+
+            if suggestions:
+                flash(f'{error_summary}<br><br><strong>Failed Items:</strong><br>{error_details}<br><br>{" ".join(suggestions)}', 'error')
+            else:
+                flash(f'{error_summary}<br><br><strong>Failed Items:</strong><br>{error_details}', 'error')
+
+            # If some items succeeded, show partial success
+            if successful > 0:
+                flash(f'✓ Successfully imported {successful} items', 'success')
+
             return redirect(url_for('inventory.import_inventory'))
         
         # Clean up files after successful import or on error
