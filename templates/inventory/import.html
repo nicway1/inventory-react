@@ -76,6 +76,53 @@
         </div>
         {% endif %}
 
+        <!-- Duplicate Items Warning -->
+        {% set duplicate_items = [] %}
+        {% for row in preview_data %}
+            {% if row.get('is_duplicate') %}
+                {% set _ = duplicate_items.append({'row': loop.index, 'warning': row.get('duplicate_warning'), 'serial': row.get('Serial Number'), 'tag': row.get('Asset Tag'), 'name': row.get('Name')}) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if duplicate_items %}
+        <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">⚠️ Duplicate Items Detected</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p class="font-semibold">The following items already exist in the system and will fail to import:</p>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            {% for item in duplicate_items[:10] %}
+                            <li>
+                                <strong>Row {{ item.row }}:</strong>
+                                {% if item.serial %}
+                                    Serial: {{ item.serial }} -
+                                {% elif item.tag %}
+                                    Tag: {{ item.tag }} -
+                                {% elif item.name %}
+                                    Name: {{ item.name }} -
+                                {% endif %}
+                                <span class="text-red-600">{{ item.warning }}</span>
+                            </li>
+                            {% endfor %}
+                            {% if duplicate_items|length > 10 %}
+                            <li class="text-red-600 font-semibold">... and {{ duplicate_items|length - 10 }} more duplicates</li>
+                            {% endif %}
+                        </ul>
+                        <p class="mt-3 text-red-800 font-semibold">
+                            💡 <strong>Tip:</strong> Remove these rows from your CSV or update the existing items individually in the inventory. Importing will skip these duplicate items.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Preview Data Display -->
         <div class="mb-6">
             <form id="importForm" action="{{ url_for('inventory.confirm_import') }}" method="POST" class="space-y-4">
@@ -102,7 +149,14 @@
                 <!-- Display and input fields for missing values -->
                 {% for row in preview_data %}
                     {% if import_type == 'tech_assets' %}
-                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div class="{% if row.get('is_duplicate') %}bg-red-50 border-2 border-red-300{% else %}bg-white{% endif %} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                            {% if row.get('is_duplicate') %}
+                            <div class="mb-4 p-3 bg-red-100 border border-red-400 rounded">
+                                <p class="text-sm font-semibold text-red-800">
+                                    ⚠️ DUPLICATE: {{ row.get('duplicate_warning') }}
+                                </p>
+                            </div>
+                            {% endif %}
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div>
                                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>
@@ -169,7 +223,14 @@
                         </div>
                     {% else %}
                         <!-- Accessories Preview Display -->
-                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div class="{% if row.get('is_duplicate') %}bg-red-50 border-2 border-red-300{% else %}bg-white{% endif %} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                            {% if row.get('is_duplicate') %}
+                            <div class="mb-4 p-3 bg-red-100 border border-red-400 rounded">
+                                <p class="text-sm font-semibold text-red-800">
+                                    ⚠️ DUPLICATE: {{ row.get('duplicate_warning') }}
+                                </p>
+                            </div>
+                            {% endif %}
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
                                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Basic Information</h3>

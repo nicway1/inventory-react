@@ -929,12 +929,29 @@ def import_inventory():
                         if import_type == 'tech_assets':
                             # Create a case-insensitive column mapping
                             column_mapping = {col.lower(): col for col in df.columns}
-                            
+
                             for _, row in df.iterrows():
+                                asset_tag = clean_value(row.get(column_mapping.get('asset tag', 'ASSET TAG'), ''))
+                                serial_number = clean_value(row.get(column_mapping.get('serial number', 'SERIAL NUMBER'), ''))
+
+                                # Check for duplicates in database
+                                duplicate_warning = None
+                                existing_asset = None
+
+                                if serial_number:
+                                    existing_asset = db_session.query(Asset).filter_by(serial_num=serial_number).first()
+                                    if existing_asset:
+                                        duplicate_warning = f"Serial number already exists (Asset Tag: {existing_asset.asset_tag})"
+
+                                if not duplicate_warning and asset_tag:
+                                    existing_asset = db_session.query(Asset).filter_by(asset_tag=asset_tag).first()
+                                    if existing_asset:
+                                        duplicate_warning = f"Asset tag already exists (Serial: {existing_asset.serial_num or 'N/A'})"
+
                                 preview_row = {
                                     'Asset Type': clean_value(row.get(column_mapping.get('asset type', 'Asset Type'), '')),
-                                    'Asset Tag': clean_value(row.get(column_mapping.get('asset tag', 'ASSET TAG'), '')),
-                                    'Serial Number': clean_value(row.get(column_mapping.get('serial number', 'SERIAL NUMBER'), '')),
+                                    'Asset Tag': asset_tag,
+                                    'Serial Number': serial_number,
                                     'Product': clean_value(row.get(column_mapping.get('product', 'Product'), '')),
                                     'Model': clean_value(row.get(column_mapping.get('model', 'MODEL'), '')),
                                     'Hardware Type': clean_value(row.get(column_mapping.get('hardware type', 'HARDWARE TYPE'), '')),
@@ -955,13 +972,15 @@ def import_inventory():
                                     'Erased': clean_value(row.get(column_mapping.get('erased', 'ERASED'), '')),
                                     'Keyboard': clean_value(row.get(column_mapping.get('keyboard', 'KEYBOARD'), '')),
                                     'Charger': clean_value(row.get(column_mapping.get('charger', 'CHARGER'), '')),
-                                    'Included': clean_value(row.get(column_mapping.get('included', 'INCLUDED'), ''))
+                                    'Included': clean_value(row.get(column_mapping.get('included', 'INCLUDED'), '')),
+                                    'duplicate_warning': duplicate_warning,
+                                    'is_duplicate': duplicate_warning is not None
                                 }
                                 preview_data.append(preview_row)
                         else:  # accessories
                             # Create a case-insensitive column mapping for accessories
                             column_mapping = {col.lower(): col for col in df.columns}
-                            
+
                             for _, row in df.iterrows():
                                 try:
                                     quantity = str(row.get(column_mapping.get('total quantity', 'TOTAL QUANTITY'), '')).strip()
@@ -969,15 +988,26 @@ def import_inventory():
                                 except (ValueError, KeyError):
                                     quantity = 0
 
+                                accessory_name = clean_value(row.get(column_mapping.get('name', 'NAME'), ''))
+
+                                # Check for duplicate accessory name
+                                duplicate_warning = None
+                                if accessory_name:
+                                    existing_accessory = db_session.query(Accessory).filter_by(name=accessory_name).first()
+                                    if existing_accessory:
+                                        duplicate_warning = f"Accessory already exists (Current quantity: {existing_accessory.available_quantity})"
+
                                 preview_row = {
-                                    'Name': clean_value(row.get(column_mapping.get('name', 'NAME'), '')),
+                                    'Name': accessory_name,
                                     'Category': clean_value(row.get(column_mapping.get('category', 'CATEGORY'), '')),
                                     'Manufacturer': clean_value(row.get(column_mapping.get('manufacturer', 'MANUFACTURER'), '')),
                                     'Model Number': clean_value(row.get(column_mapping.get('model no', 'MODEL NO'), '')),
                                     'Status': clean_value(row.get(column_mapping.get('status', 'Status'), 'Available')),
                                     'Total Quantity': quantity,
                                     'Country': clean_value(row.get(column_mapping.get('country', 'COUNTRY'), '')),
-                                    'Notes': clean_value(row.get(column_mapping.get('notes', 'NOTES'), ''))
+                                    'Notes': clean_value(row.get(column_mapping.get('notes', 'NOTES'), '')),
+                                    'duplicate_warning': duplicate_warning,
+                                    'is_duplicate': duplicate_warning is not None
                                 }
                                 preview_data.append(preview_row)
 
