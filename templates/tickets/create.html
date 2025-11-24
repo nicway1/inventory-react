@@ -845,31 +845,63 @@
 
                 <!-- Internal Transfer Fields -->
                 <div id="internalTransferFields" class="hidden space-y-6">
-                    <!-- Name -->
-                    <div>
-                        <label for="transfer_name" class="block text-sm font-medium text-gray-700">Name</label>
-                        <input type="text"
-                               id="transfer_name"
-                               name="transfer_name"
-                               required
-                               placeholder="Enter recipient name"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
+                    <!-- Offboarding Section -->
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-red-800 mb-4">📤 Offboarding Customer</h3>
 
-                    <!-- Address -->
-                    <div>
-                        <label for="transfer_address" class="block text-sm font-medium text-gray-700">Address</label>
-                        <textarea id="transfer_address"
-                                  name="transfer_address"
-                                  rows="3"
-                                  required
-                                  placeholder="Enter transfer address"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        <!-- Offboarding Customer Selection -->
+                        <div class="mb-4">
+                            <label for="offboarding_customer_id" class="block text-sm font-medium text-gray-700">Offboarding Customer <span class="text-red-500">*</span></label>
+                            <div class="flex items-center space-x-2">
+                                <select id="offboarding_customer_id"
+                                        name="offboarding_customer_id"
+                                        required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Search or select customer...</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}"
+                                            data-company="{{ customer.company.name if customer.company else '' }}"
+                                            data-address="{{ customer.address or '' }}">
+                                        {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button"
+                                        onclick="showCreateCustomerModal('offboarding')"
+                                        class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Offboarding Details -->
+                        <div class="mb-4">
+                            <label for="offboarding_details" class="block text-sm font-medium text-gray-700">Offboarding Device Details <span class="text-red-500">*</span></label>
+                            <textarea id="offboarding_details"
+                                      name="offboarding_details"
+                                      rows="3"
+                                      required
+                                      placeholder="Enter device details being transferred (e.g., MacBook Pro 2023, Serial: ABC123, Asset Tag: 1234)"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+
+                        <!-- Offboarding Address (Auto-filled from customer) -->
+                        <div>
+                            <label for="offboarding_address" class="block text-sm font-medium text-gray-700">Offboarding Address <span class="text-red-500">*</span></label>
+                            <textarea id="offboarding_address"
+                                      name="offboarding_address"
+                                      rows="3"
+                                      required
+                                      placeholder="Address will auto-fill from selected customer or enter manually"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
                     </div>
 
                     <!-- Tracking Link -->
                     <div>
-                        <label for="transfer_tracking" class="block text-sm font-medium text-gray-700">Tracking Link</label>
+                        <label for="transfer_tracking" class="block text-sm font-medium text-gray-700">Tracking Link <span class="text-gray-400">(Optional)</span></label>
                         <input type="text"
                                id="transfer_tracking"
                                name="transfer_tracking"
@@ -877,63 +909,67 @@
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
 
-                    <!-- Customer Selection -->
-                    <div>
-                        <label for="transfer_customer_id" class="block text-sm font-medium text-gray-700">Customer</label>
-                        <div class="flex items-center space-x-2">
-                            <select id="transfer_customer_id"
-                                    name="customer_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Select a customer...</option>
-                                {% for customer in customers %}
-                                <option value="{{ customer.id }}">
-                                    {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <button type="button"
-                                    onclick="showCreateCustomerModal()"
-                                    class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                </svg>
-                            </button>
+                    <!-- Onboarding Section -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-green-800 mb-4">📥 Onboarding Customer</h3>
+
+                        <!-- Onboarding Customer Selection -->
+                        <div class="mb-4">
+                            <label for="onboarding_customer_id" class="block text-sm font-medium text-gray-700">Onboarding Customer <span class="text-red-500">*</span></label>
+                            <div class="flex items-center space-x-2">
+                                <select id="onboarding_customer_id"
+                                        name="onboarding_customer_id"
+                                        required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Search or select customer...</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}"
+                                            data-company="{{ customer.company.name if customer.company else '' }}"
+                                            data-address="{{ customer.address or '' }}">
+                                        {{ customer.name }} ({{ customer.company.name if customer.company else 'No Company' }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button"
+                                        onclick="showCreateCustomerModal('onboarding')"
+                                        class="mt-1 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Onboarding Address (Auto-filled from customer) -->
+                        <div>
+                            <label for="onboarding_address" class="block text-sm font-medium text-gray-700">Onboarding Address <span class="text-red-500">*</span></label>
+                            <textarea id="onboarding_address"
+                                      name="onboarding_address"
+                                      rows="3"
+                                      required
+                                      placeholder="Address will auto-fill from selected customer or enter manually"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                         </div>
                     </div>
 
-                    <!-- Client (Company) -->
+                    <!-- Client Company (Auto-filled from customers) -->
                     <div>
-                        <label for="transfer_client" class="block text-sm font-medium text-gray-700">Client</label>
-                        <select id="transfer_client"
-                                name="transfer_client"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Select a client company...</option>
-                            {% for company in companies %}
-                            <option value="{{ company }}">{{ company }}</option>
-                            {% endfor %}
-                        </select>
+                        <label for="transfer_client" class="block text-sm font-medium text-gray-700">Client Company</label>
+                        <input type="text"
+                               id="transfer_client"
+                               name="transfer_client"
+                               readonly
+                               placeholder="Will auto-fill from customer's company"
+                               class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
 
-                    <!-- Asset Equipment Selection -->
-                    <div>
-                        <label for="transfer_serial_number" class="block text-sm font-medium text-gray-700">Asset Equipment</label>
-                        <select id="transfer_serial_number"
-                                name="serial_number"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Select an asset...</option>
-                            {% for asset in assets %}
-                            <option value="{{ asset.serial_number }}"
-                                    data-model="{{ asset.model }}"
-                                    data-asset-tag="{{ asset.asset_tag }}">
-                                {{ asset.serial_number }} - {{ asset.model }} ({{ asset.asset_tag }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                    <!-- Hidden fields for backward compatibility -->
+                    <input type="hidden" id="transfer_name" name="transfer_name" value="">
+                    <input type="hidden" id="transfer_address" name="transfer_address" value="">
 
                     <!-- Notes -->
                     <div>
-                        <label for="transfer_notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <label for="transfer_notes" class="block text-sm font-medium text-gray-700">Additional Notes <span class="text-gray-400">(Optional)</span></label>
                         <textarea id="transfer_notes"
                                   name="notes"
                                   rows="3"
@@ -2027,36 +2063,78 @@ $(document).ready(function() {
             return true;
         } else if (category === 'INTERNAL_TRANSFER') {
             console.log('Validating INTERNAL_TRANSFER category...');
-            // Validate required fields for Internal Transfer
-            const transferName = $('#transfer_name').val();
-            if (!transferName) {
-                console.log('Submit validation failed: Transfer name not provided. Preventing submission.');
+
+            // Validate offboarding customer
+            const offboardingCustomerId = $('#offboarding_customer_id').val();
+            if (!offboardingCustomerId) {
+                console.log('Submit validation failed: Offboarding customer not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please provide a recipient name');
+                alert('Please select an offboarding customer');
                 return false;
             }
 
-            const transferAddress = $('#transfer_address').val();
-            if (!transferAddress) {
-                console.log('Submit validation failed: Transfer address not provided. Preventing submission.');
+            // Validate offboarding details
+            const offboardingDetails = $('#offboarding_details').val();
+            if (!offboardingDetails) {
+                console.log('Submit validation failed: Offboarding details not provided. Preventing submission.');
                 e.preventDefault();
-                alert('Please provide a transfer address');
+                alert('Please provide offboarding device details');
                 return false;
             }
 
-            // Auto-populate subject field with transfer name
-            const subjectText = 'Internal Transfer to ' + transferName;
+            // Validate offboarding address
+            const offboardingAddress = $('#offboarding_address').val();
+            if (!offboardingAddress) {
+                console.log('Submit validation failed: Offboarding address not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide offboarding address');
+                return false;
+            }
+
+            // Validate onboarding customer
+            const onboardingCustomerId = $('#onboarding_customer_id').val();
+            if (!onboardingCustomerId) {
+                console.log('Submit validation failed: Onboarding customer not selected. Preventing submission.');
+                e.preventDefault();
+                alert('Please select an onboarding customer');
+                return false;
+            }
+
+            // Validate onboarding address
+            const onboardingAddress = $('#onboarding_address').val();
+            if (!onboardingAddress) {
+                console.log('Submit validation failed: Onboarding address not provided. Preventing submission.');
+                e.preventDefault();
+                alert('Please provide onboarding address');
+                return false;
+            }
+
+            // Get customer names for subject
+            const offboardingCustomerName = $('#offboarding_customer_id option:selected').text().split('(')[0].trim();
+            const onboardingCustomerName = $('#onboarding_customer_id option:selected').text().split('(')[0].trim();
+
+            // Auto-populate hidden fields for backward compatibility
+            $('#transfer_name').val(onboardingCustomerName);
+            $('#transfer_address').val(onboardingAddress);
+
+            // Auto-populate subject field
+            const subjectText = `Internal Transfer: ${offboardingCustomerName} → ${onboardingCustomerName}`;
             $('#subject').val(subjectText);
 
-            // Auto-populate description if not set
+            // Auto-populate description
             if (!$('#description').val()) {
-                const descText = 'Transfer to: ' + transferName + '\nAddress: ' + transferAddress;
+                let descText = `📤 Offboarding: ${offboardingCustomerName}\n`;
+                descText += `Device Details: ${offboardingDetails}\n`;
+                descText += `From Address: ${offboardingAddress}\n\n`;
+                descText += `📥 Onboarding: ${onboardingCustomerName}\n`;
+                descText += `To Address: ${onboardingAddress}`;
+
                 const transferTracking = $('#transfer_tracking').val();
                 if (transferTracking) {
-                    $('#description').val(descText + '\nTracking: ' + transferTracking);
-                } else {
-                    $('#description').val(descText);
+                    descText += `\n\nTracking: ${transferTracking}`;
                 }
+
+                $('#description').val(descText);
             }
 
             console.log('Submit validation passed for Internal Transfer. Submitting form...');
@@ -2868,6 +2946,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Please upload a CSV file');
             }
         });
+    }
+});
+
+// Auto-fill address and company for Internal Transfer customers
+$(document).ready(function() {
+    // Handle offboarding customer selection
+    $('#offboarding_customer_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const address = selectedOption.data('address');
+        const company = selectedOption.data('company');
+
+        if (address) {
+            $('#offboarding_address').val(address);
+        }
+
+        // Update client company field
+        updateClientCompany();
+    });
+
+    // Handle onboarding customer selection
+    $('#onboarding_customer_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const address = selectedOption.data('address');
+        const company = selectedOption.data('company');
+
+        if (address) {
+            $('#onboarding_address').val(address);
+        }
+
+        // Update client company field
+        updateClientCompany();
+    });
+
+    // Function to update client company based on selected customers
+    function updateClientCompany() {
+        const offboardingCompany = $('#offboarding_customer_id option:selected').data('company');
+        const onboardingCompany = $('#onboarding_customer_id option:selected').data('company');
+
+        // If both customers have the same company, use that
+        if (offboardingCompany && onboardingCompany && offboardingCompany === onboardingCompany) {
+            $('#transfer_client').val(offboardingCompany);
+        }
+        // If only one company is available, use that
+        else if (offboardingCompany) {
+            $('#transfer_client').val(offboardingCompany);
+        } else if (onboardingCompany) {
+            $('#transfer_client').val(onboardingCompany);
+        }
     }
 });
 </script>
