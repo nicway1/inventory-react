@@ -1239,10 +1239,13 @@ def create_ticket():
 
         # Helper function to generate template context
         def get_template_context(form_data=None):
+            # Convert priorities enum to serializable list
+            priorities_list = [{'name': p.name, 'value': p.value} for p in TicketPriority]
+
             return {
                 'assets': assets_data,
                 'customers': customers,
-                'priorities': list(TicketPriority),
+                'priorities': priorities_list,
                 'categories': all_categories,
                 'queues': queues,
                 'Country': all_countries,
