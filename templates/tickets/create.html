@@ -2951,6 +2951,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Auto-fill address and company for Internal Transfer customers
 $(document).ready(function() {
+    // Store all onboarding customer options on page load
+    const allOnboardingCustomers = $('#onboarding_customer_id option').clone();
+
     // Handle offboarding customer selection
     $('#offboarding_customer_id').on('change', function() {
         const selectedOption = $(this).find('option:selected');
@@ -2960,6 +2963,9 @@ $(document).ready(function() {
         if (address) {
             $('#offboarding_address').val(address);
         }
+
+        // Filter onboarding customers to same company
+        filterOnboardingCustomers(company);
 
         // Update client company field
         updateClientCompany();
@@ -2978,6 +2984,43 @@ $(document).ready(function() {
         // Update client company field
         updateClientCompany();
     });
+
+    // Function to filter onboarding customers by company
+    function filterOnboardingCustomers(companyName) {
+        const onboardingSelect = $('#onboarding_customer_id');
+
+        // Clear current options except the first placeholder
+        onboardingSelect.find('option:not(:first)').remove();
+
+        // If no company selected, show all customers
+        if (!companyName) {
+            allOnboardingCustomers.each(function() {
+                if ($(this).val() !== '') {
+                    onboardingSelect.append($(this).clone());
+                }
+            });
+            return;
+        }
+
+        // Filter and add only customers from the same company
+        let matchingCustomers = 0;
+        allOnboardingCustomers.each(function() {
+            const optionCompany = $(this).data('company');
+            if ($(this).val() === '') {
+                // Keep the placeholder
+                return;
+            }
+            if (optionCompany === companyName) {
+                onboardingSelect.append($(this).clone());
+                matchingCustomers++;
+            }
+        });
+
+        // If no matching customers, show a message
+        if (matchingCustomers === 0) {
+            onboardingSelect.append('<option value="" disabled>No customers found in this company</option>');
+        }
+    }
 
     // Function to update client company based on selected customers
     function updateClientCompany() {
