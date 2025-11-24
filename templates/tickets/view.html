@@ -1937,6 +1937,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <div>
                                         <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
                                         <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <!-- System Statuses -->
                                             <option value="NEW" {% if ticket.status and ticket.status.name == 'NEW' %}selected{% endif %}>
                                                 New
                                             </option>
@@ -1952,6 +1953,17 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <option value="RESOLVED_DELIVERED" {% if ticket.status and ticket.status.name == 'RESOLVED_DELIVERED' %}selected{% endif %}>
                                                 Resolved (All Package Delivered)
                                             </option>
+
+                                            <!-- Custom Statuses -->
+                                            {% if custom_statuses %}
+                                            <optgroup label="Custom Statuses">
+                                                {% for custom_status in custom_statuses %}
+                                                <option value="{{ custom_status.name }}" {% if ticket.custom_status == custom_status.name %}selected{% endif %}>
+                                                    {{ custom_status.display_name }}
+                                                </option>
+                                                {% endfor %}
+                                            </optgroup>
+                                            {% endif %}
                                         </select>
                                     </div>
                                     <div>

@@ -2225,7 +2225,14 @@ def view_ticket(ticket_id):
         
         # Get all queues
         queues = db_session.query(Queue).all()
-        
+
+        # Get custom ticket statuses
+        from models.custom_ticket_status import CustomTicketStatus
+        custom_statuses = db_session.query(CustomTicketStatus).filter(
+            CustomTicketStatus.is_active == True
+        ).order_by(CustomTicketStatus.sort_order).all()
+        custom_statuses_list = [status.to_dict() for status in custom_statuses]
+
         # Get assets data for the template
         assets_data = []
         assets_query = db_session.query(Asset)
@@ -2314,7 +2321,8 @@ def view_ticket(ticket_id):
             asset_modal_models=asset_modal_models,
             asset_modal_types=asset_modal_types,
             model_product_map=model_product_map,
-            model_type_map=model_type_map
+            model_type_map=model_type_map,
+            custom_statuses=custom_statuses_list
         )
         
     except Exception as e:
