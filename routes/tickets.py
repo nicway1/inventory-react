@@ -2707,12 +2707,25 @@ def update_ticket(ticket_id):
                 new_status = TicketStatus[status_value]
                 logger.info(f"DEBUG - Setting status to {new_status}")
                 ticket.status = new_status
+                # Clear custom_status if setting a system status
+                ticket.custom_status = None
             except KeyError:
                 logger.info(f"DEBUG - KeyError: {status_value} is not a valid TicketStatus name")
-                # Check if it's a custom status
-                if status_value == "CLOSED_DUPLICATED":
-                    logger.info(f"DEBUG - Custom status CLOSED_DUPLICATED detected")
+                # It's a custom status - verify it exists in the database
+                from models.custom_ticket_status import CustomTicketStatus
+                custom_status = db_session.query(CustomTicketStatus).filter(
+                    CustomTicketStatus.name == status_value,
+                    CustomTicketStatus.is_active == True
+                ).first()
+
+                if custom_status:
+                    logger.info(f"DEBUG - Custom status {status_value} detected and verified")
                     ticket.custom_status = status_value
+                    # Clear the system status when using custom status
+                    ticket.status = None
+                else:
+                    logger.warning(f"DEBUG - Custom status {status_value} not found in database")
+                    flash(f"Invalid status: {status_value}", 'error')
         
         # Update priority
         priority_value = request.form.get('priority')
