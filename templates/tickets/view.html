@@ -1131,20 +1131,33 @@ body.dark-theme .sf-card-body .sf-field-label {
                             <div class="sf-field-label">Status</div>
                             <div class="sf-field-value">
                                 {% if ticket.custom_status %}
-                                    {% set custom_status_obj = custom_statuses | selectattr('name', 'equalto', ticket.custom_status) | first %}
+                                    {% set custom_status_obj = None %}
+                                    {% if custom_statuses %}
+                                        {% for cs in custom_statuses %}
+                                            {% if cs.name == ticket.custom_status %}
+                                                {% set custom_status_obj = cs %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
                                     <span class="sf-badge
                                         {% if custom_status_obj %}
                                             {% if custom_status_obj.color == 'blue' %}sf-badge-info
                                             {% elif custom_status_obj.color == 'green' %}sf-badge-success
                                             {% elif custom_status_obj.color == 'yellow' %}sf-badge-warning
                                             {% elif custom_status_obj.color == 'red' %}sf-badge-danger
+                                            {% else %}sf-badge-secondary
                                             {% endif %}
+                                        {% else %}sf-badge-secondary
                                         {% endif %}">
                                         {{ custom_status_obj.display_name if custom_status_obj else ticket.custom_status }}
                                     </span>
+                                {% elif ticket.status %}
+                                    <span class="sf-badge {% if ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
+                                        {{ ticket.status.value }}
+                                    </span>
                                 {% else %}
-                                    <span class="sf-badge {% if ticket.status and ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
-                                        {{ ticket.status.value if ticket.status else 'None' }}
+                                    <span class="sf-badge sf-badge-secondary">
+                                        No Status
                                     </span>
                                 {% endif %}
                             </div>
