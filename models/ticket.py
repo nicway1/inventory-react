@@ -68,6 +68,7 @@ class Ticket(Base):
     description = Column(String(2000))
     requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     status = Column(SQLEnum(TicketStatus), default=TicketStatus.NEW)
+    custom_status = Column(String(100), nullable=True)  # For custom ticket statuses
     priority = Column(SQLEnum(TicketPriority), default=TicketPriority.MEDIUM)
     category = Column(SQLEnum(TicketCategory))
     asset_id = Column(Integer, ForeignKey('assets.id'))
