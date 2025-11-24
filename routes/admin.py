@@ -6185,8 +6185,11 @@ def manage_ticket_statuses():
             CustomTicketStatus.name
         ).all()
 
+        # Convert statuses to dictionaries for JSON serialization
+        statuses_list = [status.to_dict() for status in statuses]
+
         return render_template('admin/manage_ticket_statuses.html',
-                             statuses=statuses)
+                             statuses=statuses_list)
 
     except Exception as e:
         db_session.rollback()
