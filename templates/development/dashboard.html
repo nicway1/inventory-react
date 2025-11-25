@@ -596,7 +596,7 @@
                         <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f3f3f3; {% if loop.last %}border-bottom: none;{% endif %}">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
-                                    <a href="{{ url_for('development.feature_detail', feature_id=feature.id) }}" style="font-weight: 600; color: #0176d3; text-decoration: none; font-size: 0.95rem;">
+                                    <a href="{{ url_for('development.view_feature', id=feature.id) }}" style="font-weight: 600; color: #0176d3; text-decoration: none; font-size: 0.95rem;">
                                         {{ feature.display_id }} - {{ feature.title }}
                                     </a>
                                     <div style="font-size: 0.8rem; color: #706e6b; margin-top: 0.25rem;">
@@ -610,7 +610,7 @@
                                     <span style="font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600; {{ feature.get_priority_color() }}">
                                         {{ feature.priority.value }}
                                     </span>
-                                    <a href="{{ url_for('development.feature_detail', feature_id=feature.id) }}" class="sf-button sf-button-primary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
+                                    <a href="{{ url_for('development.view_feature', id=feature.id) }}" class="sf-button sf-button-primary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
                                         <i class="fas fa-eye"></i> Review
                                     </a>
                                 </div>
