@@ -1632,6 +1632,13 @@ $(document).ready(function() {
         width: '100%'
     });
 
+    // Initialize Select2 for Internal Transfer customer dropdowns (offboarding/onboarding)
+    $('#offboarding_customer_id, #onboarding_customer_id').select2({
+        placeholder: 'Search or select customer...',
+        allowClear: true,
+        width: 'resolve'
+    });
+
     // Initialize Select2 for customer selection dropdowns with enhanced search
     $('#customer_id, #return_customer_id').select2({
         placeholder: 'Search by customer name, company, or email...',
@@ -3020,6 +3027,9 @@ $(document).ready(function() {
         if (matchingCustomers === 0) {
             onboardingSelect.append('<option value="" disabled>No customers found in this company</option>');
         }
+
+        // Refresh Select2 to show updated options
+        onboardingSelect.trigger('change.select2');
     }
 
     // Function to update client company based on selected customers
