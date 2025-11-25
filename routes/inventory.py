@@ -32,6 +32,7 @@ from io import StringIO, BytesIO
 import logging
 import random
 import traceback
+from utils.countries import COUNTRIES
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
@@ -2514,9 +2515,9 @@ def add_customer_user():
         # Sort the company names
         companies = sorted(list(all_companies))
         
-        return render_template('inventory/add_customer_user.html', 
+        return render_template('inventory/add_customer_user.html',
                              companies=companies,
-                             Country=Country)
+                             available_countries=COUNTRIES)
     finally:
         db_session.close()
 
@@ -2569,12 +2570,8 @@ def edit_customer_user(id):
         customer = db_session.query(CustomerUser).get(id)
         companies = db_session.query(Company).all()
 
-        # Get unique countries from customer users for dropdown
-        customer_countries = db_session.query(CustomerUser.country).filter(
-            CustomerUser.country.isnot(None),
-            CustomerUser.country != ''
-        ).distinct().all()
-        available_countries = sorted([c[0] for c in customer_countries if c[0]])
+        # Use complete list of world countries
+        available_countries = COUNTRIES
         
         if not customer:
             flash('Customer user not found', 'error')
