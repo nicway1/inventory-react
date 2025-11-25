@@ -860,14 +860,14 @@ def update_user_type_permissions(user_type):
         finally:
             session.close()
             
-        return redirect(url_for('admin.manage_permissions'))
-        
+        return redirect(url_for('admin.permission_management'))
+
     except KeyError:
         flash(f'Invalid user type: {user_type}', 'error')
-        return redirect(url_for('admin.manage_permissions'))
+        return redirect(url_for('admin.permission_management'))
     except Exception as e:
         flash(f'Error updating permissions: {str(e)}', 'error')
-        return redirect(url_for('admin.manage_permissions'))
+        return redirect(url_for('admin.permission_management'))
 
 @admin_bp.route('/queue-permissions')
 @super_admin_required
