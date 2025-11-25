@@ -307,12 +307,16 @@
 .sf-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.125rem 0.5rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 500;
     background-color: #f3f4f6;
     color: #4b5563;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+    line-height: 1.2;
 }
 
 .sf-badge-success {
@@ -1149,7 +1153,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             {% endif %}
                                         {% else %}sf-badge-secondary
                                         {% endif %}">
-                                        {{ custom_status_obj.display_name if custom_status_obj else ticket.custom_status }}
+                                        {{ custom_status_obj.display_name if custom_status_obj else ticket.custom_status.replace('_', ' ') }}
                                     </span>
                                 {% elif ticket.status %}
                                     <span class="sf-badge {% if ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
@@ -1189,6 +1193,52 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
+
+                        {% if ticket.category and ticket.category.name == 'INTERNAL_TRANSFER' %}
+                        <!-- Offboarding Customer -->
+                        {% if ticket.offboarding_customer %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">📤 Offboarding Customer</div>
+                            <div class="sf-field-value">
+                                <strong>{{ ticket.offboarding_customer.name }}</strong>
+                                {% if ticket.offboarding_customer.company %}
+                                    <br><small class="text-gray-600">{{ ticket.offboarding_customer.company.name }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if ticket.offboarding_details %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Device Details</div>
+                            <div class="sf-field-value">{{ ticket.offboarding_details }}</div>
+                        </div>
+                        {% endif %}
+                        {% if ticket.offboarding_address %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Offboarding Address</div>
+                            <div class="sf-field-value"><pre class="whitespace-pre-wrap font-sans">{{ ticket.offboarding_address }}</pre></div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Onboarding Customer -->
+                        {% if ticket.onboarding_customer %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">📥 Onboarding Customer</div>
+                            <div class="sf-field-value">
+                                <strong>{{ ticket.onboarding_customer.name }}</strong>
+                                {% if ticket.onboarding_customer.company %}
+                                    <br><small class="text-gray-600">{{ ticket.onboarding_customer.company.name }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if ticket.onboarding_address %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Onboarding Address</div>
+                            <div class="sf-field-value"><pre class="whitespace-pre-wrap font-sans">{{ ticket.onboarding_address }}</pre></div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
                         {% endif %}
                     </div>
                     <div class="space-y-2">

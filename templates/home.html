@@ -181,9 +181,11 @@
                         <h3 class="text-sm font-semibold text-gray-700 mb-4">This Week's Tickets (Mon-Fri)</h3>
                         <div class="flex items-end gap-4" style="height: 140px;">
                             {% for day_data in weekly_ticket_data %}
-                            <div class="flex-1 flex flex-col items-center gap-2">
+                            <a href="{{ url_for('tickets.list_tickets', date_from=day_data.full_date, date_to=day_data.full_date) }}"
+                               class="flex-1 flex flex-col items-center gap-2 group cursor-pointer transition-transform hover:scale-105"
+                               title="Click to view {{ day_data.count }} ticket(s) from {{ day_data.day }}">
                                 <!-- Count (moved to top) -->
-                                <div class="text-sm font-bold text-gray-800 h-5">
+                                <div class="text-sm font-bold text-gray-800 h-5 group-hover:text-blue-600 transition-colors">
                                     {% if day_data.count > 0 %}{{ day_data.count }}{% endif %}
                                 </div>
                                 <!-- Bar Container -->
@@ -191,20 +193,19 @@
                                     {% if day_data.count > 0 %}
                                     {% set max_count = weekly_ticket_data|map(attribute='count')|max %}
                                     {% set bar_height = (day_data.count / max_count * 90) if max_count > 0 else 0 %}
-                                    <div class="w-full rounded-lg transition-all hover:opacity-80 shadow-sm"
-                                         style="height: {{ bar_height }}px; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); min-height: 8px;"
-                                         title="{{ day_data.count }} tickets on {{ day_data.day }}">
+                                    <div class="w-full rounded-lg transition-all group-hover:shadow-lg group-hover:brightness-110 shadow-sm"
+                                         style="height: {{ bar_height }}px; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); min-height: 8px;">
                                     </div>
                                     {% else %}
-                                    <div class="w-full rounded bg-gray-200" style="height: 8px;"></div>
+                                    <div class="w-full rounded bg-gray-200 group-hover:bg-gray-300 transition-colors" style="height: 8px;"></div>
                                     {% endif %}
                                 </div>
                                 <!-- Day Label -->
                                 <div class="text-center">
-                                    <div class="text-xs font-medium text-gray-700">{{ day_data.day }}</div>
-                                    <div class="text-[10px] text-gray-500">{{ day_data.date }}</div>
+                                    <div class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{{ day_data.day }}</div>
+                                    <div class="text-[10px] text-gray-500 group-hover:text-blue-500 transition-colors">{{ day_data.date }}</div>
                                 </div>
-                            </div>
+                            </a>
                             {% endfor %}
                         </div>
                     </div>
@@ -307,18 +308,16 @@
             </div>
             {% endif %}
 
-        <!-- Development Card -->
+        <!-- Development Console Card -->
         {% if user.user_type.value not in ['COUNTRY_ADMIN', 'CLIENT'] %}
         <div class="stat-card">
-            <div class="icon-box" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                </svg>
+            <div class="icon-box" style="background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);">
+                <i class="fas fa-laptop-code" style="font-size: 1.5rem; color: white;"></i>
             </div>
-            <div class="stat-title">Development</div>
+            <div class="stat-title">Development Console</div>
             <p class="text-gray-600 text-sm mb-3">Feature & Bug Management</p>
-            <a href="{{ url_for('development.dashboard') }}" class="action-btn" style="background: #f3e8ff; color: #a855f7;">
-                View Dashboard →
+            <a href="{{ url_for('development.dashboard') }}" class="action-btn" style="background: #e8f4ff; color: #0176d3;">
+                View Console →
             </a>
         </div>
         {% endif %}

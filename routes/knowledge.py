@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_, desc, func
@@ -10,8 +10,21 @@ from models.knowledge_feedback import KnowledgeFeedback
 from models.knowledge_attachment import KnowledgeAttachment
 from utils.auth_decorators import permission_required
 import logging
+import os
+import markdown
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# System documentation files mapping (slug -> file path relative to static/csv_templates)
+SYSTEM_DOCS = {
+    'asset-return-import': {
+        'file': 'ASSET_RETURN_IMPORT_README.md',
+        'title': 'Asset Return Bulk Import Guide',
+        'category': 'Import Guides'
+    },
+    # Add more system docs here as needed
+}
 
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/knowledge')
 
@@ -200,6 +213,80 @@ def view_article(article_id):
                              related_articles=related_articles)
     finally:
         db.close()
+
+@knowledge_bp.route('/docs/<slug>')
+@login_required
+@permission_required('can_view_knowledge_base')
+def view_system_doc(slug):
+    """View system documentation from markdown files
+
+    This reads markdown files directly from the filesystem,
+    so docs update automatically when you git pull.
+    """
+    # Check if the doc exists
+    if slug not in SYSTEM_DOCS:
+        abort(404)
+
+    doc_info = SYSTEM_DOCS[slug]
+
+    # Build the file path
+    docs_folder = os.path.join(current_app.root_path, 'static', 'csv_templates')
+    file_path = os.path.join(docs_folder, doc_info['file'])
+
+    # Check if file exists
+    if not os.path.exists(file_path):
+        logger.error(f"System doc file not found: {file_path}")
+        abort(404)
+
+    try:
+        # Read the markdown file
+        with open(file_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
+
+        # Convert markdown to HTML with extensions
+        md = markdown.Markdown(extensions=[
+            'tables',
+            'fenced_code',
+            'codehilite',
+            'toc',
+            'nl2br'
+        ])
+        html_content = md.convert(md_content)
+
+        # Get file modification time
+        file_mtime = os.path.getmtime(file_path)
+        last_modified = datetime.fromtimestamp(file_mtime)
+
+        return render_template('knowledge/system_doc.html',
+                             title=doc_info['title'],
+                             category=doc_info['category'],
+                             content=html_content,
+                             last_modified=last_modified,
+                             slug=slug)
+    except Exception as e:
+        logger.error(f"Error reading system doc {slug}: {str(e)}")
+        abort(500)
+
+@knowledge_bp.route('/docs')
+@login_required
+@permission_required('can_view_knowledge_base')
+def list_system_docs():
+    """List all available system documentation"""
+    docs = []
+    docs_folder = os.path.join(current_app.root_path, 'static', 'csv_templates')
+
+    for slug, info in SYSTEM_DOCS.items():
+        file_path = os.path.join(docs_folder, info['file'])
+        if os.path.exists(file_path):
+            file_mtime = os.path.getmtime(file_path)
+            docs.append({
+                'slug': slug,
+                'title': info['title'],
+                'category': info['category'],
+                'last_modified': datetime.fromtimestamp(file_mtime)
+            })
+
+    return render_template('knowledge/system_docs_list.html', docs=docs)
 
 @knowledge_bp.route('/category/<int:category_id>')
 @login_required

@@ -1,0 +1,817 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-success {
+        background: #28a745;
+        color: white;
+    }
+
+    .sf-button-success:hover {
+        background: #218838;
+    }
+
+    .sf-button-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .sf-button-danger:hover {
+        background: #c82333;
+    }
+
+    /* Content Card */
+    .sf-card {
+        background: white;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #080707;
+        margin: 0;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Legend */
+    .schedule-legend {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f9f9f9;
+        border-radius: 0.25rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+
+    .legend-wfo {
+        background: #28a745;
+    }
+
+    .legend-wfh {
+        background: #17a2b8;
+    }
+
+    .legend-off {
+        background: #dc3545;
+    }
+
+    /* Calendar Customization */
+    #calendar {
+        background: white;
+    }
+
+    .fc-daygrid-day:hover {
+        background: #f0f7ff;
+        cursor: pointer;
+    }
+
+    .fc-daygrid-day.fc-day-today {
+        background: #fff3cd !important;
+    }
+
+    /* Selection highlight when dragging */
+    .fc-highlight {
+        background: rgba(1, 118, 211, 0.3) !important;
+    }
+
+    .fc-daygrid-day {
+        cursor: pointer;
+    }
+
+    .fc-event {
+        border-radius: 3px;
+        font-size: 0.75rem;
+        padding: 2px 4px;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.25rem !important;
+        font-weight: 600;
+    }
+
+    .fc-button-primary {
+        background-color: #0176d3 !important;
+        border-color: #0176d3 !important;
+    }
+
+    .fc-button-primary:hover {
+        background-color: #014486 !important;
+        border-color: #014486 !important;
+    }
+
+    /* Modal Styling */
+    .schedule-modal {
+        display: none;
+        position: fixed;
+        z-index: 1050;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .schedule-modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        max-width: 400px;
+        width: 90%;
+        animation: modalSlideIn 0.2s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h5 {
+        margin: 0;
+        font-weight: 700;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #706e6b;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #dddbda;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #0176d3;
+        box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.1);
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Instructions */
+    .instructions {
+        background: #e8f4fd;
+        border: 1px solid #b3d7f2;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .instructions h6 {
+        margin: 0 0 0.5rem 0;
+        color: #0176d3;
+        font-weight: 600;
+    }
+
+    .instructions ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        font-size: 0.875rem;
+    }
+
+    .instructions li {
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">Developer Schedule</h1>
+            <div class="quick-actions">
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Console
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Instructions Card -->
+        <div class="sf-card">
+            <div class="sf-card-body">
+                <div class="instructions">
+                    <h6><i class="fas fa-info-circle"></i> How to Use</h6>
+                    <ul>
+                        <li><strong>Select multiple days:</strong> Click on a date, hold and drag to another date to select a range</li>
+                        <li><strong>Single day:</strong> Click on any date to mark it as WFO, WFH, or Off</li>
+                        <li><strong>Edit existing:</strong> Click on a colored entry to edit or remove it</li>
+                        <li><strong>Quick actions:</strong> Use the buttons below to mark the entire week</li>
+                    </ul>
+                </div>
+
+                <div class="schedule-legend">
+                    <div class="legend-item">
+                        <span class="legend-color legend-wfo"></span>
+                        <span><strong>WFO</strong> - Work From Office</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color legend-wfh"></span>
+                        <span><strong>WFH</strong> - Work From Home</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color legend-off"></span>
+                        <span><strong>Off</strong> - Day Off / Leave</span>
+                    </div>
+                </div>
+
+                <div class="quick-actions mb-3">
+                    <button type="button" class="sf-button sf-button-success" onclick="markWeekdays(true, 'WFO')">
+                        <i class="fas fa-building"></i> This Week WFO
+                    </button>
+                    <button type="button" class="sf-button" style="background: #17a2b8; color: white;" onclick="markWeekdays(true, 'WFH')">
+                        <i class="fas fa-home"></i> This Week WFH
+                    </button>
+                    <button type="button" class="sf-button sf-button-danger" onclick="markWeekdays(false, 'OFF')">
+                        <i class="fas fa-calendar-times"></i> This Week Off
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Card -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <h3 class="sf-card-title">
+                    <i class="fas fa-calendar-alt"></i> My Schedule
+                </h3>
+            </div>
+            <div class="sf-card-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Modal -->
+<div id="scheduleModal" class="schedule-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 id="modalTitle">Schedule Day</h5>
+            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Date(s)</label>
+                <input type="text" id="selectedDate" class="form-control" readonly>
+                <small id="dateCount" class="text-muted" style="display:none;"></small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <div class="status-options" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <label class="status-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #28a745; border-radius: 0.25rem; background: #e8f5e9;">
+                        <input type="radio" name="workStatus" value="WFO" checked style="width: 1rem; height: 1rem;">
+                        <span style="color: #28a745; font-weight: 600;">WFO</span>
+                        <small style="color: #666;">Office</small>
+                    </label>
+                    <label class="status-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #17a2b8; border-radius: 0.25rem; background: #e3f2fd;">
+                        <input type="radio" name="workStatus" value="WFH" style="width: 1rem; height: 1rem;">
+                        <span style="color: #17a2b8; font-weight: 600;">WFH</span>
+                        <small style="color: #666;">Home</small>
+                    </label>
+                    <label class="status-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #dc3545; border-radius: 0.25rem; background: #ffebee;">
+                        <input type="radio" name="workStatus" value="OFF" style="width: 1rem; height: 1rem;">
+                        <span style="color: #dc3545; font-weight: 600;">Off</span>
+                        <small style="color: #666;">Leave</small>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="dayNote">Note (optional)</label>
+                <input type="text" id="dayNote" class="form-control" placeholder="e.g., Client meeting, Doctor appointment">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="sf-button sf-button-secondary" onclick="closeModal()">Cancel</button>
+            <button type="button" class="sf-button sf-button-danger" id="deleteBtn" onclick="deleteEntry()" style="display:none;">
+                <i class="fas fa-trash"></i> Remove
+            </button>
+            <button type="button" class="sf-button sf-button-primary" onclick="saveSchedule()">
+                <i class="fas fa-save"></i> Save
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- FullCalendar Bundle (includes all plugins for drag selection) -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+    let calendar;
+    let currentEventId = null;
+    let currentDate = null;
+    let selectedDates = []; // Array to hold multiple selected dates
+    const csrfToken = '{{ csrf_token() }}'; // CSRF token for AJAX requests
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek'
+            },
+            events: '{{ url_for("development.get_schedule_events") }}',
+            // Enable drag selection
+            selectable: true,
+            selectMirror: true,
+            unselectAuto: false,  // Keep selection until we handle it
+            selectOverlap: true,  // Allow selecting over existing events
+            longPressDelay: 100,  // Faster touch selection on mobile
+            select: function(info) {
+                // Handle multi-day selection (drag selection)
+                const dates = getDatesBetween(info.startStr, info.endStr);
+                openModalMultiple(dates);
+            },
+            eventClick: function(info) {
+                info.jsEvent.preventDefault(); // Prevent selection when clicking event
+                const event = info.event;
+                openModal(
+                    event.startStr,
+                    event.id,
+                    event.extendedProps.is_working,
+                    event.extendedProps.work_location,
+                    event.extendedProps.note
+                );
+            },
+            editable: false,
+            dayMaxEvents: true,
+            height: 'auto'
+        });
+
+        calendar.render();
+    });
+
+    // Get all dates between start and end (end is exclusive in FullCalendar)
+    function getDatesBetween(startStr, endStr) {
+        const dates = [];
+        // Parse dates without timezone conversion issues
+        const startParts = startStr.split('-').map(Number);
+        const endParts = endStr.split('-').map(Number);
+
+        // Create dates using local timezone (months are 0-indexed)
+        let current = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+
+        while (current < end) {
+            // Format as YYYY-MM-DD without timezone issues
+            const year = current.getFullYear();
+            const month = String(current.getMonth() + 1).padStart(2, '0');
+            const day = String(current.getDate()).padStart(2, '0');
+            dates.push(`${year}-${month}-${day}`);
+            current.setDate(current.getDate() + 1);
+        }
+        return dates;
+    }
+
+    // Open modal for multiple dates
+    function openModalMultiple(dates) {
+        selectedDates = dates;
+        currentEventId = null;
+        currentDate = null;
+
+        if (dates.length === 1) {
+            // Single date - show formatted date
+            document.getElementById('selectedDate').value = formatDate(dates[0]);
+            document.getElementById('dateCount').style.display = 'none';
+        } else {
+            // Multiple dates - show range
+            const startFormatted = formatDateShort(dates[0]);
+            const endFormatted = formatDateShort(dates[dates.length - 1]);
+            document.getElementById('selectedDate').value = `${startFormatted} → ${endFormatted}`;
+            document.getElementById('dateCount').textContent = `${dates.length} days selected`;
+            document.getElementById('dateCount').style.display = 'block';
+        }
+
+        // Default to WFO
+        setWorkStatus('WFO');
+        document.getElementById('dayNote').value = '';
+        document.getElementById('deleteBtn').style.display = 'none';
+        document.getElementById('modalTitle').textContent = dates.length === 1 ? 'Add Schedule' : `Schedule ${dates.length} Days`;
+
+        document.getElementById('scheduleModal').classList.add('show');
+    }
+
+    function openModal(dateStr, eventId = null, isWorking = true, workLocation = 'WFO', note = '') {
+        currentDate = dateStr;
+        currentEventId = eventId;
+        selectedDates = [dateStr];
+
+        document.getElementById('selectedDate').value = formatDate(dateStr);
+        document.getElementById('dateCount').style.display = 'none';
+
+        // Set the work status radio button
+        if (!isWorking) {
+            setWorkStatus('OFF');
+        } else {
+            setWorkStatus(workLocation || 'WFO');
+        }
+
+        document.getElementById('dayNote').value = note || '';
+
+        // Show/hide delete button based on whether this is an existing entry
+        document.getElementById('deleteBtn').style.display = eventId ? 'inline-flex' : 'none';
+        document.getElementById('modalTitle').textContent = eventId ? 'Edit Schedule' : 'Add Schedule';
+
+        document.getElementById('scheduleModal').classList.add('show');
+    }
+
+    function setWorkStatus(status) {
+        const radios = document.querySelectorAll('input[name="workStatus"]');
+        radios.forEach(radio => {
+            radio.checked = (radio.value === status);
+        });
+    }
+
+    function getWorkStatus() {
+        const selected = document.querySelector('input[name="workStatus"]:checked');
+        return selected ? selected.value : 'WFO';
+    }
+
+    function closeModal() {
+        document.getElementById('scheduleModal').classList.remove('show');
+        currentEventId = null;
+        currentDate = null;
+        selectedDates = [];
+        calendar.unselect(); // Clear the selection highlight
+    }
+
+    function formatDate(dateStr) {
+        // Parse without timezone issues
+        const parts = dateStr.split('-').map(Number);
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    function formatDateShort(dateStr) {
+        // Parse without timezone issues
+        const parts = dateStr.split('-').map(Number);
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    async function saveSchedule() {
+        const workStatus = getWorkStatus();
+        const isWorking = (workStatus !== 'OFF');
+        const workLocation = isWorking ? workStatus : 'WFO';
+        const note = document.getElementById('dayNote').value.trim();
+
+        try {
+            // If multiple dates selected, use bulk endpoint
+            if (selectedDates.length > 1) {
+                const response = await fetch('{{ url_for("development.bulk_schedule_update") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        dates: selectedDates,
+                        is_working: isWorking,
+                        work_location: workLocation,
+                        note: note
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    calendar.refetchEvents();
+                    closeModal();
+                    showToast(`${selectedDates.length} days scheduled successfully`, 'success');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } else {
+                // Single date
+                const response = await fetch('{{ url_for("development.toggle_schedule_day") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        date: selectedDates[0] || currentDate,
+                        is_working: isWorking,
+                        work_location: workLocation,
+                        note: note
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    calendar.refetchEvents();
+                    closeModal();
+                    showToast('Schedule saved successfully', 'success');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Failed to save schedule', 'error');
+        }
+    }
+
+    async function deleteEntry() {
+        if (!currentEventId) return;
+
+        try {
+            const response = await fetch('{{ url_for("development.toggle_schedule_day") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    date: currentDate,
+                    action: 'delete'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                calendar.refetchEvents();
+                closeModal();
+                showToast('Schedule entry removed', 'success');
+            } else {
+                showToast('Error: ' + data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Failed to delete entry', 'error');
+        }
+    }
+
+    async function markWeekdays(isWorking, workLocation = 'WFO') {
+        // Get current week's weekdays
+        const today = new Date();
+        const currentDay = today.getDay();
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1));
+
+        const weekdayDates = [];
+        for (let i = 0; i < 5; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            // Format without timezone issues
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            weekdayDates.push(`${year}-${month}-${day}`);
+        }
+
+        try {
+            const response = await fetch('{{ url_for("development.bulk_schedule_update") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    dates: weekdayDates,
+                    is_working: isWorking,
+                    work_location: workLocation,
+                    note: ''
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                calendar.refetchEvents();
+                const statusText = !isWorking ? 'Off' : workLocation;
+                showToast(`Week marked as ${statusText}`, 'success');
+            } else {
+                showToast('Error: ' + data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Failed to update schedule', 'error');
+        }
+    }
+
+    function showToast(message, type) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.25rem;
+            color: white;
+            font-weight: 500;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // Add animation styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s ease-out reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('scheduleModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

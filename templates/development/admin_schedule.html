@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    /* Content Card */
+    .sf-card {
+        background: white;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #080707;
+        margin: 0;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Legend */
+    .schedule-legend {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f9f9f9;
+        border-radius: 0.25rem;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+
+    .legend-wfo {
+        background: #28a745;
+    }
+
+    .legend-wfh {
+        background: #17a2b8;
+    }
+
+    .legend-off {
+        background: #dc3545;
+    }
+
+    /* Filter Section */
+    .filter-section {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #3e3e3c;
+    }
+
+    .filter-select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        min-width: 200px;
+    }
+
+    /* Calendar Customization */
+    #calendar {
+        background: white;
+    }
+
+    .fc-daygrid-day.fc-day-today {
+        background: #fff3cd !important;
+    }
+
+    .fc-event {
+        border-radius: 3px;
+        font-size: 0.7rem;
+        padding: 2px 4px;
+        margin-bottom: 1px;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.25rem !important;
+        font-weight: 600;
+    }
+
+    .fc-button-primary {
+        background-color: #0176d3 !important;
+        border-color: #0176d3 !important;
+    }
+
+    .fc-button-primary:hover {
+        background-color: #014486 !important;
+        border-color: #014486 !important;
+    }
+
+    /* Admin badge */
+    .admin-badge {
+        background: #ba0517;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">
+                Developer Schedule <span class="admin-badge">Super Admin</span>
+            </h1>
+            <div class="quick-actions">
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Console
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Filter Card -->
+        <div class="sf-card">
+            <div class="sf-card-body">
+                <div class="schedule-legend">
+                    <div class="legend-item">
+                        <span class="legend-color legend-wfo"></span>
+                        <span><strong>WFO</strong> - Work From Office</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color legend-wfh"></span>
+                        <span><strong>WFH</strong> - Work From Home</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color legend-off"></span>
+                        <span><strong>Off</strong> - Day Off / Leave</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-label">Filter by Developer:</span>
+                    <select id="developerFilter" class="filter-select" onchange="filterByDeveloper()">
+                        <option value="">All Developers</option>
+                        {% for dev in developers %}
+                        <option value="{{ dev.id }}">{{ dev.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Card -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <h3 class="sf-card-title">
+                    <i class="fas fa-users"></i> All Developer Schedules
+                </h3>
+            </div>
+            <div class="sf-card-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- FullCalendar Bundle -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+    let calendar;
+    let currentFilter = '';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek'
+            },
+            events: function(info, successCallback, failureCallback) {
+                let url = '{{ url_for("development.get_all_schedule_events") }}';
+                url += `?start=${info.startStr}&end=${info.endStr}`;
+                if (currentFilter) {
+                    url += `&user_id=${currentFilter}`;
+                }
+
+                console.log('Fetching events from:', url);
+                fetch(url)
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Events data received:', data);
+                        if (data.error) {
+                            console.error('API returned error:', data.error);
+                            failureCallback(data.error);
+                        } else {
+                            console.log('Passing', data.length, 'events to calendar');
+                            successCallback(data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching events:', error);
+                        failureCallback(error);
+                    });
+            },
+            eventClick: function(info) {
+                const props = info.event.extendedProps;
+                alert(`${props.username}\n` +
+                      `Status: ${props.is_working ? props.work_location : 'Day Off'}\n` +
+                      `${props.note ? 'Note: ' + props.note : ''}`);
+            },
+            editable: false,
+            selectable: false,
+            dayMaxEvents: 4,  // Show "+more" link after 4 events
+            height: 'auto'
+        });
+
+        calendar.render();
+    });
+
+    function filterByDeveloper() {
+        currentFilter = document.getElementById('developerFilter').value;
+        calendar.refetchEvents();
+    }
+</script>
+{% endblock %}

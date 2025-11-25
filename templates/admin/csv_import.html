@@ -429,6 +429,9 @@ document.getElementById('csvUploadForm').addEventListener('submit', async functi
                     statsText += ` (${result.processing_count} processing)`;
                 }
             }
+            if (result.empty_name_count > 0) {
+                statsText += ` ⚠️ ${result.empty_name_count} row(s) with empty customer name - click Preview to fix`;
+            }
             document.getElementById('csvStats').textContent = statsText;
             
             // Display the actual CSV data instead of just preview options
@@ -490,11 +493,18 @@ function displayCSVData(data) {
     
     data.forEach((row, index) => {
         const tr = document.createElement('tr');
-        // Highlight duplicates in orange, processing in red
+        // Check if customer name is empty or "Unknown Customer"
+        const nameIsEmpty = !row.person_name ||
+                           row.person_name.trim() === '' ||
+                           row.person_name.trim().toLowerCase() === 'unknown customer';
+
+        // Highlight duplicates in orange, processing in red, empty names in light red
         if (row.is_duplicate) {
             tr.className = 'hover:bg-orange-50 bg-orange-50';
         } else if (row.is_processing) {
             tr.className = 'hover:bg-red-50 bg-red-50';
+        } else if (nameIsEmpty) {
+            tr.className = 'hover:bg-red-50 bg-red-50 border-l-4 border-red-400';
         } else {
             tr.className = 'hover:bg-gray-50';
         }
@@ -529,8 +539,19 @@ function displayCSVData(data) {
                 </div>
             </td>
             <td class="px-3 py-4">
-                <div class="text-sm text-gray-900">${row.person_name || 'N/A'}</div>
-                <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>
+                ${!row.person_name || row.person_name.trim() === '' || row.person_name.trim().toLowerCase() === 'unknown customer' ?
+                    `<div class="flex items-center gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
+                                ⚠️ Unknown Customer
+                            </div>
+                            <div class="text-xs text-red-500 mt-1">Empty name - click Preview to fix</div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
+                    `<div class="text-sm text-gray-900">${row.person_name}</div>
+                    <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>`
+                }
             </td>
             <td class="px-3 py-4">
                 <div class="text-sm text-gray-900">${row.org_name || 'N/A'}</div>
@@ -692,26 +713,49 @@ function bulkImportAll() {
 // Display preview
 function populatePreviewModal(preview) {
     const content = document.getElementById('previewContent');
-    
+
     // Format category display
     const categoryDisplay = preview.category.replace('ASSET_CHECKOUT_CLAW', 'Asset Checkout');
-    
+
     // Format priority with colors
-    const priorityColor = preview.priority === 'HIGH' ? 'text-red-600 bg-red-100' : 
-                         preview.priority === 'MEDIUM' ? 'text-yellow-600 bg-yellow-100' : 
+    const priorityColor = preview.priority === 'HIGH' ? 'text-red-600 bg-red-100' :
+                         preview.priority === 'MEDIUM' ? 'text-yellow-600 bg-yellow-100' :
                          'text-green-600 bg-green-100';
-    
+
     // Format status with colors - use the same logic as getStatusColor function
     const statusColor = preview.status === 'PROCESSING' ? 'text-red-600 bg-red-100' :
                        preview.status === 'ORDERED' ? 'text-blue-600 bg-blue-100' :
                        preview.status === 'APPROVED' ? 'text-green-600 bg-green-100' :
                        preview.status === 'SHIPPED' ? 'text-purple-600 bg-purple-100' :
                        preview.status === 'DELIVERED' ? 'text-green-600 bg-green-100' :
-                       preview.status === 'OPEN' ? 'text-blue-600 bg-blue-100' : 
-                       preview.status === 'CLOSED' ? 'text-gray-600 bg-gray-100' : 
+                       preview.status === 'OPEN' ? 'text-blue-600 bg-blue-100' :
+                       preview.status === 'CLOSED' ? 'text-gray-600 bg-gray-100' :
                        'text-green-600 bg-green-100';
-    
+
+    // Check if name is empty
+    const nameIsEmpty = preview.name_is_empty || false;
+
+    // Warning banner for empty name
+    const warningBanner = nameIsEmpty ? `
+        <div class="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">⚠️ Action Required: Customer Name is Missing</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>The customer name field is empty. Please fill in the customer name below before creating the ticket.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
     content.innerHTML = `
+        ${warningBanner}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             <!-- Left Column - Ticket Information -->
@@ -790,7 +834,7 @@ function populatePreviewModal(preview) {
                 </div>
 
                 <!-- Customer Information Card -->
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm ${nameIsEmpty ? 'border-red-300 border-2' : ''}">
                     <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
                         <h4 class="text-lg font-semibold text-gray-900 flex items-center">
                             👤 <span class="ml-2">Customer Information</span>
@@ -798,8 +842,18 @@ function populatePreviewModal(preview) {
                     </div>
                     <div class="p-4 space-y-3" id="customerInfo">
                         <div>
-                            <label class="text-sm font-medium text-gray-600">Name:</label>
-                            <p class="text-gray-900">${preview.customer_info.name}</p>
+                            <label class="text-sm font-medium text-gray-600">Name: ${nameIsEmpty ? '<span class="text-red-600">*</span>' : ''}</label>
+                            ${nameIsEmpty ? `
+                                <input type="text"
+                                       id="customerNameInput"
+                                       class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                       placeholder="Enter customer name"
+                                       value="${preview.customer_info.name || ''}"
+                                       oninput="validateCustomerName()">
+                                <p class="mt-1 text-sm text-red-600">⚠️ Customer name is required</p>
+                            ` : `
+                                <p class="text-gray-900">${preview.customer_info.name}</p>
+                            `}
                         </div>
                         <div>
                             <label class="text-sm font-medium text-gray-600">Email:</label>
@@ -889,12 +943,52 @@ function populatePreviewModal(preview) {
     
     // Populate case owner options
     populateCaseOwnerOptions(preview.available_users || []);
-    
+
     // Populate inventory status
     populateInventoryStatus(preview.inventory_info);
-    
+
     // Populate asset information
     populateAssetInfo(preview.all_assets || [preview.asset_info]);
+
+    // Initial validation check for empty name
+    if (nameIsEmpty) {
+        validateCustomerName();
+    }
+}
+
+// Validate customer name field
+function validateCustomerName() {
+    const nameInput = document.getElementById('customerNameInput');
+    const confirmButton = document.getElementById('confirmImport');
+
+    if (!nameInput) {
+        // Name field doesn't exist (not empty), enable button
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        return;
+    }
+
+    const name = nameInput.value.trim();
+
+    if (name === '') {
+        // Name is empty, disable button and show error styling
+        if (confirmButton) {
+            confirmButton.disabled = true;
+            confirmButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        nameInput.classList.remove('border-green-300', 'bg-green-50');
+        nameInput.classList.add('border-red-300', 'bg-red-50');
+    } else {
+        // Name is filled, enable button and show success styling
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        nameInput.classList.remove('border-red-300', 'bg-red-50');
+        nameInput.classList.add('border-green-300', 'bg-green-50');
+    }
 }
 
 function populateQueueOptions(queues, suggestedQueueId) {
@@ -1372,7 +1466,17 @@ document.getElementById('cancelPreview').addEventListener('click', function() {
 document.getElementById('confirmImport').addEventListener('click', function() {
     const selectedQueueId = document.getElementById('queueSelect').value;
     const selectedCaseOwnerId = document.getElementById('caseOwnerSelect').value;
-    
+
+    // Get updated customer name if it was edited
+    const customerNameInput = document.getElementById('customerNameInput');
+    const updatedCustomerName = customerNameInput ? customerNameInput.value.trim() : null;
+
+    // Validate customer name one more time before submitting
+    if (customerNameInput && !updatedCustomerName) {
+        alert('⚠️ Customer name is required. Please fill in the customer name before creating the ticket.');
+        return;
+    }
+
     const button = document.getElementById('confirmImport');
     const originalText = button.textContent;
     button.textContent = 'Creating...';
@@ -1391,7 +1495,8 @@ document.getElementById('confirmImport').addEventListener('click', function() {
             queue_id: selectedQueueId,
             case_owner_id: selectedCaseOwnerId,
             selected_accessories: selectedAccessories,  // Include selected accessories
-            selected_assets: selectedAssets  // Include selected assets
+            selected_assets: selectedAssets,  // Include selected assets
+            updated_customer_name: updatedCustomerName  // Include updated customer name
         })
     })
     .then(response => response.json())

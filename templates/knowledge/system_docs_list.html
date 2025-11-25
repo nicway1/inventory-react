@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}System Documentation - Knowledge Base{% endblock %}
+
+{% block head %}
+<style>
+    .docs-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .docs-header {
+        background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);
+        color: white;
+        padding: 2.5rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .docs-header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .docs-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+    }
+
+    .docs-breadcrumb a {
+        color: white;
+        text-decoration: none;
+    }
+
+    .docs-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .docs-title {
+        font-size: 2.25rem;
+        font-weight: 300;
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .docs-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    .docs-stats {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .stat-item {
+        background: rgba(255,255,255,0.15);
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .docs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .doc-card {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 1px solid #e5e5e5;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-color: #0176d3;
+    }
+
+    .doc-card-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        padding: 1.5rem;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .doc-icon {
+        background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);
+        width: 48px;
+        height: 48px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .doc-icon i {
+        color: white;
+        font-size: 1.25rem;
+    }
+
+    .doc-card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #080707;
+        margin: 0 0 0.25rem 0;
+        line-height: 1.3;
+    }
+
+    .doc-card-category {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #e8f4ff;
+        color: #0176d3;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .doc-card-body {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .doc-card-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .doc-card-date {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #706e6b;
+        font-size: 0.8rem;
+    }
+
+    .doc-card-date i {
+        color: #0176d3;
+    }
+
+    .doc-card-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: #0176d3;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background 0.15s ease;
+    }
+
+    .doc-card-action:hover {
+        background: #015ba8;
+        color: white;
+        text-decoration: none;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: #f3f3f3;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+
+    .empty-icon i {
+        font-size: 2rem;
+        color: #706e6b;
+    }
+
+    .info-banner {
+        background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+        border: 1px solid #b8daff;
+        border-radius: 0.5rem;
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .info-banner-icon {
+        background: #0176d3;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .info-banner-icon i {
+        color: white;
+        font-size: 1rem;
+    }
+
+    .info-banner-text {
+        flex: 1;
+    }
+
+    .info-banner-title {
+        font-weight: 600;
+        color: #004085;
+        margin: 0 0 0.25rem 0;
+        font-size: 0.9rem;
+    }
+
+    .info-banner-desc {
+        color: #004085;
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #0176d3;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 2rem;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+        .docs-grid {
+            grid-template-columns: 1fr;
+        }
+        .docs-stats {
+            flex-wrap: wrap;
+        }
+        .docs-title {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="docs-header">
+    <div class="docs-header-content">
+        <div class="docs-breadcrumb">
+            <a href="{{ url_for('knowledge.index') }}">Knowledge Base</a>
+            <span>/</span>
+            <span>System Documentation</span>
+        </div>
+        <h1 class="docs-title">
+            <i class="fas fa-book-open"></i>
+            System Documentation
+        </h1>
+        <p class="docs-subtitle">Technical guides and documentation that auto-sync with code updates</p>
+
+        <div class="docs-stats">
+            <div class="stat-item">
+                <span class="stat-number">{{ docs|length }}</span>
+                <span class="stat-label">Documents</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number"><i class="fas fa-check-circle" style="font-size: 1.25rem;"></i></span>
+                <span class="stat-label">Auto-Sync</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="docs-container">
+    <a href="{{ url_for('knowledge.index') }}" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Back to Knowledge Base
+    </a>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+        <div class="info-banner-icon">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        <div class="info-banner-text">
+            <p class="info-banner-title">Auto-Sync Enabled</p>
+            <p class="info-banner-desc">These documents automatically update when the system is updated. No manual sync required - just push to GitHub and pull on your server!</p>
+        </div>
+    </div>
+
+    {% if docs %}
+    <div class="docs-grid">
+        {% for doc in docs %}
+        <div class="doc-card" onclick="window.location.href='{{ url_for('knowledge.view_system_doc', slug=doc.slug) }}'">
+            <div class="doc-card-header">
+                <div class="doc-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                    <h3 class="doc-card-title">{{ doc.title }}</h3>
+                    <span class="doc-card-category">
+                        <i class="fas fa-folder"></i>
+                        {{ doc.category }}
+                    </span>
+                </div>
+            </div>
+            <div class="doc-card-body">
+                <div class="doc-card-meta">
+                    <div class="doc-card-date">
+                        <i class="fas fa-clock"></i>
+                        Updated {{ doc.last_modified.strftime('%b %d, %Y') }}
+                    </div>
+                    <a href="{{ url_for('knowledge.view_system_doc', slug=doc.slug) }}" class="doc-card-action" onclick="event.stopPropagation();">
+                        <i class="fas fa-eye"></i>
+                        View
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #181818; margin-bottom: 0.5rem;">No Documents Yet</h3>
+        <p style="color: #706e6b; margin-bottom: 0;">System documentation will appear here once added to the codebase.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div style="height: 3rem;"></div>
+{% endblock %}

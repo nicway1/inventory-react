@@ -44,10 +44,10 @@
                 </a>
             </div>
             <div class="mt-4">
-                <a href="{{ url_for('static', filename='csv_templates/ASSET_RETURN_IMPORT_README.md') }}"
-                   download
+                <a href="{{ url_for('knowledge.view_system_doc', slug='asset-return-import') }}"
+                   target="_blank"
                    class="text-blue-600 hover:text-blue-800 text-sm">
-                    📖 View Full Documentation (README.md)
+                    <i class="fas fa-book" style="margin-right: 0.25rem;"></i> View Full Documentation
                 </a>
             </div>
         </div>
@@ -71,6 +71,7 @@
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
                     <li><code class="bg-gray-100 px-1 rounded">customer_phone</code> - Customer's phone number</li>
                     <li><code class="bg-gray-100 px-1 rounded">customer_company</code> - Company name (will be auto-created if needed)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_address</code> - Full address (e.g. "123 Main St, City, State 12345")</li>
                     <li><code class="bg-gray-100 px-1 rounded">asset_serial_number</code> - Serial number of the asset</li>
                     <li><code class="bg-gray-100 px-1 rounded">priority</code> - Low, Medium, High, Critical (default: Medium)</li>
                     <li><code class="bg-gray-100 px-1 rounded">queue_name</code> - Queue to assign the ticket</li>

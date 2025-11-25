@@ -66,12 +66,27 @@
     .required-star {
         color: #ef4444;
     }
+    .error-row {
+        background-color: #fef2f2;
+    }
+    .error-field {
+        border: 2px solid #ef4444 !important;
+        background-color: #fee2e2;
+    }
+    .error-message {
+        color: #dc2626;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-full">
+<div class="w-full px-4 py-8">
+    <div class="w-full">
         <!-- Header -->
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-gray-900">Preview and Edit Import Data</h1>
@@ -79,14 +94,31 @@
         </div>
 
         <!-- Summary Stats -->
+        {% set rows_with_errors = preview_data | selectattr('name_is_empty', 'equalto', true) | list | length %}
+        {% if rows_with_errors > 0 %}
+        <div class="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-red-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <div>
+                    <p class="text-red-900 font-semibold">⚠️ Action Required: {{ rows_with_errors }} row(s) with missing customer names</p>
+                    <p class="text-red-800 text-sm mt-1">Please fill in the customer names highlighted in red below before you can proceed with the import.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p class="text-blue-900">
                 <strong>{{ preview_data|length }} rows</strong> ready to import.
+                {% if rows_with_errors > 0 %}
+                <strong class="text-red-600">{{ rows_with_errors }} row(s) require attention.</strong>
+                {% endif %}
                 Review the data below and fill in any missing required fields before proceeding.
             </p>
         </div>
 
-        <form method="POST" action="{{ url_for('tickets.bulk_import_asset_return') }}">
+        <form id="importForm" method="POST" action="{{ url_for('tickets.bulk_import_asset_return') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="import">
             <input type="hidden" name="row_count" value="{{ preview_data|length }}">
@@ -96,24 +128,24 @@
                 <table class="preview-table">
                     <thead>
                         <tr>
-                            <th style="min-width: 60px;">Row</th>
+                            <th style="min-width: 50px; width: 50px;">Row</th>
                             <th style="min-width: 150px;">Customer Name <span class="required-star">*</span></th>
-                            <th style="min-width: 150px;">Email <span class="required-star">*</span></th>
+                            <th style="min-width: 180px;">Email <span class="required-star">*</span></th>
                             <th style="min-width: 120px;">Phone</th>
-                            <th style="min-width: 120px;">Company</th>
-                            <th style="min-width: 250px;">Customer Address</th>
-                            <th style="min-width: 120px;">Country <span class="required-star">*</span></th>
+                            <th style="min-width: 130px;">Company</th>
+                            <th style="min-width: 350px;">Customer Address</th>
+                            <th style="min-width: 110px;">Country <span class="required-star">*</span></th>
                             <th style="min-width: 200px;">Return Description <span class="required-star">*</span></th>
                             <th style="min-width: 120px;">Asset Serial</th>
-                            <th style="min-width: 100px;">Priority</th>
-                            <th style="min-width: 120px;">Queue</th>
-                            <th style="min-width: 120px;">Case Owner</th>
+                            <th style="min-width: 90px;">Priority</th>
+                            <th style="min-width: 100px;">Queue</th>
+                            <th style="min-width: 150px;">Case Owner</th>
                             <th style="min-width: 200px;">Notes</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in preview_data %}
-                        <tr>
+                        <tr class="{% if row.name_is_empty %}error-row{% endif %}" data-name-empty="{{ row.name_is_empty }}" data-customer-name="{{ row.customer_name }}">
                             <td class="row-number">
                                 {{ row.row_number }}
                                 <input type="hidden" name="row_{{ loop.index0 }}_number" value="{{ row.row_number }}">
@@ -122,9 +154,20 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_name"
                                        value="{{ row.customer_name }}"
-                                       class="required-field"
+                                       class="required-field {% if row.name_is_empty %}error-field{% endif %}"
                                        required
-                                       placeholder="Enter customer name">
+                                       placeholder="Enter customer name"
+                                       data-is-empty="{{ row.name_is_empty }}"
+                                       {% if row.name_is_empty %}autofocus{% endif %}>
+                                {% if row.name_is_empty %}
+                                <div class="error-message">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>Customer name is required</span>
+                                </div>
+                                {% endif %}
+                                <!-- DEBUG: name_is_empty={{ row.name_is_empty }}, customer_name='{{ row.customer_name }}' -->
                             </td>
                             <td>
                                 <input type="email"
@@ -150,10 +193,8 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_address"
                                        value="{{ row.customer_address }}"
-                                       placeholder="Full address"
-                                       readonly
-                                       style="background-color: #f9fafb;">
-                                <!-- Hidden fields for address components -->
+                                       placeholder="Full address">
+                                <!-- Hidden fields for address components (legacy support) -->
                                 <input type="hidden" name="row_{{ loop.index0 }}_address_line_1" value="{{ row.address_line_1 or '' }}">
                                 <input type="hidden" name="row_{{ loop.index0 }}_address_line_2" value="{{ row.address_line_2 or '' }}">
                                 <input type="hidden" name="row_{{ loop.index0 }}_city" value="{{ row.city or '' }}">
@@ -251,4 +292,101 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('importForm');
+    if (!form) {
+        console.error('Import form not found');
+        return;
+    }
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (!submitButton) {
+        console.error('Submit button not found');
+        return;
+    }
+
+    // Monitor all customer name fields for changes
+    const nameFields = document.querySelectorAll('input[name*="_customer_name"]');
+
+    // If no rows, nothing to validate
+    if (nameFields.length === 0) {
+        console.log('No data rows to import');
+        return;
+    }
+
+    nameFields.forEach(field => {
+        // Remove error styling when user types
+        field.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                this.classList.remove('error-field');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.style.display = 'none';
+                }
+                const row = this.closest('tr');
+                if (row) {
+                    row.classList.remove('error-row');
+                }
+            } else {
+                this.classList.add('error-field');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.style.display = 'flex';
+                }
+                const row = this.closest('tr');
+                if (row) {
+                    row.classList.add('error-row');
+                }
+            }
+            updateSubmitButton();
+        });
+    });
+
+    // Function to check if there are any empty names
+    function hasEmptyNames() {
+        let hasEmpty = false;
+        nameFields.forEach(field => {
+            if (field.value.trim() === '') {
+                hasEmpty = true;
+            }
+        });
+        return hasEmpty;
+    }
+
+    // Function to update submit button state
+    function updateSubmitButton() {
+        if (hasEmptyNames()) {
+            submitButton.disabled = true;
+            submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            submitButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+            submitButton.title = 'Please fill in all customer names before importing';
+        } else {
+            submitButton.disabled = false;
+            submitButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            submitButton.title = '';
+        }
+    }
+
+    // Initial check
+    updateSubmitButton();
+
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        if (hasEmptyNames()) {
+            e.preventDefault();
+            alert('Please fill in all customer names (highlighted in red) before importing.');
+            // Focus on first empty field
+            const firstEmpty = Array.from(nameFields).find(f => f.value.trim() === '');
+            if (firstEmpty) {
+                firstEmpty.focus();
+                firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+    });
+});
+</script>
 {% endblock %}

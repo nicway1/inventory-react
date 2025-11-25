@@ -17,6 +17,7 @@ from flask_mail import Message
 from utils.email_sender import mail
 from werkzeug.utils import secure_filename
 import os
+from version import get_full_version_info
 
 logger = logging.getLogger(__name__)
 development_bp = Blueprint('development', __name__)
@@ -193,11 +194,80 @@ def dashboard():
             ]))\
             .order_by(asc(Release.planned_date)).limit(3).all()
 
+        # Get this week's schedule for all developers
+        from models.developer_schedule import DeveloperSchedule
+        from datetime import timedelta
+
+        today = date.today()
+        # Calculate Monday of current week
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+
+        # Get all schedules for this week (only for DEVELOPER users)
+        week_schedules = db_session.query(DeveloperSchedule)\
+            .options(joinedload(DeveloperSchedule.user))\
+            .filter(DeveloperSchedule.user.has(User.user_type == UserType.DEVELOPER))\
+            .filter(DeveloperSchedule.work_date >= monday)\
+            .filter(DeveloperSchedule.work_date <= friday)\
+            .order_by(DeveloperSchedule.work_date)\
+            .all()
+
+        # Organize schedules by user
+        schedule_by_user = {}
+        for schedule in week_schedules:
+            user_id = schedule.user_id
+            if user_id not in schedule_by_user:
+                schedule_by_user[user_id] = {
+                    'user': schedule.user,
+                    'days': {}
+                }
+            schedule_by_user[user_id]['days'][schedule.work_date.isoformat()] = {
+                'is_working': schedule.is_working,
+                'work_location': schedule.work_location,
+                'note': schedule.note
+            }
+
+        # Generate week days list
+        week_days = []
+        for i in range(5):
+            day = monday + timedelta(days=i)
+            week_days.append({
+                'date': day.isoformat(),
+                'name': day.strftime('%a'),
+                'day': day.day,
+                'is_today': day == today
+            })
+
+        # Get pending approvals for SUPER_ADMIN users
+        pending_approvals = []
+        if current_user.user_type == UserType.SUPER_ADMIN:
+            pending_approvals = db_session.query(FeatureRequest)\
+                .options(joinedload(FeatureRequest.requester))\
+                .filter(FeatureRequest.status == FeatureStatus.PENDING_APPROVAL)\
+                .filter(FeatureRequest.approver_id == current_user.id)\
+                .order_by(desc(FeatureRequest.approval_requested_at))\
+                .all()
+
+        # Get newly approved features for DEVELOPER users (features that are approved but have no assignee)
+        newly_approved = []
+        if current_user.user_type == UserType.DEVELOPER:
+            newly_approved = db_session.query(FeatureRequest)\
+                .options(joinedload(FeatureRequest.requester))\
+                .filter(FeatureRequest.status == FeatureStatus.APPROVED)\
+                .filter(FeatureRequest.assignee_id.is_(None))\
+                .order_by(desc(FeatureRequest.approved_at))\
+                .all()
+
         return render_template('development/dashboard.html',
                              stats=stats,
                              recent_features=recent_features,
                              recent_bugs=recent_bugs,
-                             active_releases=active_releases)
+                             active_releases=active_releases,
+                             schedule_by_user=schedule_by_user,
+                             week_days=week_days,
+                             pending_approvals=pending_approvals,
+                             newly_approved=newly_approved,
+                             version_info=get_full_version_info())
 
     finally:
         db_session.close()
@@ -684,6 +754,57 @@ def reject_feature(id):
         db_session.rollback()
         flash(f'Error rejecting feature request: {str(e)}', 'error')
         return redirect(url_for('development.view_feature', id=id))
+    finally:
+        db_session.close()
+
+@development_bp.route('/features/<int:id>/take-ownership', methods=['POST'])
+@login_required
+@permission_required('can_access_development')
+def take_ownership(id):
+    """Take ownership of an approved feature request (for developers)"""
+    db_session = SessionLocal()
+    try:
+        feature = db_session.query(FeatureRequest)\
+            .options(joinedload(FeatureRequest.requester))\
+            .filter(FeatureRequest.id == id).first()
+
+        if not feature:
+            flash('Feature request not found', 'error')
+            return redirect(url_for('development.dashboard'))
+
+        # Check if feature is approved and has no assignee
+        if feature.status != FeatureStatus.APPROVED:
+            flash('This feature is not in an approved state', 'error')
+            return redirect(url_for('development.dashboard'))
+
+        if feature.assignee_id is not None:
+            flash('This feature already has an assignee', 'error')
+            return redirect(url_for('development.dashboard'))
+
+        # Assign to current user and change status to IN_DEVELOPMENT
+        feature.assignee_id = current_user.id
+        feature.status = FeatureStatus.IN_DEVELOPMENT
+        feature.case_progress = 50  # Set progress to 50% (In Development)
+        feature.updated_at = datetime.utcnow()
+
+        # Add ownership comment
+        ownership_comment = FeatureComment(
+            content=f"{current_user.username} took ownership of this feature request and started development.",
+            feature_id=feature.id,
+            user_id=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        db_session.add(ownership_comment)
+
+        db_session.commit()
+
+        flash(f'You are now the owner of {feature.display_id}. Status changed to In Development.', 'success')
+        return redirect(url_for('development.view_feature', id=id))
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error taking ownership: {str(e)}', 'error')
+        return redirect(url_for('development.dashboard'))
     finally:
         db_session.close()
 
@@ -2586,5 +2707,348 @@ def remove_tester_from_feature(feature_id, assignment_id):
         db_session.rollback()
         flash(f'Error removing tester: {str(e)}', 'error')
         return redirect(url_for('development.view_feature', id=feature_id))
+    finally:
+        db_session.close()
+
+
+# ============================================
+# Developer Schedule Routes
+# ============================================
+
+@development_bp.route('/schedule')
+@login_required
+@permission_required('can_access_development')
+def schedule():
+    """Display the developer schedule calendar"""
+    return render_template('development/schedule.html')
+
+
+@development_bp.route('/schedule/events')
+@login_required
+@permission_required('can_access_development')
+def get_schedule_events():
+    """Get all schedule events for the current user (API endpoint for calendar)"""
+    from models.developer_schedule import DeveloperSchedule
+
+    db_session = SessionLocal()
+    try:
+        # Get start and end dates from request (for filtering)
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+
+        query = db_session.query(DeveloperSchedule).filter(
+            DeveloperSchedule.user_id == current_user.id
+        )
+
+        # Helper function to parse dates from FullCalendar
+        # FullCalendar may send dates like "2025-10-26T00:00:00 08:00" (space before timezone)
+        # instead of standard ISO format "2025-10-26T00:00:00+08:00"
+        def parse_fullcalendar_date(date_str):
+            import re
+            if not date_str:
+                return None
+            # Replace Z with +00:00
+            clean_date = date_str.replace('Z', '+00:00')
+            # Fix space before timezone offset (e.g., " 08:00" -> "+08:00")
+            clean_date = re.sub(r'(\d{2}:\d{2}:\d{2}) (\d{2}:\d{2})$', r'\1+\2', clean_date)
+            return datetime.fromisoformat(clean_date).date()
+
+        if start_str:
+            start_date = parse_fullcalendar_date(start_str)
+            query = query.filter(DeveloperSchedule.work_date >= start_date)
+
+        if end_str:
+            end_date = parse_fullcalendar_date(end_str)
+            query = query.filter(DeveloperSchedule.work_date <= end_date)
+
+        schedules = query.all()
+
+        # Convert to FullCalendar event format
+        events = []
+        for schedule in schedules:
+            # Determine color based on status and location
+            if not schedule.is_working:
+                bg_color = '#dc3545'  # Red for day off
+                title = schedule.note if schedule.note else 'Off'
+            elif schedule.work_location == 'WFH':
+                bg_color = '#17a2b8'  # Blue for WFH
+                title = schedule.note if schedule.note else 'WFH'
+            else:
+                bg_color = '#28a745'  # Green for WFO
+                title = schedule.note if schedule.note else 'WFO'
+
+            events.append({
+                'id': schedule.id,
+                'title': title,
+                'start': schedule.work_date.isoformat(),
+                'allDay': True,
+                'backgroundColor': bg_color,
+                'borderColor': bg_color,
+                'extendedProps': {
+                    'is_working': schedule.is_working,
+                    'work_location': schedule.work_location,
+                    'note': schedule.note
+                }
+            })
+
+        return jsonify(events)
+
+    except Exception as e:
+        logger.error(f"Error fetching schedule events: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/schedule/toggle', methods=['POST'])
+@login_required
+@permission_required('can_access_development')
+def toggle_schedule_day():
+    """Toggle a working day on/off or update note"""
+    from models.developer_schedule import DeveloperSchedule
+
+    db_session = SessionLocal()
+    try:
+        data = request.get_json()
+        work_date_str = data.get('date')
+        note = data.get('note', '')
+        is_working = data.get('is_working', True)
+        work_location = data.get('work_location', 'WFO')
+
+        if not work_date_str:
+            return jsonify({'error': 'Date is required'}), 400
+
+        work_date = datetime.strptime(work_date_str, '%Y-%m-%d').date()
+
+        # Check if entry exists for this date
+        existing = db_session.query(DeveloperSchedule).filter(
+            DeveloperSchedule.user_id == current_user.id,
+            DeveloperSchedule.work_date == work_date
+        ).first()
+
+        if existing:
+            # Toggle or update existing entry
+            if data.get('action') == 'delete':
+                db_session.delete(existing)
+                db_session.commit()
+                return jsonify({'success': True, 'action': 'deleted'})
+            else:
+                existing.is_working = is_working
+                existing.work_location = work_location
+                existing.note = note
+                existing.updated_at = datetime.utcnow()
+                db_session.commit()
+                return jsonify({
+                    'success': True,
+                    'action': 'updated',
+                    'event': existing.to_dict()
+                })
+        else:
+            # Create new entry
+            new_schedule = DeveloperSchedule(
+                user_id=current_user.id,
+                work_date=work_date,
+                is_working=is_working,
+                work_location=work_location,
+                note=note
+            )
+            db_session.add(new_schedule)
+            db_session.commit()
+            return jsonify({
+                'success': True,
+                'action': 'created',
+                'event': new_schedule.to_dict()
+            })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error toggling schedule day: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/schedule/bulk', methods=['POST'])
+@login_required
+@permission_required('can_access_development')
+def bulk_schedule_update():
+    """Bulk update schedule - mark multiple days as working or off"""
+    from models.developer_schedule import DeveloperSchedule
+
+    db_session = SessionLocal()
+    try:
+        data = request.get_json()
+        dates = data.get('dates', [])
+        is_working = data.get('is_working', True)
+        work_location = data.get('work_location', 'WFO')
+        note = data.get('note', '')
+
+        if not dates:
+            return jsonify({'error': 'No dates provided'}), 400
+
+        created = 0
+        updated = 0
+
+        for date_str in dates:
+            work_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+            existing = db_session.query(DeveloperSchedule).filter(
+                DeveloperSchedule.user_id == current_user.id,
+                DeveloperSchedule.work_date == work_date
+            ).first()
+
+            if existing:
+                existing.is_working = is_working
+                existing.work_location = work_location
+                existing.note = note
+                existing.updated_at = datetime.utcnow()
+                updated += 1
+            else:
+                new_schedule = DeveloperSchedule(
+                    user_id=current_user.id,
+                    work_date=work_date,
+                    is_working=is_working,
+                    work_location=work_location,
+                    note=note
+                )
+                db_session.add(new_schedule)
+                created += 1
+
+        db_session.commit()
+        return jsonify({
+            'success': True,
+            'created': created,
+            'updated': updated
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error in bulk schedule update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+# ============================================
+# Admin Schedule View (Super Admin Only)
+# ============================================
+
+@development_bp.route('/schedule/admin')
+@login_required
+@permission_required('can_access_development')
+def admin_schedule():
+    """Display all developers' schedules - Super Admin only"""
+    # Check if user is super admin
+    if current_user.user_type != UserType.SUPER_ADMIN:
+        flash('Access denied. Super Admin only.', 'error')
+        return redirect(url_for('development.dashboard'))
+
+    db_session = SessionLocal()
+    try:
+        # Get only developers (not super admins)
+        developers = db_session.query(User).filter(
+            User.user_type == UserType.DEVELOPER
+        ).order_by(User.username).all()
+
+        return render_template('development/admin_schedule.html', developers=developers)
+
+    except Exception as e:
+        logger.error(f"Error loading admin schedule: {str(e)}")
+        flash('Error loading schedule view', 'error')
+        return redirect(url_for('development.dashboard'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/schedule/admin/events')
+@login_required
+@permission_required('can_access_development')
+def get_all_schedule_events():
+    """Get all schedule events for all developers (API endpoint for calendar) - Super Admin only"""
+    from models.developer_schedule import DeveloperSchedule
+
+    # Check if user is super admin
+    if current_user.user_type != UserType.SUPER_ADMIN:
+        return jsonify({'error': 'Access denied'}), 403
+
+    db_session = SessionLocal()
+    try:
+        # Get start and end dates from request (for filtering)
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+        user_id = request.args.get('user_id')  # Optional filter by user
+
+        # Only get schedules for DEVELOPER users (not super admins)
+        query = db_session.query(DeveloperSchedule).options(
+            joinedload(DeveloperSchedule.user)
+        ).filter(DeveloperSchedule.user.has(User.user_type == UserType.DEVELOPER))
+
+        if user_id:
+            query = query.filter(DeveloperSchedule.user_id == int(user_id))
+
+        # Helper function to parse dates from FullCalendar
+        # FullCalendar may send dates like "2025-10-26T00:00:00 08:00" (space before timezone)
+        # instead of standard ISO format "2025-10-26T00:00:00+08:00"
+        def parse_fullcalendar_date(date_str):
+            import re
+            if not date_str:
+                return None
+            # Replace Z with +00:00
+            clean_date = date_str.replace('Z', '+00:00')
+            # Fix space before timezone offset (e.g., " 08:00" -> "+08:00")
+            clean_date = re.sub(r'(\d{2}:\d{2}:\d{2}) (\d{2}:\d{2})$', r'\1+\2', clean_date)
+            return datetime.fromisoformat(clean_date).date()
+
+        if start_str:
+            start_date = parse_fullcalendar_date(start_str)
+            query = query.filter(DeveloperSchedule.work_date >= start_date)
+
+        if end_str:
+            end_date = parse_fullcalendar_date(end_str)
+            query = query.filter(DeveloperSchedule.work_date <= end_date)
+
+        schedules = query.all()
+
+        # Convert to FullCalendar event format with user info
+        events = []
+        for schedule in schedules:
+            # Determine color based on status and location
+            if not schedule.is_working:
+                bg_color = '#dc3545'  # Red for day off
+                title_prefix = 'Off'
+            elif schedule.work_location == 'WFH':
+                bg_color = '#17a2b8'  # Blue for WFH
+                title_prefix = 'WFH'
+            else:
+                bg_color = '#28a745'  # Green for WFO
+                title_prefix = 'WFO'
+
+            # Include username in title
+            username = schedule.user.username if schedule.user else 'Unknown'
+            title = f"{username}: {title_prefix}"
+            if schedule.note:
+                title += f" - {schedule.note}"
+
+            events.append({
+                'id': schedule.id,
+                'title': title,
+                'start': schedule.work_date.isoformat(),
+                'allDay': True,
+                'backgroundColor': bg_color,
+                'borderColor': bg_color,
+                'extendedProps': {
+                    'user_id': schedule.user_id,
+                    'username': username,
+                    'is_working': schedule.is_working,
+                    'work_location': schedule.work_location,
+                    'note': schedule.note
+                }
+            })
+
+        return jsonify(events)
+
+    except Exception as e:
+        logger.error(f"Error fetching all schedule events: {str(e)}")
+        return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()

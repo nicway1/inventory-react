@@ -91,6 +91,14 @@ class Ticket(Base):
     shipping_tracking = Column(String(100))
     shipping_carrier = Column(String(50), default='singpost')  # Default to SingPost carrier
     customer_id = Column(Integer, ForeignKey('customer_users.id'))
+
+    # Internal Transfer fields
+    offboarding_customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
+    onboarding_customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
+    offboarding_details = Column(Text, nullable=True)  # Device details for offboarding
+    offboarding_address = Column(String(500), nullable=True)
+    onboarding_address = Column(String(500), nullable=True)
+
     firstbaseorderid = Column(String(100), nullable=True)  # Store order ID for duplicate prevention
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
@@ -146,7 +154,9 @@ class Ticket(Base):
     assets = relationship('Asset', secondary='ticket_assets', back_populates='tickets')
     queue = relationship("Queue", back_populates="tickets")
     accessory = relationship("Accessory", back_populates="tickets")
-    customer = relationship('CustomerUser', back_populates='tickets')
+    customer = relationship('CustomerUser', foreign_keys=[customer_id], back_populates='tickets')
+    offboarding_customer = relationship('CustomerUser', foreign_keys=[offboarding_customer_id])
+    onboarding_customer = relationship('CustomerUser', foreign_keys=[onboarding_customer_id])
     attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
     tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
     accessories = relationship('TicketAccessory', back_populates='ticket', cascade='all, delete-orphan')

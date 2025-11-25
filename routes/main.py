@@ -413,6 +413,7 @@ def index():
             weekly_ticket_data.append({
                 'day': day.strftime('%a'),  # Mon, Tue, Wed, Thu, Fri
                 'date': day.strftime('%m/%d'),
+                'full_date': day.strftime('%Y-%m-%d'),  # For URL filtering
                 'count': count
             })
 

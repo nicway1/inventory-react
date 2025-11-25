@@ -21,7 +21,7 @@ class CustomerUser(Base):
     company = relationship("Company", back_populates="customer_users")
     assigned_assets = relationship("Asset", back_populates="customer_user")
     assigned_accessories = relationship("Accessory", back_populates="customer_user")
-    tickets = relationship("Ticket", back_populates="customer")
+    tickets = relationship("Ticket", foreign_keys="[Ticket.customer_id]", back_populates="customer")
     asset_transactions = relationship("AssetTransaction", back_populates="customer", order_by="desc(AssetTransaction.transaction_date)")
     accessory_transactions = relationship("AccessoryTransaction", back_populates="customer", order_by="desc(AccessoryTransaction.transaction_date)")
     

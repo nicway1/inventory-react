@@ -2503,12 +2503,14 @@ def csv_import_upload():
         finally:
             db_session.close()
 
-        # Mark tickets as duplicate or processing
+        # Mark tickets as duplicate or processing, and check for empty names
         duplicate_count = 0
         processing_count = 0
+        empty_name_count = 0
         for row in display_data:
             order_id = row.get('order_id', '').strip()
             status = row.get('status', '').upper()
+            person_name = row.get('person_name', '').strip()
 
             row['is_duplicate'] = order_id and order_id in existing_order_ids
             row['is_processing'] = status == 'PROCESSING'
@@ -2518,6 +2520,8 @@ def csv_import_upload():
                 duplicate_count += 1
             if row['is_processing']:
                 processing_count += 1
+            if not person_name:
+                empty_name_count += 1
         
         # Store in temporary file with file_id
         temp_file = os.path.join(tempfile.gettempdir(), f'csv_import_{file_id}.json')
@@ -2539,6 +2543,7 @@ def csv_import_upload():
             'individual_rows': len(individual_data),
             'duplicate_count': duplicate_count,
             'processing_count': processing_count,
+            'empty_name_count': empty_name_count,
             'importable_count': importable_count,
             'data': display_data,  # Include the actual data for display
             'message': f'Successfully processed {len(raw_data)} rows into {len(display_data)} tickets ({len(grouped_data)} grouped orders, {len(individual_data)} individual items)'
@@ -2640,7 +2645,7 @@ def clean_csv_row(row):
         
         # Set default values for missing fields
         defaults = {
-            'person_name': cleaned.get('person_name') or 'Unknown Customer',
+            'person_name': cleaned.get('person_name') or '',  # Keep empty to allow validation
             'primary_email': cleaned.get('primary_email') or '',
             'phone_number': cleaned.get('phone_number') or '',
             'category_code': cleaned.get('category_code') or 'GENERAL',
@@ -3215,7 +3220,7 @@ def csv_import_preview_ticket():
 {primary_item['address_line2']}
 {primary_item['city']}, {primary_item['state']} {primary_item['postal_code']}
 {primary_item['country_code']}""".strip()
-        
+
         # Format order details for notes
         order_notes = f"""Order Details:
 - Order ID: {primary_item['order_id']}
@@ -3226,7 +3231,15 @@ def csv_import_preview_ticket():
 - Delivery Date: {primary_item['delivery_date'] or 'Not specified'}
 - Carrier: {primary_item['carrier'] or 'Not specified'}
 - Tracking: {primary_item['tracking_link'] or 'Not provided'}"""
-        
+
+        # Check if person_name is empty
+        person_name = primary_item.get('person_name', '').strip() if primary_item.get('person_name') else ''
+        name_is_empty = not person_name
+
+        # Log if name is empty for debugging
+        if name_is_empty:
+            logger.info(f"CSV Import Preview: Empty customer name detected for order {primary_item.get('order_id')}")
+
         ticket_preview = {
             'subject': subject,
             'description': description,
@@ -3236,11 +3249,12 @@ def csv_import_preview_ticket():
             'is_grouped': is_grouped,
             'item_count': len(all_items),
             'customer_info': {
-                'name': primary_item['person_name'],
+                'name': person_name,
                 'email': primary_item['primary_email'],
                 'phone': primary_item['phone_number'],
                 'company': primary_item['org_name']
             },
+            'name_is_empty': name_is_empty,
             'asset_info': asset_list[0],  # Always provide first asset for compatibility
             'all_assets': asset_list,  # All assets for grouped display
             'shipping_address': shipping_address,
@@ -3294,7 +3308,8 @@ def csv_import_import_ticket():
         selected_case_owner_id = data.get('case_owner_id')  # Get selected case owner
         selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
         selected_assets = data.get('selected_assets', [])  # Get selected assets
-        
+        updated_customer_name = data.get('updated_customer_name')  # Get updated customer name if provided
+
         # Add logging to see what we're receiving
         import logging
         logging.basicConfig(level=logging.INFO)
@@ -3302,6 +3317,8 @@ def csv_import_import_ticket():
         logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
         logger.info("[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
         logger.info("[CSV IMPORT] Selected assets data: {selected_assets}")
+        if updated_customer_name:
+            logger.info(f"[CSV IMPORT] Updated customer name: {updated_customer_name}")
         
         if file_id is None or row_index is None:
             return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
@@ -3439,8 +3456,18 @@ def csv_import_import_ticket():
                     }
                     customer_country = country_code_mapping.get(country_code, Country.SINGAPORE)
                 
+                # Use updated customer name if provided, otherwise use person_name from CSV
+                customer_name = updated_customer_name if updated_customer_name else primary_item.get('person_name', '')
+
+                # Validate that we have a customer name
+                if not customer_name or not customer_name.strip():
+                    return jsonify({
+                        'success': False,
+                        'error': 'Customer name is required. Please provide a valid customer name.'
+                    })
+
                 customer = CustomerUser(
-                    name=primary_item['person_name'],
+                    name=customer_name,
                     email=primary_item['primary_email'],
                     contact_number=primary_item.get('phone_number', ''),
                     address=customer_address,
@@ -6096,6 +6123,7 @@ def manage_ticket_statuses():
                 name = request.form.get('name', '').strip()
                 display_name = request.form.get('display_name', '').strip()
                 color = request.form.get('color', 'gray')
+                auto_return_to_stock = request.form.get('auto_return_to_stock') == 'true'
 
                 if not name or not display_name:
                     return jsonify({'success': False, 'error': 'Name and display name are required'}), 400
@@ -6117,6 +6145,7 @@ def manage_ticket_statuses():
                     color=color,
                     is_active=True,
                     is_system=False,
+                    auto_return_to_stock=auto_return_to_stock,
                     sort_order=max_order + 1
                 )
 
@@ -6132,6 +6161,7 @@ def manage_ticket_statuses():
                 display_name = request.form.get('display_name', '').strip() or request.json.get('display_name', '').strip()
                 color = request.form.get('color', 'gray') or request.json.get('color', 'gray')
                 is_active = request.form.get('is_active') == 'true' if request.form.get('is_active') else request.json.get('is_active', True)
+                auto_return_to_stock = request.form.get('auto_return_to_stock') == 'true' if request.form.get('auto_return_to_stock') else request.json.get('auto_return_to_stock', False)
 
                 status = db_session.query(CustomTicketStatus).get(status_id)
                 if not status:
@@ -6140,6 +6170,7 @@ def manage_ticket_statuses():
                 status.display_name = display_name
                 status.color = color
                 status.is_active = is_active
+                status.auto_return_to_stock = auto_return_to_stock
 
                 db_session.commit()
 

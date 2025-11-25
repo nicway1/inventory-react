@@ -43,6 +43,7 @@ from models.release import Release, ReleaseStatus, ReleaseType
 from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.ticket_issue import TicketIssue
 from models.custom_ticket_status import CustomTicketStatus
+from models.developer_schedule import DeveloperSchedule
 
 __all__ = [
     "Base",
@@ -108,5 +109,6 @@ __all__ = [
     "ChangelogEntry",
     "ChangelogEntryType",
     "TicketIssue",
-    "CustomTicketStatus"
+    "CustomTicketStatus",
+    "DeveloperSchedule"
 ]

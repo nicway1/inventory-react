@@ -1,5 +1,5 @@
-customer_name,customer_email,customer_phone,customer_company,customer_country,return_description,asset_serial_number,priority,queue_name,case_owner_email,notes
-John Smith,john.smith@example.com,+1-555-0101,Acme Corp,SINGAPORE,MacBook Pro with cracked screen,C02XYZ123456,High,IT Support,admin@example.com,Customer reports device dropped
-Jane Doe,jane.doe@company.com,+65-9123-4567,Tech Solutions,SINGAPORE,iPad not charging properly,DMPTST12345,Medium,Hardware Returns,,Battery issue suspected
-Bob Johnson,bob.j@business.org,+1-555-0202,Business Inc,USA,Faulty keyboard on MacBook,C02ABC987654,Low,Repair Queue,tech@example.com,Needs keyboard replacement
-Alice Wong,alice.wong@email.com,+65-8765-4321,Digital Agency,SINGAPORE,Monitor with dead pixels,MON456789,Critical,Display Issues,,Urgent - customer VIP
+customer_name,customer_email,customer_phone,customer_company,customer_address,customer_country,return_description,asset_serial_number,priority,queue_name,case_owner_email,notes
+John Smith,john.smith@example.com,+1-555-0101,Acme Corp,"123 Main Street, Suite 100, San Francisco, CA 94105",USA,MacBook Pro with cracked screen,C02XYZ123456,High,IT Support,admin@example.com,Customer reports device dropped
+Jane Doe,jane.doe@company.com,+65-9123-4567,Tech Solutions,"50 Raffles Place #12-01, Singapore 048623",SINGAPORE,iPad not charging properly,DMPTST12345,Medium,Hardware Returns,,Battery issue suspected
+Bob Johnson,bob.j@business.org,+1-555-0202,Business Inc,"456 Oak Avenue, New York, NY 10001",USA,Faulty keyboard on MacBook,C02ABC987654,Low,Repair Queue,tech@example.com,Needs keyboard replacement
+Alice Wong,alice.wong@email.com,+65-8765-4321,Digital Agency,"10 Anson Road #15-05, Singapore 079903",SINGAPORE,Monitor with dead pixels,MON456789,Critical,Display Issues,,Urgent - customer VIP

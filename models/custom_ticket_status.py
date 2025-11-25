@@ -14,6 +14,7 @@ class CustomTicketStatus(Base):
     color = Column(String(20), default='gray')  # Tailwind color name: blue, green, yellow, red, purple, gray
     is_active = Column(Boolean, default=True)
     is_system = Column(Boolean, default=False)  # System statuses cannot be deleted
+    auto_return_to_stock = Column(Boolean, default=False)  # Automatically return assets/accessories to stock
     sort_order = Column(Integer, default=0)  # For ordering in dropdowns
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
@@ -26,6 +27,7 @@ class CustomTicketStatus(Base):
             'color': self.color,
             'is_active': self.is_active,
             'is_system': self.is_system,
+            'auto_return_to_stock': self.auto_return_to_stock,
             'sort_order': self.sort_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

@@ -6,23 +6,36 @@ This CSV format allows you to bulk import Asset Return (Claw) tickets with autom
 ## CSV Columns
 
 ### Required Customer Fields
-- **customer_name**: Full name of the customer (REQUIRED)
-- **customer_email**: Customer's email address (REQUIRED for auto-creation)
-- **customer_phone**: Customer's phone number (Optional but recommended)
-- **customer_company**: Customer's company name (Optional)
-- **customer_country**: Customer's country (REQUIRED - must match: SINGAPORE, USA, INDIA, JAPAN, etc.)
+| Column | Description | Required |
+|--------|-------------|----------|
+| `customer_name` | Full name of the customer | Yes |
+| `customer_email` | Customer's email address (used for auto-creation) | Yes |
+| `customer_country` | Customer's country (SINGAPORE, USA, INDIA, JAPAN, etc.) | Yes |
+
+### Optional Customer Fields
+| Column | Description |
+|--------|-------------|
+| `customer_phone` | Customer's phone number |
+| `customer_company` | Company name (will be auto-created if needed) |
+| `customer_address` | Full address (e.g., "123 Main St, City, State 12345") |
 
 ### Required Return Fields
-- **return_description**: Description of the return/issue (REQUIRED)
+| Column | Description | Required |
+|--------|-------------|----------|
+| `return_description` | Description of the return/issue | Yes |
 
 ### Optional Asset Fields
-- **asset_serial_number**: Serial number of the asset being returned (Optional)
+| Column | Description |
+|--------|-------------|
+| `asset_serial_number` | Serial number of the asset being returned |
 
 ### Optional Ticket Management Fields
-- **priority**: Ticket priority (Low, Medium, High, Critical - defaults to Medium)
-- **queue_name**: Name of the queue to assign ticket (Optional)
-- **case_owner_email**: Email of the user to assign as case owner (Optional)
-- **notes**: Additional notes for the ticket (Optional)
+| Column | Description |
+|--------|-------------|
+| `priority` | Ticket priority: Low, Medium, High, Critical (default: Medium) |
+| `queue_name` | Name of the queue to assign ticket |
+| `case_owner_email` | Email of the user to assign as case owner |
+| `notes` | Additional notes for the ticket |
 
 ## Customer Auto-Creation Logic
 The system will:

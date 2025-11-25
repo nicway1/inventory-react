@@ -1,0 +1,4 @@
+ship_to_first_name,ship_to_last_name,email,country,san,company,order_id,product_description,serial_number1Z83RR694236566929,address_line_1,address_line_2,city,state,zip,secondary_email,Notes 1 (exceptions - any legacy device, or wiping questions),Notes 2 (TL acknowledges order and prepares kit)
+John,Doe,john.doe@example.com,SG,+65 91234567,Acme Corporation,ORD-12345,MacBook Pro 16" M2,ABC123456789,123 Orchard Road,#05-67,Singapore,Singapore,238858,john.doe2@example.com,No legacy devices,Kit prepared
+Jane,Smith,jane.smith@example.com,PH,+63 912 345 6789,Tech Solutions Inc,ORD-12346,Dell XPS 15,DEF987654321,456 Makati Avenue,Unit 12B,Makati,Metro Manila,1200,jane.s@techsolutions.com,Legacy device - needs special handling,Acknowledged
+Maria,Garcia,maria.garcia@example.com,MX,+52 55 1234 5678,Global Enterprises,ORD-12347,HP EliteBook 840,GHI456789123,789 Reforma Avenue,Piso 10,Mexico City,CDMX,06600,m.garcia@globalent.mx,,Ready for shipment

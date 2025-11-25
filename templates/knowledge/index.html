@@ -98,6 +98,33 @@
         </div>
         {% endif %}
 
+        <!-- System Documentation Section -->
+        <div style="margin-bottom: 3rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; color: #181818; margin-bottom: 1.5rem;">System Documentation</h2>
+            <div style="background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%); border-radius: 0.5rem; overflow: hidden; cursor: pointer; transition: all 0.2s ease;"
+                 onclick="window.location.href='{{ url_for('knowledge.list_system_docs') }}'"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(1,118,211,0.4)';"
+                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                <div style="padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 0.5rem; margin-right: 1rem;">
+                            <i class="fas fa-book-open" style="font-size: 1.5rem; color: white;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 1.25rem; font-weight: 600; color: white; margin: 0 0 0.25rem 0;">System Docs</h3>
+                            <p style="color: rgba(255,255,255,0.9); font-size: 0.875rem; margin: 0;">Technical documentation, import guides, and API references that auto-sync with code updates</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span style="background: rgba(255,255,255,0.2); color: white; padding: 0.375rem 0.75rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600;">
+                            <i class="fas fa-sync-alt" style="margin-right: 0.25rem;"></i> Auto-Sync
+                        </span>
+                        <i class="fas fa-chevron-right" style="color: white; font-size: 1.25rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Articles Section -->
         {% if recent_articles or popular_articles %}
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">

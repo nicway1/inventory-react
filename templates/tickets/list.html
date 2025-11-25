@@ -1357,6 +1357,29 @@
                 </a>
             </div>
             <div class="action-buttons-right">
+                <!-- Date Range Filter -->
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-medium text-gray-600">From:</label>
+                    <input type="date" id="date_from" class="px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           value="{{ request.args.get('date_from', '') }}">
+                    <label class="text-xs font-medium text-gray-600">To:</label>
+                    <input type="date" id="date_to" class="px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           value="{{ request.args.get('date_to', '') }}">
+                    <button onclick="applyDateFilter()" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                        Filter
+                    </button>
+                    {% if request.args.get('date_from') or request.args.get('date_to') %}
+                    <button onclick="clearDateFilter()" class="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-300 transition-colors flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Clear
+                    </button>
+                    {% endif %}
+                </div>
                 <button onclick="showExportWizard()" class="sf-button secondary-button">
                     <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -2653,6 +2676,33 @@
         // Initial update
         setTimeout(updateScrollButtons, 100);
     });
+
+    // Date Range Filter Functions
+    function applyDateFilter() {
+        const dateFrom = document.getElementById('date_from').value;
+        const dateTo = document.getElementById('date_to').value;
+
+        // Build URL with date parameters
+        const url = new URL(window.location.href);
+        if (dateFrom) {
+            url.searchParams.set('date_from', dateFrom);
+        }
+        if (dateTo) {
+            url.searchParams.set('date_to', dateTo);
+        }
+
+        // Reload page with date filters
+        window.location.href = url.toString();
+    }
+
+    function clearDateFilter() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('date_from');
+        url.searchParams.delete('date_to');
+
+        // Reload page without date filters
+        window.location.href = url.toString();
+    }
 </script>
 
 <!-- Export Wizard Modal -->

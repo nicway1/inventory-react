@@ -1,207 +1,1091 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-destructive {
+        background: #ba0517;
+        color: white;
+    }
+
+    .sf-button-destructive:hover {
+        background: #8e0000;
+    }
+
+    /* Stats Cards */
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-stat-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .sf-stat-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .sf-stat-content {
+        flex: 1;
+    }
+
+    .sf-stat-label {
+        font-size: 0.75rem;
+        color: #706e6b;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+    }
+
+    .sf-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #080707;
+        line-height: 1.2;
+    }
+
+    .sf-stat-meta {
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-top: 0.25rem;
+    }
+
+    /* Tabs */
+    .sf-tabs {
+        background: white;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        overflow: hidden;
+    }
+
+    .sf-tab-list {
+        display: flex;
+        background: #f3f3f3;
+        border-bottom: 2px solid #dddbda;
+    }
+
+    .sf-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        font-size: 0.875rem;
+        color: #706e6b;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        font-weight: 500;
+    }
+
+    .sf-tab:hover {
+        background: white;
+        color: #0176d3;
+    }
+
+    .sf-tab.active {
+        background: white;
+        color: #0176d3;
+        border-bottom: 3px solid #0176d3;
+        margin-bottom: -2px;
+    }
+
+    /* Filter Bar */
+    .sf-filter-bar {
+        background: white;
+        padding: 1rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .sf-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-filter-label {
+        font-size: 0.875rem;
+        color: #3e3e3c;
+        font-weight: 500;
+    }
+
+    .sf-filter-input {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        min-width: 200px;
+    }
+
+    .sf-filter-select {
+        padding: 0.375rem 2rem 0.375rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        background: white;
+        cursor: pointer;
+    }
+
+    /* Table */
+    .sf-table-container {
+        background: white;
+        overflow-x: auto;
+    }
+
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table thead {
+        background: #f3f3f3;
+        border-bottom: 2px solid #dddbda;
+    }
+
+    .sf-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #514f4d;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sf-table th:hover {
+        background: #e5e5e5;
+    }
+
+    .sf-table th.sortable:after {
+        content: '↕';
+        margin-left: 0.5rem;
+        opacity: 0.3;
+    }
+
+    .sf-table th.sorted-asc:after {
+        content: '↑';
+        opacity: 1;
+    }
+
+    .sf-table th.sorted-desc:after {
+        content: '↓';
+        opacity: 1;
+    }
+
+    .sf-table tbody tr {
+        border-bottom: 1px solid #dddbda;
+        transition: background 0.2s;
+    }
+
+    .sf-table tbody tr:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-table td {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        color: #080707;
+    }
+
+    .sf-table-link {
+        color: #0176d3;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .sf-table-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Badges */
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .sf-badge-feature {
+        background: #e1f5fe;
+        color: #01579b;
+    }
+
+    .sf-badge-bug {
+        background: #ffebee;
+        color: #b71c1c;
+    }
+
+    .sf-badge-critical {
+        background: #b71c1c;
+        color: white;
+    }
+
+    .sf-badge-high {
+        background: #ff6f00;
+        color: white;
+    }
+
+    .sf-badge-medium {
+        background: #ffa000;
+        color: white;
+    }
+
+    .sf-badge-low {
+        background: #43a047;
+        color: white;
+    }
+
+    .sf-badge-status-open {
+        background: #c3e6cb;
+        color: #155724;
+    }
+
+    .sf-badge-status-active {
+        background: #bee5eb;
+        color: #0c5460;
+    }
+
+    .sf-badge-status-in-progress {
+        background: #ffeaa7;
+        color: #856404;
+    }
+
+    .sf-badge-status-resolved {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .sf-badge-status-closed {
+        background: #d6d8db;
+        color: #383d41;
+    }
+
+    /* Empty State */
+    .sf-empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        color: #706e6b;
+    }
+
+    .sf-empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .sf-empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-empty-text {
+        font-size: 0.875rem;
+    }
+
+    /* Pagination */
+    .sf-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border-top: 1px solid #dddbda;
+    }
+
+    .sf-pagination-info {
+        font-size: 0.875rem;
+        color: #706e6b;
+    }
+
+    .sf-pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .sf-pagination-button {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #dddbda;
+        background: white;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        color: #0176d3;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .sf-pagination-button:hover:not(:disabled) {
+        background: #f3f3f3;
+    }
+
+    .sf-pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Quick Actions Menu */
+    .sf-actions-menu {
+        position: relative;
+        display: inline-block;
+    }
+
+    .sf-actions-button {
+        padding: 0.25rem 0.5rem;
+        background: transparent;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        color: #706e6b;
+    }
+
+    .sf-actions-button:hover {
+        background: #f3f3f3;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto px-4{% else %}w-full px-8{% endif %} py-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Development Dashboard</h1>
-        <div class="flex space-x-3">
-            <a href="{{ url_for('development.manage_testers') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md">
-                <i class="fas fa-user-check mr-2"></i>Manage Testers
-            </a>
-            <a href="{{ url_for('development.new_feature') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
-                <i class="fas fa-plus mr-2"></i>New Feature
-            </a>
-            <a href="{{ url_for('development.new_bug') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
-                <i class="fas fa-bug mr-2"></i>Report Bug
-            </a>
-        </div>
-    </div>
+<div class="sf-container">
+    <div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto{% else %}w-full{% endif %}">
+        <!-- Header -->
+        <div class="sf-header">
+            <div class="sf-page-header">
+                <h1 class="sf-page-title"><i class="fas fa-laptop-code" style="color: #0176d3; margin-right: 0.5rem;"></i>Development Console <span style="font-size: 0.75rem; font-weight: 500; background: #0176d3; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; vertical-align: middle;">v{{ version_info.version }}</span></h1>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    {% if current_user.user_type.value == 'DEVELOPER' %}
+                    <a href="{{ url_for('development.schedule') }}" class="sf-button sf-button-secondary">
+                        <i class="fas fa-calendar-alt"></i>
+                        My Schedule
+                    </a>
+                    {% endif %}
+                    {% if current_user.user_type.value == 'SUPER_ADMIN' %}
+                    <a href="{{ url_for('development.admin_schedule') }}" class="sf-button sf-button-secondary" style="background: #6f42c1; color: white; border-color: #6f42c1;">
+                        <i class="fas fa-users"></i>
+                        Developer Schedule
+                    </a>
+                    {% endif %}
+                    {% if current_user.user_type.value == 'DEVELOPER' %}
+                    <a href="{{ url_for('development.manage_testers') }}" class="sf-button sf-button-secondary">
+                        <i class="fas fa-user-check"></i>
+                        Manage Testers
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('development.new_feature') }}" class="sf-button sf-button-primary">
+                        <i class="fas fa-plus"></i>
+                        New Feature
+                    </a>
+                    <a href="{{ url_for('development.new_bug') }}" class="sf-button sf-button-destructive">
+                        <i class="fas fa-bug"></i>
+                        Report Bug
+                    </a>
+                </div>
+            </div>
 
-    <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Features Card -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Features</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.features.total }}</p>
+            <!-- Stats Cards -->
+            <div class="sf-stats-grid">
+                <div class="sf-stat-card">
+                    <div class="sf-stat-icon" style="background: #e1f5fe;">
+                        <i class="fas fa-lightbulb" style="color: #0176d3;"></i>
+                    </div>
+                    <div class="sf-stat-content">
+                        <div class="sf-stat-label">Total Features</div>
+                        <div class="sf-stat-value">{{ stats.features.total }}</div>
+                        <div class="sf-stat-meta">{{ stats.features.active }} active</div>
+                    </div>
                 </div>
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <i class="fas fa-lightbulb text-blue-600 text-xl"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex justify-between text-sm">
-                <span class="text-orange-600">{{ stats.features.active }} Active</span>
-                <span class="text-green-600">{{ stats.features.completed }} Completed</span>
-            </div>
-        </div>
 
-        <!-- Bugs Card -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Bugs</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.bugs.total }}</p>
+                <div class="sf-stat-card">
+                    <div class="sf-stat-icon" style="background: #ffebee;">
+                        <i class="fas fa-bug" style="color: #ba0517;"></i>
+                    </div>
+                    <div class="sf-stat-content">
+                        <div class="sf-stat-label">Total Bugs</div>
+                        <div class="sf-stat-value">{{ stats.bugs.total }}</div>
+                        <div class="sf-stat-meta">{{ stats.bugs.open }} open</div>
+                    </div>
                 </div>
-                <div class="p-3 bg-red-100 rounded-full">
-                    <i class="fas fa-bug text-red-600 text-xl"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex justify-between text-sm">
-                <span class="text-red-600">{{ stats.bugs.open }} Open</span>
-                <span class="text-orange-600">{{ stats.bugs.critical }} Critical</span>
-            </div>
-        </div>
 
-        <!-- Releases Card -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 uppercase tracking-wider">Releases</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.releases.total }}</p>
+                <div class="sf-stat-card">
+                    <div class="sf-stat-icon" style="background: #f3e5f5;">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff6f00;"></i>
+                    </div>
+                    <div class="sf-stat-content">
+                        <div class="sf-stat-label">Critical Items</div>
+                        <div class="sf-stat-value">{{ stats.bugs.critical }}</div>
+                        <div class="sf-stat-meta">Needs attention</div>
+                    </div>
                 </div>
-                <div class="p-3 bg-green-100 rounded-full">
-                    <i class="fas fa-rocket text-green-600 text-xl"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex justify-between text-sm">
-                <span class="text-blue-600">{{ stats.releases.active }} Active</span>
-                <span class="text-gray-600">{{ stats.releases.released }} Released</span>
-            </div>
-        </div>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Active Features -->
-        <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">Active Features</h3>
+                <div class="sf-stat-card">
+                    <div class="sf-stat-icon" style="background: #e8f5e9;">
+                        <i class="fas fa-rocket" style="color: #2e7d32;"></i>
+                    </div>
+                    <div class="sf-stat-content">
+                        <div class="sf-stat-label">Active Releases</div>
+                        <div class="sf-stat-value">{{ stats.releases.active }}</div>
+                        <div class="sf-stat-meta">{{ stats.releases.total }} total</div>
+                    </div>
+                </div>
             </div>
-            <div class="p-6 max-h-[600px] overflow-y-auto">
-                {% if recent_features %}
-                    <div class="space-y-4">
-                        {% for feature in recent_features %}
-                        <div class="border-l-4 border-blue-400 pl-4 py-2 hover:bg-gray-50 transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <a href="{{ url_for('development.view_feature', id=feature.id) }}"
-                                       class="text-sm font-medium text-gray-900 hover:text-blue-600">
-                                        {{ feature.title }}
+
+            <!-- This Week's Schedule -->
+            {% if schedule_by_user %}
+            <div class="sf-week-schedule" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-calendar-week" style="color: #0176d3; margin-right: 0.5rem;"></i>
+                        This Week's Schedule for the Developers
+                    </h3>
+                    <div style="display: flex; gap: 1rem; font-size: 0.75rem;">
+                        <span><span style="display: inline-block; width: 12px; height: 12px; background: #28a745; border-radius: 2px; margin-right: 4px;"></span>WFO</span>
+                        <span><span style="display: inline-block; width: 12px; height: 12px; background: #17a2b8; border-radius: 2px; margin-right: 4px;"></span>WFH</span>
+                        <span><span style="display: inline-block; width: 12px; height: 12px; background: #dc3545; border-radius: 2px; margin-right: 4px;"></span>Off</span>
+                    </div>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="background: #f3f3f3; border-bottom: 2px solid #dddbda;">
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 150px;">Developer</th>
+                                {% for day in week_days %}
+                                <th style="padding: 0.75rem 0.5rem; text-align: center; font-weight: 600; color: {% if day.is_today %}#0176d3{% else %}#514f4d{% endif %}; {% if day.is_today %}background: #e3f2fd;{% endif %}">
+                                    {{ day.name }}<br><span style="font-size: 0.75rem; font-weight: 400;">{{ day.day }}</span>
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_id, data in schedule_by_user.items() %}
+                            <tr style="border-bottom: 1px solid #dddbda;">
+                                <td style="padding: 0.5rem 1rem; font-weight: 500;">
+                                    {{ data.user.username if data.user else 'Unknown' }}
+                                </td>
+                                {% for day in week_days %}
+                                {% set day_data = data.days.get(day.date) %}
+                                <td style="padding: 0.5rem; text-align: center; {% if day.is_today %}background: #e3f2fd;{% endif %}">
+                                    {% if day_data %}
+                                        {% if not day_data.is_working %}
+                                        <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #dc3545; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;" title="{{ day_data.note or 'Day Off' }}">OFF</span>
+                                        {% elif day_data.work_location == 'WFH' %}
+                                        <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #17a2b8; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;" title="{{ day_data.note or 'Work From Home' }}">WFH</span>
+                                        {% else %}
+                                        <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #28a745; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;" title="{{ day_data.note or 'Work From Office' }}">WFO</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span style="color: #999; font-size: 0.75rem;">-</span>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="sf-week-schedule" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-calendar-week" style="color: #0176d3; margin-right: 0.5rem;"></i>
+                        This Week's Schedule for the Developers
+                    </h3>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; padding: 2rem; text-align: center; color: #706e6b;">
+                    <i class="fas fa-calendar-alt" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                    <p style="margin: 0;">No schedules set for this week. <a href="{{ url_for('development.schedule') }}">Add your schedule</a></p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Pending Approver Inbox (SUPER_ADMIN only) -->
+            {% if current_user.user_type.value == 'SUPER_ADMIN' and pending_approvals %}
+            <div class="sf-pending-approvals" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-inbox" style="color: #6f42c1; margin-right: 0.5rem;"></i>
+                        Pending Approver Inbox
+                        <span style="font-size: 0.75rem; background: #6f42c1; color: white; padding: 0.125rem 0.5rem; border-radius: 1rem; margin-left: 0.5rem;">{{ pending_approvals|length }}</span>
+                    </h3>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; overflow: hidden;">
+                    <div style="border-left: 4px solid #6f42c1;">
+                        {% for feature in pending_approvals %}
+                        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f3f3f3; {% if loop.last %}border-bottom: none;{% endif %}">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <a href="{{ url_for('development.feature_detail', feature_id=feature.id) }}" style="font-weight: 600; color: #0176d3; text-decoration: none; font-size: 0.95rem;">
+                                        {{ feature.display_id }} - {{ feature.title }}
                                     </a>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        {{ feature.display_id }} • {{ feature.requester.username if feature.requester else 'Unknown' }} • {{ feature.updated_at.strftime('%m/%d/%Y') if feature.updated_at else 'No date' }}
-                                    </p>
+                                    <div style="font-size: 0.8rem; color: #706e6b; margin-top: 0.25rem;">
+                                        Requested by <strong>{{ feature.requester.username if feature.requester else 'Unknown' }}</strong>
+                                        {% if feature.approval_requested_at %}
+                                        <span style="margin-left: 0.5rem;">{{ feature.approval_requested_at.strftime('%b %d, %Y') }}</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <span class="inline-flex px-2 py-1 text-xs rounded-full {{ feature.get_status_color() }}">
-                                    {{ feature.status.value }}
-                                </span>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <span style="font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600; {{ feature.get_priority_color() }}">
+                                        {{ feature.priority.value }}
+                                    </span>
+                                    <a href="{{ url_for('development.feature_detail', feature_id=feature.id) }}" class="sf-button sf-button-primary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
+                                        <i class="fas fa-eye"></i> Review
+                                    </a>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <p class="text-gray-500 text-center">No active features found</p>
-                {% endif %}
+                </div>
             </div>
+            {% elif current_user.user_type.value == 'SUPER_ADMIN' %}
+            <div class="sf-pending-approvals" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-inbox" style="color: #6f42c1; margin-right: 0.5rem;"></i>
+                        Pending Approver Inbox
+                    </h3>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; padding: 2rem; text-align: center; color: #706e6b;">
+                    <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; color: #28a745;"></i>
+                    <p style="margin: 0;">No pending approvals. You're all caught up!</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Newly Approved Features for DEVELOPER users -->
+            {% if current_user.user_type.value == 'DEVELOPER' and newly_approved %}
+            <div class="sf-newly-approved" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-check-circle" style="color: #28a745; margin-right: 0.5rem;"></i>
+                        Newly Approved
+                        <span style="font-size: 0.75rem; background: #28a745; color: white; padding: 0.125rem 0.5rem; border-radius: 1rem; margin-left: 0.5rem;">{{ newly_approved|length }}</span>
+                    </h3>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; overflow: hidden;">
+                    <div style="border-left: 4px solid #28a745;">
+                        {% for feature in newly_approved %}
+                        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f3f3f3; {% if loop.last %}border-bottom: none;{% endif %}">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <a href="{{ url_for('development.view_feature', id=feature.id) }}" style="font-weight: 600; color: #0176d3; text-decoration: none; font-size: 0.95rem;">
+                                        {{ feature.display_id }} - {{ feature.title }}
+                                    </a>
+                                    <div style="font-size: 0.8rem; color: #706e6b; margin-top: 0.25rem;">
+                                        Requested by <strong>{{ feature.requester.username if feature.requester else 'Unknown' }}</strong>
+                                        {% if feature.approved_at %}
+                                        <span style="margin-left: 0.5rem;">Approved {{ feature.approved_at.strftime('%b %d, %Y') }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <span style="font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600; {{ feature.get_priority_color() }}">
+                                        {{ feature.priority.value }}
+                                    </span>
+                                    <form action="{{ url_for('development.take_ownership', id=feature.id) }}" method="POST" style="margin: 0;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="sf-button sf-button-primary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
+                                            <i class="fas fa-hand-paper"></i> Take Ownership
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% elif current_user.user_type.value == 'DEVELOPER' %}
+            <div class="sf-newly-approved" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
+                        <i class="fas fa-check-circle" style="color: #28a745; margin-right: 0.5rem;"></i>
+                        Newly Approved
+                    </h3>
+                </div>
+                <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; padding: 2rem; text-align: center; color: #706e6b;">
+                    <i class="fas fa-clipboard-check" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; color: #28a745;"></i>
+                    <p style="margin: 0;">No newly approved features waiting for ownership.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Open Bugs -->
-        <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">Open Bugs</h3>
+        <!-- Main Content Area -->
+        <div class="sf-tabs">
+            <!-- Tab Navigation -->
+            <div class="sf-tab-list">
+                <button class="sf-tab active" onclick="switchTab('all')">
+                    All Items
+                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ (recent_features|length) + (recent_bugs|length) }})</span>
+                </button>
+                <button class="sf-tab" onclick="switchTab('features')">
+                    Features
+                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ recent_features|length }})</span>
+                </button>
+                <button class="sf-tab" onclick="switchTab('bugs')">
+                    Bugs
+                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ recent_bugs|length }})</span>
+                </button>
             </div>
-            <div class="p-6 max-h-[600px] overflow-y-auto">
-                {% if recent_bugs %}
-                    <div class="space-y-4">
-                        {% for bug in recent_bugs %}
-                        <div class="border-l-4 border-red-400 pl-4 py-2 hover:bg-gray-50 transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <a href="{{ url_for('development.view_bug', id=bug.id) }}"
-                                       class="text-sm font-medium text-gray-900 hover:text-red-600">
-                                        {{ bug.title }}
+
+            <!-- Filter Bar -->
+            <div class="sf-filter-bar">
+                <div class="sf-filter-group">
+                    <label class="sf-filter-label">Search:</label>
+                    <input type="text" id="searchInput" class="sf-filter-input" placeholder="Search by title or ID..." onkeyup="filterTable()">
+                </div>
+                <div class="sf-filter-group">
+                    <label class="sf-filter-label">Status:</label>
+                    <select id="statusFilter" class="sf-filter-select" onchange="filterTable()">
+                        <option value="">All Statuses</option>
+                        <option value="open">Open</option>
+                        <option value="active">Active</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+                <div class="sf-filter-group">
+                    <label class="sf-filter-label">Priority:</label>
+                    <select id="priorityFilter" class="sf-filter-select" onchange="filterTable()">
+                        <option value="">All Priorities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="sf-filter-group" style="margin-left: auto;">
+                    <button class="sf-button sf-button-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times"></i>
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="sf-table-container" id="allItemsTab">
+                {% set all_items = [] %}
+                {% for feature in recent_features %}
+                    {% set _ = all_items.append({'type': 'feature', 'item': feature, 'sort_date': feature.updated_at if feature.updated_at else feature.created_at}) %}
+                {% endfor %}
+                {% for bug in recent_bugs %}
+                    {% set _ = all_items.append({'type': 'bug', 'item': bug, 'sort_date': bug.updated_at if bug.updated_at else bug.created_at}) %}
+                {% endfor %}
+
+                {% if all_items %}
+                <table class="sf-table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable(0)">Type</th>
+                            <th class="sortable" onclick="sortTable(1)">ID</th>
+                            <th class="sortable" onclick="sortTable(2)">Title</th>
+                            <th class="sortable" onclick="sortTable(3)">Status/Severity</th>
+                            <th class="sortable" onclick="sortTable(4)">Assignee</th>
+                            <th class="sortable" onclick="sortTable(5)">Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in all_items|selectattr('sort_date', 'ne', None)|sort(attribute='sort_date', reverse=True) + all_items|selectattr('sort_date', 'eq', None)|list %}
+                        <tr data-type="{{ entry.type }}"
+                            data-status="{{ entry.item.status.value if entry.type == 'feature' else 'open' }}"
+                            data-priority="{{ entry.item.severity.value if entry.type == 'bug' else 'medium' }}">
+                            <td>
+                                {% if entry.type == 'feature' %}
+                                    <span class="sf-badge sf-badge-feature">Feature</span>
+                                {% else %}
+                                    <span class="sf-badge sf-badge-bug">Bug</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; color: #706e6b;">{{ entry.item.display_id }}</span>
+                            </td>
+                            <td>
+                                {% if entry.type == 'feature' %}
+                                    <a href="{{ url_for('development.view_feature', id=entry.item.id) }}" class="sf-table-link">
+                                        {{ entry.item.title }}
                                     </a>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        {{ bug.display_id }} • {{ bug.reporter.username if bug.reporter else 'Unknown' }} • {{ bug.updated_at.strftime('%m/%d/%Y') if bug.updated_at else 'No date' }}
-                                    </p>
+                                {% else %}
+                                    <a href="{{ url_for('development.view_bug', id=entry.item.id) }}" class="sf-table-link">
+                                        {{ entry.item.title }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if entry.type == 'feature' %}
+                                    <span class="sf-badge sf-badge-status-{{ entry.item.status.value|lower|replace(' ', '-') }}">
+                                        {{ entry.item.status.value }}
+                                    </span>
+                                {% else %}
+                                    <span class="sf-badge sf-badge-{{ entry.item.severity.value|lower }}">
+                                        {{ entry.item.severity.value }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #0176d3; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
+                                        {% if entry.type == 'feature' %}
+                                            {{ entry.item.requester.username[0]|upper if entry.item.requester else '?' }}
+                                        {% else %}
+                                            {{ entry.item.reporter.username[0]|upper if entry.item.reporter else '?' }}
+                                        {% endif %}
+                                    </div>
+                                    <span style="font-size: 0.875rem;">
+                                        {% if entry.type == 'feature' %}
+                                            {{ entry.item.requester.username if entry.item.requester else 'Unassigned' }}
+                                        {% else %}
+                                            {{ entry.item.reporter.username if entry.item.reporter else 'Unassigned' }}
+                                        {% endif %}
+                                    </span>
                                 </div>
-                                <div class="text-right">
-                                    <span class="inline-flex px-2 py-1 text-xs rounded-full {{ bug.get_severity_color() }}">
-                                        {{ bug.severity.value }}
+                            </td>
+                            <td>
+                                <span style="color: #706e6b; font-size: 0.875rem;">
+                                    {{ entry.item.updated_at.strftime('%m/%d/%Y %I:%M %p') if entry.item.updated_at else 'Never' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="sf-actions-menu">
+                                    <button class="sf-actions-button">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="sf-empty-state">
+                    <div class="sf-empty-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <div class="sf-empty-title">No Items Found</div>
+                    <div class="sf-empty-text">There are no features or bugs to display. Create your first item to get started.</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Releases Tab (Hidden by default) -->
+            <div class="sf-table-container" id="releasesTab" style="display: none;">
+                {% if active_releases %}
+                <div style="padding: 1.5rem;">
+                    <div style="display: grid; gap: 1rem;">
+                        {% for release in active_releases %}
+                        <div style="background: white; border: 1px solid #dddbda; border-radius: 0.5rem; padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                <div>
+                                    <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem;">
+                                        <a href="{{ url_for('development.view_release', id=release.id) }}" class="sf-table-link" style="font-size: 1.25rem;">
+                                            {{ release.display_version }}
+                                        </a>
+                                    </h3>
+                                    {% if release.name %}
+                                        <p style="color: #706e6b;">{{ release.name }}</p>
+                                    {% endif %}
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <span class="sf-badge" style="background: {{ release.get_status_color().split()[1] }}; color: white;">
+                                        {{ release.status.value }}
+                                    </span>
+                                    <span class="sf-badge" style="background: {{ release.get_type_color().split()[1] }}; color: white;">
+                                        {{ release.release_type.value }}
                                     </span>
                                 </div>
                             </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                                <div>
+                                    <div class="sf-filter-label">Planned Date</div>
+                                    <div style="font-weight: 600;">
+                                        {% if release.planned_date %}
+                                            {{ release.planned_date.strftime('%m/%d/%Y') }}
+                                        {% else %}
+                                            Not set
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="sf-filter-label">Days Until</div>
+                                    <div style="font-weight: 600;">
+                                        {% if release.days_until_release is not none %}
+                                            {{ release.days_until_release }} days
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="sf-filter-label">Completion</div>
+                                    <div style="font-weight: 600;">{{ release.completion_percentage }}%</div>
+                                </div>
+                                <div>
+                                    <div class="sf-filter-label">Total Items</div>
+                                    <div style="font-weight: 600;">{{ release.features|length + release.fixed_bugs|length }}</div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div style="margin-top: 1rem;">
+                                <div style="background: #f3f3f3; border-radius: 0.25rem; height: 8px; overflow: hidden;">
+                                    <div style="background: #0176d3; height: 100%; width: {{ release.completion_percentage }}%; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
+                </div>
                 {% else %}
-                    <p class="text-gray-500 text-center">No open bugs found</p>
+                <div class="sf-empty-state">
+                    <div class="sf-empty-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <div class="sf-empty-title">No Active Releases</div>
+                    <div class="sf-empty-text">There are no active releases at the moment.</div>
+                </div>
                 {% endif %}
             </div>
-        </div>
-    </div>
 
-    <!-- Active Releases -->
-    {% if active_releases %}
-    <div class="mt-8 bg-white rounded-lg shadow">
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-medium text-gray-900">Active Releases</h3>
-            <a href="{{ url_for('development.releases') }}" class="text-green-600 hover:text-green-800 text-sm">View All</a>
-        </div>
-        <div class="p-6">
-            <div class="space-y-6">
-                {% for release in active_releases %}
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="text-lg font-medium">
-                                <a href="{{ url_for('development.view_release', id=release.id) }}"
-                                   class="text-gray-900 hover:text-blue-600">
-                                    {{ release.display_version }}
-                                </a>
-                            </h4>
-                            {% if release.name %}
-                                <p class="text-gray-600">{{ release.name }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="text-right">
-                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ release.get_status_color() }}">
-                                {{ release.status.value }}
-                            </span>
-                            <span class="inline-flex px-2 py-1 text-xs rounded-full {{ release.get_type_color() }} ml-2">
-                                {{ release.release_type.value }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                            <span class="text-gray-500">Planned Date:</span>
-                            <p class="font-medium">
-                                {% if release.planned_date %}
-                                    {{ release.planned_date.strftime('%m/%d/%Y') }}
-                                    {% if release.days_until_release is not none %}
-                                        ({{ release.days_until_release }} days)
-                                    {% endif %}
-                                {% else %}
-                                    Not set
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">Completion:</span>
-                            <p class="font-medium">{{ release.completion_percentage }}%</p>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">Items:</span>
-                            <p class="font-medium">{{ release.features|length + release.fixed_bugs|length }}</p>
-                        </div>
-                    </div>
+            <!-- Pagination -->
+            <div class="sf-pagination">
+                <div class="sf-pagination-info">
+                    Showing <span id="showingCount">{{ (recent_features|length) + (recent_bugs|length) }}</span> items
                 </div>
-                {% endfor %}
+                <div class="sf-pagination-controls">
+                    <button class="sf-pagination-button" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="sf-pagination-button" style="background: #0176d3; color: white;">1</button>
+                    <button class="sf-pagination-button" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
+
+<script>
+// Tab switching
+function switchTab(tab) {
+    // Update tab buttons
+    const tabs = document.querySelectorAll('.sf-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Show/hide content
+    const table = document.querySelector('#itemsTable tbody');
+    const releasesTab = document.getElementById('releasesTab');
+    const allItemsTab = document.getElementById('allItemsTab');
+
+    if (tab === 'releases') {
+        allItemsTab.style.display = 'none';
+        releasesTab.style.display = 'block';
+        document.querySelector('.sf-filter-bar').style.display = 'none';
+        document.querySelector('.sf-pagination').style.display = 'none';
+    } else {
+        allItemsTab.style.display = 'block';
+        releasesTab.style.display = 'none';
+        document.querySelector('.sf-filter-bar').style.display = 'flex';
+        document.querySelector('.sf-pagination').style.display = 'flex';
+
+        if (table) {
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                if (tab === 'all') {
+                    row.style.display = '';
+                } else if (tab === 'features') {
+                    row.style.display = row.dataset.type === 'feature' ? '' : 'none';
+                } else if (tab === 'bugs') {
+                    row.style.display = row.dataset.type === 'bug' ? '' : 'none';
+                }
+            });
+        }
+    }
+
+    updateCount();
+}
+
+// Filter table
+function filterTable() {
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const priorityFilter = document.getElementById('priorityFilter').value;
+
+    const table = document.querySelector('#itemsTable tbody');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        let show = true;
+
+        // Search filter
+        if (searchInput) {
+            const text = row.textContent.toLowerCase();
+            if (!text.includes(searchInput)) {
+                show = false;
+            }
+        }
+
+        // Status filter
+        if (statusFilter && row.dataset.status !== statusFilter) {
+            show = false;
+        }
+
+        // Priority filter
+        if (priorityFilter && row.dataset.priority !== priorityFilter) {
+            show = false;
+        }
+
+        row.style.display = show ? '' : 'none';
+    });
+
+    updateCount();
+}
+
+// Clear all filters
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    filterTable();
+}
+
+// Update item count
+function updateCount() {
+    const table = document.querySelector('#itemsTable tbody');
+    if (!table) return;
+
+    const visibleRows = table.querySelectorAll('tr:not([style*="display: none"])');
+    document.getElementById('showingCount').textContent = visibleRows.length;
+}
+
+// Sort table
+function sortTable(column) {
+    const table = document.querySelector('#itemsTable');
+    if (!table) return;
+
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const header = table.querySelectorAll('th')[column];
+
+    // Determine sort direction
+    let ascending = !header.classList.contains('sorted-asc');
+
+    // Remove all sort classes
+    table.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+    });
+
+    // Add appropriate sort class
+    header.classList.add(ascending ? 'sorted-asc' : 'sorted-desc');
+
+    // Sort rows
+    rows.sort((a, b) => {
+        const aValue = a.cells[column].textContent.trim();
+        const bValue = b.cells[column].textContent.trim();
+
+        if (ascending) {
+            return aValue.localeCompare(bValue);
+        } else {
+            return bValue.localeCompare(aValue);
+        }
+    });
+
+    // Reorder rows in table
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateCount();
+});
+</script>
 {% endblock %}

@@ -8,7 +8,7 @@ from sqlalchemy.sql import text
 import os
 
 # Get database URL from environment or use default
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///instance/inventory.db')
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///inventory.db')
 
 def add_custom_status_column():
     """Add custom_status column to tickets table"""

@@ -92,6 +92,16 @@
                                     System
                                 </span>
                             {% endif %}
+
+                            <!-- Auto-Return Badge -->
+                            {% if status.auto_return_to_stock %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800" title="Automatically returns assets to stock">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                    </svg>
+                                    Auto-Return
+                                </span>
+                            {% endif %}
                         </div>
 
                         <!-- Actions -->
@@ -173,6 +183,15 @@
                 </label>
             </div>
 
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="statusAutoReturn" name="auto_return_to_stock" value="true"
+                           class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                    <span class="ml-2 text-sm text-gray-700">Auto-return assets to stock</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-6">When this status is set, all assigned tech assets and accessories will automatically be returned to stock</p>
+            </div>
+
             <div class="flex justify-end space-x-3">
                 <button type="button" onclick="closeModal()"
                         class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -240,6 +259,7 @@ function editStatus(statusId) {
     document.getElementById('statusDisplayName').value = status.display_name;
     document.getElementById('statusColor').value = status.color;
     document.getElementById('statusActive').checked = status.is_active;
+    document.getElementById('statusAutoReturn').checked = status.auto_return_to_stock || false;
 
     document.getElementById('statusModal').classList.remove('hidden');
 }

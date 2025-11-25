@@ -116,7 +116,12 @@ def list_tickets():
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
     user_type = session['user_type']
-    
+
+    # Get date filter parameters
+    from datetime import datetime
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
     # Only allow access to tickets based on user type
     if user.user_type == UserType.CLIENT:
         # For CLIENT users, only show tickets related to their company
@@ -124,7 +129,33 @@ def list_tickets():
     else:
         # For other users, show all tickets according to their permissions
         tickets = ticket_store.get_user_tickets(user_id, user_type)
-    
+
+    # Apply date filtering if date parameters are provided
+    if date_from or date_to:
+        filtered_by_date = []
+        for ticket in tickets:
+            # Parse dates
+            if date_from:
+                try:
+                    from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                    if ticket.created_at.date() < from_date:
+                        continue
+                except ValueError:
+                    pass  # Invalid date format, skip filter
+
+            if date_to:
+                try:
+                    to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                    if ticket.created_at.date() > to_date:
+                        continue
+                except ValueError:
+                    pass  # Invalid date format, skip filter
+
+            filtered_by_date.append(ticket)
+
+        tickets = filtered_by_date
+        logging.info(f"Applied date filter: {date_from} to {date_to}, {len(tickets)} tickets match")
+
     # Filter tickets based on queue access permissions
     if not user.is_super_admin and not user.is_developer:
         logging.info(f"Filtering tickets for user {user.username} (type: {user.user_type.value})")
@@ -1880,25 +1911,74 @@ Shipping Method: Claw (Ship24)"""
 
             elif category == 'INTERNAL_TRANSFER':
                 # Internal Transfer logic
-                transfer_name = request.form.get('transfer_name')
-                transfer_address = request.form.get('transfer_address')
+                # Get new offboarding/onboarding fields
+                offboarding_customer_id = request.form.get('offboarding_customer_id')
+                onboarding_customer_id = request.form.get('onboarding_customer_id')
+                offboarding_details = request.form.get('offboarding_details', '')
+                offboarding_address = request.form.get('offboarding_address', '')
+                onboarding_address = request.form.get('onboarding_address', '')
                 transfer_tracking = request.form.get('transfer_tracking', '')
-                customer_id = request.form.get('customer_id')
-                transfer_client = request.form.get('transfer_client', '')
                 notes = request.form.get('notes', '')
 
-                logger.info(f"Processing INTERNAL_TRANSFER - Name: {transfer_name}, Customer ID: {customer_id}")
+                # Legacy fields (for backwards compatibility)
+                transfer_name = request.form.get('transfer_name')
+                transfer_address = request.form.get('transfer_address')
+                customer_id = request.form.get('customer_id')
+                transfer_client = request.form.get('transfer_client', '')
 
-                # Validate required fields
-                if not transfer_name:
-                    flash('Please provide a recipient name', 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
+                logger.info(f"Processing INTERNAL_TRANSFER - Offboarding: {offboarding_customer_id}, Onboarding: {onboarding_customer_id}")
 
-                if not transfer_address:
-                    flash('Please provide a transfer address', 'error')
-                    return render_template('tickets/create.html', **get_template_context(request.form))
+                # Validate required fields (new format)
+                if offboarding_customer_id:
+                    # New format validation
+                    if not offboarding_details:
+                        flash('Please provide offboarding device details', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
+                    if not offboarding_address:
+                        flash('Please provide offboarding address', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
+                    if not onboarding_customer_id:
+                        flash('Please select onboarding customer', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
+                    if not onboarding_address:
+                        flash('Please provide onboarding address', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
+                else:
+                    # Legacy format validation
+                    if not transfer_name:
+                        flash('Please provide a recipient name', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
+                    if not transfer_address:
+                        flash('Please provide a transfer address', 'error')
+                        return render_template('tickets/create.html', **get_template_context(request.form))
 
-                # Get customer details if provided
+                # Get offboarding customer details
+                offboarding_customer = None
+                offboarding_customer_name = 'N/A'
+                offboarding_customer_company = 'N/A'
+                if offboarding_customer_id:
+                    offboarding_customer = db_session.query(CustomerUser).options(
+                        joinedload(CustomerUser.company)
+                    ).filter(CustomerUser.id == offboarding_customer_id).first()
+                    if offboarding_customer:
+                        offboarding_customer_name = offboarding_customer.name
+                        if offboarding_customer.company:
+                            offboarding_customer_company = offboarding_customer.company.name
+
+                # Get onboarding customer details
+                onboarding_customer = None
+                onboarding_customer_name = 'N/A'
+                onboarding_customer_company = 'N/A'
+                if onboarding_customer_id:
+                    onboarding_customer = db_session.query(CustomerUser).options(
+                        joinedload(CustomerUser.company)
+                    ).filter(CustomerUser.id == onboarding_customer_id).first()
+                    if onboarding_customer:
+                        onboarding_customer_name = onboarding_customer.name
+                        if onboarding_customer.company:
+                            onboarding_customer_company = onboarding_customer.company.name
+
+                # Legacy: Get customer details if provided
                 customer = None
                 customer_name = 'N/A'
                 customer_company = 'N/A'
@@ -1921,8 +2001,30 @@ Shipping Method: Claw (Ship24)"""
                 if serial_number and asset:
                     asset_info = f"{asset.model} - {serial_number} (Tag: {asset.asset_tag})"
 
-                # Prepare description
-                description = f"""Internal Transfer Details:
+                # Prepare description (new format vs legacy)
+                if offboarding_customer_id and onboarding_customer_id:
+                    # New format description
+                    description = f"""Internal Transfer Details:
+
+📤 OFFBOARDING
+Customer: {offboarding_customer_name}
+Company: {offboarding_customer_company}
+Device Details: {offboarding_details}
+Address: {offboarding_address}
+
+📥 ONBOARDING
+Customer: {onboarding_customer_name}
+Company: {onboarding_customer_company}
+Address: {onboarding_address}
+
+Tracking Link: {transfer_tracking if transfer_tracking else 'Not provided'}
+
+Additional Notes:
+{notes if notes else 'None'}"""
+                    subject = f"Internal Transfer: {offboarding_customer_name} → {onboarding_customer_name}"
+                else:
+                    # Legacy format description
+                    description = f"""Internal Transfer Details:
 Recipient Name: {transfer_name}
 Transfer Address: {transfer_address}
 Tracking Link: {transfer_tracking if transfer_tracking else 'Not provided'}
@@ -1938,23 +2040,37 @@ Asset Equipment:
 
 Additional Notes:
 {notes if notes else 'None'}"""
+                    subject = f"Internal Transfer - {transfer_name}"
 
                 try:
-                    # Create the ticket
+                    # Create the ticket using ticket_store.create_ticket
+                    # Note: create_ticket doesn't support the new fields, so we'll need to update them after
                     ticket_id = ticket_store.create_ticket(
-                        subject=f"Internal Transfer - {transfer_name}",
+                        subject=subject,
                         description=description,
                         requester_id=user_id,
                         category=TicketCategory.INTERNAL_TRANSFER,
                         priority=TicketPriority.MEDIUM,  # Default priority
                         asset_id=asset.id if asset else None,
-                        customer_id=customer_id if customer_id else None,
-                        shipping_address=transfer_address,
+                        customer_id=customer_id if customer_id else offboarding_customer_id,
+                        shipping_address=transfer_address if transfer_address else onboarding_address,
                         shipping_tracking=transfer_tracking if transfer_tracking else None,
                         queue_id=queue_id,
                         notes=notes,
                         case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
+
+                    # Update the ticket with new offboarding/onboarding fields
+                    if offboarding_customer_id and ticket_id:
+                        ticket = db_session.query(Ticket).get(ticket_id)
+                        if ticket:
+                            ticket.offboarding_customer_id = int(offboarding_customer_id)
+                            ticket.onboarding_customer_id = int(onboarding_customer_id) if onboarding_customer_id else None
+                            ticket.offboarding_details = offboarding_details
+                            ticket.offboarding_address = offboarding_address
+                            ticket.onboarding_address = onboarding_address
+                            db_session.commit()
+                            logger.info(f"Updated Internal Transfer ticket {ticket_id} with offboarding/onboarding details")
 
                     logger.info(f"Internal Transfer ticket created successfully with ID: {ticket_id}")
                     flash('Internal transfer ticket created successfully')
@@ -2723,6 +2839,39 @@ def update_ticket(ticket_id):
                     ticket.custom_status = status_value
                     # Clear the system status when using custom status
                     ticket.status = None
+
+                    # Check if this status should auto-return assets to stock
+                    if custom_status.auto_return_to_stock:
+                        logger.info(f"DEBUG - Auto-return to stock enabled for status {status_value}")
+
+                        # Return all assigned tech assets to stock
+                        # Assets are linked via many-to-many relationship through ticket.assets
+                        if ticket.assets:
+                            for asset in ticket.assets:
+                                logger.info(f"DEBUG - Returning asset {asset.id} ({asset.serial_num}) to stock")
+                                asset.status = 'IN_STOCK'
+
+                            # Clear the many-to-many relationship
+                            ticket.assets.clear()
+                            logger.info(f"DEBUG - Cleared {len(ticket.assets)} asset assignments from ticket")
+
+                        # Return all assigned accessories to stock
+                        if ticket.accessories:
+                            for accessory_assignment in ticket.accessories:
+                                quantity = accessory_assignment.quantity
+
+                                # If there's a link to the original accessory in inventory, return it
+                                if accessory_assignment.original_accessory:
+                                    accessory = accessory_assignment.original_accessory
+                                    logger.info(f"DEBUG - Returning {quantity} of accessory {accessory.id} ({accessory.name}) to stock")
+                                    accessory.available_quantity += quantity
+                                else:
+                                    logger.info(f"DEBUG - Accessory '{accessory_assignment.name}' has no inventory link, skipping stock return")
+
+                                # Remove the assignment
+                                db_session.delete(accessory_assignment)
+
+                        flash(f'Status updated to "{custom_status.display_name}" - All assets and accessories returned to stock', 'success')
                 else:
                     logger.warning(f"DEBUG - Custom status {status_value} not found in database")
                     flash(f"Invalid status: {status_value}", 'error')
@@ -9534,7 +9683,10 @@ def bulk_import_asset_return():
                 for row in csv_reader:
                     row_number += 1
 
-                    # Build customer address from components if available
+                    # Check for direct customer_address field first
+                    direct_address = row.get('customer_address', '').strip()
+
+                    # Build customer address from components if available (fallback)
                     address_parts = []
                     if row.get('address_line_1', '').strip():
                         address_parts.append(row.get('address_line_1', '').strip())
@@ -9549,11 +9701,15 @@ def bulk_import_asset_return():
                         city_state_zip.append(row.get('zip', '').strip())
                     if city_state_zip:
                         address_parts.append(', '.join(city_state_zip))
-                    customer_address = ', '.join(address_parts) if address_parts else ''
+                    built_address = ', '.join(address_parts) if address_parts else ''
 
+                    # Use direct address if provided, otherwise use built address
+                    customer_address = direct_address if direct_address else built_address
+
+                    customer_name = row.get('customer_name', '').strip()
                     preview_data.append({
                         'row_number': row_number,
-                        'customer_name': row.get('customer_name', ''),
+                        'customer_name': customer_name,
                         'customer_email': row.get('customer_email', ''),
                         'customer_phone': row.get('customer_phone', ''),
                         'customer_company': row.get('customer_company', ''),
@@ -9569,7 +9725,8 @@ def bulk_import_asset_return():
                         'address_line_2': row.get('address_line_2', ''),
                         'city': row.get('city', ''),
                         'state': row.get('state', ''),
-                        'zip': row.get('zip', '')
+                        'zip': row.get('zip', ''),
+                        'name_is_empty': not customer_name  # Flag for empty names
                     })
 
                 # Get available countries, queues, and users for dropdowns
@@ -9628,6 +9785,9 @@ def bulk_import_asset_return():
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
                     customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip()
 
+                    # Get direct customer_address from form (editable field)
+                    direct_address = request.form.get(f'row_{i}_customer_address', '').strip()
+
                     # Get address components (needed for both new and existing customers)
                     address_line_1 = request.form.get(f'row_{i}_address_line_1', '').strip()
                     address_line_2 = request.form.get(f'row_{i}_address_line_2', '').strip()
@@ -9635,7 +9795,7 @@ def bulk_import_asset_return():
                     state = request.form.get(f'row_{i}_state', '').strip()
                     zip_code = request.form.get(f'row_{i}_zip', '').strip()
 
-                    # Build full address
+                    # Build address from components
                     address_parts = []
                     if address_line_1:
                         address_parts.append(address_line_1)
@@ -9650,7 +9810,10 @@ def bulk_import_asset_return():
                         city_state_zip.append(zip_code)
                     if city_state_zip:
                         address_parts.append(', '.join(city_state_zip))
-                    full_address = ', '.join(address_parts) if address_parts else 'N/A'
+                    built_address = ', '.join(address_parts) if address_parts else ''
+
+                    # Use direct address if provided, otherwise use built address, otherwise 'N/A'
+                    full_address = direct_address if direct_address else (built_address if built_address else 'N/A')
 
                     # Get or create customer
                     customer = db_session.query(CustomerUser).filter_by(email=customer_email).first()
@@ -9868,7 +10031,12 @@ def bulk_import_1stbase():
                 for row in csv_reader:
                     row_number += 1
                     # Combine first and last name
-                    customer_name = f"{row.get('ship_to_first_name', '').strip()} {row.get('ship_to_last_name', '').strip()}".strip()
+                    first_name = row.get('ship_to_first_name', '').strip()
+                    last_name = row.get('ship_to_last_name', '').strip()
+                    customer_name = f"{first_name} {last_name}".strip()
+
+                    # Check if name is empty
+                    name_is_empty = not customer_name
 
                     # Build customer address from components
                     address_parts = []
@@ -9887,7 +10055,7 @@ def bulk_import_1stbase():
                         address_parts.append(', '.join(city_state_zip))
                     customer_address = ', '.join(address_parts) if address_parts else ''
 
-                    preview_data.append({
+                    row_data = {
                         'row_number': row_number,
                         'customer_name': customer_name,
                         'customer_email': row.get('email', ''),
@@ -9907,8 +10075,17 @@ def bulk_import_1stbase():
                         'secondary_email': row.get('secondary_email', ''),
                         'priority': 'Medium',
                         'queue_name': row.get('country', ''),  # Use country as queue name
-                        'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', '')
-                    })
+                        'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', ''),
+                        'name_is_empty': name_is_empty,  # Validation flag
+                        'first_name': first_name,
+                        'last_name': last_name
+                    }
+
+                    # Log rows with empty names for debugging
+                    if name_is_empty:
+                        logger.info(f"Row {row_number}: Empty customer name detected (first='{first_name}', last='{last_name}')")
+
+                    preview_data.append(row_data)
 
                 # Get available countries, queues, and users for dropdowns
                 countries = [country.name for country in Country]
@@ -9916,6 +10093,10 @@ def bulk_import_1stbase():
                 users = db_session.query(User).filter(
                     User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
                 ).order_by(User.username).all()
+
+                # Log summary
+                empty_name_count = sum(1 for r in preview_data if r.get('name_is_empty'))
+                logger.info(f"Preview prepared: {len(preview_data)} total rows, {empty_name_count} with empty names")
 
                 return render_template('tickets/bulk_import_preview.html',
                                      user=user,
@@ -9967,6 +10148,9 @@ def bulk_import_1stbase():
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
                     customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip()
 
+                    # Get direct customer_address from form (editable field)
+                    direct_address = request.form.get(f'row_{i}_customer_address', '').strip()
+
                     # Get address components (needed for both new and existing customers)
                     address_line_1 = request.form.get(f'row_{i}_address_line_1', '').strip()
                     address_line_2 = request.form.get(f'row_{i}_address_line_2', '').strip()
@@ -9974,7 +10158,7 @@ def bulk_import_1stbase():
                     state = request.form.get(f'row_{i}_state', '').strip()
                     zip_code = request.form.get(f'row_{i}_zip', '').strip()
 
-                    # Build full address
+                    # Build address from components
                     address_parts = []
                     if address_line_1:
                         address_parts.append(address_line_1)
@@ -9989,7 +10173,10 @@ def bulk_import_1stbase():
                         city_state_zip.append(zip_code)
                     if city_state_zip:
                         address_parts.append(', '.join(city_state_zip))
-                    full_address = ', '.join(address_parts) if address_parts else 'N/A'
+                    built_address = ', '.join(address_parts) if address_parts else ''
+
+                    # Use direct address if provided, otherwise use built address, otherwise 'N/A'
+                    full_address = direct_address if direct_address else (built_address if built_address else 'N/A')
 
                     # Get or create customer
                     customer = db_session.query(CustomerUser).filter_by(email=customer_email).first()

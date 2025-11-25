@@ -37,4 +37,6 @@ pytz==2023.3
 # For billing report exports
 pandas==1.5.3
 openpyxl==3.1.2
-xlsxwriter==3.1.9 
+xlsxwriter==3.1.9
+# For markdown rendering in knowledge base
+markdown==3.10
