@@ -2,610 +2,798 @@
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
-    .report-builder-container {
-        display: flex;
-        height: calc(100vh - 120px);
-        gap: 1rem;
-        transition: all 0.3s ease;
+    /* Salesforce-style colors */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
     }
 
-    .builder-panel {
-        width: 320px;
+    /* Main layout */
+    .sf-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header bar */
+    .sf-header {
         background: white;
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        overflow-y: auto;
-        transition: all 0.3s ease;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
 
-    .charts-area {
-        flex: 1;
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        overflow-y: auto;
-        transition: all 0.3s ease;
+    .sf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
 
-    /* Sidebar Hidden Mode */
-    .sidebar-hidden .builder-panel {
+    .sf-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-breadcrumb a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-page-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-btn-success {
+        background: var(--sf-success);
+        color: white;
+    }
+
+    .sf-btn-success:hover {
+        background: #236839;
+    }
+
+    /* Main content area */
+    .sf-content {
+        display: flex;
+        height: calc(100vh - 60px);
+    }
+
+    /* Filters sidebar */
+    .sf-sidebar {
+        width: 280px;
+        background: white;
+        border-right: 1px solid var(--sf-gray-200);
+        overflow-y: auto;
+        flex-shrink: 0;
+        transition: width 0.2s ease;
+    }
+
+    .sf-sidebar.collapsed {
         width: 0;
         overflow: hidden;
-        padding: 0;
-        border: none;
-        box-shadow: none;
     }
 
-    .sidebar-hidden .charts-area {
-        flex: 1;
-        width: 100%;
-        background: #ffffff;
-        border-radius: 0;
-        padding: 0;
+    .sf-sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--sf-gray-100);
     }
 
-    /* Full-width dashboard charts */
-    .sidebar-hidden .chart-container {
-        margin-bottom: 0;
-        border-radius: 0;
-        box-shadow: none;
-        border-bottom: 2px solid #f3f4f6;
-        width: 100%;
-    }
-
-    .sidebar-hidden .chart-header {
-        background: #ffffff;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 2rem 3rem 1rem 3rem;
-    }
-
-    .sidebar-hidden .chart-title {
-        font-size: 1.75rem;
+    .sf-sidebar-title {
+        font-size: 0.75rem;
         font-weight: 700;
-        color: #1f2937;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
     }
 
-    .sidebar-hidden .chart-body {
-        height: 700px;
-        padding: 2rem 3rem 3rem 3rem;
+    .sf-filter-section {
+        border-bottom: 1px solid var(--sf-gray-200);
     }
 
-    /* Collapsible sidebar - minimal width when collapsed */
-    .sidebar-collapsed .builder-panel {
-        width: 60px;
-        overflow: visible;
-        position: relative;
+    .sf-filter-header {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
     }
 
-    .sidebar-collapsed .filter-title,
-    .sidebar-collapsed .filter-item span,
-    .sidebar-collapsed .apply-filters-btn,
-    .sidebar-collapsed .date-range-picker,
-    .sidebar-collapsed select {
+    .sf-filter-header:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-filter-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-filter-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        background: var(--sf-gray-200);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    .sf-filter-content {
+        padding: 0 1rem 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sf-filter-content.collapsed {
         display: none;
     }
 
-    .sidebar-collapsed .filter-group {
-        padding: 0.5rem;
-        text-align: center;
-    }
-
-    /* Toggle button */
-    .dashboard-toggle {
-        position: fixed;
-        top: 120px;
-        right: 20px;
-        z-index: 1000;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        transition: all 0.3s ease;
-    }
-
-    .dashboard-toggle:hover {
-        background: #2563eb;
-        transform: scale(1.1);
-    }
-
-    /* Full-width chart styling */
-    .full-width-chart {
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        background: white;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 2rem 4rem;
-    }
-
-    .full-width-chart .chart-header {
-        background: transparent;
-        border-bottom: 2px solid #f3f4f6;
-        padding: 1rem 0 2rem 0;
-        margin-bottom: 2rem;
-    }
-
-    .full-width-chart .chart-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #1f2937;
-    }
-
-    .full-width-chart .chart-subtitle {
-        font-size: 1rem;
-        color: #6b7280;
-        margin-top: 0.5rem;
-    }
-
-    .full-width-chart .chart-body {
-        height: 700px;
-        padding: 0;
-    }
-
-    .filter-group {
-        border-bottom: 1px solid #e5e7eb;
-        padding: 1rem;
-    }
-
-    .filter-group:last-child {
-        border-bottom: none;
-    }
-
-    .filter-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-
-    .filter-item {
+    .sf-checkbox-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0.5rem 0;
+        padding: 0.375rem 0;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
     }
 
-    .filter-checkbox {
+    .sf-checkbox-item input {
         margin-right: 0.5rem;
+        accent-color: var(--sf-blue);
     }
 
-    .chart-container {
+    .sf-checkbox-item .count {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Date range */
+    .sf-date-range {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-date-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .sf-date-inputs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-date-input {
+        flex: 1;
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+    }
+
+    .sf-date-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    .sf-date-preset {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        background: var(--sf-gray-100);
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+
+    .sf-date-preset:hover,
+    .sf-date-preset.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+
+    /* Main area */
+    .sf-main {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        background: var(--sf-gray-100);
+    }
+
+    /* Summary cards */
+    .sf-summary-cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-summary-card {
         background: white;
         border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1.5rem;
-        overflow: hidden;
+        padding: 1.25rem;
+        border: 1px solid var(--sf-gray-200);
     }
 
-    .chart-header {
-        background: #f9fafb;
-        padding: 1rem;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .sf-summary-card.highlight {
+        border-left: 4px solid var(--sf-blue);
     }
 
-    .chart-title {
+    .sf-summary-label {
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #1f2937;
-    }
-
-    .chart-body {
-        padding: 1.5rem;
-        height: 400px;
-    }
-
-    .chart-canvas {
-        width: 100% !important;
-        height: 100% !important;
-    }
-
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: bold;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         margin-bottom: 0.5rem;
     }
 
-    .metric-label {
-        font-size: 0.875rem;
-        opacity: 0.9;
+    .sf-summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
     }
 
-    .chart-type-selector {
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        padding: 0.375rem;
+    .sf-summary-value.blue { color: var(--sf-blue); }
+    .sf-summary-value.green { color: var(--sf-success); }
+    .sf-summary-value.orange { color: var(--sf-warning); }
+    .sf-summary-value.red { color: var(--sf-error); }
+
+    .sf-summary-subtitle {
         font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
     }
 
-    .date-range-picker {
+    /* Data preview section */
+    .sf-preview-header {
         display: flex;
-        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
         margin-bottom: 1rem;
     }
 
-    .date-input {
-        flex: 1;
-        padding: 0.5rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        font-size: 0.875rem;
-    }
-
-    .apply-filters-btn {
-        width: 100%;
-        background: #3b82f6;
-        color: white;
-        padding: 0.75rem;
-        border: none;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        cursor: pointer;
-        margin-top: 1rem;
-    }
-
-    .apply-filters-btn:hover {
-        background: #2563eb;
-    }
-
-    .loading-spinner {
-        display: none;
-        text-align: center;
-        padding: 2rem;
-        color: #6b7280;
-    }
-
-    .export-options {
+    .sf-preview-title {
         display: flex;
+        align-items: center;
         gap: 0.5rem;
-        margin-top: 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
     }
 
-    .export-btn {
-        flex: 1;
-        padding: 0.5rem;
-        border: 1px solid #d1d5db;
-        background: white;
-        border-radius: 0.375rem;
+    .sf-preview-subtitle {
         font-size: 0.75rem;
-        cursor: pointer;
+        color: var(--sf-gray-600);
     }
 
-    .export-btn:hover {
-        background: #f3f4f6;
+    /* Chart container */
+    .sf-chart-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        margin-bottom: 1.5rem;
     }
 
-    .drag-handle {
-        cursor: move;
-        color: #9ca3af;
-        margin-right: 0.5rem;
-    }
-
-    .chart-options {
+    .sf-chart-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-chart-body {
+        padding: 1.5rem;
+        height: 350px;
+        position: relative;
+    }
+
+    .sf-chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-100);
+    }
+
+    .sf-legend-item {
+        display: flex;
+        align-items: center;
         gap: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
     }
 
-    .chart-option-btn {
-        padding: 0.25rem 0.5rem;
-        border: 1px solid #d1d5db;
+    .sf-legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+    }
+
+    /* Data table */
+    .sf-table-container {
         background: white;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-        cursor: pointer;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        overflow: hidden;
     }
 
-    .chart-option-btn:hover {
-        background: #f3f4f6;
+    .sf-table-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
-    .no-data {
-        text-align: center;
-        padding: 3rem;
-        color: #6b7280;
+    .sf-table-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
     }
 
-    /* Toggle buttons */
-    .sidebar-toggle {
-        position: fixed;
-        top: 140px;
-        left: 20px;
-        z-index: 1000;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        transition: all 0.3s ease;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .sidebar-toggle:hover {
-        background: #2563eb;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
-    }
-
-    .sidebar-hidden .sidebar-toggle {
-        left: 20px;
-    }
-
-    .fullscreen-toggle {
-        position: fixed;
-        top: 140px;
-        right: 20px;
-        z-index: 1000;
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-        transition: all 0.3s ease;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .fullscreen-toggle:hover {
-        background: #059669;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
-    }
-
-    /* Fullscreen Charts Mode */
-    .fullscreen-charts .report-builder-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 999;
-        background: white;
-        height: 100vh;
-        overflow-y: auto;
-    }
-
-    .fullscreen-charts .builder-panel {
-        display: none;
-    }
-
-    .fullscreen-charts .charts-area {
+    .sf-table {
         width: 100%;
-        height: 100vh;
-        padding: 0;
-        background: white;
-        border-radius: 0;
+        border-collapse: collapse;
     }
 
-    .fullscreen-charts .chart-container {
-        border-radius: 0;
-        margin-bottom: 0;
-        border-bottom: 2px solid #f3f4f6;
-    }
-
-    .fullscreen-charts .chart-header {
-        padding: 2rem 4rem 1rem 4rem;
-        background: white;
-    }
-
-    .fullscreen-charts .chart-title {
-        font-size: 2rem;
+    .sf-table th {
+        background: var(--sf-gray-100);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
         font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
     }
 
-    .fullscreen-charts .chart-body {
-        height: 80vh;
-        padding: 2rem 4rem 4rem 4rem;
+    .sf-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
     }
 
-    .fullscreen-charts .sidebar-toggle,
-    .fullscreen-charts .fullscreen-toggle {
-        z-index: 1001;
+    .sf-table tr:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-table-link {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-table-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Status badges */
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+
+    .sf-badge-new { background: #e8f4ff; color: #0176d3; }
+    .sf-badge-progress { background: #fef3cd; color: #856404; }
+    .sf-badge-resolved { background: #d4edda; color: #155724; }
+    .sf-badge-high { background: #f8d7da; color: #721c24; }
+    .sf-badge-medium { background: #fff3cd; color: #856404; }
+    .sf-badge-low { background: #d1ecf1; color: #0c5460; }
+
+    /* Loading spinner */
+    .sf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--sf-gray-200);
+        border-top-color: var(--sf-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Toggle sidebar button */
+    .sf-toggle-sidebar {
+        position: fixed;
+        left: 290px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 48px;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        transition: left 0.2s ease;
+    }
+
+    .sf-toggle-sidebar.collapsed {
+        left: 0;
+    }
+
+    .sf-toggle-sidebar:hover {
+        background: var(--sf-gray-100);
+    }
+
+    /* Group by selector */
+    .sf-groupby {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-groupby-label {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-groupby-select {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        background: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .sf-summary-cards {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sf-sidebar {
+            position: fixed;
+            left: 0;
+            top: 60px;
+            height: calc(100vh - 60px);
+            z-index: 200;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .sf-summary-cards {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* No data state */
+    .sf-no-data {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-no-data-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-6">
+<div class="sf-page">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow mb-6 p-6">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    <div class="sf-header">
+        <div class="sf-header-left">
+            <div class="sf-breadcrumb">
+                <a href="{{ url_for('reports.index') }}">Reports</a>
+                <span>/</span>
+                <span>Advanced Case Reports</span>
+            </div>
+        </div>
+        <div class="sf-header-actions">
+            <button class="sf-btn sf-btn-neutral" onclick="resetFilters()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
                 </svg>
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Advanced Case Reports</h1>
-                    <p class="text-gray-600">Build custom reports with flexible filtering and visualization options</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="resetFilters()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    Reset All
-                </button>
-                <button onclick="saveReport()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    Save Report
-                </button>
-                <button onclick="exportReport()" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
-                    Export Report
-                </button>
-            </div>
+                Reset All
+            </button>
+            <button class="sf-btn sf-btn-neutral" onclick="saveReport()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17,21 17,13 7,13 7,21"/>
+                    <polyline points="7,3 7,8 15,8"/>
+                </svg>
+                Save Report
+            </button>
+            <button class="sf-btn sf-btn-success" onclick="exportReport()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7,10 12,15 17,10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export Report
+            </button>
         </div>
     </div>
 
-    <!-- Toggle Buttons -->
-    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-        </svg>
-    </button>
-    
-    <button class="fullscreen-toggle" onclick="toggleFullscreen()" title="Toggle Fullscreen Charts">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-        </svg>
-    </button>
+    <!-- Main content -->
+    <div class="sf-content">
+        <!-- Filters sidebar -->
+        <div class="sf-sidebar" id="filterSidebar">
+            <div class="sf-sidebar-header">
+                <span class="sf-sidebar-title">Filters</span>
+                <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="applyFilters()">
+                    Apply
+                </button>
+            </div>
 
-    <!-- Report Builder Interface -->
-    <div class="report-builder-container" id="reportContainer">
-        <!-- Builder Panel -->
-        <div class="builder-panel">
             <!-- Date Range -->
-            <div class="filter-group">
-                <div class="filter-title">Date Range</div>
-                <div class="date-range-picker">
-                    <input type="date" id="startDate" class="date-input" />
-                    <input type="date" id="endDate" class="date-input" />
+            <div class="sf-date-range">
+                <label class="sf-date-label">Date Range</label>
+                <div class="sf-date-inputs">
+                    <input type="date" id="startDate" class="sf-date-input" onchange="updateDatePreset()">
+                    <input type="date" id="endDate" class="sf-date-input" onchange="updateDatePreset()">
                 </div>
-                <div class="flex gap-2 mt-2">
-                    <button onclick="setDateRange(7)" class="text-xs px-2 py-1 border rounded">7d</button>
-                    <button onclick="setDateRange(30)" class="text-xs px-2 py-1 border rounded">30d</button>
-                    <button onclick="setDateRange(90)" class="text-xs px-2 py-1 border rounded">90d</button>
-                    <button onclick="setDateRange(365)" class="text-xs px-2 py-1 border rounded">1y</button>
+                <div class="sf-date-presets">
+                    <button class="sf-date-preset" data-days="7" onclick="setDateRange(7)">7d</button>
+                    <button class="sf-date-preset active" data-days="30" onclick="setDateRange(30)">30d</button>
+                    <button class="sf-date-preset" data-days="90" onclick="setDateRange(90)">90d</button>
+                    <button class="sf-date-preset" data-days="365" onclick="setDateRange(365)">1y</button>
                 </div>
             </div>
 
             <!-- Status Filter -->
-            <div class="filter-group">
-                <div class="filter-title">Status</div>
-                <div id="statusFilters"></div>
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('status')">
+                    <span class="sf-filter-label">Status</span>
+                    <span class="sf-filter-count" id="statusCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="statusFilter"></div>
             </div>
 
             <!-- Priority Filter -->
-            <div class="filter-group">
-                <div class="filter-title">Priority</div>
-                <div id="priorityFilters"></div>
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('priority')">
+                    <span class="sf-filter-label">Priority</span>
+                    <span class="sf-filter-count" id="priorityCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="priorityFilter"></div>
             </div>
 
             <!-- Category Filter -->
-            <div class="filter-group">
-                <div class="filter-title">Category</div>
-                <div id="categoryFilters"></div>
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('category')">
+                    <span class="sf-filter-label">Category</span>
+                    <span class="sf-filter-count" id="categoryCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="categoryFilter"></div>
             </div>
 
             <!-- Assigned To Filter -->
-            <div class="filter-group">
-                <div class="filter-title">Assigned To</div>
-                <div id="assignedToFilters"></div>
-            </div>
-
-            <!-- Country Filter (if applicable) -->
-            <div class="filter-group">
-                <div class="filter-title">Country</div>
-                <div id="countryFilters"></div>
-            </div>
-
-            <!-- Group By Options -->
-            <div class="filter-group">
-                <div class="filter-title">Group By</div>
-                <select id="groupBy" class="w-full p-2 border rounded">
-                    <option value="status">Status</option>
-                    <option value="priority">Priority</option>
-                    <option value="category">Category</option>
-                    <option value="assigned_to">Assigned To</option>
-                    <option value="country">Country</option>
-                    <option value="created_date">Created Date</option>
-                    <option value="resolution_time">Resolution Time</option>
-                </select>
-            </div>
-
-            <!-- Chart Types -->
-            <div class="filter-group">
-                <div class="filter-title">Visualizations</div>
-                <div class="space-y-2">
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showSummary" checked class="filter-checkbox">
-                        <span class="text-sm">Summary Metrics</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showPieChart" checked class="filter-checkbox">
-                        <span class="text-sm">Pie Chart</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showBarChart" checked class="filter-checkbox">
-                        <span class="text-sm">Bar Chart</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showLineChart" class="filter-checkbox">
-                        <span class="text-sm">Trend Line</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showHeatmap" class="filter-checkbox">
-                        <span class="text-sm">Time Heatmap</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showTable" class="filter-checkbox">
-                        <span class="text-sm">Data Table</span>
-                    </label>
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('assignedTo')">
+                    <span class="sf-filter-label">Assigned To</span>
+                    <span class="sf-filter-count" id="assignedToCount">0</span>
                 </div>
+                <div class="sf-filter-content" id="assignedToFilter"></div>
             </div>
 
-            <!-- Apply Filters Button -->
-            <div class="filter-group">
-                <button onclick="testAPI()" class="apply-filters-btn" style="background: #f59e0b; margin-bottom: 0.5rem;">
-                    🔧 Test API
-                </button>
-                <button onclick="generatePreview()" class="apply-filters-btn" style="background: #10b981; margin-bottom: 0.5rem;">
-                    🔍 Preview Data
-                </button>
-                <button onclick="generateReport()" class="apply-filters-btn">
-                    Generate Report
-                </button>
-                <div class="export-options">
-                    <button onclick="exportCSV()" class="export-btn">CSV</button>
-                    <button onclick="exportExcel()" class="export-btn">Excel</button>
-                    <button onclick="exportPDF()" class="export-btn">PDF</button>
+            <!-- Country Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('country')">
+                    <span class="sf-filter-label">Country</span>
+                    <span class="sf-filter-count" id="countryCount">0</span>
                 </div>
-            </div>
-
-            <!-- Debug Info -->
-            <div class="filter-group" id="debugInfo" style="display: none;">
-                <div class="filter-title">Debug Information</div>
-                <div class="text-xs text-gray-600" id="debugDetails"></div>
+                <div class="sf-filter-content" id="countryFilter"></div>
             </div>
         </div>
 
-        <!-- Charts Area -->
-        <div class="charts-area" id="chartsArea">
-            <div class="loading-spinner" id="loadingSpinner">
-                <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generating report...
+        <!-- Toggle sidebar button -->
+        <button class="sf-toggle-sidebar" id="toggleSidebar" onclick="toggleSidebar()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
+                <polyline points="15,18 9,12 15,6"/>
+            </svg>
+        </button>
+
+        <!-- Main area -->
+        <div class="sf-main">
+            <!-- Preview header -->
+            <div class="sf-preview-header">
+                <div>
+                    <div class="sf-preview-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Data Preview
+                    </div>
+                    <div class="sf-preview-subtitle" id="ticketCountText">Found 0 tickets with your current filters</div>
+                </div>
+                <div class="sf-groupby">
+                    <span class="sf-groupby-label">Group by:</span>
+                    <select class="sf-groupby-select" id="groupBy" onchange="applyFilters()">
+                        <option value="status">Status</option>
+                        <option value="priority">Priority</option>
+                        <option value="category">Category</option>
+                        <option value="assigned_to">Assigned To</option>
+                        <option value="country">Country</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="no-data" id="noDataMessage" style="display: none;">
-                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No data available</h3>
-                <p class="text-gray-500">Try adjusting your filters or date range to see results.</p>
-                <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
-                    Reset Filters
-                </button>
+            <!-- Summary cards -->
+            <div class="sf-summary-cards">
+                <div class="sf-summary-card highlight">
+                    <div class="sf-summary-label">Total Tickets</div>
+                    <div class="sf-summary-value blue" id="totalTickets">0</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Resolved</div>
+                    <div class="sf-summary-value green" id="resolvedTickets">0</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Open</div>
+                    <div class="sf-summary-value orange" id="openTickets">0</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Resolution Rate</div>
+                    <div class="sf-summary-value" id="resolutionRate">0%</div>
+                    <div class="sf-summary-subtitle">Based on selected filters</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="sf-chart-container">
+                <div class="sf-chart-header">
+                    <span class="sf-chart-title">Distribution by <span id="chartGroupLabel">status</span></span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('pie')" id="btnPie">
+                            Pie
+                        </button>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('bar')" id="btnBar">
+                            Bar
+                        </button>
+                    </div>
+                </div>
+                <div class="sf-chart-body">
+                    <canvas id="mainChart"></canvas>
+                    <div class="sf-loading" id="chartLoading" style="display: none;">
+                        <div class="sf-spinner"></div>
+                    </div>
+                    <div class="sf-no-data" id="chartNoData" style="display: none;">
+                        <svg class="sf-no-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <span>No data available for the selected filters</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data table -->
+            <div class="sf-table-container">
+                <div class="sf-table-header">
+                    <span class="sf-table-title">Ticket Details</span>
+                    <span style="font-size: 0.8125rem; color: var(--sf-gray-600);">Showing first 100 results</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="sf-table">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Category</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="7" class="sf-loading">
+                                    <div class="sf-spinner"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -613,1046 +801,391 @@
 
 <script>
 // Global variables
-let currentCharts = {};
-let reportData = {};
-let availableFilters = {};
+let mainChart = null;
+let reportData = null;
+let currentChartType = 'pie';
+let filterOptions = {};
 
-// Color schemes
-const colorSchemes = {
-    salesforce: ['#1B96FF', '#032D60', '#0176D3', '#57A4FB', '#78B8FD', '#FF538A', '#CB2039', '#E34850', '#FF7A8A', '#FFA0B4'],
-    tableau: ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948', '#AF7AA1', '#FF9DA7', '#9C755F', '#BAB0AC'],
-    material: ['#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107']
-};
+// Color palette
+const colors = [
+    '#0176d3', '#1b96ff', '#3ba755', '#fe9339', '#ea001e',
+    '#9050e9', '#04844b', '#ff538a', '#00b4d8', '#7c868d'
+];
 
-// Initialize the report builder
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     initializeDateRange();
-    loadAvailableFilters();
-
-    // Auto-generate preview on load
-    setTimeout(() => {
-        generatePreview();
-    }, 1000);
+    loadFilters();
 });
 
+// Set initial date range to last 30 days
 function initializeDateRange() {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-
-    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+    setDateRange(30);
 }
 
+// Set date range based on days
 function setDateRange(days) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
 
-    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+    document.getElementById('startDate').value = start.toISOString().split('T')[0];
+    document.getElementById('endDate').value = end.toISOString().split('T')[0];
+
+    // Update preset buttons
+    document.querySelectorAll('.sf-date-preset').forEach(btn => {
+        btn.classList.remove('active');
+        if (parseInt(btn.dataset.days) === days) {
+            btn.classList.add('active');
+        }
+    });
+
+    applyFilters();
 }
 
-async function loadAvailableFilters() {
+// Update preset selection when dates change manually
+function updateDatePreset() {
+    document.querySelectorAll('.sf-date-preset').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    applyFilters();
+}
+
+// Load filter options from API
+async function loadFilters() {
     try {
         const response = await fetch('/reports/api/filters');
         const data = await response.json();
 
-        if (!data.success && data.error) {
-            showError(`Failed to load filters: ${data.error}`);
-            showDebugInfo(`Filter API Error: ${data.error}`);
+        if (data.success) {
+            filterOptions = data;
+            populateFilter('statusFilter', data.statuses, 'status');
+            populateFilter('priorityFilter', data.priorities, 'priority');
+            populateFilter('categoryFilter', data.categories, 'category');
+            populateFilter('assignedToFilter', data.users, 'assignedTo');
+            populateFilter('countryFilter', data.countries, 'country');
         }
-
-        availableFilters = data;
-
-        populateFilterOptions('statusFilters', availableFilters.statuses || []);
-        populateFilterOptions('priorityFilters', availableFilters.priorities || []);
-        populateFilterOptions('categoryFilters', availableFilters.categories || []);
-        populateFilterOptions('assignedToFilters', availableFilters.users || []);
-        populateFilterOptions('countryFilters', availableFilters.countries || []);
-
-        showDebugInfo(`Loaded filters successfully. Statuses: ${availableFilters.statuses?.length}, Categories: ${availableFilters.categories?.length}`);
     } catch (error) {
-        console.error('Failed to load filter options:', error);
-        showError(`Network error loading filters: ${error.message}`);
-        showDebugInfo(`Network Error: ${error.message}`);
+        console.error('Error loading filters:', error);
     }
 }
 
-function populateFilterOptions(containerId, options) {
+// Populate a filter section
+function populateFilter(containerId, options, filterType) {
     const container = document.getElementById(containerId);
-    container.innerHTML = '';
+    const countEl = document.getElementById(filterType + 'Count');
 
-    // Add "Select All" option
-    const selectAllDiv = document.createElement('div');
-    selectAllDiv.className = 'filter-item';
-    selectAllDiv.innerHTML = `
-        <label class="flex items-center text-sm">
-            <input type="checkbox" class="filter-checkbox select-all" onchange="toggleAllFilters('${containerId}', this); autoPreview();">
-            <span class="font-medium">Select All</span>
+    if (countEl) {
+        countEl.textContent = options.length;
+    }
+
+    container.innerHTML = options.map(opt => `
+        <label class="sf-checkbox-item">
+            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" checked>
+            <span>${opt.label}</span>
+            <span class="count">${opt.count}</span>
         </label>
-    `;
-    container.appendChild(selectAllDiv);
-
-    // Add individual options
-    options.forEach(option => {
-        const div = document.createElement('div');
-        div.className = 'filter-item';
-        div.innerHTML = `
-            <label class="flex items-center text-sm">
-                <input type="checkbox" class="filter-checkbox" value="${option.value || option}" checked onchange="autoPreview();">
-                <span>${option.label || option}</span>
-            </label>
-            <span class="text-xs text-gray-500">${option.count || ''}</span>
-        `;
-        container.appendChild(div);
-    });
+    `).join('');
 }
 
-function toggleAllFilters(containerId, selectAllCheckbox) {
-    const container = document.getElementById(containerId);
-    const checkboxes = container.querySelectorAll('.filter-checkbox:not(.select-all)');
-
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
-    });
+// Toggle filter section
+function toggleFilter(filterName) {
+    const content = document.getElementById(filterName + 'Filter');
+    content.classList.toggle('collapsed');
 }
 
-async function generatePreview() {
-    try {
-        console.log('generatePreview() called');
-        const filters = getSelectedFilters();
-        console.log('Filters:', filters);
-        showDebugInfo(`Preview filters: ${JSON.stringify(filters, null, 2)}`);
+// Toggle sidebar
+function toggleSidebar() {
+    const sidebar = document.getElementById('filterSidebar');
+    const toggle = document.getElementById('toggleSidebar');
+    const icon = document.getElementById('toggleIcon');
 
-        showDebugInfo('Making API call to /reports/api/case-data...');
-        const response = await fetch('/reports/api/case-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(filters)
-        });
+    sidebar.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed');
 
-        showDebugInfo(`Response status: ${response.status}`);
-        showDebugInfo(`Response headers: ${JSON.stringify([...response.headers])}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            showError(`API Error: ${response.status} ${response.statusText}\n${errorText}`);
-            showDebugInfo(`Error response body: ${errorText}`);
-            return;
-        }
-
-        const data = await response.json();
-        console.log('API Response:', data);
-
-        if (!data.success && data.error) {
-            showError(`Preview failed: ${data.error}`);
-            showDebugInfo(`API Error: ${data.error}`);
-            return;
-        }
-
-        showDebugInfo(`Preview successful! Found ${data.total} tickets. Summary: ${JSON.stringify(data.summary)}`);
-
-        // Show a preview of the data in the charts area
-        displayPreviewResults(data);
-
-    } catch (error) {
-        console.error('Failed to generate preview:', error);
-        showError(`Network error during preview: ${error.message}`);
-        showDebugInfo(`Network Error: ${error.message}`);
-        showDebugInfo(`Error stack: ${error.stack}`);
+    if (sidebar.classList.contains('collapsed')) {
+        icon.innerHTML = '<polyline points="9,18 15,12 9,6"/>';
+    } else {
+        icon.innerHTML = '<polyline points="15,18 9,12 15,6"/>';
     }
 }
 
-function displayPreviewResults(data) {
-    const chartsArea = document.getElementById('chartsArea');
-    chartsArea.innerHTML = `
-        <div class="chart-container">
-            <div class="chart-header">
-                <h3 class="chart-title">🔍 Data Preview</h3>
-                <p class="chart-subtitle">Found ${data.total} tickets with your current filters</p>
-            </div>
-            <div class="chart-body" style="padding: 2rem;">
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-lg text-center">
-                        <div class="text-2xl font-bold text-blue-600">${data.total || 0}</div>
-                        <div class="text-sm text-blue-800">Total Tickets</div>
-                    </div>
-                    <div class="bg-green-50 p-4 rounded-lg text-center">
-                        <div class="text-2xl font-bold text-green-600">${data.summary?.resolved || 0}</div>
-                        <div class="text-sm text-green-800">Resolved</div>
-                    </div>
-                    <div class="bg-yellow-50 p-4 rounded-lg text-center">
-                        <div class="text-2xl font-bold text-yellow-600">${data.summary?.open || 0}</div>
-                        <div class="text-sm text-yellow-800">Open</div>
-                    </div>
-                    <div class="bg-purple-50 p-4 rounded-lg text-center">
-                        <div class="text-2xl font-bold text-purple-600">${data.summary?.resolution_rate || 0}%</div>
-                        <div class="text-sm text-purple-800">Resolution Rate</div>
-                    </div>
-                </div>
-
-                <!-- Preview Charts - Full Width Dashboard Style -->
-                <div class="space-y-0 mb-8">
-                    <!-- Grouped Data Chart -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <div class="flex items-center">
-                                <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                                <div>
-                                    <h4 class="chart-title">Distribution by ${getSelectedGroupBy()}</h4>
-                                    <p class="text-gray-600 text-sm mt-1">Breakdown of tickets by selected grouping</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="previewChart1"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Timeline Chart -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <div class="flex items-center">
-                                <svg class="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                                </svg>
-                                <div>
-                                    <h4 class="chart-title">Tickets Over Time</h4>
-                                    <p class="text-gray-600 text-sm mt-1">Timeline showing ticket creation trends</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="previewChart2"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="text-center">
-                    <button onclick="generateReport()" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 mr-3">
-                        ✨ Generate Full Report
-                    </button>
-                    <button onclick="generatePreview()" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
-                        🔄 Refresh Preview
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Create charts
-    setTimeout(() => {
-        createPreviewCharts(data);
-    }, 100);
-}
-
-function createPreviewCharts(data) {
-    const groupBy = getSelectedGroupBy();
-    const groupedData = data.groupedData && data.groupedData[groupBy] ? data.groupedData[groupBy] : {};
-
-    const pieChartConfig = {
-        type: 'pie',
-        data: {
-            labels: Object.keys(groupedData),
-            datasets: [{
-                data: Object.values(groupedData),
-                backgroundColor: [
-                    '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
-                    '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
-                ],
-                borderWidth: 3,
-                borderColor: '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 25,
-                        padding: 25,
-                        font: {
-                            size: 16
-                        },
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    titleFont: {
-                        size: 18
-                    },
-                    bodyFont: {
-                        size: 16
-                    },
-                    padding: 15
-                }
-            },
-            elements: {
-                arc: {
-                    borderWidth: 3
-                }
-            }
-        }
-    };
-
-    // Chart 1: Grouped Data
-    const ctx1 = document.getElementById('previewChart1');
-    if (ctx1) {
-        new Chart(ctx1, pieChartConfig);
-    }
-
-    // Timeline Chart Configuration
-    const timelineConfig = {
-        type: 'line',
-        data: {
-            labels: data.timelineData ? Object.keys(data.timelineData).sort() : [],
-            datasets: [{
-                label: 'Tickets Created',
-                data: data.timelineData ? Object.keys(data.timelineData).sort().map(date => data.timelineData[date]) : [],
-                borderColor: '#3B82F6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    display: true,
-                    ticks: {
-                        maxTicksLimit: 8,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        font: {
-                            size: 12
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            elements: {
-                point: {
-                    radius: 5,
-                    hoverRadius: 8
-                },
-                line: {
-                    borderWidth: 4
-                }
-            }
-        }
-    };
-
-    // Chart 2: Timeline (Desktop)
-    const ctx2 = document.getElementById('previewChart2');
-    if (ctx2 && data.timelineData) {
-        new Chart(ctx2, timelineConfig);
-    }
-
-    // Chart 2: Timeline (Mobile)
-    const ctx2Mobile = document.getElementById('previewChart2Mobile');
-    if (ctx2Mobile && data.timelineData) {
-        new Chart(ctx2Mobile, timelineConfig);
-    }
-}
-
-function getSelectedGroupBy() {
-    return document.getElementById('groupBy').value || 'status';
-}
-
-// Auto-preview with debouncing to avoid too many API calls
-let autoPreviewTimeout;
-function autoPreview() {
-    clearTimeout(autoPreviewTimeout);
-    autoPreviewTimeout = setTimeout(() => {
-        generatePreview();
-    }, 1000); // Wait 1 second after last change before auto-previewing
-}
-
-// Add listeners for date and groupBy changes
-document.addEventListener('DOMContentLoaded', function() {
-    // Add listeners after elements are loaded
-    setTimeout(() => {
-        const startDate = document.getElementById('startDate');
-        const endDate = document.getElementById('endDate');
-        const groupBy = document.getElementById('groupBy');
-
-        if (startDate) startDate.addEventListener('change', autoPreview);
-        if (endDate) endDate.addEventListener('change', autoPreview);
-        if (groupBy) groupBy.addEventListener('change', autoPreview);
-
-        // Generate initial preview
-        setTimeout(autoPreview, 2000);
-    }, 1000);
-});
-
-async function generateReport() {
-    showLoading();
-
-    try {
-        console.log('generateReport() called');
-        const filters = getSelectedFilters();
-        console.log('Report filters:', filters);
-        showDebugInfo(`Generating report with filters: ${JSON.stringify(filters, null, 2)}`);
-
-        showDebugInfo('Making API call for full report...');
-        const response = await fetch('/reports/api/case-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(filters)
-        });
-
-        showDebugInfo(`Report response status: ${response.status}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            showError(`Report API Error: ${response.status} ${response.statusText}\n${errorText}`);
-            showDebugInfo(`Report error response body: ${errorText}`);
-            hideLoading();
-            return;
-        }
-
-        reportData = await response.json();
-        console.log('Report API Response:', reportData);
-
-        showDebugInfo(`API Response: ${JSON.stringify(reportData, null, 2)}`);
-
-        if (!reportData.success && reportData.error) {
-            showError(`Report generation failed: ${reportData.error}`);
-            hideLoading();
-            return;
-        }
-
-        if (reportData.total === 0) {
-            showNoData();
-            return;
-        }
-
-        renderCharts();
-        hideLoading();
-        showDebugInfo(`Report generated successfully with ${reportData.total} tickets`);
-    } catch (error) {
-        console.error('Failed to generate report:', error);
-        hideLoading();
-        showError(`Network error: ${error.message}`);
-        showDebugInfo(`Network Error: ${error.message}`);
-    }
-}
-
+// Get selected filter values
 function getSelectedFilters() {
-    return {
+    const filters = {
         startDate: document.getElementById('startDate').value,
         endDate: document.getElementById('endDate').value,
-        statuses: getCheckedValues('statusFilters'),
-        priorities: getCheckedValues('priorityFilters'),
-        categories: getCheckedValues('categoryFilters'),
-        assignedTo: getCheckedValues('assignedToFilters'),
-        countries: getCheckedValues('countryFilters'),
-        groupBy: document.getElementById('groupBy').value
+        groupBy: document.getElementById('groupBy').value,
+        statuses: [],
+        priorities: [],
+        categories: [],
+        assignedTo: [],
+        countries: []
     };
-}
 
-function getCheckedValues(containerId) {
-    const container = document.getElementById(containerId);
-    const checkboxes = container.querySelectorAll('.filter-checkbox:not(.select-all):checked');
-    return Array.from(checkboxes).map(cb => cb.value);
-}
-
-function renderCharts() {
-    const chartsArea = document.getElementById('chartsArea');
-    chartsArea.innerHTML = '';
-
-    // Clear existing charts
-    Object.values(currentCharts).forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
-            chart.destroy();
-        }
+    document.querySelectorAll('input[data-filter="status"]:checked').forEach(cb => {
+        filters.statuses.push(cb.value);
     });
-    currentCharts = {};
-
-    // Render based on selected visualizations
-    if (document.getElementById('showSummary').checked) {
-        renderSummaryMetrics();
-    }
-
-    if (document.getElementById('showPieChart').checked) {
-        renderPieChart();
-    }
-
-    if (document.getElementById('showBarChart').checked) {
-        renderBarChart();
-    }
-
-    if (document.getElementById('showLineChart').checked) {
-        renderLineChart();
-    }
-
-    if (document.getElementById('showHeatmap').checked) {
-        renderHeatmap();
-    }
-
-    if (document.getElementById('showTable').checked) {
-        renderDataTable();
-    }
-}
-
-function renderSummaryMetrics() {
-    const container = createChartContainer('Summary Metrics', '');
-    container.querySelector('.chart-body').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 h-full">
-            <div class="metric-card bg-gradient-to-br from-blue-500 to-blue-600">
-                <div class="metric-value">${reportData.summary.total}</div>
-                <div class="metric-label">Total Cases</div>
-            </div>
-            <div class="metric-card bg-gradient-to-br from-green-500 to-green-600">
-                <div class="metric-value">${reportData.summary.resolved}</div>
-                <div class="metric-label">Resolved Cases</div>
-            </div>
-            <div class="metric-card bg-gradient-to-br from-orange-500 to-orange-600">
-                <div class="metric-value">${reportData.summary.open}</div>
-                <div class="metric-label">Open Cases</div>
-            </div>
-            <div class="metric-card bg-gradient-to-br from-purple-500 to-purple-600">
-                <div class="metric-value">${reportData.summary.resolution_rate}%</div>
-                <div class="metric-label">Resolution Rate</div>
-            </div>
-        </div>
-    `;
-}
-
-function renderPieChart() {
-    const groupBy = document.getElementById('groupBy').value;
-    const data = reportData.groupedData[groupBy] || {};
-
-    const container = createChartContainer(`Distribution by ${groupBy.replace('_', ' ').toUpperCase()}`, 'pie');
-    const canvas = container.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-
-    currentCharts.pie = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(data),
-            datasets: [{
-                data: Object.values(data),
-                backgroundColor: colorSchemes.salesforce,
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        padding: 15,
-                        usePointStyle: true
-                    }
-                }
-            }
-        }
+    document.querySelectorAll('input[data-filter="priority"]:checked').forEach(cb => {
+        filters.priorities.push(cb.value);
     });
-}
-
-function renderBarChart() {
-    const groupBy = document.getElementById('groupBy').value;
-    const data = reportData.groupedData[groupBy] || {};
-
-    const container = createChartContainer(`Count by ${groupBy.replace('_', ' ').toUpperCase()}`, 'bar');
-    const canvas = container.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-
-    currentCharts.bar = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: Object.keys(data),
-            datasets: [{
-                label: 'Number of Cases',
-                data: Object.values(data),
-                backgroundColor: colorSchemes.tableau[0],
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                }
-            }
-        }
+    document.querySelectorAll('input[data-filter="category"]:checked').forEach(cb => {
+        filters.categories.push(cb.value);
     });
-}
-
-function renderLineChart() {
-    const data = reportData.timelineData || {};
-
-    const container = createChartContainer('Cases Over Time', 'line');
-    const canvas = container.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-
-    const labels = Object.keys(data).sort();
-    const values = labels.map(label => data[label]);
-
-    currentCharts.line = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Cases Created',
-                data: values,
-                borderColor: colorSchemes.material[0],
-                backgroundColor: colorSchemes.material[0] + '20',
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'day'
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                }
-            }
-        }
+    document.querySelectorAll('input[data-filter="assignedTo"]:checked').forEach(cb => {
+        filters.assignedTo.push(cb.value);
     });
-}
-
-function renderHeatmap() {
-    const container = createChartContainer('Activity Heatmap', '');
-    container.querySelector('.chart-body').innerHTML = `
-        <div class="h-full flex items-center justify-center text-gray-500">
-            <div class="text-center">
-                <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <p>Heatmap visualization coming soon</p>
-            </div>
-        </div>
-    `;
-}
-
-function renderDataTable() {
-    const data = reportData.tableData || [];
-
-    const container = createChartContainer('Detailed Data', '');
-
-    let tableHTML = `
-        <div class="h-full overflow-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 sticky top-0">
-                    <tr>
-                        <th class="px-4 py-2 text-left">Case ID</th>
-                        <th class="px-4 py-2 text-left">Subject</th>
-                        <th class="px-4 py-2 text-left">Status</th>
-                        <th class="px-4 py-2 text-left">Priority</th>
-                        <th class="px-4 py-2 text-left">Category</th>
-                        <th class="px-4 py-2 text-left">Created</th>
-                        <th class="px-4 py-2 text-left">Assigned To</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    data.forEach(row => {
-        tableHTML += `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="px-4 py-2 font-mono">${row.case_id}</td>
-                <td class="px-4 py-2">${row.subject}</td>
-                <td class="px-4 py-2">
-                    <span class="px-2 py-1 text-xs rounded-full bg-${getStatusColor(row.status)}-100 text-${getStatusColor(row.status)}-800">
-                        ${row.status}
-                    </span>
-                </td>
-                <td class="px-4 py-2">
-                    <span class="px-2 py-1 text-xs rounded-full bg-${getPriorityColor(row.priority)}-100 text-${getPriorityColor(row.priority)}-800">
-                        ${row.priority}
-                    </span>
-                </td>
-                <td class="px-4 py-2">${row.category}</td>
-                <td class="px-4 py-2">${new Date(row.created_at).toLocaleDateString()}</td>
-                <td class="px-4 py-2">${row.assigned_to || 'Unassigned'}</td>
-            </tr>
-        `;
+    document.querySelectorAll('input[data-filter="country"]:checked').forEach(cb => {
+        filters.countries.push(cb.value);
     });
 
-    tableHTML += '</tbody></table></div>';
-    container.querySelector('.chart-body').innerHTML = tableHTML;
+    return filters;
 }
 
-function createChartContainer(title, chartType) {
-    const chartsArea = document.getElementById('chartsArea');
-    const container = document.createElement('div');
-    container.className = 'chart-container';
-    container.innerHTML = `
-        <div class="chart-header">
-            <h3 class="chart-title">${title}</h3>
-            <div class="chart-options">
-                ${chartType ? `
-                    <select class="chart-type-selector" onchange="changeChartType(this, '${chartType}')">
-                        <option value="pie" ${chartType === 'pie' ? 'selected' : ''}>Pie</option>
-                        <option value="bar" ${chartType === 'bar' ? 'selected' : ''}>Bar</option>
-                        <option value="line" ${chartType === 'line' ? 'selected' : ''}>Line</option>
-                        <option value="doughnut" ${chartType === 'doughnut' ? 'selected' : ''}>Donut</option>
-                    </select>
-                ` : ''}
-                <button class="chart-option-btn" onclick="exportChartImage(this)">📷</button>
-                <button class="chart-option-btn" onclick="removeChart(this)">✕</button>
-            </div>
-        </div>
-        <div class="chart-body">
-            ${chartType ? '<canvas class="chart-canvas"></canvas>' : ''}
-        </div>
-    `;
-    chartsArea.appendChild(container);
-    return container;
-}
+// Apply filters and fetch data
+async function applyFilters() {
+    const filters = getSelectedFilters();
 
-// Utility functions
-function getStatusColor(status) {
-    const colors = {
-        'New': 'blue',
-        'In Progress': 'yellow',
-        'Resolved': 'green',
-        'On Hold': 'orange'
-    };
-    return colors[status] || 'gray';
-}
+    // Show loading
+    document.getElementById('chartLoading').style.display = 'flex';
+    document.getElementById('chartNoData').style.display = 'none';
+    if (mainChart) {
+        mainChart.destroy();
+        mainChart = null;
+    }
 
-function getPriorityColor(priority) {
-    const colors = {
-        'Low': 'green',
-        'Medium': 'yellow',
-        'High': 'orange',
-        'Critical': 'red'
-    };
-    return colors[priority] || 'gray';
-}
-
-function showLoading() {
-    document.getElementById('loadingSpinner').style.display = 'block';
-    document.getElementById('noDataMessage').style.display = 'none';
-}
-
-function hideLoading() {
-    document.getElementById('loadingSpinner').style.display = 'none';
-}
-
-function showNoData() {
-    hideLoading();
-    document.getElementById('noDataMessage').style.display = 'block';
-}
-
-function showError(message) {
-    hideLoading();
-
-    // Create a more user-friendly error display
-    const chartsArea = document.getElementById('chartsArea');
-    chartsArea.innerHTML = `
-        <div class="chart-container">
-            <div class="chart-header">
-                <h3 class="chart-title">❌ Error</h3>
-            </div>
-            <div class="chart-body" style="padding: 2rem; text-align: center;">
-                <div class="text-red-600 mb-4">
-                    <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
-                    <p class="text-gray-600">${message}</p>
-                </div>
-                <div class="flex gap-2 justify-center">
-                    <button onclick="generatePreview()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                        🔍 Try Preview
-                    </button>
-                    <button onclick="resetFilters()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                        🔄 Reset Filters
-                    </button>
-                    <button onclick="toggleDebug()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
-                        🐛 Show Debug
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function showDebugInfo(message) {
-    console.log('DEBUG:', message);
-    document.getElementById('debugDetails').innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
-}
-
-function toggleDebug() {
-    const debugInfo = document.getElementById('debugInfo');
-    debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
-}
-
-async function testAPI() {
-    console.log('testAPI() called');
-    showDebugInfo('Testing API endpoints...');
-
-    // Test 1: Check if filters API works
     try {
-        showDebugInfo('Testing /reports/api/filters...');
-        const filtersResponse = await fetch('/reports/api/filters');
-        showDebugInfo(`Filters API status: ${filtersResponse.status}`);
-
-        if (filtersResponse.ok) {
-            const filtersData = await filtersResponse.json();
-            showDebugInfo(`Filters API success: Found ${filtersData.statuses?.length || 0} statuses, ${filtersData.categories?.length || 0} categories`);
-        } else {
-            const errorText = await filtersResponse.text();
-            showDebugInfo(`Filters API error: ${errorText}`);
-        }
-    } catch (error) {
-        showDebugInfo(`Filters API error: ${error.message}`);
-    }
-
-    // Test 2: Check if case-data API works with minimal data
-    try {
-        showDebugInfo('Testing /reports/api/case-data...');
-        const testFilters = {
-            startDate: '2024-01-01',
-            endDate: '2024-12-31',
-            statuses: [],
-            priorities: [],
-            categories: [],
-            assignedTo: [],
-            countries: [],
-            groupBy: 'status'
-        };
-
         const response = await fetch('/reports/api/case-data', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
             },
-            body: JSON.stringify(testFilters)
+            body: JSON.stringify(filters)
         });
 
-        showDebugInfo(`Case-data API status: ${response.status}`);
+        const data = await response.json();
+        reportData = data;
 
-        if (response.ok) {
-            const data = await response.json();
-            showDebugInfo(`Case-data API success: Found ${data.total || 0} tickets`);
-            console.log('Case-data response:', data);
-        } else {
-            const errorText = await response.text();
-            showDebugInfo(`Case-data API error: ${errorText}`);
-            console.error('Case-data error:', errorText);
-        }
+        // Update UI
+        updateSummaryCards(data.summary);
+        updateChart(data.groupedData, filters.groupBy);
+        updateTable(data.tableData);
+
+        // Update count text
+        document.getElementById('ticketCountText').textContent =
+            `Found ${data.total} tickets with your current filters`;
+
+        // Update chart label
+        document.getElementById('chartGroupLabel').textContent = filters.groupBy.replace('_', ' ');
+
     } catch (error) {
-        showDebugInfo(`Case-data API error: ${error.message}`);
-        console.error('Case-data error:', error);
+        console.error('Error fetching data:', error);
+        document.getElementById('chartLoading').style.display = 'none';
+        document.getElementById('chartNoData').style.display = 'flex';
     }
-
-    // Show debug info automatically
-    document.getElementById('debugInfo').style.display = 'block';
-    showDebugInfo('API tests completed. Check console for more details.');
 }
 
-function resetFilters() {
-    // Reset all checkboxes
-    document.querySelectorAll('.filter-checkbox:not(.select-all)').forEach(cb => cb.checked = true);
-    document.querySelectorAll('.select-all').forEach(cb => cb.checked = true);
+// Update summary cards
+function updateSummaryCards(summary) {
+    document.getElementById('totalTickets').textContent = summary.total.toLocaleString();
+    document.getElementById('resolvedTickets').textContent = summary.resolved.toLocaleString();
+    document.getElementById('openTickets').textContent = summary.open.toLocaleString();
+    document.getElementById('resolutionRate').textContent = summary.resolution_rate + '%';
 
-    // Reset date range
-    initializeDateRange();
-
-    // Reset group by
-    document.getElementById('groupBy').value = 'status';
-
-    // Reset visualizations
-    document.getElementById('showSummary').checked = true;
-    document.getElementById('showPieChart').checked = true;
-    document.getElementById('showBarChart').checked = true;
-    document.getElementById('showLineChart').checked = false;
-    document.getElementById('showHeatmap').checked = false;
-    document.getElementById('showTable').checked = false;
-
-    generateReport();
+    // Color the resolution rate
+    const rateEl = document.getElementById('resolutionRate');
+    rateEl.className = 'sf-summary-value';
+    if (summary.resolution_rate >= 80) {
+        rateEl.classList.add('green');
+    } else if (summary.resolution_rate >= 50) {
+        rateEl.classList.add('orange');
+    } else {
+        rateEl.classList.add('red');
+    }
 }
 
-function exportCSV() {
-    if (!reportData.tableData) {
-        alert('No data available to export');
+// Update chart
+function updateChart(groupedData, groupBy) {
+    document.getElementById('chartLoading').style.display = 'none';
+
+    const data = groupedData[groupBy] || {};
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+
+    if (labels.length === 0) {
+        document.getElementById('chartNoData').style.display = 'flex';
         return;
     }
 
-    const csv = convertToCSV(reportData.tableData);
-    downloadFile(csv, 'case_report.csv', 'text/csv');
-}
+    document.getElementById('chartNoData').style.display = 'none';
 
-function exportExcel() {
-    alert('Excel export feature coming soon');
-}
+    const ctx = document.getElementById('mainChart').getContext('2d');
 
-function exportPDF() {
-    alert('PDF export feature coming soon');
-}
-
-function convertToCSV(data) {
-    if (!data.length) return '';
-
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-        headers.join(','),
-        ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-    ].join('\n');
-
-    return csvContent;
-}
-
-function downloadFile(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.URL.revokeObjectURL(url);
-}
-
-function saveReport() {
-    const filters = getSelectedFilters();
-    const reportConfig = {
-        filters: filters,
-        visualizations: {
-            showSummary: document.getElementById('showSummary').checked,
-            showPieChart: document.getElementById('showPieChart').checked,
-            showBarChart: document.getElementById('showBarChart').checked,
-            showLineChart: document.getElementById('showLineChart').checked,
-            showHeatmap: document.getElementById('showHeatmap').checked,
-            showTable: document.getElementById('showTable').checked
+    const chartConfig = {
+        type: currentChartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: currentChartType === 'bar' ? colors.slice(0, labels.length) : 'white',
+                borderWidth: currentChartType === 'bar' ? 0 : 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: currentChartType === 'pie',
+                    position: 'right'
+                }
+            },
+            scales: currentChartType === 'bar' ? {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            } : {}
         }
     };
 
-    localStorage.setItem('savedCaseReport', JSON.stringify(reportConfig));
+    if (mainChart) {
+        mainChart.destroy();
+    }
+    mainChart = new Chart(ctx, chartConfig);
+
+    // Update button states
+    document.getElementById('btnPie').classList.toggle('sf-btn-brand', currentChartType === 'pie');
+    document.getElementById('btnPie').classList.toggle('sf-btn-neutral', currentChartType !== 'pie');
+    document.getElementById('btnBar').classList.toggle('sf-btn-brand', currentChartType === 'bar');
+    document.getElementById('btnBar').classList.toggle('sf-btn-neutral', currentChartType !== 'bar');
+}
+
+// Set chart type
+function setChartType(type) {
+    currentChartType = type;
+    if (reportData && reportData.groupedData) {
+        updateChart(reportData.groupedData, document.getElementById('groupBy').value);
+    }
+}
+
+// Update data table
+function updateTable(tableData) {
+    const tbody = document.getElementById('tableBody');
+
+    if (!tableData || tableData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: var(--sf-gray-600);">
+                    No tickets found matching your filters
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = tableData.map(ticket => `
+        <tr>
+            <td><a href="/tickets/${ticket.case_id}" class="sf-table-link">${ticket.case_id}</a></td>
+            <td>${escapeHtml(ticket.subject)}</td>
+            <td><span class="sf-badge ${getStatusBadgeClass(ticket.status)}">${ticket.status}</span></td>
+            <td><span class="sf-badge ${getPriorityBadgeClass(ticket.priority)}">${ticket.priority}</span></td>
+            <td>${escapeHtml(ticket.category)}</td>
+            <td>${ticket.assigned_to || '-'}</td>
+            <td>${formatDate(ticket.created_at)}</td>
+        </tr>
+    `).join('');
+}
+
+// Get status badge class
+function getStatusBadgeClass(status) {
+    if (!status) return '';
+    const s = status.toLowerCase();
+    if (s.includes('new')) return 'sf-badge-new';
+    if (s.includes('progress')) return 'sf-badge-progress';
+    if (s.includes('resolved') || s.includes('closed')) return 'sf-badge-resolved';
+    return '';
+}
+
+// Get priority badge class
+function getPriorityBadgeClass(priority) {
+    if (!priority) return '';
+    const p = priority.toLowerCase();
+    if (p.includes('high') || p.includes('critical')) return 'sf-badge-high';
+    if (p.includes('medium')) return 'sf-badge-medium';
+    if (p.includes('low')) return 'sf-badge-low';
+    return '';
+}
+
+// Format date
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Reset filters
+function resetFilters() {
+    // Check all checkboxes
+    document.querySelectorAll('.sf-filter-content input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+
+    // Reset date to last 30 days
+    setDateRange(30);
+
+    // Reset group by
+    document.getElementById('groupBy').value = 'status';
+}
+
+// Save report
+function saveReport() {
+    const filters = getSelectedFilters();
+    localStorage.setItem('savedReport', JSON.stringify(filters));
     alert('Report configuration saved!');
 }
 
+// Export report
 function exportReport() {
-    exportCSV();
-}
-
-// Toggle Functions for Dashboard Mode
-function toggleSidebar() {
-    const container = document.getElementById('reportContainer');
-    const toggle = document.querySelector('.sidebar-toggle');
-    
-    if (container.classList.contains('sidebar-hidden')) {
-        container.classList.remove('sidebar-hidden');
-        toggle.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
-        `;
-        toggle.title = "Hide Sidebar";
-    } else {
-        container.classList.add('sidebar-hidden');
-        toggle.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-        `;
-        toggle.title = "Show Sidebar";
+    if (!reportData || !reportData.tableData || reportData.tableData.length === 0) {
+        alert('No data to export');
+        return;
     }
+
+    // Create CSV
+    const headers = ['Case ID', 'Subject', 'Status', 'Priority', 'Category', 'Assigned To', 'Created'];
+    const rows = reportData.tableData.map(t => [
+        t.case_id,
+        `"${(t.subject || '').replace(/"/g, '""')}"`,
+        t.status,
+        t.priority,
+        t.category,
+        t.assigned_to || '',
+        t.created_at
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `case_report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
 }
-
-function toggleFullscreen() {
-    const container = document.getElementById('reportContainer');
-    const body = document.body;
-    const toggle = document.querySelector('.fullscreen-toggle');
-    
-    if (body.classList.contains('fullscreen-charts')) {
-        body.classList.remove('fullscreen-charts');
-        toggle.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-            </svg>
-        `;
-        toggle.title = "Enter Fullscreen";
-    } else {
-        body.classList.add('fullscreen-charts');
-        container.classList.add('sidebar-hidden');
-        toggle.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        `;
-        toggle.title = "Exit Fullscreen";
-    }
-}
-
-// Auto-hide sidebar when charts are generated for better viewing
-function autoOptimizeView() {
-    const container = document.getElementById('reportContainer');
-    const chartsArea = document.getElementById('chartsArea');
-    
-    // If charts are visible and sidebar is still showing, suggest hiding it
-    if (chartsArea && chartsArea.children.length > 1 && !container.classList.contains('sidebar-hidden')) {
-        // Show a subtle notification
-        setTimeout(() => {
-            if (confirm('Hide sidebar for better chart viewing?')) {
-                toggleSidebar();
-            }
-        }, 2000);
-    }
-}
-
-// Call auto-optimize after generating reports
-const originalGenerateReport = generateReport;
-generateReport = function() {
-    originalGenerateReport.apply(this, arguments);
-    setTimeout(autoOptimizeView, 1000);
-};
-
-const originalGeneratePreview = generatePreview;
-generatePreview = function() {
-    originalGeneratePreview.apply(this, arguments);
-    setTimeout(autoOptimizeView, 1000);
-};
 </script>
 {% endblock %}
