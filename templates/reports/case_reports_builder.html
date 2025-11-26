@@ -741,12 +741,24 @@
             <div class="sf-chart-container">
                 <div class="sf-chart-header">
                     <span class="sf-chart-title">Distribution by <span id="chartGroupLabel">status</span></span>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('pie')" id="btnPie">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="sf-btn sf-btn-brand" style="padding: 0.25rem 0.5rem;" onclick="setChartType('pie')" id="btnPie">
                             Pie
+                        </button>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('doughnut')" id="btnDoughnut">
+                            Doughnut
                         </button>
                         <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('bar')" id="btnBar">
                             Bar
+                        </button>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('horizontalBar')" id="btnHorizontalBar">
+                            H-Bar
+                        </button>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('line')" id="btnLine">
+                            Line
+                        </button>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem;" onclick="setChartType('polarArea')" id="btnPolarArea">
+                            Polar
                         </button>
                     </div>
                 </div>
@@ -1022,34 +1034,54 @@ function updateChart(groupedData, groupBy) {
 
     const ctx = document.getElementById('mainChart').getContext('2d');
 
+    // Determine chart type for Chart.js (horizontalBar is now 'bar' with indexAxis)
+    let chartType = currentChartType;
+    if (currentChartType === 'horizontalBar') {
+        chartType = 'bar';
+    }
+
+    // Configure based on chart type
+    const isCircular = ['pie', 'doughnut', 'polarArea'].includes(currentChartType);
+    const isHorizontal = currentChartType === 'horizontalBar';
+
     const chartConfig = {
-        type: currentChartType,
+        type: chartType,
         data: {
             labels: labels,
             datasets: [{
+                label: 'Tickets',
                 data: values,
                 backgroundColor: colors.slice(0, labels.length),
-                borderColor: currentChartType === 'bar' ? colors.slice(0, labels.length) : 'white',
-                borderWidth: currentChartType === 'bar' ? 0 : 2
+                borderColor: isCircular ? 'white' : colors.slice(0, labels.length),
+                borderWidth: isCircular ? 2 : 1,
+                tension: 0.3,
+                fill: currentChartType === 'line' ? false : undefined
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            indexAxis: isHorizontal ? 'y' : 'x',
             plugins: {
                 legend: {
-                    display: currentChartType === 'pie',
+                    display: isCircular,
                     position: 'right'
                 }
             },
-            scales: currentChartType === 'bar' ? {
+            scales: isCircular ? {} : {
+                x: {
+                    beginAtZero: isHorizontal,
+                    ticks: {
+                        precision: 0
+                    }
+                },
                 y: {
-                    beginAtZero: true,
+                    beginAtZero: !isHorizontal,
                     ticks: {
                         precision: 0
                     }
                 }
-            } : {}
+            }
         }
     };
 
@@ -1058,11 +1090,15 @@ function updateChart(groupedData, groupBy) {
     }
     mainChart = new Chart(ctx, chartConfig);
 
-    // Update button states
-    document.getElementById('btnPie').classList.toggle('sf-btn-brand', currentChartType === 'pie');
-    document.getElementById('btnPie').classList.toggle('sf-btn-neutral', currentChartType !== 'pie');
-    document.getElementById('btnBar').classList.toggle('sf-btn-brand', currentChartType === 'bar');
-    document.getElementById('btnBar').classList.toggle('sf-btn-neutral', currentChartType !== 'bar');
+    // Update all button states
+    const chartTypes = ['pie', 'doughnut', 'bar', 'horizontalBar', 'line', 'polarArea'];
+    chartTypes.forEach(type => {
+        const btn = document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1));
+        if (btn) {
+            btn.classList.toggle('sf-btn-brand', currentChartType === type);
+            btn.classList.toggle('sf-btn-neutral', currentChartType !== type);
+        }
+    });
 }
 
 // Set chart type
