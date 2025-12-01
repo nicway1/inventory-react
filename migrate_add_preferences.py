@@ -38,6 +38,7 @@ def migrate():
         # (table_name, column_name, column_type)
         ('users', 'preferences', 'JSON'),
         ('assets', 'image_url', 'VARCHAR(500)'),
+        ('accessories', 'image_url', 'VARCHAR(500)'),
     ]
 
     changes_made = 0
