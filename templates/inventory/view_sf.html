@@ -1034,6 +1034,24 @@
             </p>
 
             <div class="sf-form-group">
+                <label class="sf-form-label">Name</label>
+                <input type="text" id="bulkName" class="sf-form-input" placeholder="Leave empty for no change">
+                <p class="sf-form-help">Warning: This will set the same name for all selected items</p>
+            </div>
+
+            <div class="sf-form-group">
+                <label class="sf-form-label">Asset Tag</label>
+                <input type="text" id="bulkAssetTag" class="sf-form-input" placeholder="Leave empty for no change">
+                <p class="sf-form-help">Warning: This will set the same asset tag for all selected items</p>
+            </div>
+
+            <div class="sf-form-group">
+                <label class="sf-form-label">Serial Number</label>
+                <input type="text" id="bulkSerialNumber" class="sf-form-input" placeholder="Leave empty for no change">
+                <p class="sf-form-help">Warning: This will set the same serial number for all selected items</p>
+            </div>
+
+            <div class="sf-form-group">
                 <label class="sf-form-label">Status</label>
                 <select id="bulkStatus" class="sf-form-select">
                     <option value="">-- No Change --</option>
@@ -2158,6 +2176,9 @@ function openBulkEditModal() {
     }
 
     // Reset form fields
+    document.getElementById('bulkName').value = '';
+    document.getElementById('bulkAssetTag').value = '';
+    document.getElementById('bulkSerialNumber').value = '';
     document.getElementById('bulkStatus').value = '';
     document.getElementById('bulkCategory').value = '';
     document.getElementById('bulkNotes').value = '';
@@ -2170,6 +2191,9 @@ function closeBulkEditModal() {
 
 // Apply bulk edit
 async function applyBulkEdit() {
+    const name = document.getElementById('bulkName').value.trim();
+    const assetTag = document.getElementById('bulkAssetTag').value.trim();
+    const serialNumber = document.getElementById('bulkSerialNumber').value.trim();
     const status = document.getElementById('bulkStatus').value;
     const country = document.getElementById('bulkCountry').value;
     const company = document.getElementById('bulkCompany').value;
@@ -2177,7 +2201,7 @@ async function applyBulkEdit() {
     const notes = document.getElementById('bulkNotes').value.trim();
 
     // Check if any changes were made
-    if (!status && !country && !company && !category && !notes) {
+    if (!name && !assetTag && !serialNumber && !status && !country && !company && !category && !notes) {
         alert('Please select at least one field to update.');
         return;
     }
@@ -2187,6 +2211,9 @@ async function applyBulkEdit() {
         changes: {}
     };
 
+    if (name) payload.changes.name = name;
+    if (assetTag) payload.changes.asset_tag = assetTag;
+    if (serialNumber) payload.changes.serial_number = serialNumber;
     if (status) payload.changes.status = status;
     if (country) payload.changes.country = country;
     if (company) payload.changes.company = company;

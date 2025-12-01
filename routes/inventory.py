@@ -798,6 +798,15 @@ def api_bulk_update_assets():
                     continue
 
                 # Apply changes
+                if 'name' in changes:
+                    asset.name = changes['name']
+
+                if 'asset_tag' in changes:
+                    asset.asset_tag = changes['asset_tag']
+
+                if 'serial_number' in changes:
+                    asset.serial_number = changes['serial_number']
+
                 if 'status' in changes:
                     try:
                         asset.status = AssetStatus(changes['status'])
