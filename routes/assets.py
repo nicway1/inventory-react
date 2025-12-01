@@ -418,7 +418,7 @@ def unlink_asset(asset_id, ticket_id):
         
     except Exception as e:
         db_session.rollback()
-        logger.info("Error unlinking asset: {str(e)}")
+        logger.error(f"Error unlinking asset: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
