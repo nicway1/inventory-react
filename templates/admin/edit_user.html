@@ -90,9 +90,16 @@
                     </div>
                 </div>
 
-                <!-- Countries (for Country Admin) -->
+                <!-- Countries (for Country Admin and Supervisor) -->
                 <div id="country_id" style="display: none;">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Countries</label>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-medium text-gray-700">Assigned Countries</label>
+                        <button type="button"
+                                onclick="selectAllCountries()"
+                                class="text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                            Select All
+                        </button>
+                    </div>
                     <div class="border border-gray-300 rounded-md p-3 max-h-60 overflow-y-auto">
                         {% for country in available_countries %}
                         <div class="flex items-center mb-2">
@@ -101,12 +108,12 @@
                                    name="assigned_countries"
                                    value="{{ country }}"
                                    {% if country in existing_countries %}checked{% endif %}
-                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                   class="country-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <label for="country_{{ loop.index }}" class="ml-2 text-sm text-gray-700">{{ country }}</label>
                         </div>
                         {% endfor %}
                     </div>
-                    <p class="text-sm text-gray-500 mt-1">Select which countries this Country Admin can access</p>
+                    <p class="text-sm text-gray-500 mt-1">Select which countries this user can access</p>
                 </div>
 
                 <!-- Parent Companies (for Country Admin - Multiple Selection) -->
@@ -191,6 +198,9 @@
         const childCompanyList = document.getElementById('childCompanyList');
         const queueSelect = document.getElementById('queueSelect');
 
+        let isInitialLoad = true;
+        let previousUserType = userTypeSelect.value;
+
         function toggleFields() {
             const selectedType = userTypeSelect.value;
 
@@ -200,6 +210,22 @@
                 countryAdminCompanySelect.style.display = 'block';
                 queueSelect.style.display = 'block';
 
+                // Auto-select all countries when switching TO SUPERVISOR
+                if (selectedType === 'SUPERVISOR') {
+                    if (!isInitialLoad && previousUserType !== 'SUPERVISOR') {
+                        // User just switched to SUPERVISOR - select all
+                        selectAllCountries();
+                    } else if (isInitialLoad) {
+                        // Initial load - check if no countries are selected
+                        const checkedCountries = document.querySelectorAll('.country-checkbox:checked');
+                        if (checkedCountries.length === 0) {
+                            selectAllCountries();
+                        }
+                    }
+                }
+
+                previousUserType = selectedType;
+
                 // Trigger update of child companies if any parents are selected
                 updateChildCompanies();
             } else {
@@ -207,6 +233,7 @@
                 countryAdminCompanySelect.style.display = 'none';
                 childCompanySelect.style.display = 'none';
                 queueSelect.style.display = 'none';
+                previousUserType = selectedType;
             }
 
             // Handle company requirement for CLIENT
@@ -215,6 +242,8 @@
             } else {
                 companySelect.required = false;
             }
+
+            isInitialLoad = false;
         }
 
         userTypeSelect.addEventListener('change', toggleFields);
@@ -288,5 +317,14 @@
             checkbox.checked = true;
         });
     }
+
+    // Function to select all countries
+    function selectAllCountries() {
+        const countryCheckboxes = document.querySelectorAll('.country-checkbox');
+        countryCheckboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    }
+
 </script>
 {% endblock %} 
