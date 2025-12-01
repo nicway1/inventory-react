@@ -385,28 +385,32 @@ def view_asset(asset_id):
 @login_required
 def unlink_asset(asset_id, ticket_id):
     """Unlink an asset from a ticket"""
+    from sqlalchemy import text
     db_session = db_manager.get_session()
     try:
         # Get the ticket and asset
         ticket = db_session.query(Ticket).get(ticket_id)
         asset = db_session.query(Asset).get(asset_id)
-        
+
         if not ticket:
             return jsonify({'success': False, 'error': 'Ticket not found'}), 404
-        
+
         if not asset:
             return jsonify({'success': False, 'error': 'Asset not found'}), 404
-        
-        # Check if the asset is linked to the ticket (by ID to avoid session issues)
-        linked_asset_ids = [a.id for a in ticket.assets]
-        if asset.id in linked_asset_ids:
-            # Find the actual asset object from the ticket's assets collection
-            asset_to_remove = next((a for a in ticket.assets if a.id == asset.id), None)
-            if asset_to_remove:
-                ticket.assets.remove(asset_to_remove)
-            else:
-                return jsonify({'success': False, 'error': 'Asset association not found'}), 400
-            
+
+        # Check if association actually exists in database
+        result = db_session.execute(
+            text("SELECT COUNT(*) FROM ticket_assets WHERE ticket_id = :tid AND asset_id = :aid"),
+            {"tid": ticket_id, "aid": asset_id}
+        ).scalar()
+
+        if result > 0:
+            # Delete the association directly
+            db_session.execute(
+                text("DELETE FROM ticket_assets WHERE ticket_id = :tid AND asset_id = :aid"),
+                {"tid": ticket_id, "aid": asset_id}
+            )
+
             # Add activity for unlinking
             activity = Activity(
                 user_id=current_user.id,
@@ -416,7 +420,7 @@ def unlink_asset(asset_id, ticket_id):
             )
             db_session.add(activity)
             db_session.commit()
-            
+
             return jsonify({'success': True})
         else:
             return jsonify({'success': False, 'error': 'Asset is not linked to this ticket'}), 400
