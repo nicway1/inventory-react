@@ -354,12 +354,12 @@ def view_inventory():
 @inventory_bp.route('/sf')
 @login_required
 def view_inventory_sf():
-    """Salesforce-style inventory view - Developer only"""
+    """Salesforce-style inventory view - Super Admin and Developer"""
     user = db_manager.get_user(session['user_id'])
 
-    # Only allow DEVELOPER users to access this view
-    if user.user_type != UserType.DEVELOPER:
-        flash('This view is only available for developers.', 'error')
+    # Allow SUPER_ADMIN and DEVELOPER users to access this view
+    if user.user_type not in [UserType.DEVELOPER, UserType.SUPER_ADMIN]:
+        flash('This view is only available for administrators.', 'error')
         return redirect(url_for('inventory.view_inventory'))
 
     return render_template('inventory/view_sf.html', user=user)
@@ -378,9 +378,9 @@ def api_sf_filters():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
@@ -528,9 +528,9 @@ def api_sf_assets():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users (check from session directly to avoid DB call issues)
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users (check from session directly to avoid DB call issues)
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
@@ -604,9 +604,9 @@ def api_sf_accessories():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
@@ -661,9 +661,9 @@ def api_sf_get_chart_settings():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
 
         db_session = db_manager.get_session()
         try:
@@ -712,9 +712,9 @@ def api_sf_save_chart_settings():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
 
         data = request.get_json()
         if not data or 'charts' not in data:
@@ -760,6 +760,95 @@ def api_sf_save_chart_settings():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@inventory_bp.route('/api/sf/bulk-update', methods=['POST'])
+@login_required
+def api_bulk_update_assets():
+    """Bulk update multiple assets"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        asset_ids = data.get('asset_ids', [])
+        changes = data.get('changes', {})
+
+        if not asset_ids:
+            return jsonify({'success': False, 'error': 'No assets selected'}), 400
+
+        if not changes:
+            return jsonify({'success': False, 'error': 'No changes specified'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            updated_count = 0
+
+            for asset_id in asset_ids:
+                asset = db_session.query(Asset).get(asset_id)
+                if not asset:
+                    continue
+
+                # Apply changes
+                if 'status' in changes:
+                    try:
+                        asset.status = AssetStatus(changes['status'])
+                    except ValueError:
+                        # If status value doesn't match enum, try setting directly
+                        pass
+
+                if 'country' in changes:
+                    asset.country = changes['country']
+
+                if 'company' in changes:
+                    # Find company by name
+                    company = db_session.query(Company).filter(
+                        Company.name == changes['company']
+                    ).first()
+                    if company:
+                        asset.company_id = company.id
+
+                if 'asset_type' in changes:
+                    asset.asset_type = changes['asset_type']
+
+                if 'notes' in changes and changes['notes']:
+                    # Append notes
+                    existing_notes = asset.notes or ''
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+                    new_note = f"\n[Bulk Edit {timestamp}]: {changes['notes']}"
+                    asset.notes = existing_notes + new_note
+
+                asset.updated_at = datetime.now()
+                updated_count += 1
+
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'Successfully updated {updated_count} assets'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f"Bulk update error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Bulk update API error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @inventory_bp.route('/api/asset/<int:asset_id>/image', methods=['POST'])
 @login_required
 def api_update_asset_image(asset_id):
@@ -771,9 +860,9 @@ def api_update_asset_image(asset_id):
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER users
-        if user_type != 'DEVELOPER':
-            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
 
         data = request.get_json()
         if data is None:
@@ -811,12 +900,12 @@ def api_update_asset_image(asset_id):
 @inventory_bp.route('/sf/asset/<int:asset_id>')
 @login_required
 def view_asset_sf(asset_id):
-    """Salesforce-style asset detail view - Developer only"""
+    """Salesforce-style asset detail view - Admin only"""
     user_type = session.get('user_type')
 
-    # Only allow DEVELOPER users
-    if user_type != 'DEVELOPER':
-        flash('This view is only available for developers.', 'error')
+    # Only allow DEVELOPER and SUPER_ADMIN users
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+        flash('This view is only available for administrators.', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
 
     db_session = db_manager.get_session()
@@ -851,12 +940,12 @@ def view_asset_sf(asset_id):
 @inventory_bp.route('/sf/accessory/<int:accessory_id>')
 @login_required
 def view_accessory_sf(accessory_id):
-    """Salesforce-style accessory detail view - Developer only"""
+    """Salesforce-style accessory detail view - Admin only"""
     user_type = session.get('user_type')
 
-    # Only allow DEVELOPER users
-    if user_type != 'DEVELOPER':
-        flash('This view is only available for developers.', 'error')
+    # Only allow DEVELOPER and SUPER_ADMIN users
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+        flash('This view is only available for administrators.', 'error')
         return redirect(url_for('inventory.view_accessory', id=accessory_id))
 
     db_session = db_manager.get_session()
@@ -915,10 +1004,10 @@ def view_accessory_sf(accessory_id):
 @inventory_bp.route('/api/sf/accessory/<int:accessory_id>/image', methods=['POST'])
 @login_required
 def update_accessory_image(accessory_id):
-    """Update accessory image URL - Developer only"""
+    """Update accessory image URL - Admin only"""
     user_type = session.get('user_type')
 
-    if user_type != 'DEVELOPER':
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     db_session = db_manager.get_session()
@@ -944,10 +1033,10 @@ def update_accessory_image(accessory_id):
 @inventory_bp.route('/api/sf/accessory/search-image')
 @login_required
 def search_accessory_image():
-    """Search for product images using Unsplash API - Developer only"""
+    """Search for product images using Unsplash API - Admin only"""
     user_type = session.get('user_type')
 
-    if user_type != 'DEVELOPER':
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     query = request.args.get('q', '')
