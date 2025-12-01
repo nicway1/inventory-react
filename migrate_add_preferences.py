@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Migration script to add the 'preferences' column to the users table.
+Migration script to add missing columns to the database.
 Run this script on PythonAnywhere to update the database schema.
 
 Usage:
@@ -18,20 +18,37 @@ def check_column_exists(table_name, column_name):
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
 
-def migrate():
-    """Add preferences column to users table if it doesn't exist"""
+def add_column_if_missing(table_name, column_name, column_type):
+    """Add a column to a table if it doesn't exist"""
+    if check_column_exists(table_name, column_name):
+        print(f"✓ Column '{column_name}' already exists in '{table_name}' table.")
+        return False
 
-    if check_column_exists('users', 'preferences'):
-        print("✓ Column 'preferences' already exists in 'users' table. No migration needed.")
-        return
-
-    print("Adding 'preferences' column to 'users' table...")
-
+    print(f"Adding '{column_name}' column to '{table_name}' table...")
     with engine.connect() as conn:
-        conn.execute(text('ALTER TABLE users ADD COLUMN preferences JSON'))
+        conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}'))
         conn.commit()
+    print(f"✓ Successfully added '{column_name}' column to '{table_name}' table!")
+    return True
 
-    print("✓ Successfully added 'preferences' column to 'users' table!")
+def migrate():
+    """Add missing columns to database tables"""
+
+    migrations = [
+        # (table_name, column_name, column_type)
+        ('users', 'preferences', 'JSON'),
+        ('assets', 'image_url', 'VARCHAR(500)'),
+    ]
+
+    changes_made = 0
+    for table_name, column_name, column_type in migrations:
+        if add_column_if_missing(table_name, column_name, column_type):
+            changes_made += 1
+
+    if changes_made == 0:
+        print("\nNo migrations needed. Database is up to date!")
+    else:
+        print(f"\n✓ Migration complete! {changes_made} column(s) added.")
 
 if __name__ == '__main__':
     migrate()
