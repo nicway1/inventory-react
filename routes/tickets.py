@@ -242,6 +242,111 @@ def list_tickets():
 
     return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts)
 
+
+@tickets_bp.route('/sf')
+@login_required
+def list_tickets_sf():
+    """List tickets with Salesforce-style UI"""
+    user_id = session['user_id']
+    user = db_manager.get_user(user_id)
+    user_type = session['user_type']
+
+    # Get date filter parameters
+    from datetime import datetime
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    # Only allow access to tickets based on user type
+    if user.user_type == UserType.CLIENT:
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+    else:
+        tickets = ticket_store.get_user_tickets(user_id, user_type)
+
+    # Apply date filtering if date parameters are provided
+    if date_from or date_to:
+        filtered_by_date = []
+        for ticket in tickets:
+            if date_from:
+                try:
+                    from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                    if ticket.created_at.date() < from_date:
+                        continue
+                except ValueError:
+                    pass
+
+            if date_to:
+                try:
+                    to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                    if ticket.created_at.date() > to_date:
+                        continue
+                except ValueError:
+                    pass
+
+            filtered_by_date.append(ticket)
+        tickets = filtered_by_date
+
+    # Filter tickets based on queue access permissions
+    if not user.is_super_admin and not user.is_developer:
+        filtered_tickets = []
+        for ticket in tickets:
+            if ticket.queue_id and user.can_access_queue(ticket.queue_id):
+                filtered_tickets.append(ticket)
+            elif not ticket.queue_id:
+                pass  # Exclude unassigned tickets for non-admin users
+        tickets = filtered_tickets
+
+    # Get queues for the filter dropdown
+    from models.queue import Queue
+    from models.ticket import Ticket
+    from sqlalchemy import func
+    db_session = db_manager.get_session()
+    queues = []
+
+    try:
+        queues_with_counts = db_session.query(
+            Queue,
+            func.count(Ticket.id).label('ticket_count')
+        ).outerjoin(
+            Ticket, Queue.id == Ticket.queue_id
+        ).group_by(
+            Queue.id
+        ).order_by(
+            func.count(Ticket.id).desc(),
+            Queue.name
+        ).all()
+
+        if user.is_super_admin or user.is_developer:
+            queues = [queue for queue, count in queues_with_counts]
+        else:
+            all_queues = [queue for queue, count in queues_with_counts]
+            queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
+    except Exception as e:
+        logging.error(f"Error loading queues: {str(e)}")
+        queues = []
+    finally:
+        db_session.close()
+
+    # Calculate queue ticket counts
+    db_session = db_manager.get_session()
+    queue_ticket_counts = {}
+    try:
+        for queue in queues:
+            total_count = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+            open_count = db_session.query(Ticket).filter(
+                Ticket.queue_id == queue.id,
+                Ticket.status != TicketStatus.RESOLVED,
+                Ticket.status != TicketStatus.RESOLVED_DELIVERED
+            ).count()
+            queue_ticket_counts[queue.id] = {
+                'total': total_count,
+                'open': open_count
+            }
+    finally:
+        db_session.close()
+
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts)
+
+
 @tickets_bp.route('/export/csv')
 @login_required
 def export_tickets_csv():

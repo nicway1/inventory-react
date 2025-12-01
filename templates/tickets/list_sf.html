@@ -1,0 +1,1481 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* Salesforce-style colors */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
+        --sf-purple: #9050e9;
+        --sf-teal: #0b827c;
+    }
+
+    /* Main layout */
+    .sf-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header bar */
+    .sf-header {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .sf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .sf-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-breadcrumb a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-page-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+        color: white;
+    }
+
+    .sf-btn-success {
+        background: var(--sf-success);
+        color: white;
+    }
+
+    .sf-btn-success:hover {
+        background: #236839;
+    }
+
+    /* Main content area */
+    .sf-content {
+        display: flex;
+        height: calc(100vh - 60px);
+    }
+
+    /* Filters sidebar */
+    .sf-sidebar {
+        width: 280px;
+        background: white;
+        border-right: 1px solid var(--sf-gray-200);
+        overflow-y: auto;
+        flex-shrink: 0;
+        transition: width 0.2s ease;
+    }
+
+    .sf-sidebar.collapsed {
+        width: 0;
+        overflow: hidden;
+    }
+
+    .sf-sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--sf-gray-100);
+    }
+
+    .sf-sidebar-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-filter-section {
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-filter-header {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sf-filter-header:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-filter-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-filter-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        background: var(--sf-gray-200);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    .sf-filter-content {
+        padding: 0 1rem 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sf-filter-content.collapsed {
+        display: none;
+    }
+
+    .sf-checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 0.375rem 0;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-checkbox-item input {
+        margin-right: 0.5rem;
+        accent-color: var(--sf-blue);
+    }
+
+    .sf-checkbox-item .count {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Search input */
+    .sf-search-section {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-search-input {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+    }
+
+    .sf-search-input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    /* Date filter */
+    .sf-date-filter {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-date-filter label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-date-filter input {
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Main area */
+    .sf-main {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        background: var(--sf-gray-100);
+    }
+
+    /* Summary cards */
+    .sf-summary-cards {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1400px) {
+        .sf-summary-cards {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 900px) {
+        .sf-summary-cards {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .sf-summary-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        border: 1px solid var(--sf-gray-200);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-summary-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .sf-summary-card.highlight {
+        border-left: 4px solid var(--sf-blue);
+    }
+
+    .sf-summary-card.active {
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.3);
+    }
+
+    .sf-summary-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-summary-value.blue { color: var(--sf-blue); }
+    .sf-summary-value.green { color: var(--sf-success); }
+    .sf-summary-value.orange { color: var(--sf-warning); }
+    .sf-summary-value.red { color: var(--sf-error); }
+    .sf-summary-value.purple { color: var(--sf-purple); }
+    .sf-summary-value.teal { color: var(--sf-teal); }
+
+    .sf-summary-subtitle {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Charts section */
+    .sf-charts-section {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+        .sf-charts-section {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .sf-chart-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-chart-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-chart-body {
+        padding: 1rem;
+        height: 250px;
+        position: relative;
+    }
+
+    /* Data table */
+    .sf-table-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        overflow: hidden;
+    }
+
+    .sf-table-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-table-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-table-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table th {
+        background: var(--sf-gray-100);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .sf-table th:hover {
+        background: var(--sf-gray-200);
+    }
+
+    .sf-table th.sortable::after {
+        content: ' \2195';
+        opacity: 0.4;
+    }
+
+    .sf-table th.sorted-asc::after {
+        content: ' \2191';
+        opacity: 1;
+    }
+
+    .sf-table th.sorted-desc::after {
+        content: ' \2193';
+        opacity: 1;
+    }
+
+    .sf-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-table tr:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-table-link {
+        color: var(--sf-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .sf-table-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Status badges */
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        white-space: nowrap;
+    }
+
+    .sf-badge-open { background: #e8f4ff; color: #0176d3; }
+    .sf-badge-inprogress { background: #fff3cd; color: #856404; }
+    .sf-badge-onhold { background: #f8d7da; color: #721c24; }
+    .sf-badge-resolved { background: #d4edda; color: #155724; }
+    .sf-badge-closed { background: #e2e3e5; color: #383d41; }
+
+    /* Priority badges */
+    .sf-priority-low { background: #d4edda; color: #155724; }
+    .sf-priority-medium { background: #fff3cd; color: #856404; }
+    .sf-priority-high { background: #f8d7da; color: #721c24; }
+    .sf-priority-urgent { background: #ea001e; color: white; }
+
+    /* Toggle sidebar button */
+    .sf-toggle-sidebar {
+        position: fixed;
+        left: 290px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 48px;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        transition: left 0.2s ease;
+    }
+
+    .sf-toggle-sidebar.collapsed {
+        left: 0;
+    }
+
+    .sf-toggle-sidebar:hover {
+        background: var(--sf-gray-100);
+    }
+
+    /* Pagination */
+    .sf-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-pagination-info {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .sf-pagination-btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+        background: white;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+
+    .sf-pagination-btn:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-pagination-btn.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+
+    .sf-pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Loading */
+    .sf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--sf-gray-200);
+        border-top-color: var(--sf-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* No data */
+    .sf-no-data {
+        text-align: center;
+        padding: 3rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-no-data i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Chart toggle */
+    .sf-chart-toggle {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .sf-chart-toggle button {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        background: white;
+        border: 1px solid var(--sf-gray-300);
+        cursor: pointer;
+    }
+
+    .sf-chart-toggle button:first-child {
+        border-radius: 0.25rem 0 0 0.25rem;
+    }
+
+    .sf-chart-toggle button:last-child {
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+
+    .sf-chart-toggle button.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-page">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-header-left">
+            <div class="sf-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span>/</span>
+                <span>Tickets</span>
+            </div>
+            <h1 class="sf-page-title">
+                <i class="fas fa-ticket-alt" style="color: var(--sf-blue);"></i>
+                Ticket Management
+            </h1>
+        </div>
+        <div class="sf-header-actions">
+            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-btn sf-btn-neutral">
+                <i class="fas fa-exchange-alt"></i> Classic View
+            </a>
+            <button class="sf-btn sf-btn-neutral" onclick="exportTickets()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <a href="{{ url_for('tickets.create_ticket') }}" class="sf-btn sf-btn-brand">
+                <i class="fas fa-plus"></i> New Ticket
+            </a>
+        </div>
+    </div>
+
+    <!-- Toggle sidebar button -->
+    <button class="sf-toggle-sidebar" onclick="toggleSidebar()">
+        <i class="fas fa-chevron-left" id="sidebarToggleIcon"></i>
+    </button>
+
+    <!-- Main content -->
+    <div class="sf-content">
+        <!-- Sidebar Filters -->
+        <div class="sf-sidebar" id="filterSidebar">
+            <div class="sf-sidebar-header">
+                <span class="sf-sidebar-title">Filters</span>
+                <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="clearFilters()">
+                    Clear All
+                </button>
+            </div>
+
+            <!-- Search -->
+            <div class="sf-search-section">
+                <input type="text" class="sf-search-input" placeholder="Search tickets..." id="searchInput" onkeyup="applyFilters()">
+            </div>
+
+            <!-- Date Filter -->
+            <div class="sf-date-filter">
+                <label>Date From</label>
+                <input type="date" id="dateFrom" onchange="applyFilters()">
+                <label>Date To</label>
+                <input type="date" id="dateTo" onchange="applyFilters()">
+            </div>
+
+            <!-- Status Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('statusFilter')">
+                    <span class="sf-filter-label">Status</span>
+                    <span class="sf-filter-count" id="statusFilterCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="statusFilter">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Priority Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('priorityFilter')">
+                    <span class="sf-filter-label">Priority</span>
+                    <span class="sf-filter-count" id="priorityFilterCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="priorityFilter">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('categoryFilter')">
+                    <span class="sf-filter-label">Category</span>
+                    <span class="sf-filter-count" id="categoryFilterCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="categoryFilter">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Queue Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('queueFilter')">
+                    <span class="sf-filter-label">Queue</span>
+                    <span class="sf-filter-count" id="queueFilterCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="queueFilter">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Area -->
+        <div class="sf-main">
+            <!-- Summary Cards -->
+            <div class="sf-summary-cards">
+                <div class="sf-summary-card highlight" onclick="filterByStatus('all')">
+                    <div class="sf-summary-label">Total Tickets</div>
+                    <div class="sf-summary-value blue" id="totalCount">0</div>
+                    <div class="sf-summary-subtitle">All tickets</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByStatus('OPEN')">
+                    <div class="sf-summary-label">Open</div>
+                    <div class="sf-summary-value orange" id="openCount">0</div>
+                    <div class="sf-summary-subtitle">Awaiting action</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByStatus('IN_PROGRESS')">
+                    <div class="sf-summary-label">In Progress</div>
+                    <div class="sf-summary-value purple" id="inProgressCount">0</div>
+                    <div class="sf-summary-subtitle">Being worked on</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByStatus('RESOLVED')">
+                    <div class="sf-summary-label">Resolved</div>
+                    <div class="sf-summary-value green" id="resolvedCount">0</div>
+                    <div class="sf-summary-subtitle">Completed</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByStatus('ON_HOLD')">
+                    <div class="sf-summary-label">On Hold</div>
+                    <div class="sf-summary-value red" id="onHoldCount">0</div>
+                    <div class="sf-summary-subtitle">Waiting</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="sf-charts-section">
+                <!-- Status Distribution Chart -->
+                <div class="sf-chart-container">
+                    <div class="sf-chart-header">
+                        <span class="sf-chart-title">Status Distribution</span>
+                        <div class="sf-chart-toggle">
+                            <button class="active" onclick="changeChartType('statusChart', 'doughnut', this)">Donut</button>
+                            <button onclick="changeChartType('statusChart', 'bar', this)">Bar</button>
+                        </div>
+                    </div>
+                    <div class="sf-chart-body">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Weekly Trend Chart -->
+                <div class="sf-chart-container">
+                    <div class="sf-chart-header">
+                        <span class="sf-chart-title">Tickets This Week</span>
+                        <div class="sf-chart-toggle">
+                            <button class="active" onclick="changeChartType('trendChart', 'line', this)">Line</button>
+                            <button onclick="changeChartType('trendChart', 'bar', this)">Bar</button>
+                        </div>
+                    </div>
+                    <div class="sf-chart-body">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tickets Table -->
+            <div class="sf-table-container">
+                <div class="sf-table-header">
+                    <span class="sf-table-title">
+                        <span id="filteredCountLabel">All Tickets</span>
+                        (<span id="displayedCount">0</span>)
+                    </span>
+                    <div class="sf-table-actions">
+                        <select id="pageSize" onchange="changePageSize()" class="sf-btn sf-btn-neutral" style="padding: 0.375rem 0.5rem;">
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="tableLoading" class="sf-loading" style="display: none;">
+                    <div class="sf-spinner"></div>
+                </div>
+
+                <div id="tableContent">
+                    <table class="sf-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="id" onclick="sortTable('id')">ID</th>
+                                <th class="sortable" data-sort="subject" onclick="sortTable('subject')">Subject</th>
+                                <th class="sortable" data-sort="category" onclick="sortTable('category')">Category</th>
+                                <th class="sortable" data-sort="priority" onclick="sortTable('priority')">Priority</th>
+                                <th class="sortable" data-sort="status" onclick="sortTable('status')">Status</th>
+                                <th class="sortable" data-sort="queue" onclick="sortTable('queue')">Queue</th>
+                                <th class="sortable" data-sort="created" onclick="sortTable('created')">Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noDataMessage" class="sf-no-data" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <p>No tickets found matching your criteria</p>
+                </div>
+
+                <!-- Pagination -->
+                <div class="sf-pagination">
+                    <div class="sf-pagination-info">
+                        Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="totalFiltered">0</span> tickets
+                    </div>
+                    <div class="sf-pagination-controls" id="paginationControls">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global state
+    let allTickets = [];
+    let filteredTickets = [];
+    let currentPage = 1;
+    let pageSize = 25;
+    let sortColumn = 'created';
+    let sortDirection = 'desc';
+    let statusChart = null;
+    let trendChart = null;
+
+    // Status and priority mappings
+    const statusColors = {
+        'OPEN': { bg: '#e8f4ff', color: '#0176d3' },
+        'IN_PROGRESS': { bg: '#fff3cd', color: '#856404' },
+        'ON_HOLD': { bg: '#f8d7da', color: '#721c24' },
+        'RESOLVED': { bg: '#d4edda', color: '#155724' },
+        'RESOLVED_DELIVERED': { bg: '#d4edda', color: '#155724' },
+        'CLOSED': { bg: '#e2e3e5', color: '#383d41' }
+    };
+
+    const priorityColors = {
+        'LOW': { bg: '#d4edda', color: '#155724' },
+        'MEDIUM': { bg: '#fff3cd', color: '#856404' },
+        'HIGH': { bg: '#f8d7da', color: '#721c24' },
+        'URGENT': { bg: '#ea001e', color: 'white' }
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTickets();
+    });
+
+    // Load tickets from server
+    function loadTickets() {
+        document.getElementById('tableLoading').style.display = 'flex';
+        document.getElementById('tableContent').style.display = 'none';
+
+        // Parse tickets from template
+        allTickets = [
+            {% for ticket in tickets %}
+            {
+                id: {{ ticket.id }},
+                subject: {{ ticket.subject | tojson }},
+                category: {{ ticket.category.value if ticket.category else 'null' | tojson }},
+                priority: {{ ticket.priority.value if ticket.priority else 'MEDIUM' | tojson }},
+                status: {{ ticket.status.value if ticket.status else 'OPEN' | tojson }},
+                queue: {{ ticket.queue.name if ticket.queue else 'Unassigned' | tojson }},
+                queue_id: {{ ticket.queue_id if ticket.queue_id else 'null' }},
+                created_at: {{ ticket.created_at.isoformat() if ticket.created_at else 'null' | tojson }},
+                customer_name: {{ ticket.customer.name if ticket.customer else '' | tojson }},
+                assignee: {{ ticket.assigned_to.username if ticket.assigned_to else '' | tojson }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        document.getElementById('tableLoading').style.display = 'none';
+        document.getElementById('tableContent').style.display = 'block';
+
+        buildFilters();
+        applyFilters();
+        updateCharts();
+    }
+
+    // Build filter checkboxes
+    function buildFilters() {
+        // Build status filter
+        const statuses = [...new Set(allTickets.map(t => t.status))].filter(s => s);
+        const statusHtml = statuses.map(status => {
+            const count = allTickets.filter(t => t.status === status).length;
+            return `
+                <label class="sf-checkbox-item">
+                    <input type="checkbox" value="${status}" onchange="applyFilters()">
+                    ${status.replace('_', ' ')}
+                    <span class="count">${count}</span>
+                </label>
+            `;
+        }).join('');
+        document.getElementById('statusFilter').innerHTML = statusHtml;
+
+        // Build priority filter
+        const priorities = [...new Set(allTickets.map(t => t.priority))].filter(p => p);
+        const priorityHtml = priorities.map(priority => {
+            const count = allTickets.filter(t => t.priority === priority).length;
+            return `
+                <label class="sf-checkbox-item">
+                    <input type="checkbox" value="${priority}" onchange="applyFilters()">
+                    ${priority}
+                    <span class="count">${count}</span>
+                </label>
+            `;
+        }).join('');
+        document.getElementById('priorityFilter').innerHTML = priorityHtml;
+
+        // Build category filter
+        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c);
+        const categoryHtml = categories.map(category => {
+            const count = allTickets.filter(t => t.category === category).length;
+            return `
+                <label class="sf-checkbox-item">
+                    <input type="checkbox" value="${category}" onchange="applyFilters()">
+                    ${category.replace('_', ' ')}
+                    <span class="count">${count}</span>
+                </label>
+            `;
+        }).join('');
+        document.getElementById('categoryFilter').innerHTML = categoryHtml;
+
+        // Build queue filter
+        const queues = [...new Set(allTickets.map(t => t.queue))].filter(q => q);
+        const queueHtml = queues.map(queue => {
+            const count = allTickets.filter(t => t.queue === queue).length;
+            return `
+                <label class="sf-checkbox-item">
+                    <input type="checkbox" value="${queue}" onchange="applyFilters()">
+                    ${queue}
+                    <span class="count">${count}</span>
+                </label>
+            `;
+        }).join('');
+        document.getElementById('queueFilter').innerHTML = queueHtml;
+    }
+
+    // Apply filters
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo = document.getElementById('dateTo').value;
+
+        const selectedStatuses = getCheckedValues('statusFilter');
+        const selectedPriorities = getCheckedValues('priorityFilter');
+        const selectedCategories = getCheckedValues('categoryFilter');
+        const selectedQueues = getCheckedValues('queueFilter');
+
+        // Update filter counts
+        document.getElementById('statusFilterCount').textContent = selectedStatuses.length || '0';
+        document.getElementById('priorityFilterCount').textContent = selectedPriorities.length || '0';
+        document.getElementById('categoryFilterCount').textContent = selectedCategories.length || '0';
+        document.getElementById('queueFilterCount').textContent = selectedQueues.length || '0';
+
+        filteredTickets = allTickets.filter(ticket => {
+            // Search filter
+            if (search && !ticket.subject.toLowerCase().includes(search) &&
+                !ticket.id.toString().includes(search) &&
+                !ticket.customer_name.toLowerCase().includes(search)) {
+                return false;
+            }
+
+            // Date filter
+            if (dateFrom && ticket.created_at) {
+                const ticketDate = new Date(ticket.created_at).toISOString().split('T')[0];
+                if (ticketDate < dateFrom) return false;
+            }
+            if (dateTo && ticket.created_at) {
+                const ticketDate = new Date(ticket.created_at).toISOString().split('T')[0];
+                if (ticketDate > dateTo) return false;
+            }
+
+            // Status filter
+            if (selectedStatuses.length > 0 && !selectedStatuses.includes(ticket.status)) {
+                return false;
+            }
+
+            // Priority filter
+            if (selectedPriorities.length > 0 && !selectedPriorities.includes(ticket.priority)) {
+                return false;
+            }
+
+            // Category filter
+            if (selectedCategories.length > 0 && !selectedCategories.includes(ticket.category)) {
+                return false;
+            }
+
+            // Queue filter
+            if (selectedQueues.length > 0 && !selectedQueues.includes(ticket.queue)) {
+                return false;
+            }
+
+            return true;
+        });
+
+        currentPage = 1;
+        updateSummaryCards();
+        sortAndRender();
+    }
+
+    function getCheckedValues(containerId) {
+        const container = document.getElementById(containerId);
+        const checked = container.querySelectorAll('input:checked');
+        return Array.from(checked).map(cb => cb.value);
+    }
+
+    // Update summary cards
+    function updateSummaryCards() {
+        document.getElementById('totalCount').textContent = filteredTickets.length;
+        document.getElementById('openCount').textContent = filteredTickets.filter(t => t.status === 'OPEN').length;
+        document.getElementById('inProgressCount').textContent = filteredTickets.filter(t => t.status === 'IN_PROGRESS').length;
+        document.getElementById('resolvedCount').textContent = filteredTickets.filter(t => t.status === 'RESOLVED' || t.status === 'RESOLVED_DELIVERED').length;
+        document.getElementById('onHoldCount').textContent = filteredTickets.filter(t => t.status === 'ON_HOLD').length;
+    }
+
+    // Sort and render table
+    function sortAndRender() {
+        // Sort
+        filteredTickets.sort((a, b) => {
+            let aVal = a[sortColumn] || '';
+            let bVal = b[sortColumn] || '';
+
+            if (sortColumn === 'id') {
+                aVal = parseInt(aVal);
+                bVal = parseInt(bVal);
+            } else if (sortColumn === 'created') {
+                aVal = new Date(a.created_at || 0);
+                bVal = new Date(b.created_at || 0);
+            } else {
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+            }
+
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        renderTable();
+        renderPagination();
+        updateSortIndicators();
+    }
+
+    // Render table
+    function renderTable() {
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const pageTickets = filteredTickets.slice(start, end);
+
+        if (pageTickets.length === 0) {
+            document.getElementById('ticketTableBody').innerHTML = '';
+            document.getElementById('noDataMessage').style.display = 'block';
+            document.getElementById('tableContent').querySelector('table').style.display = 'none';
+        } else {
+            document.getElementById('noDataMessage').style.display = 'none';
+            document.getElementById('tableContent').querySelector('table').style.display = 'table';
+
+            const html = pageTickets.map(ticket => {
+                const statusStyle = statusColors[ticket.status] || { bg: '#e2e3e5', color: '#383d41' };
+                const priorityStyle = priorityColors[ticket.priority] || { bg: '#fff3cd', color: '#856404' };
+                const createdDate = ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : 'N/A';
+
+                return `
+                    <tr>
+                        <td><a href="/tickets/${ticket.id}" class="sf-table-link">#${ticket.id}</a></td>
+                        <td>
+                            <a href="/tickets/${ticket.id}" class="sf-table-link">${escapeHtml(ticket.subject.substring(0, 50))}${ticket.subject.length > 50 ? '...' : ''}</a>
+                            ${ticket.customer_name ? `<br><small style="color: var(--sf-gray-600);">${escapeHtml(ticket.customer_name)}</small>` : ''}
+                        </td>
+                        <td>${ticket.category ? ticket.category.replace('_', ' ') : 'N/A'}</td>
+                        <td><span class="sf-badge" style="background: ${priorityStyle.bg}; color: ${priorityStyle.color};">${ticket.priority || 'N/A'}</span></td>
+                        <td><span class="sf-badge" style="background: ${statusStyle.bg}; color: ${statusStyle.color};">${ticket.status ? ticket.status.replace('_', ' ') : 'N/A'}</span></td>
+                        <td>${escapeHtml(ticket.queue || 'Unassigned')}</td>
+                        <td>${createdDate}</td>
+                        <td>
+                            <a href="/tickets/${ticket.id}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('ticketTableBody').innerHTML = html;
+        }
+
+        document.getElementById('displayedCount').textContent = filteredTickets.length;
+        document.getElementById('showingFrom').textContent = filteredTickets.length > 0 ? start + 1 : 0;
+        document.getElementById('showingTo').textContent = Math.min(end, filteredTickets.length);
+        document.getElementById('totalFiltered').textContent = filteredTickets.length;
+    }
+
+    // Render pagination
+    function renderPagination() {
+        const totalPages = Math.ceil(filteredTickets.length / pageSize);
+        let html = '';
+
+        html += `<button class="sf-pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="sf-pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span style="padding: 0 0.5rem;">...</span>`;
+            html += `<button class="sf-pagination-btn ${totalPages === currentPage ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+        }
+
+        html += `<button class="sf-pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+
+        document.getElementById('paginationControls').innerHTML = html;
+    }
+
+    // Sort table
+    function sortTable(column) {
+        if (sortColumn === column) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = column;
+            sortDirection = 'asc';
+        }
+        sortAndRender();
+    }
+
+    function updateSortIndicators() {
+        document.querySelectorAll('.sf-table th').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+        });
+        const currentTh = document.querySelector(`.sf-table th[data-sort="${sortColumn}"]`);
+        if (currentTh) {
+            currentTh.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+    }
+
+    // Page navigation
+    function goToPage(page) {
+        const totalPages = Math.ceil(filteredTickets.length / pageSize);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderTable();
+        renderPagination();
+    }
+
+    function changePageSize() {
+        pageSize = parseInt(document.getElementById('pageSize').value);
+        currentPage = 1;
+        sortAndRender();
+    }
+
+    // Filter by status from summary cards
+    function filterByStatus(status) {
+        // Clear all status checkboxes first
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+
+        if (status !== 'all') {
+            // Check the specific status
+            const checkbox = document.querySelector(`#statusFilter input[value="${status}"]`);
+            if (checkbox) checkbox.checked = true;
+        }
+
+        applyFilters();
+
+        // Update card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // Toggle filter section
+    function toggleFilter(filterId) {
+        const content = document.getElementById(filterId);
+        content.classList.toggle('collapsed');
+    }
+
+    // Toggle sidebar
+    function toggleSidebar() {
+        const sidebar = document.getElementById('filterSidebar');
+        const toggle = document.querySelector('.sf-toggle-sidebar');
+        const icon = document.getElementById('sidebarToggleIcon');
+
+        sidebar.classList.toggle('collapsed');
+        toggle.classList.toggle('collapsed');
+
+        if (sidebar.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+        } else {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
+        }
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        document.querySelectorAll('.sf-filter-content input').forEach(cb => cb.checked = false);
+        applyFilters();
+    }
+
+    // Update charts
+    function updateCharts() {
+        updateStatusChart();
+        updateTrendChart();
+    }
+
+    function updateStatusChart() {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+
+        const statusCounts = {};
+        allTickets.forEach(t => {
+            const status = t.status || 'UNKNOWN';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+
+        const labels = Object.keys(statusCounts);
+        const data = Object.values(statusCounts);
+        const colors = labels.map(s => statusColors[s]?.bg || '#e2e3e5');
+
+        if (statusChart) {
+            statusChart.destroy();
+        }
+
+        statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels.map(s => s.replace('_', ' ')),
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTrendChart() {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+
+        // Group tickets by day for the last 7 days
+        const days = [];
+        const counts = [];
+        const today = new Date();
+
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            days.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+
+            const count = allTickets.filter(t => {
+                if (!t.created_at) return false;
+                const ticketDate = new Date(t.created_at).toISOString().split('T')[0];
+                return ticketDate === dateStr;
+            }).length;
+            counts.push(count);
+        }
+
+        if (trendChart) {
+            trendChart.destroy();
+        }
+
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Tickets Created',
+                    data: counts,
+                    borderColor: '#0176d3',
+                    backgroundColor: 'rgba(1, 118, 211, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function changeChartType(chartId, type, btn) {
+        // Update button states
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (chartId === 'statusChart') {
+            updateStatusChartWithType(type);
+        } else if (chartId === 'trendChart') {
+            updateTrendChartWithType(type);
+        }
+    }
+
+    function updateStatusChartWithType(type) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+
+        const statusCounts = {};
+        allTickets.forEach(t => {
+            const status = t.status || 'UNKNOWN';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+
+        const labels = Object.keys(statusCounts);
+        const data = Object.values(statusCounts);
+        const colors = labels.map(s => statusColors[s]?.bg || '#e2e3e5');
+
+        if (statusChart) {
+            statusChart.destroy();
+        }
+
+        statusChart = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: labels.map(s => s.replace('_', ' ')),
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: type === 'bar' ? 0 : 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: type === 'bar' ? 'top' : 'right',
+                        display: type !== 'bar',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15
+                        }
+                    }
+                },
+                scales: type === 'bar' ? {
+                    y: { beginAtZero: true }
+                } : {}
+            }
+        });
+    }
+
+    function updateTrendChartWithType(type) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+
+        const days = [];
+        const counts = [];
+        const today = new Date();
+
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            days.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+
+            const count = allTickets.filter(t => {
+                if (!t.created_at) return false;
+                const ticketDate = new Date(t.created_at).toISOString().split('T')[0];
+                return ticketDate === dateStr;
+            }).length;
+            counts.push(count);
+        }
+
+        if (trendChart) {
+            trendChart.destroy();
+        }
+
+        trendChart = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Tickets Created',
+                    data: counts,
+                    borderColor: '#0176d3',
+                    backgroundColor: type === 'bar' ? '#0176d3' : 'rgba(1, 118, 211, 0.1)',
+                    fill: type === 'line',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Export tickets
+    function exportTickets() {
+        window.location.href = "{{ url_for('tickets.export_tickets_csv') }}";
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}
