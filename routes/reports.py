@@ -704,6 +704,255 @@ def get_case_data():
             'tableData': []
         }), 500
 
+# Dashboard routes
+@reports_bp.route('/dashboards')
+@login_required
+@permission_required('can_view_reports')
+def dashboards():
+    """List all dashboards"""
+    return render_template('reports/dashboards.html')
+
+@reports_bp.route('/dashboard/new')
+@login_required
+@permission_required('can_view_reports')
+def new_dashboard():
+    """Create a new dashboard"""
+    return render_template('reports/dashboard_builder.html', dashboard=None)
+
+@reports_bp.route('/dashboard/<int:dashboard_id>')
+@login_required
+@permission_required('can_view_reports')
+def view_dashboard(dashboard_id):
+    """View a specific dashboard"""
+    # For now, dashboards are stored in localStorage on the client
+    # In a full implementation, you would load from database
+    return render_template('reports/dashboard_builder.html', dashboard_id=dashboard_id)
+
+@reports_bp.route('/api/dashboard-data', methods=['POST'])
+@login_required
+@permission_required('can_view_reports')
+def get_dashboard_data():
+    """Get data for multiple report components in a dashboard"""
+    try:
+        request_data = request.get_json() or {}
+        components = request_data.get('components', [])
+
+        db = SessionLocal()
+        results = {}
+
+        try:
+            for component in components:
+                component_id = component.get('id')
+                component_type = component.get('type', 'chart')
+                group_by = component.get('groupBy', 'status')
+                filters = component.get('filters', {})
+
+                # Base query with permissions
+                query = db.query(Ticket)
+
+                # Apply permission filters
+                try:
+                    if hasattr(current_user, 'user_type') and current_user.user_type:
+                        if current_user.user_type.value == 'COUNTRY_ADMIN':
+                            query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                            if hasattr(current_user, 'country') and current_user.country:
+                                query = query.filter(CustomerUser.country == current_user.country)
+                        elif current_user.user_type.value == 'CLIENT':
+                            query = query.filter(Ticket.requester_id == current_user.id)
+                except Exception as e:
+                    logger.error(f"Error applying user permissions: {e}")
+
+                # Apply date filters
+                if filters.get('startDate'):
+                    try:
+                        start_date = datetime.fromisoformat(filters['startDate'])
+                        query = query.filter(Ticket.created_at >= start_date)
+                    except ValueError:
+                        pass
+
+                if filters.get('endDate'):
+                    try:
+                        end_date = datetime.fromisoformat(filters['endDate'])
+                        end_date = end_date + timedelta(days=1)
+                        query = query.filter(Ticket.created_at < end_date)
+                    except ValueError:
+                        pass
+
+                tickets = query.all()
+
+                # Generate data based on component type
+                if component_type == 'metric':
+                    # Single metric value
+                    metric_type = component.get('metricType', 'total')
+                    if metric_type == 'total':
+                        results[component_id] = {'value': len(tickets), 'label': 'Total Tickets'}
+                    elif metric_type == 'open':
+                        open_count = len([t for t in tickets if t.status and t.status.name not in ['RESOLVED', 'RESOLVED_DELIVERED']])
+                        results[component_id] = {'value': open_count, 'label': 'Open Tickets'}
+                    elif metric_type == 'resolved':
+                        resolved_count = len([t for t in tickets if t.status and t.status.name in ['RESOLVED', 'RESOLVED_DELIVERED']])
+                        results[component_id] = {'value': resolved_count, 'label': 'Resolved Tickets'}
+                    elif metric_type == 'resolution_rate':
+                        total = len(tickets)
+                        resolved = len([t for t in tickets if t.status and t.status.name in ['RESOLVED', 'RESOLVED_DELIVERED']])
+                        rate = round((resolved / total * 100), 1) if total > 0 else 0
+                        results[component_id] = {'value': f"{rate}%", 'label': 'Resolution Rate'}
+
+                elif component_type == 'chart':
+                    # Chart data grouped by field
+                    grouped_data = {}
+                    for ticket in tickets:
+                        key = get_group_key(ticket, group_by)
+                        grouped_data[key] = grouped_data.get(key, 0) + 1
+
+                    results[component_id] = {
+                        'labels': list(grouped_data.keys()),
+                        'values': list(grouped_data.values()),
+                        'groupBy': group_by
+                    }
+
+                elif component_type == 'table':
+                    # Table data
+                    table_data = []
+                    for ticket in tickets[:50]:  # Limit for dashboard
+                        table_data.append({
+                            'case_id': ticket.display_id if hasattr(ticket, 'display_id') and ticket.display_id else str(ticket.id),
+                            'subject': ticket.subject or 'Untitled',
+                            'status': ticket.status.value if ticket.status else 'No Status',
+                            'priority': ticket.priority.value if ticket.priority else 'No Priority',
+                            'created_at': ticket.created_at.isoformat()
+                        })
+                    results[component_id] = {'data': table_data, 'total': len(tickets)}
+
+            return jsonify({'success': True, 'data': results})
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error in get_dashboard_data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@reports_bp.route('/api/report-data', methods=['POST'])
+@login_required
+@permission_required('can_view_reports')
+def get_report_data():
+    """Get data for a saved report configuration"""
+    try:
+        request_data = request.get_json() or {}
+        filters = request_data.get('filters', {})
+        columns = request_data.get('columns', ['case_id', 'subject', 'status', 'priority'])
+
+        db = SessionLocal()
+
+        try:
+            # Base query with permissions
+            query = db.query(Ticket)
+
+            # Apply permission filters
+            try:
+                if hasattr(current_user, 'user_type') and current_user.user_type:
+                    if current_user.user_type.value == 'COUNTRY_ADMIN':
+                        query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                        if hasattr(current_user, 'country') and current_user.country:
+                            query = query.filter(CustomerUser.country == current_user.country)
+                    elif current_user.user_type.value == 'CLIENT':
+                        query = query.filter(Ticket.requester_id == current_user.id)
+            except Exception as e:
+                logger.error(f"Error applying user permissions: {e}")
+
+            # Apply date filters from saved report
+            if filters.get('startDate'):
+                try:
+                    start_date = datetime.fromisoformat(filters['startDate'])
+                    query = query.filter(Ticket.created_at >= start_date)
+                except ValueError:
+                    pass
+
+            if filters.get('endDate'):
+                try:
+                    end_date = datetime.fromisoformat(filters['endDate'])
+                    end_date = end_date + timedelta(days=1)
+                    query = query.filter(Ticket.created_at < end_date)
+                except ValueError:
+                    pass
+
+            tickets = query.all()
+
+            # Apply additional filters from saved report
+            filtered_tickets = []
+            for ticket in tickets:
+                # Status filter
+                if filters.get('statuses') and len(filters['statuses']) > 0:
+                    ticket_status = ticket.status.value if ticket.status else 'No Status'
+                    if ticket_status not in filters['statuses']:
+                        continue
+
+                # Priority filter
+                if filters.get('priorities') and len(filters['priorities']) > 0:
+                    ticket_priority = ticket.priority.value if ticket.priority else 'No Priority'
+                    if ticket_priority not in filters['priorities']:
+                        continue
+
+                # Category filter
+                if filters.get('categories') and len(filters['categories']) > 0:
+                    ticket_category = ticket.get_category_display_name() if ticket.category else 'No Category'
+                    if ticket_category not in filters['categories']:
+                        continue
+
+                # Assigned to filter
+                if filters.get('assignedTo') and len(filters['assignedTo']) > 0:
+                    ticket_user = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+                    if ticket_user not in filters['assignedTo']:
+                        continue
+
+                filtered_tickets.append(ticket)
+
+            # Build response data with requested columns
+            table_data = []
+            for ticket in filtered_tickets:
+                row = {}
+                for col in columns:
+                    if col == 'case_id':
+                        row['case_id'] = ticket.display_id if hasattr(ticket, 'display_id') and ticket.display_id else str(ticket.id)
+                    elif col == 'subject':
+                        row['subject'] = ticket.subject or 'Untitled'
+                    elif col == 'status':
+                        row['status'] = ticket.status.value if ticket.status else 'No Status'
+                    elif col == 'priority':
+                        row['priority'] = ticket.priority.value if ticket.priority else 'No Priority'
+                    elif col == 'category':
+                        row['category'] = ticket.get_category_display_name() if ticket.category else 'No Category'
+                    elif col == 'created_at':
+                        row['created_at'] = ticket.created_at.isoformat() if ticket.created_at else ''
+                    elif col == 'updated_at':
+                        row['updated_at'] = ticket.updated_at.isoformat() if ticket.updated_at else ''
+                    elif col == 'assigned_to':
+                        row['assigned_to'] = ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'
+                    elif col == 'customer':
+                        row['customer'] = ticket.customer.name if ticket.customer and hasattr(ticket.customer, 'name') else ''
+                    elif col == 'client_company':
+                        row['client_company'] = ticket.client_company.name if ticket.client_company and hasattr(ticket.client_company, 'name') else ''
+                    elif col == 'description':
+                        row['description'] = ticket.description[:100] + '...' if ticket.description and len(ticket.description) > 100 else (ticket.description or '')
+                    else:
+                        row[col] = ''
+                table_data.append(row)
+
+            return jsonify({
+                'success': True,
+                'data': table_data,
+                'total': len(table_data)
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error in get_report_data: {e}")
+        return jsonify({'success': False, 'error': str(e), 'data': [], 'total': 0}), 500
+
+
 def get_group_key(ticket, group_by):
     """Get the grouping key for a ticket based on the group_by parameter"""
     if group_by == 'status':

@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-green: #2e844a;
+        --sf-red: #ea001e;
+    }
+
+    .sf-dashboards-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header */
+    .sf-dashboards-header {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-dashboards-title-section {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sf-dashboards-breadcrumb {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-dashboards-breadcrumb a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-dashboards-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-dashboards-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-dashboards-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-left: 0.5rem;
+    }
+
+    .sf-dashboards-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-btn-destructive {
+        background: var(--sf-red);
+        color: white;
+    }
+
+    .sf-btn-destructive:hover {
+        background: #c00019;
+    }
+
+    /* Main Content */
+    .sf-dashboards-content {
+        padding: 1.5rem;
+    }
+
+    /* Dashboard Cards Grid */
+    .sf-dashboard-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Dashboard Card */
+    .sf-dashboard-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        overflow: hidden;
+        transition: all 0.15s ease;
+    }
+
+    .sf-dashboard-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
+    }
+
+    .sf-dashboard-card-preview {
+        height: 120px;
+        background: linear-gradient(135deg, var(--sf-blue) 0%, var(--sf-blue-light) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        position: relative;
+    }
+
+    .sf-dashboard-card-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        padding: 1rem;
+        width: 100%;
+        height: 100%;
+        opacity: 0.3;
+    }
+
+    .sf-preview-block {
+        background: white;
+        border-radius: 0.25rem;
+    }
+
+    .sf-dashboard-card-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 48px;
+        height: 48px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sf-dashboard-card-body {
+        padding: 1rem;
+    }
+
+    .sf-dashboard-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-dashboard-card-title a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .sf-dashboard-card-title a:hover {
+        color: var(--sf-blue);
+    }
+
+    .sf-dashboard-card-meta {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .sf-dashboard-card-footer {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--sf-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-dashboard-card-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .sf-card-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid var(--sf-gray-300);
+        background: white;
+        color: var(--sf-gray-800);
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .sf-card-btn:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-card-btn.primary {
+        background: var(--sf-blue);
+        border-color: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-card-btn.primary:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-card-btn.danger {
+        color: var(--sf-red);
+        border-color: var(--sf-red);
+    }
+
+    .sf-card-btn.danger:hover {
+        background: var(--sf-red);
+        color: white;
+    }
+
+    .sf-component-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        background: var(--sf-gray-100);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    /* Create Dashboard Card */
+    .sf-create-dashboard-card {
+        background: white;
+        border: 2px dashed var(--sf-gray-300);
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 220px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+
+    .sf-create-dashboard-card:hover {
+        border-color: var(--sf-blue);
+        background: #f8fcff;
+    }
+
+    .sf-create-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--sf-gray-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-600);
+        margin-bottom: 1rem;
+    }
+
+    .sf-create-dashboard-card:hover .sf-create-icon {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-create-text {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-create-dashboard-card:hover .sf-create-text {
+        color: var(--sf-blue);
+    }
+
+    /* Empty State */
+    .sf-empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--sf-gray-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-600);
+        margin: 0 auto 1.5rem;
+    }
+
+    .sf-empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-empty-text {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-dashboards-page">
+    <!-- Header -->
+    <div class="sf-dashboards-header">
+        <div class="sf-dashboards-title-section">
+            <span class="sf-dashboards-breadcrumb">
+                <a href="{{ url_for('reports.index') }}">Reports</a> / Dashboards
+            </span>
+            <span class="sf-dashboards-title">
+                My Dashboards
+                <span class="sf-dashboards-count" id="dashboardCount">(0 items)</span>
+            </span>
+        </div>
+        <div class="sf-dashboards-actions">
+            <a href="{{ url_for('reports.new_dashboard') }}" class="sf-btn sf-btn-brand">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                New Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="sf-dashboards-content">
+        <!-- Empty State (shown when no dashboards) -->
+        <div class="sf-empty-state" id="emptyState" style="display: none;">
+            <div class="sf-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+            </div>
+            <div class="sf-empty-title">No Dashboards Yet</div>
+            <div class="sf-empty-text">Create your first dashboard to combine multiple reports into a single view</div>
+            <a href="{{ url_for('reports.new_dashboard') }}" class="sf-btn sf-btn-brand">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Create Dashboard
+            </a>
+        </div>
+
+        <!-- Dashboard Cards Grid -->
+        <div class="sf-dashboard-cards" id="dashboardGrid">
+            <!-- Create New Dashboard Card (always first) -->
+            <a href="{{ url_for('reports.new_dashboard') }}" class="sf-create-dashboard-card">
+                <div class="sf-create-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                </div>
+                <span class="sf-create-text">Create New Dashboard</span>
+            </a>
+
+            <!-- Dashboard cards will be inserted here by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Load dashboards from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboards();
+});
+
+function loadDashboards() {
+    const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+    const grid = document.getElementById('dashboardGrid');
+    const emptyState = document.getElementById('emptyState');
+    const countEl = document.getElementById('dashboardCount');
+
+    // Update count
+    countEl.textContent = `(${dashboards.length} items)`;
+
+    // Show/hide empty state
+    if (dashboards.length === 0) {
+        emptyState.style.display = 'block';
+        grid.style.display = 'none';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    grid.style.display = 'grid';
+
+    // Clear existing cards (except the create card)
+    grid.querySelectorAll('.sf-dashboard-card').forEach(card => card.remove());
+
+    // Add dashboard cards
+    dashboards.forEach((dashboard, index) => {
+        const card = createDashboardCard(dashboard, index);
+        grid.appendChild(card);
+    });
+}
+
+function createDashboardCard(dashboard, index) {
+    const card = document.createElement('div');
+    card.className = 'sf-dashboard-card';
+
+    const componentCount = dashboard.components ? dashboard.components.length : 0;
+    const savedDate = dashboard.savedAt ? new Date(dashboard.savedAt).toLocaleDateString() : 'Unknown';
+
+    card.innerHTML = `
+        <div class="sf-dashboard-card-preview">
+            <div class="sf-dashboard-card-preview-grid">
+                ${generatePreviewBlocks(componentCount)}
+            </div>
+            <div class="sf-dashboard-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+            </div>
+        </div>
+        <div class="sf-dashboard-card-body">
+            <div class="sf-dashboard-card-title">
+                <a href="{{ url_for('reports.new_dashboard') }}?load=${encodeURIComponent(dashboard.name)}">${escapeHtml(dashboard.name)}</a>
+            </div>
+            <div class="sf-dashboard-card-meta">
+                <span>Last modified: ${savedDate}</span>
+                <span>Date range: ${dashboard.dateRange || 30} days</span>
+            </div>
+        </div>
+        <div class="sf-dashboard-card-footer">
+            <span class="sf-component-count">${componentCount} component${componentCount !== 1 ? 's' : ''}</span>
+            <div class="sf-dashboard-card-actions">
+                <a href="{{ url_for('reports.new_dashboard') }}?load=${encodeURIComponent(dashboard.name)}" class="sf-card-btn primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    View
+                </a>
+                <button class="sf-card-btn danger" onclick="deleteDashboard(${index}, '${escapeHtml(dashboard.name)}')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Delete
+                </button>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
+
+function generatePreviewBlocks(count) {
+    // Generate preview blocks based on component count
+    const blocks = Math.min(count || 3, 6);
+    let html = '';
+    for (let i = 0; i < blocks; i++) {
+        html += '<div class="sf-preview-block"></div>';
+    }
+    // Fill remaining slots to maintain grid
+    for (let i = blocks; i < 6; i++) {
+        html += '<div class="sf-preview-block" style="opacity: 0.3;"></div>';
+    }
+    return html;
+}
+
+function deleteDashboard(index, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+        return;
+    }
+
+    const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+    dashboards.splice(index, 1);
+    localStorage.setItem('savedDashboards', JSON.stringify(dashboards));
+
+    // Also clear currentDashboard if it matches
+    const currentDashboard = JSON.parse(localStorage.getItem('currentDashboard') || '{}');
+    if (currentDashboard.name === name) {
+        localStorage.removeItem('currentDashboard');
+    }
+
+    loadDashboards();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% set data = widget_data.get('customer_stats', {}) %}
+<div class="stat-value text-blue">{{ data.get('total', 0) | default(0) }}</div>
+<div class="stat-label">Registered Customers</div>
+<a href="{{ url_for('inventory.list_customer_users') }}" class="stat-action">
+    Manage Customers <i class="fas fa-arrow-right"></i>
+</a>

@@ -59,6 +59,7 @@ from routes.ticket_categories.asset_return_claw import asset_return_claw_bp
 from routes.knowledge import knowledge_bp
 from routes.feedback import feedback_bp
 from routes.parcel_tracking import parcel_tracking_bp
+from routes.dashboard import dashboard_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -124,8 +125,10 @@ def create_app():
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        # Check if this is an API request
-        if request.path.startswith('/api/'):
+        # Check if this is an API request (handles /api/ and /*/api/ patterns)
+        is_api_request = '/api/' in request.path or request.is_json or request.headers.get('Accept', '').startswith('application/json')
+
+        if is_api_request:
             return jsonify({
                 'error': {
                     'code': 'CSRF_ERROR',
@@ -214,6 +217,7 @@ def create_app():
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(parcel_tracking_bp)  # Prefix is defined in the blueprint file
+    app.register_blueprint(dashboard_bp)  # New customizable dashboard
 
     @app.context_processor
     def utility_processor():

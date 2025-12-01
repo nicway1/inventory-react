@@ -1,0 +1,1811 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* Salesforce-style colors */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
+        --sf-purple: #9050e9;
+    }
+
+    /* Main layout */
+    .sf-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header bar */
+    .sf-header {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .sf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .sf-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-breadcrumb a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-page-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-btn-success {
+        background: var(--sf-success);
+        color: white;
+    }
+
+    .sf-btn-success:hover {
+        background: #236839;
+    }
+
+    /* Main content area */
+    .sf-content {
+        display: flex;
+        height: calc(100vh - 60px);
+    }
+
+    /* Filters sidebar */
+    .sf-sidebar {
+        width: 280px;
+        background: white;
+        border-right: 1px solid var(--sf-gray-200);
+        overflow-y: auto;
+        flex-shrink: 0;
+        transition: width 0.2s ease;
+    }
+
+    .sf-sidebar.collapsed {
+        width: 0;
+        overflow: hidden;
+    }
+
+    .sf-sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--sf-gray-100);
+    }
+
+    .sf-sidebar-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-filter-section {
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-filter-header {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sf-filter-header:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-filter-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-filter-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        background: var(--sf-gray-200);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    .sf-filter-content {
+        padding: 0 1rem 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sf-filter-content.collapsed {
+        display: none;
+    }
+
+    .sf-checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 0.375rem 0;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-checkbox-item input {
+        margin-right: 0.5rem;
+        accent-color: var(--sf-blue);
+    }
+
+    .sf-checkbox-item .count {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Search input */
+    .sf-search-section {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-search-input {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+    }
+
+    .sf-search-input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    /* Main area */
+    .sf-main {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        background: var(--sf-gray-100);
+    }
+
+    /* Summary cards */
+    .sf-summary-cards {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-summary-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        border: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-summary-card.highlight {
+        border-left: 4px solid var(--sf-blue);
+    }
+
+    .sf-summary-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-summary-value.blue { color: var(--sf-blue); }
+    .sf-summary-value.green { color: var(--sf-success); }
+    .sf-summary-value.orange { color: var(--sf-warning); }
+    .sf-summary-value.red { color: var(--sf-error); }
+    .sf-summary-value.purple { color: var(--sf-purple); }
+
+    .sf-summary-subtitle {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Chart container */
+    .sf-chart-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        margin-bottom: 0;
+    }
+
+    .sf-chart-remove-btn:hover {
+        color: var(--sf-error);
+        background: #fee2e2;
+    }
+
+    .sf-charts-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-chart-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-chart-body {
+        padding: 1.5rem;
+        height: 300px;
+        position: relative;
+    }
+
+    /* Data table */
+    .sf-table-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        overflow: hidden;
+    }
+
+    .sf-table-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-table-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table th {
+        background: var(--sf-gray-100);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        cursor: pointer;
+    }
+
+    .sf-table th:hover {
+        background: var(--sf-gray-200);
+    }
+
+    .sf-table th.sortable::after {
+        content: ' \2195';
+        opacity: 0.4;
+    }
+
+    .sf-table th.sorted-asc::after {
+        content: ' \2191';
+        opacity: 1;
+    }
+
+    .sf-table th.sorted-desc::after {
+        content: ' \2193';
+        opacity: 1;
+    }
+
+    .sf-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-table tr:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-table-link {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-table-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Status badges */
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+
+    .sf-badge-deployed { background: #d4edda; color: #155724; }
+    .sf-badge-instock { background: #e8f4ff; color: #0176d3; }
+    .sf-badge-readytodeploy { background: #cce5ff; color: #004085; }
+    .sf-badge-shipped { background: #fff3cd; color: #856404; }
+    .sf-badge-repair { background: #f8d7da; color: #721c24; }
+    .sf-badge-archived { background: #e2e3e5; color: #383d41; }
+    .sf-badge-disposed { background: #d6d8db; color: #1b1e21; }
+
+    /* Loading spinner */
+    .sf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--sf-gray-200);
+        border-top-color: var(--sf-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Toggle sidebar button */
+    .sf-toggle-sidebar {
+        position: fixed;
+        left: 290px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 48px;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        transition: left 0.2s ease;
+    }
+
+    .sf-toggle-sidebar.collapsed {
+        left: 0;
+    }
+
+    .sf-toggle-sidebar:hover {
+        background: var(--sf-gray-100);
+    }
+
+    /* Preview header */
+    .sf-preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .sf-preview-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-preview-subtitle {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* No data state */
+    .sf-no-data {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-no-data-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Pagination */
+    .sf-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-100);
+    }
+
+    .sf-pagination-info {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-pagination-btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        background: white;
+        cursor: pointer;
+    }
+
+    .sf-pagination-btn:hover:not(:disabled) {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .sf-summary-cards {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sf-sidebar {
+            position: fixed;
+            left: 0;
+            top: 60px;
+            height: calc(100vh - 60px);
+            z-index: 200;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .sf-summary-cards {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-page">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-header-left">
+            <div class="sf-breadcrumb">
+                <a href="{{ url_for('main.index') }}">Home</a>
+                <span>/</span>
+                <span class="sf-page-title">IT Asset Inventory (SF Style)</span>
+            </div>
+        </div>
+        <div class="sf-header-actions">
+            <a href="{{ url_for('inventory.view_inventory') }}" class="sf-btn sf-btn-neutral">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Classic View
+            </a>
+            <button class="sf-btn sf-btn-neutral" onclick="resetFilters()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+                Reset
+            </button>
+            <button class="sf-btn sf-btn-success" onclick="exportAssets()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7,10 12,15 17,10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="sf-content">
+        <!-- Filters sidebar -->
+        <div class="sf-sidebar" id="filterSidebar">
+            <div class="sf-sidebar-header">
+                <span class="sf-sidebar-title">Filters</span>
+            </div>
+
+            <!-- Search -->
+            <div class="sf-search-section">
+                <input type="text" id="searchInput" class="sf-search-input" placeholder="Search assets..." onkeyup="debounceSearch()">
+            </div>
+
+            <!-- Status Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('status')">
+                    <span class="sf-filter-label">Status</span>
+                    <span class="sf-filter-count" id="statusCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="statusFilter"></div>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('category')">
+                    <span class="sf-filter-label">Category</span>
+                    <span class="sf-filter-count" id="categoryCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="categoryFilter"></div>
+            </div>
+
+            <!-- Company Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('company')">
+                    <span class="sf-filter-label">Company</span>
+                    <span class="sf-filter-count" id="companyCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="companyFilter"></div>
+            </div>
+
+            <!-- Country Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('country')">
+                    <span class="sf-filter-label">Country</span>
+                    <span class="sf-filter-count" id="countryCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="countryFilter"></div>
+            </div>
+
+            <!-- Location Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('location')">
+                    <span class="sf-filter-label">Location</span>
+                    <span class="sf-filter-count" id="locationCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="locationFilter"></div>
+            </div>
+        </div>
+
+        <!-- Toggle sidebar button -->
+        <button class="sf-toggle-sidebar" id="toggleSidebar" onclick="toggleSidebar()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
+                <polyline points="15,18 9,12 15,6"/>
+            </svg>
+        </button>
+
+        <!-- Main area -->
+        <div class="sf-main">
+            <!-- Tab Bar -->
+            <div class="sf-tab-bar" style="display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--sf-gray-200);">
+                <button class="sf-tab active" id="tabTechAssets" onclick="switchTab('tech')" style="padding: 0.75rem 1.5rem; font-size: 0.875rem; font-weight: 600; color: var(--sf-blue); background: none; border: none; border-bottom: 2px solid var(--sf-blue); margin-bottom: -2px; cursor: pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                    </svg>
+                    Tech Assets
+                </button>
+                <button class="sf-tab" id="tabAccessories" onclick="switchTab('accessories')" style="padding: 0.75rem 1.5rem; font-size: 0.875rem; font-weight: 600; color: var(--sf-gray-600); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    Accessories
+                </button>
+            </div>
+
+            <!-- Preview header -->
+            <div class="sf-preview-header">
+                <div>
+                    <div class="sf-preview-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                        </svg>
+                        <span id="viewTitle">Tech Assets Overview</span>
+                        <span id="loadingStatus" style="font-size: 0.75rem; color: #fe9339; margin-left: 0.5rem;">(Loading...)</span>
+                    </div>
+                    <div class="sf-preview-subtitle" id="assetCountText">Loading assets...</div>
+                    <div id="errorMessage" style="color: #ea001e; font-size: 0.75rem; display: none;"></div>
+                </div>
+                <div>
+                    <button class="sf-btn sf-btn-neutral" onclick="applyFilters()" title="Refresh data">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary cards for Tech Assets -->
+            <div class="sf-summary-cards" id="techSummaryCards">
+                <div class="sf-summary-card highlight">
+                    <div class="sf-summary-label">Total Assets</div>
+                    <div class="sf-summary-value blue" id="totalAssets">0</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Deployed</div>
+                    <div class="sf-summary-value green" id="deployedAssets">0</div>
+                    <div class="sf-summary-subtitle">In use by customers</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">In Stock</div>
+                    <div class="sf-summary-value blue" id="instockAssets">0</div>
+                    <div class="sf-summary-subtitle">Available in warehouse</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Ready to Deploy</div>
+                    <div class="sf-summary-value orange" id="readyToDeployAssets">0</div>
+                    <div class="sf-summary-subtitle">Prepared for shipping</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Disposed</div>
+                    <div class="sf-summary-value red" id="disposedAssets">0</div>
+                    <div class="sf-summary-subtitle">End of life</div>
+                </div>
+            </div>
+
+            <!-- Summary cards for Accessories -->
+            <div class="sf-summary-cards" id="accessorySummaryCards" style="display: none;">
+                <div class="sf-summary-card highlight">
+                    <div class="sf-summary-label">Total Items</div>
+                    <div class="sf-summary-value blue" id="totalAccessories">0</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Total Quantity</div>
+                    <div class="sf-summary-value green" id="totalAccessoryQty">0</div>
+                    <div class="sf-summary-subtitle">All accessories</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Available</div>
+                    <div class="sf-summary-value blue" id="availableAccessoryQty">0</div>
+                    <div class="sf-summary-subtitle">Ready for use</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">In Use</div>
+                    <div class="sf-summary-value orange" id="inUseAccessoryQty">0</div>
+                    <div class="sf-summary-subtitle">Checked out</div>
+                </div>
+                <div class="sf-summary-card">
+                    <div class="sf-summary-label">Categories</div>
+                    <div class="sf-summary-value purple" id="accessoryCategories">0</div>
+                    <div class="sf-summary-subtitle">Types of items</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="sf-charts-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <span style="font-size: 0.875rem; font-weight: 600; color: var(--sf-gray-800);">Charts</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="sf-btn sf-btn-success" onclick="saveChartSettings()" id="saveChartsBtn" style="padding: 0.375rem 0.75rem;" title="Save chart configuration">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                <polyline points="17 21 17 13 7 13 7 21"/>
+                                <polyline points="7 3 7 8 15 8"/>
+                            </svg>
+                            Save
+                        </button>
+                        <button class="sf-btn sf-btn-brand" onclick="addChart()" id="addChartBtn" style="padding: 0.375rem 0.75rem;" title="Add new chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Add Chart
+                        </button>
+                    </div>
+                </div>
+                <div id="chartsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
+                    <!-- Charts will be dynamically inserted here -->
+                </div>
+                <div class="sf-loading" id="chartLoading" style="display: none;">
+                    <div class="sf-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Data table -->
+            <div class="sf-table-container">
+                <div class="sf-table-header">
+                    <span class="sf-table-title">Asset Details</span>
+                    <span style="font-size: 0.8125rem; color: var(--sf-gray-600);" id="tableInfo">Showing 0 results</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="sf-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="asset_tag" onclick="sortTable('asset_tag')">Asset Tag</th>
+                                <th class="sortable" data-sort="name" onclick="sortTable('name')">Name</th>
+                                <th class="sortable" data-sort="status" onclick="sortTable('status')">Status</th>
+                                <th class="sortable" data-sort="category" onclick="sortTable('category')">Category</th>
+                                <th class="sortable" data-sort="customer" onclick="sortTable('customer')">Customer</th>
+                                <th class="sortable" data-sort="company" onclick="sortTable('company')">Company</th>
+                                <th class="sortable" data-sort="country" onclick="sortTable('country')">Country</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="8" class="sf-loading">
+                                    <div class="sf-spinner"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sf-pagination">
+                    <div class="sf-pagination-info">
+                        <span>Showing <span id="pageStart">0</span> to <span id="pageEnd">0</span> of <span id="totalRecords">0</span> assets</span>
+                    </div>
+                    <div class="sf-pagination-controls">
+                        <button class="sf-pagination-btn" onclick="changePage(-1)" id="prevBtn" disabled>Previous</button>
+                        <span id="pageNumber">Page 1</span>
+                        <button class="sf-pagination-btn" onclick="changePage(1)" id="nextBtn">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let charts = {}; // Store multiple chart instances by ID
+let chartConfigs = []; // Store chart configurations [{id, chartType, groupBy}]
+let nextChartId = 1;
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+let assetData = [];
+let accessoryData = [];
+let filteredData = [];
+let filterOptions = {};
+let currentPage = 1;
+let pageSize = 25;
+let sortField = 'asset_tag';
+let sortDirection = 'asc';
+let searchTimeout = null;
+let currentTab = 'tech'; // 'tech' or 'accessories'
+
+// Color palette
+const colors = [
+    '#0176d3', '#2e844a', '#fe9339', '#ea001e', '#9050e9',
+    '#1b96ff', '#04844b', '#ff538a', '#00b4d8', '#7c868d'
+];
+
+// Status badge classes
+const statusBadgeClasses = {
+    'Deployed': 'sf-badge-deployed',
+    'In Stock': 'sf-badge-instock',
+    'Ready to Deploy': 'sf-badge-readytodeploy',
+    'Shipped': 'sf-badge-shipped',
+    'Repair': 'sf-badge-repair',
+    'Archived': 'sf-badge-archived',
+    'Disposed': 'sf-badge-disposed'
+};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadChartSettings();
+    await loadFilters();
+    await loadAssets();
+});
+
+// Load saved chart settings
+async function loadChartSettings() {
+    try {
+        const response = await fetch('/inventory/api/sf/chart-settings');
+        const isJson = (response.headers.get('content-type') || '').includes('application/json');
+        const data = isJson ? await response.json() : {};
+
+        if (response.ok && data.success && data.charts && data.charts.length > 0) {
+            chartConfigs = data.charts;
+            nextChartId = Math.max(...chartConfigs.map(c => c.id)) + 1;
+        } else {
+            // Default: one chart
+            chartConfigs = [{ id: 1, chartType: 'doughnut', groupBy: 'status' }];
+            nextChartId = 2;
+        }
+        console.log('Loaded chart settings:', chartConfigs);
+    } catch (error) {
+        console.error('Error loading chart settings:', error);
+        chartConfigs = [{ id: 1, chartType: 'doughnut', groupBy: 'status' }];
+        nextChartId = 2;
+    }
+}
+
+// Save chart settings
+async function saveChartSettings() {
+    const btn = document.getElementById('saveChartsBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem; animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10"/></svg> Saving...';
+    btn.disabled = true;
+
+    // Debug: Check if CSRF token exists
+    console.log('CSRF Token:', csrfToken ? 'Present (' + csrfToken.substring(0, 20) + '...)' : 'MISSING!');
+    console.log('CSRF Token length:', csrfToken ? csrfToken.length : 0);
+    console.log('Chart configs to save:', chartConfigs);
+
+    if (!csrfToken) {
+        console.error('WARNING: CSRF token is empty! Check if meta tag exists:', document.querySelector('meta[name="csrf-token"]'));
+    }
+
+    try {
+        const response = await fetch('/inventory/api/sf/chart-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',  // Ensure cookies (session) are sent
+            body: JSON.stringify({ charts: chartConfigs })
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        let data = null;
+        let rawText = '';
+
+        if (contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            rawText = await response.text();
+            console.error('Non-JSON response:', rawText.substring(0, 200));
+        }
+
+        if (response.ok && data && data.success) {
+            console.log('Saved chart settings:', data.charts || chartConfigs);
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            // Handle different error formats
+            let errorMsg = `HTTP ${response.status}`;
+            if (data) {
+                console.error('Error response data:', data);
+                if (data.error) {
+                    // Handle object error {code, message, details} or string error
+                    errorMsg = typeof data.error === 'object' ? (data.error.message || data.error.details || JSON.stringify(data.error)) : data.error;
+                }
+            } else if (rawText) {
+                errorMsg = rawText.substring(0, 100);
+            }
+            throw new Error(errorMsg);
+        }
+    } catch (error) {
+        console.error('Error saving chart settings:', error);
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Error';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+// Add a new chart
+function addChart() {
+    const newConfig = {
+        id: nextChartId++,
+        chartType: 'doughnut',
+        groupBy: 'status'
+    };
+    chartConfigs.push(newConfig);
+    renderChartContainer(newConfig);
+    updateSingleChart(newConfig.id);
+}
+
+// Remove a chart
+function removeChart(chartId) {
+    if (chartConfigs.length <= 1) {
+        alert('You must have at least one chart.');
+        return;
+    }
+
+    // Destroy the chart instance
+    if (charts[chartId]) {
+        charts[chartId].destroy();
+        delete charts[chartId];
+    }
+
+    // Remove from configs
+    chartConfigs = chartConfigs.filter(c => c.id !== chartId);
+
+    // Remove DOM element
+    const container = document.getElementById(`chart-container-${chartId}`);
+    if (container) {
+        container.remove();
+    }
+}
+
+// Render a chart container
+function renderChartContainer(config) {
+    const container = document.getElementById('chartsContainer');
+    const filterValue = config.filter ? config.filter.value : null;
+    const chartHtml = `
+        <div class="sf-chart-container" id="chart-container-${config.id}" style="position: relative;">
+            <button onclick="removeChart(${config.id})" class="sf-chart-remove-btn" title="Remove chart" style="position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; cursor: pointer; color: var(--sf-gray-600); padding: 0.25rem; border-radius: 0.25rem; z-index: 10;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+            <div class="sf-chart-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span class="sf-chart-title">Distribution by <span id="chartGroupLabel-${config.id}">${config.groupBy.charAt(0).toUpperCase() + config.groupBy.slice(1)}</span></span>
+                    <span id="chartFilter-${config.id}" class="sf-chart-filter-badge" style="display: ${filterValue ? 'inline-flex' : 'none'}; align-items: center; gap: 0.25rem; background: var(--sf-blue); color: white; padding: 0.125rem 0.5rem; border-radius: 1rem; font-size: 0.75rem;">
+                        <span id="chartFilterText-${config.id}">${filterValue || ''}</span>
+                        <button onclick="clearChartFilter(${config.id})" style="background: none; border: none; color: white; cursor: pointer; padding: 0; line-height: 1; font-size: 0.875rem;">&times;</button>
+                    </span>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select id="chartGroupBy-${config.id}" class="sf-btn sf-btn-neutral" style="padding: 0.375rem 0.5rem;" onchange="updateChartGrouping(${config.id})">
+                        <option value="status" ${config.groupBy === 'status' ? 'selected' : ''}>Status</option>
+                        <option value="category" ${config.groupBy === 'category' ? 'selected' : ''}>Category</option>
+                        <option value="company" ${config.groupBy === 'company' ? 'selected' : ''}>Company</option>
+                        <option value="country" ${config.groupBy === 'country' ? 'selected' : ''}>Country</option>
+                    </select>
+                    <button class="sf-btn ${config.chartType === 'doughnut' ? 'sf-btn-brand' : 'sf-btn-neutral'}" style="padding: 0.25rem 0.5rem;" onclick="setChartType(${config.id}, 'doughnut')" id="btnDoughnut-${config.id}">
+                        Doughnut
+                    </button>
+                    <button class="sf-btn ${config.chartType === 'bar' ? 'sf-btn-brand' : 'sf-btn-neutral'}" style="padding: 0.25rem 0.5rem;" onclick="setChartType(${config.id}, 'bar')" id="btnBar-${config.id}">
+                        Bar
+                    </button>
+                </div>
+            </div>
+            <div class="sf-chart-body" style="height: 250px; position: relative;">
+                <canvas id="chart-${config.id}"></canvas>
+                <div class="sf-no-data" id="chartNoData-${config.id}" style="display: none;">
+                    <svg class="sf-no-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span>No data available</span>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', chartHtml);
+}
+
+// Clear filter for a specific chart
+function clearChartFilter(chartId) {
+    const config = chartConfigs.find(c => c.id === chartId);
+    if (config) {
+        config.filter = null;
+        // Update filter badge visibility
+        const badge = document.getElementById(`chartFilter-${chartId}`);
+        if (badge) badge.style.display = 'none';
+        updateSingleChart(chartId);
+    }
+}
+
+// Apply filter to a specific chart when clicking on a segment
+function applyChartFilter(chartId, label) {
+    const config = chartConfigs.find(c => c.id === chartId);
+    if (config) {
+        // Toggle filter: if same filter clicked again, clear it
+        if (config.filter && config.filter.value === label) {
+            clearChartFilter(chartId);
+            return;
+        }
+        config.filter = { field: config.groupBy, value: label };
+        // Update filter badge
+        const badge = document.getElementById(`chartFilter-${chartId}`);
+        const text = document.getElementById(`chartFilterText-${chartId}`);
+        if (badge && text) {
+            text.textContent = label;
+            badge.style.display = 'inline-flex';
+        }
+        updateSingleChart(chartId);
+    }
+}
+
+// Render all chart containers
+function renderAllCharts() {
+    const container = document.getElementById('chartsContainer');
+    container.innerHTML = '';
+    chartConfigs.forEach(config => renderChartContainer(config));
+}
+
+// Load filter options
+async function loadFilters() {
+    document.getElementById('loadingStatus').textContent = '(Loading filters...)';
+    try {
+        console.log('Loading filters...');
+        const response = await fetch('/inventory/api/sf/filters');
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
+        const data = await response.json();
+        console.log('Filters response:', data);
+
+        if (data.success) {
+            filterOptions = data;
+            populateFilter('statusFilter', data.statuses || [], 'status');
+            // Use asset categories by default (tech assets tab)
+            populateFilter('categoryFilter', data.asset_categories || data.categories || [], 'category');
+            populateFilter('companyFilter', data.companies || [], 'company');
+            populateFilter('countryFilter', data.countries || [], 'country');
+            populateFilter('locationFilter', data.locations || [], 'location');
+        } else {
+            console.error('Filter API returned error:', data.error);
+            document.getElementById('errorMessage').textContent = 'Filter Error: ' + (data.error || 'Unknown error');
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading filters:', error);
+        document.getElementById('errorMessage').textContent = 'Filter Load Error: ' + error.message;
+        document.getElementById('errorMessage').style.display = 'block';
+    }
+}
+
+// Update category filter based on current tab
+function updateCategoryFilter() {
+    if (!filterOptions) return;
+
+    if (currentTab === 'tech') {
+        populateFilter('categoryFilter', filterOptions.asset_categories || filterOptions.categories || [], 'category');
+    } else {
+        populateFilter('categoryFilter', filterOptions.accessory_categories || [], 'category');
+    }
+}
+
+// Populate a filter section
+function populateFilter(containerId, options, filterType) {
+    const container = document.getElementById(containerId);
+    const countEl = document.getElementById(filterType + 'Count');
+
+    if (countEl) {
+        countEl.textContent = options.length;
+    }
+
+    // Add select all/deselect all toggle at the top
+    const toggleHtml = `
+        <div class="sf-filter-toggle" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--sf-gray-200);">
+            <button type="button" onclick="selectAllFilter('${filterType}')" style="flex: 1; padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--sf-blue); color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
+                Select All
+            </button>
+            <button type="button" onclick="deselectAllFilter('${filterType}')" style="flex: 1; padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--sf-gray-200); color: var(--sf-gray-700); border: none; border-radius: 0.25rem; cursor: pointer;">
+                Deselect All
+            </button>
+        </div>
+    `;
+
+    const optionsHtml = options.map(opt => `
+        <label class="sf-checkbox-item">
+            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" checked onchange="applyFilters()">
+            <span>${opt.label}</span>
+            <span class="count">${opt.count}</span>
+        </label>
+    `).join('');
+
+    container.innerHTML = toggleHtml + optionsHtml;
+}
+
+// Select all options in a filter
+function selectAllFilter(filterType) {
+    const checkboxes = document.querySelectorAll(`input[data-filter="${filterType}"]`);
+    checkboxes.forEach(cb => cb.checked = true);
+    applyFilters();
+}
+
+// Deselect all options in a filter
+function deselectAllFilter(filterType) {
+    const checkboxes = document.querySelectorAll(`input[data-filter="${filterType}"]`);
+    checkboxes.forEach(cb => cb.checked = false);
+    applyFilters();
+}
+
+// Load assets from API
+async function loadAssets() {
+    document.getElementById('chartLoading').style.display = 'flex';
+    document.getElementById('loadingStatus').textContent = '(Loading assets...)';
+    document.getElementById('loadingStatus').style.display = 'inline';
+
+    try {
+        console.log('Loading assets...');
+        const response = await fetch('/inventory/api/sf/assets');
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
+        const data = await response.json();
+        console.log('Assets response:', data);
+
+        if (data.success) {
+            assetData = data.assets;
+            console.log('Loaded', assetData.length, 'assets');
+            document.getElementById('loadingStatus').style.display = 'none';
+            applyFilters();
+        } else {
+            console.error('Assets API returned error:', data.error);
+            document.getElementById('chartLoading').style.display = 'none';
+            document.getElementById('loadingStatus').textContent = '(Error)';
+            document.getElementById('loadingStatus').style.color = '#ea001e';
+            document.getElementById('assetCountText').textContent = 'Error: ' + (data.error || 'Unknown error');
+            document.getElementById('errorMessage').textContent = 'API Error: ' + (data.error || 'Unknown error');
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading assets:', error);
+        document.getElementById('chartLoading').style.display = 'none';
+        document.getElementById('loadingStatus').textContent = '(Error)';
+        document.getElementById('loadingStatus').style.color = '#ea001e';
+        document.getElementById('assetCountText').textContent = 'Error: ' + error.message;
+        document.getElementById('errorMessage').textContent = 'Network/Fetch Error: ' + error.message;
+        document.getElementById('errorMessage').style.display = 'block';
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    const filters = getSelectedFilters();
+    const search = document.getElementById('searchInput').value.toLowerCase();
+
+    filteredData = assetData.filter(asset => {
+        // Check search
+        if (search) {
+            const searchFields = [
+                asset.asset_tag, asset.name, asset.serial_number,
+                asset.customer, asset.company, asset.country
+            ].map(f => (f || '').toLowerCase());
+
+            if (!searchFields.some(f => f.includes(search))) {
+                return false;
+            }
+        }
+
+        // Check status filter
+        if (filters.statuses.length > 0 && !filters.statuses.includes(asset.status)) {
+            return false;
+        }
+
+        // Check category filter
+        if (filters.categories.length > 0 && !filters.categories.includes(asset.category)) {
+            return false;
+        }
+
+        // Check company filter (with parent/child company grouping support)
+        if (filters.companies.length > 0) {
+            // Check if asset's company matches directly
+            const companyMatch = filters.companies.includes(asset.company);
+            // Also check if asset's parent company matches (for child companies)
+            const parentMatch = asset.parent_company && filters.companies.includes(asset.parent_company);
+
+            if (!companyMatch && !parentMatch) {
+                return false;
+            }
+        }
+
+        // Check country filter
+        if (filters.countries.length > 0 && !filters.countries.includes(asset.country)) {
+            return false;
+        }
+
+        // Check location filter
+        if (filters.locations.length > 0 && !filters.locations.includes(asset.location)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    // Reset to first page
+    currentPage = 1;
+
+    // Update UI
+    updateSummaryCards();
+    updateChart();
+    updateTable();
+
+    document.getElementById('assetCountText').textContent = `Found ${filteredData.length} assets with current filters`;
+}
+
+// Get selected filter values
+function getSelectedFilters() {
+    const filters = {
+        statuses: [],
+        categories: [],
+        companies: [],
+        countries: [],
+        locations: []
+    };
+
+    document.querySelectorAll('input[data-filter="status"]:checked').forEach(cb => {
+        filters.statuses.push(cb.value);
+    });
+    document.querySelectorAll('input[data-filter="category"]:checked').forEach(cb => {
+        filters.categories.push(cb.value);
+    });
+    document.querySelectorAll('input[data-filter="company"]:checked').forEach(cb => {
+        filters.companies.push(cb.value);
+    });
+    document.querySelectorAll('input[data-filter="country"]:checked').forEach(cb => {
+        filters.countries.push(cb.value);
+    });
+    document.querySelectorAll('input[data-filter="location"]:checked').forEach(cb => {
+        filters.locations.push(cb.value);
+    });
+
+    return filters;
+}
+
+// Update summary cards
+function updateSummaryCards() {
+    const total = filteredData.length;
+    const deployed = filteredData.filter(a => a.status === 'Deployed').length;
+    const instock = filteredData.filter(a => a.status === 'In Stock').length;
+    const readyToDeploy = filteredData.filter(a => a.status === 'Ready to Deploy').length;
+    const disposed = filteredData.filter(a => a.status === 'Disposed').length;
+
+    document.getElementById('totalAssets').textContent = total.toLocaleString();
+    document.getElementById('deployedAssets').textContent = deployed.toLocaleString();
+    document.getElementById('instockAssets').textContent = instock.toLocaleString();
+    document.getElementById('readyToDeployAssets').textContent = readyToDeploy.toLocaleString();
+    document.getElementById('disposedAssets').textContent = disposed.toLocaleString();
+}
+
+// Update all charts
+function updateChart() {
+    document.getElementById('chartLoading').style.display = 'none';
+
+    // Render chart containers if not already done
+    if (document.getElementById('chartsContainer').children.length === 0) {
+        renderAllCharts();
+    }
+
+    // Update each chart
+    chartConfigs.forEach(config => {
+        updateSingleChart(config.id);
+    });
+}
+
+// Update a single chart
+function updateSingleChart(chartId) {
+    const config = chartConfigs.find(c => c.id === chartId);
+    if (!config) return;
+
+    const groupBy = config.groupBy;
+    const chartType = config.chartType;
+
+    const labelEl = document.getElementById(`chartGroupLabel-${chartId}`);
+    if (labelEl) {
+        labelEl.textContent = groupBy.charAt(0).toUpperCase() + groupBy.slice(1);
+    }
+
+    // Apply per-chart filter if exists
+    let chartData = filteredData;
+    if (config.filter) {
+        chartData = filteredData.filter(item => {
+            const itemValue = item[config.filter.field] || 'Unknown';
+            return itemValue === config.filter.value;
+        });
+    }
+
+    // Group data
+    const groups = {};
+    chartData.forEach(asset => {
+        const key = asset[groupBy] || 'Unknown';
+        groups[key] = (groups[key] || 0) + 1;
+    });
+
+    const labels = Object.keys(groups).sort();
+    const values = labels.map(l => groups[l]);
+
+    const noDataEl = document.getElementById(`chartNoData-${chartId}`);
+    if (labels.length === 0) {
+        if (noDataEl) noDataEl.style.display = 'flex';
+        if (charts[chartId]) {
+            charts[chartId].destroy();
+            delete charts[chartId];
+        }
+        return;
+    }
+
+    if (noDataEl) noDataEl.style.display = 'none';
+
+    const canvas = document.getElementById(`chart-${chartId}`);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const isCircular = chartType === 'doughnut' || chartType === 'pie';
+
+    const chartConfig = {
+        type: chartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: currentTab === 'tech' ? 'Assets' : 'Accessories',
+                data: values,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: isCircular ? 'white' : colors.slice(0, labels.length),
+                borderWidth: isCircular ? 2 : 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const label = labels[index];
+                    applyChartFilter(chartId, label);
+                }
+            },
+            plugins: {
+                legend: {
+                    display: isCircular,
+                    position: 'right',
+                    onClick: (e, legendItem, legend) => {
+                        // When clicking on legend item, filter by that value
+                        const label = legendItem.text;
+                        applyChartFilter(chartId, label);
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        footer: () => 'Click to filter this chart'
+                    }
+                }
+            },
+            scales: isCircular ? {} : {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                }
+            }
+        }
+    };
+
+    if (charts[chartId]) {
+        charts[chartId].destroy();
+    }
+    charts[chartId] = new Chart(ctx, chartConfig);
+
+    // Update button states
+    const btnDoughnut = document.getElementById(`btnDoughnut-${chartId}`);
+    const btnBar = document.getElementById(`btnBar-${chartId}`);
+    if (btnDoughnut) {
+        btnDoughnut.classList.toggle('sf-btn-brand', chartType === 'doughnut');
+        btnDoughnut.classList.toggle('sf-btn-neutral', chartType !== 'doughnut');
+    }
+    if (btnBar) {
+        btnBar.classList.toggle('sf-btn-brand', chartType === 'bar');
+        btnBar.classList.toggle('sf-btn-neutral', chartType !== 'bar');
+    }
+}
+
+// Set chart type for a specific chart
+function setChartType(chartId, type) {
+    const config = chartConfigs.find(c => c.id === chartId);
+    if (config) {
+        config.chartType = type;
+        updateSingleChart(chartId);
+    }
+}
+
+// Update chart grouping for a specific chart
+function updateChartGrouping(chartId) {
+    const config = chartConfigs.find(c => c.id === chartId);
+    const select = document.getElementById(`chartGroupBy-${chartId}`);
+    if (config && select) {
+        config.groupBy = select.value;
+        updateSingleChart(chartId);
+    }
+}
+
+// Update table
+function updateTable() {
+    // Sort data
+    const sortedData = [...filteredData].sort((a, b) => {
+        const aVal = (a[sortField] || '').toString().toLowerCase();
+        const bVal = (b[sortField] || '').toString().toLowerCase();
+
+        if (sortDirection === 'asc') {
+            return aVal.localeCompare(bVal);
+        } else {
+            return bVal.localeCompare(aVal);
+        }
+    });
+
+    // Paginate
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pageData = sortedData.slice(startIdx, endIdx);
+
+    const tbody = document.getElementById('tableBody');
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--sf-gray-600);">
+                    No assets found matching your filters
+                </td>
+            </tr>
+        `;
+    } else {
+        tbody.innerHTML = pageData.map(asset => `
+            <tr>
+                <td><a href="/inventory/sf/asset/${asset.id}" class="sf-table-link">${escapeHtml(asset.asset_tag)}</a></td>
+                <td>${escapeHtml(asset.name)}</td>
+                <td><span class="sf-badge ${statusBadgeClasses[asset.status] || ''}">${escapeHtml(asset.status)}</span></td>
+                <td>${escapeHtml(asset.category || '-')}</td>
+                <td>${escapeHtml(asset.customer || '-')}</td>
+                <td>${escapeHtml(asset.company || '-')}</td>
+                <td>${escapeHtml(asset.country || '-')}</td>
+                <td>
+                    <a href="/inventory/sf/asset/${asset.id}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</a>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // Update pagination info
+    document.getElementById('pageStart').textContent = filteredData.length > 0 ? startIdx + 1 : 0;
+    document.getElementById('pageEnd').textContent = Math.min(endIdx, filteredData.length);
+    document.getElementById('totalRecords').textContent = filteredData.length;
+    document.getElementById('pageNumber').textContent = `Page ${currentPage}`;
+    document.getElementById('tableInfo').textContent = `Showing ${pageData.length} of ${filteredData.length} results`;
+
+    // Update button states
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = endIdx >= filteredData.length;
+
+    // Update sort indicators
+    document.querySelectorAll('.sf-table th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.dataset.sort === sortField) {
+            th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+    });
+}
+
+// Sort table
+function sortTable(field) {
+    if (sortField === field) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField = field;
+        sortDirection = 'asc';
+    }
+    updateTable();
+}
+
+// Change page
+function changePage(delta) {
+    const maxPage = Math.ceil(filteredData.length / pageSize);
+    const newPage = currentPage + delta;
+
+    if (newPage >= 1 && newPage <= maxPage) {
+        currentPage = newPage;
+        updateTable();
+    }
+}
+
+// Toggle filter section
+function toggleFilter(filterName) {
+    const content = document.getElementById(filterName + 'Filter');
+    content.classList.toggle('collapsed');
+}
+
+// Toggle sidebar
+function toggleSidebar() {
+    const sidebar = document.getElementById('filterSidebar');
+    const toggle = document.getElementById('toggleSidebar');
+    const icon = document.getElementById('toggleIcon');
+
+    sidebar.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed');
+
+    if (sidebar.classList.contains('collapsed')) {
+        icon.innerHTML = '<polyline points="9,18 15,12 9,6"/>';
+    } else {
+        icon.innerHTML = '<polyline points="15,18 9,12 15,6"/>';
+    }
+}
+
+// Reset filters
+function resetFilters() {
+    document.querySelectorAll('.sf-filter-content input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+    document.getElementById('searchInput').value = '';
+    applyFilters();
+}
+
+// Debounced search
+function debounceSearch() {
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+    searchTimeout = setTimeout(() => {
+        applyFilters();
+    }, 300);
+}
+
+// Export assets
+function exportAssets() {
+    if (filteredData.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    const headers = ['Asset Tag', 'Name', 'Serial Number', 'Status', 'Category', 'Customer', 'Company', 'Country', 'Location'];
+    const rows = filteredData.map(a => [
+        a.asset_tag, a.name, a.serial_number, a.status, a.category,
+        a.customer, a.company, a.country, a.location
+    ].map(val => {
+        val = val || '';
+        if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+            return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+    }));
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `asset_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Switch between Tech Assets and Accessories tabs
+async function switchTab(tab) {
+    currentTab = tab;
+    currentPage = 1;
+
+    // Update tab styles
+    const techTab = document.getElementById('tabTechAssets');
+    const accTab = document.getElementById('tabAccessories');
+
+    // Update category filter for the selected tab
+    updateCategoryFilter();
+
+    if (tab === 'tech') {
+        techTab.style.color = 'var(--sf-blue)';
+        techTab.style.borderBottomColor = 'var(--sf-blue)';
+        accTab.style.color = 'var(--sf-gray-600)';
+        accTab.style.borderBottomColor = 'transparent';
+
+        document.getElementById('techSummaryCards').style.display = 'grid';
+        document.getElementById('accessorySummaryCards').style.display = 'none';
+        document.getElementById('viewTitle').textContent = 'Tech Assets Overview';
+
+        // Show tech asset data
+        filteredData = [...assetData];
+        applyFilters();
+    } else {
+        accTab.style.color = 'var(--sf-blue)';
+        accTab.style.borderBottomColor = 'var(--sf-blue)';
+        techTab.style.color = 'var(--sf-gray-600)';
+        techTab.style.borderBottomColor = 'transparent';
+
+        document.getElementById('techSummaryCards').style.display = 'none';
+        document.getElementById('accessorySummaryCards').style.display = 'grid';
+        document.getElementById('viewTitle').textContent = 'Accessories Overview';
+
+        // Load accessories if not already loaded
+        if (accessoryData.length === 0) {
+            await loadAccessories();
+        } else {
+            filteredData = [...accessoryData];
+            updateAccessorySummary();
+            updateChart();
+            updateAccessoryTable();
+        }
+    }
+}
+
+// Load accessories from API
+async function loadAccessories() {
+    document.getElementById('chartLoading').style.display = 'flex';
+    document.getElementById('loadingStatus').textContent = '(Loading accessories...)';
+    document.getElementById('loadingStatus').style.display = 'inline';
+
+    try {
+        const response = await fetch('/inventory/api/sf/accessories');
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            accessoryData = data.accessories;
+            filteredData = [...accessoryData];
+            document.getElementById('loadingStatus').style.display = 'none';
+            updateAccessorySummary();
+            updateChart();
+            updateAccessoryTable();
+            document.getElementById('assetCountText').textContent = `Found ${filteredData.length} accessories`;
+        } else {
+            document.getElementById('chartLoading').style.display = 'none';
+            document.getElementById('loadingStatus').textContent = '(Error)';
+            document.getElementById('assetCountText').textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error('Error loading accessories:', error);
+        document.getElementById('chartLoading').style.display = 'none';
+        document.getElementById('loadingStatus').textContent = '(Error)';
+        document.getElementById('assetCountText').textContent = 'Error: ' + error.message;
+    }
+}
+
+// Update accessory summary cards
+function updateAccessorySummary() {
+    const total = filteredData.length;
+    const totalQty = filteredData.reduce((sum, a) => sum + (a.total_quantity || 0), 0);
+    const availableQty = filteredData.reduce((sum, a) => sum + (a.available_quantity || 0), 0);
+    const inUseQty = totalQty - availableQty;
+    const categories = new Set(filteredData.map(a => a.category)).size;
+
+    document.getElementById('totalAccessories').textContent = total.toLocaleString();
+    document.getElementById('totalAccessoryQty').textContent = totalQty.toLocaleString();
+    document.getElementById('availableAccessoryQty').textContent = availableQty.toLocaleString();
+    document.getElementById('inUseAccessoryQty').textContent = inUseQty.toLocaleString();
+    document.getElementById('accessoryCategories').textContent = categories.toLocaleString();
+}
+
+// Update accessory table
+function updateAccessoryTable() {
+    const sortedData = [...filteredData].sort((a, b) => {
+        const aVal = (a.name || '').toString().toLowerCase();
+        const bVal = (b.name || '').toString().toLowerCase();
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pageData = sortedData.slice(startIdx, endIdx);
+
+    const tbody = document.getElementById('tableBody');
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--sf-gray-600);">
+                    No accessories found
+                </td>
+            </tr>
+        `;
+    } else {
+        tbody.innerHTML = pageData.map(acc => `
+            <tr>
+                <td><a href="/inventory/sf/accessory/${acc.id}" class="sf-table-link">${escapeHtml(acc.name)}</a></td>
+                <td>${escapeHtml(acc.category || '-')}</td>
+                <td>${acc.total_quantity || 0}</td>
+                <td>${acc.available_quantity || 0}</td>
+                <td>${(acc.total_quantity || 0) - (acc.available_quantity || 0)}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>
+                    <a href="/inventory/sf/accessory/${acc.id}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</a>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // Update pagination
+    document.getElementById('pageStart').textContent = filteredData.length > 0 ? startIdx + 1 : 0;
+    document.getElementById('pageEnd').textContent = Math.min(endIdx, filteredData.length);
+    document.getElementById('totalRecords').textContent = filteredData.length;
+    document.getElementById('pageNumber').textContent = `Page ${currentPage}`;
+    document.getElementById('tableInfo').textContent = `Showing ${pageData.length} of ${filteredData.length} results`;
+
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = endIdx >= filteredData.length;
+}
+</script>
+{% endblock %}

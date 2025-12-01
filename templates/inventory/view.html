@@ -563,7 +563,7 @@
                 <select id="companyFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">All Companies</option>
                     {% for company in companies %}
-                    <option value="{{ company }}">{{ company }}</option>
+                    <option value="{{ company.value }}">{{ company.label }}{% if company.is_parent %} ▼{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -653,6 +653,24 @@
             </svg>
             <span>Clear Filters</span>
         </button>
+    </div>
+
+    <!-- View Switch -->
+    <div class="flex justify-end mb-4">
+        <div class="inline-flex rounded-lg shadow-sm border border-gray-200 bg-white overflow-hidden" role="group" aria-label="Inventory view switch">
+            <button type="button"
+                    class="px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:z-10 bg-blue-600 text-white"
+                    data-view-switch="techAssetsTable">
+                Tech Assets
+            </button>
+            {% if not is_client %}
+            <button type="button"
+                    class="px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:z-10 bg-white text-gray-700 hover:bg-gray-50"
+                    data-view-switch="accessoriesTable">
+                Accessories
+            </button>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Error Alert -->
@@ -1136,12 +1154,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error loading checkout items from storage:', e);
     }
 
-    // Important: Load tech assets immediately to ensure correct count display
-    {% if not is_client %}
-    // For non-CLIENT users, load tech assets at page load
-    loadTechAssets();
-    {% endif %}
-
     const techAssetsTable = document.getElementById('techAssetsTable');
     const accessoriesTable = document.getElementById('accessoriesTable');
     const maintenanceTable = document.getElementById('maintenanceTable');
@@ -1150,6 +1162,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const techAssetsCount = document.getElementById('techAssetsCount');
     const accessoriesCount = document.getElementById('accessoriesCount');
     const maintenanceCount = document.getElementById('maintenanceCount');
+    const techAssetsCard = document.getElementById('techAssetsCard');
+    const accessoriesCard = document.getElementById('accessoriesCard');
+    const maintenanceCard = document.getElementById('maintenanceCard');
     const errorAlert = document.getElementById('errorAlert');
     const errorMessage = document.getElementById('errorMessage');
     const searchInput = document.getElementById('searchInput');
@@ -1184,11 +1199,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const viewCheckoutList = document.getElementById('viewCheckoutList');
     const addToCheckoutListAccessories = document.getElementById('addToCheckoutListAccessories');
     const viewCheckoutListAccessories = document.getElementById('viewCheckoutListAccessories');
+    const viewSwitchButtons = document.querySelectorAll('[data-view-switch]');
 
     // Initialize variables
     let selectedAssetIds = [];
     let selectedAccessoryIds = [];
     let selectedMaintenanceIds = [];
+    let accessoriesInitialized = false;
 
     // Initialize checkoutManager object if not already initialized
     if (!window.checkoutManager) {
@@ -2172,32 +2189,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Event listeners for clickable cards
-    const techAssetsCard = document.getElementById('techAssetsCard');
-    if (techAssetsCard) {
-        techAssetsCard.addEventListener('click', function() {
-            // Show tech assets table and load data
-            if (techAssetsTable) {
-                techAssetsTable.classList.remove('hidden');
-            }
-            if (accessoriesTable) {
-                accessoriesTable.classList.add('hidden');
-            }
-            loadTechAssets();
-        });
-    }
-
-    const accessoriesCard = document.getElementById('accessoriesCard');
-    if (accessoriesCard) {
-        accessoriesCard.addEventListener('click', function() {
-            showTable('accessoriesTable');
-            loadAccessories(); // Make sure to load accessories data
-        });
-    }
-
-    // Initial load of tech assets
-    loadTechAssets();
-
     // Function to update button states based on selections
     function updateButtonStates() {
         const selectedAssets = document.querySelectorAll('.asset-checkbox:checked');
@@ -2507,105 +2498,44 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById(tableId).classList.remove('hidden');
         
         // Highlight the selected card
-        techAssetsCard.classList.remove('ring-4', 'ring-blue-300');
-        accessoriesCard.classList.remove('ring-4', 'ring-blue-300');
-        maintenanceCard.classList.remove('ring-4', 'ring-orange-300');
+        if (techAssetsCard) techAssetsCard.classList.remove('ring-4', 'ring-blue-300');
+        if (accessoriesCard) accessoriesCard.classList.remove('ring-4', 'ring-blue-300');
+        if (maintenanceCard) maintenanceCard.classList.remove('ring-4', 'ring-orange-300');
         
         if (tableId === 'techAssetsTable') {
-            techAssetsCard.classList.add('ring-4', 'ring-blue-300');
+            if (techAssetsCard) techAssetsCard.classList.add('ring-4', 'ring-blue-300');
         } else if (tableId === 'accessoriesTable') {
-            accessoriesCard.classList.add('ring-4', 'ring-blue-300');
+            if (accessoriesCard) accessoriesCard.classList.add('ring-4', 'ring-blue-300');
         } else if (tableId === 'maintenanceTable') {
-            maintenanceCard.classList.add('ring-4', 'ring-orange-300');
+            if (maintenanceCard) maintenanceCard.classList.add('ring-4', 'ring-orange-300');
         }
     }
 
     // Handle tab navigation with the card clicks
-    techAssetsCard.addEventListener('click', function() {
-        showTable('techAssetsTable');
+    techAssetsCard.addEventListener('click', function(e) {
+        e.preventDefault();
+        activateView('techAssetsTable');
     });
 
     // Only set up accessories and maintenance card event listeners if not a client
     if (!isClient) {
         if (accessoriesCard) {
-            accessoriesCard.addEventListener('click', function() {
-                showTable('accessoriesTable');
+            accessoriesCard.addEventListener('click', function(e) {
+                e.preventDefault();
+                activateView('accessoriesTable');
             });
         }
         
         if (maintenanceCard) {
-            maintenanceCard.addEventListener('click', function() {
+            maintenanceCard.addEventListener('click', function(e) {
+                e.preventDefault();
                 console.log("Maintenance card clicked"); // Add debug log
                 showTable('maintenanceTable');
                 loadMaintenanceAssets(); // Load the maintenance data when tab is clicked
             });
         }
     }
-
-    // Show tech assets tab by default
-    showTable('techAssetsTable');
     
-    // Load initial data
-    loadTechAssets();
-    
-    // Function to load accessories
-    async function loadAccessories() {
-        try {
-            setLoading(true);
-            
-            // Show the accessories table
-            showTable('accessoriesTable');
-            
-            // The accessories count is already loaded from the server
-            // We just need to update the checkout count and setup event listeners
-            
-            // After showing the table, set up event listeners for checkboxes
-            document.querySelectorAll('.accessory-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const accessoryId = parseInt(this.dataset.id);
-                    if (this.checked) {
-                        if (!selectedAccessoryIds.includes(accessoryId)) {
-                            selectedAccessoryIds.push(accessoryId);
-                        }
-                    } else {
-                        selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
-                    }
-                    updateAccessorySelection();
-                });
-            });
-            
-            // Re-initialize the selectAllAccessories checkbox
-            if (selectAllAccessories) {
-                selectAllAccessories.addEventListener('change', function() {
-                    const accessoryCheckboxes = document.querySelectorAll('.accessory-checkbox');
-                    accessoryCheckboxes.forEach(checkbox => {
-                        checkbox.checked = this.checked;
-                        const accessoryId = parseInt(checkbox.dataset.id);
-                        if (this.checked) {
-                            if (!selectedAccessoryIds.includes(accessoryId)) {
-                                selectedAccessoryIds.push(accessoryId);
-                            }
-                        } else {
-                            selectedAccessoryIds = selectedAccessoryIds.filter(id => id !== accessoryId);
-                        }
-                    });
-                    updateAccessorySelection();
-                });
-            }
-            
-            // Reset state
-            selectedAccessoryIds = [];
-            updateAccessorySelection();
-            
-            console.log('Accessories tab initialized');
-        } catch (error) {
-            console.error('Error initializing accessories tab:', error);
-            showError(error.message || 'Error initializing accessories');
-        } finally {
-            setLoading(false);
-        }
-    }
-
     // Event listeners for checkout list buttons on accessories tab
     if (addToCheckoutListAccessories) {
         addToCheckoutListAccessories.addEventListener('click', async () => {
@@ -2745,9 +2675,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 // Hide all tab content
-                document.querySelectorAll('.tab-content').forEach(content => {
-                    content.classList.add('hidden');
-                });
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
                 
                 // Activate selected tab
                 this.classList.remove('text-gray-500', 'border-transparent');
@@ -2793,6 +2723,49 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error initializing tabs:', error);
         showError(error.message || 'Error initializing page');
     }
+
+    // View switch buttons (Tech Assets vs Accessories)
+    function updateViewSwitchButtons(activeTarget) {
+        viewSwitchButtons.forEach(btn => {
+            const isActive = btn.dataset.viewSwitch === activeTarget;
+            btn.classList.toggle('bg-blue-600', isActive);
+            btn.classList.toggle('text-white', isActive);
+            btn.classList.toggle('bg-white', !isActive);
+            btn.classList.toggle('text-gray-700', !isActive);
+        });
+    }
+
+    function activateView(target) {
+        if (target === 'accessoriesTable' && isClient) {
+            target = 'techAssetsTable';
+        }
+
+        if (target === 'accessoriesTable') {
+            updateViewSwitchButtons('accessoriesTable');
+            if (!accessoriesInitialized) {
+                loadAccessories();
+                accessoriesInitialized = true;
+            } else {
+                showTable('accessoriesTable');
+                updateAccessorySelection();
+            }
+        } else {
+            // Default to tech assets
+            updateViewSwitchButtons('techAssetsTable');
+            showTable('techAssetsTable');
+            loadTechAssets();
+        }
+    }
+
+    viewSwitchButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            activateView(btn.dataset.viewSwitch);
+        });
+    });
+
+    // Ensure we start on Tech Assets by default
+    activateView('techAssetsTable');
 
     // Function to update accessory selection
     function updateAccessorySelection() {
@@ -2847,6 +2820,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to initialize accessories tab
     function initAccessoriesTab() {
         // Show accessories table and load data
+        accessoriesInitialized = true;
         loadAccessories();
         console.log("Accessories tab initialized");
     }
@@ -2863,6 +2837,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadAccessories() {
         try {
             setLoading(true);
+            accessoriesInitialized = true;
             
             // Show the accessories table
             showTable('accessoriesTable');
@@ -2999,11 +2974,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('eraseStatusModal').classList.add('hidden');
     });
 
-    // For CLIENT users, immediately load the tech assets to get the correct count
-    if (isClient && typeof loadTechAssets === 'function') {
-        console.log("CLIENT user detected: Loading tech assets for accurate count display");
-        loadTechAssets();
-    }
 });
 </script>
 {% endblock %} 

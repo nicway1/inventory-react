@@ -1,0 +1,23 @@
+{% set data = widget_data.get('audit', {}) %}
+<div style="text-align: center;">
+    <div style="width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; background: var(--gradient-indigo);">
+        <i class="fas fa-clipboard-check" style="color: white; font-size: 1.5rem;"></i>
+    </div>
+    <div style="font-size: 0.875rem; font-weight: 600; color: var(--sf-gray-800); margin-bottom: 0.25rem;">Inventory Audit</div>
+    <div style="font-size: 0.75rem; color: var(--sf-gray-500); margin-bottom: 1rem;">
+        {% if data.get('current_audit') %}
+            <span style="color: var(--sf-success);">Audit in progress</span>
+        {% else %}
+            Manage audits and reports
+        {% endif %}
+    </div>
+    {% if data.get('current_audit') %}
+    <a href="{{ url_for('inventory.audit_inventory') }}" style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; background: var(--sf-success); color: white; border-radius: 0.375rem; font-size: 0.8125rem; font-weight: 600; text-decoration: none;">
+        View Running Audit <i class="fas fa-arrow-right"></i>
+    </a>
+    {% else %}
+    <a href="{{ url_for('inventory.audit_inventory') }}" style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; background: var(--sf-indigo); color: white; border-radius: 0.375rem; font-size: 0.8125rem; font-weight: 600; text-decoration: none;">
+        Start New Audit <i class="fas fa-arrow-right"></i>
+    </a>
+    {% endif %}
+</div>

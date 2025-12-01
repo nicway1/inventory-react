@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, func, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum as PyEnum
@@ -21,6 +21,7 @@ class User(Base, UserMixin):
     assigned_country = Column(String(100), nullable=True)  # Match Asset.country field
     role = Column(String(50), nullable=True, default='user')
     theme_preference = Column(String(20), default='light')  # 'light' or 'dark'
+    preferences = Column(JSON, nullable=True)  # Store user preferences like chart settings
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     

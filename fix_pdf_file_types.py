@@ -64,3 +64,10 @@ def fix_pdf_file_types():
 
 if __name__ == "__main__":
     fix_pdf_file_types() 
+
+
+
+
+
+
+

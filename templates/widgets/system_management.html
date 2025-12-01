@@ -1,0 +1,148 @@
+<style>
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    padding: 0.25rem;
+}
+
+@media (max-width: 480px) {
+    .admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.admin-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding: 0.75rem 0.5rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background: transparent;
+}
+
+.admin-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+    transform: translateY(-2px);
+}
+
+.dark .admin-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-icon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.3), rgba(255,255,255,0));
+    border-radius: 14px 14px 0 0;
+}
+
+.admin-icon i {
+    color: white;
+    font-size: 1.35rem;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.admin-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--sf-gray-700);
+    text-align: center;
+    line-height: 1.3;
+    max-width: 72px;
+}
+
+.dark .admin-label {
+    color: var(--sf-gray-300);
+}
+
+/* iOS-style gradient backgrounds */
+.admin-blue { background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); }
+.admin-purple { background: linear-gradient(135deg, #AF52DE 0%, #5856D6 100%); }
+.admin-green { background: linear-gradient(135deg, #34C759 0%, #30B94D 100%); }
+.admin-orange { background: linear-gradient(135deg, #FF9500 0%, #FF6B00 100%); }
+.admin-cyan { background: linear-gradient(135deg, #32D4DE 0%, #5AC8FA 100%); }
+.admin-pink { background: linear-gradient(135deg, #FF2D55 0%, #FF6B8A 100%); }
+.admin-indigo { background: linear-gradient(135deg, #5856D6 0%, #3634A3 100%); }
+.admin-teal { background: linear-gradient(135deg, #00C7BE 0%, #34C759 100%); }
+</style>
+
+<div class="admin-grid">
+    <a href="{{ url_for('admin.manage_users') }}" class="admin-item">
+        <div class="admin-icon admin-blue">
+            <i class="fas fa-users"></i>
+        </div>
+        <span class="admin-label">Manage Users</span>
+    </a>
+
+    <a href="{{ url_for('admin.manage_companies') }}" class="admin-item">
+        <div class="admin-icon admin-purple">
+            <i class="fas fa-building"></i>
+        </div>
+        <span class="admin-label">Companies</span>
+    </a>
+
+    <a href="{{ url_for('admin.manage_company_grouping') }}" class="admin-item">
+        <div class="admin-icon admin-green">
+            <i class="fas fa-layer-group"></i>
+        </div>
+        <span class="admin-label">Asset Grouping</span>
+    </a>
+
+    <a href="{{ url_for('admin.manage_customer_company_grouping') }}" class="admin-item">
+        <div class="admin-icon admin-orange">
+            <i class="fas fa-users-cog"></i>
+        </div>
+        <span class="admin-label">Customer Grouping</span>
+    </a>
+
+    <a href="{{ url_for('admin.create_user') }}" class="admin-item">
+        <div class="admin-icon admin-cyan">
+            <i class="fas fa-user-plus"></i>
+        </div>
+        <span class="admin-label">Create User</span>
+    </a>
+
+    <a href="{{ url_for('admin.permission_management') }}" class="admin-item">
+        <div class="admin-icon admin-pink">
+            <i class="fas fa-lock"></i>
+        </div>
+        <span class="admin-label">Permissions</span>
+    </a>
+
+    <a href="{{ url_for('admin.view_history') }}" class="admin-item">
+        <div class="admin-icon admin-indigo">
+            <i class="fas fa-history"></i>
+        </div>
+        <span class="admin-label">History</span>
+    </a>
+
+    <a href="{{ url_for('admin.system_config') }}" class="admin-item">
+        <div class="admin-icon admin-teal">
+            <i class="fas fa-cogs"></i>
+        </div>
+        <span class="admin-label">System Config</span>
+    </a>
+</div>

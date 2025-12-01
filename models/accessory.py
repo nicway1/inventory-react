@@ -16,6 +16,7 @@ class Accessory(Base):
     country = Column(String(100))  # Country
     status = Column(String(50), default='Available')  # Status
     notes = Column(String(1000))  # Notes
+    image_url = Column(String(500), nullable=True)  # Product image URL
     checkout_date = Column(DateTime)
     return_date = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -77,6 +78,7 @@ class Accessory(Base):
             'country': self.country,
             'status': self.status,
             'notes': self.notes,
+            'image_url': self.image_url,
             'customer_id': self.customer_id,
             'aliases': [alias.alias_name for alias in self.aliases] if self.aliases else [],
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,

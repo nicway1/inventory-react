@@ -179,6 +179,58 @@
             </div>
         </div>
 
+        <!-- Homepage Configuration -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Homepage Configuration</h2>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="space-y-4">
+                    <!-- Default Homepage Setting -->
+                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">Default Homepage</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Current: <span class="font-semibold">{{ 'New Dashboard' if default_homepage == 'new' else 'Classic Homepage' }}</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Choose which homepage users see by default. Developer accounts always default to the new dashboard unless this is set to "Classic".
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin.update_default_homepage') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="homepage" value="{{ 'classic' if default_homepage == 'new' else 'new' }}">
+                            <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ 'bg-green-600 hover:bg-green-700' if default_homepage != 'new' else 'bg-gray-600 hover:bg-gray-700' }}">
+                                <i class="fas {{ 'fa-rocket' if default_homepage != 'new' else 'fa-home' }} mr-2"></i>
+                                Switch to {{ 'New Dashboard' if default_homepage != 'new' else 'Classic Homepage' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Quick Links -->
+                    <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div>
+                            <h3 class="text-lg font-medium text-blue-900">Preview Dashboards</h3>
+                            <p class="text-sm text-blue-700 mt-1">
+                                Try both dashboards without changing the default setting.
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('dashboard.index') }}"
+                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                <i class="fas fa-rocket mr-2"></i>
+                                New Dashboard
+                            </a>
+                            <a href="{{ url_for('main.index') }}?use_classic=1"
+                               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-home mr-2"></i>
+                                Classic Homepage
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Firecrawl API Configuration -->
         <div class="mb-8">
             <h2 class="text-xl font-semibold mb-4">Firecrawl API Configuration</h2>

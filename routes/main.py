@@ -14,7 +14,7 @@ from models.company import Company
 from models.ticket import Ticket, TicketCategory, TicketStatus
 import os
 from werkzeug.utils import secure_filename
-from models.asset import Asset
+from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from models.customer_user import CustomerUser
 from models.user import UserType, User
@@ -90,14 +90,63 @@ def debug_permissions():
 @login_required
 def index():
     user_id = session['user_id']
+    # Create a session for this request to avoid concurrency issues with shared db_manager
+    db_session = db_manager.get_session()
     try:
-        with db_manager as db:
-            user = db.get_user(user_id)
-            
+        user = db_manager.get_user(user_id)
+
         if not user:
             session.clear()
             return redirect(url_for('auth.login'))
-        
+
+        # Check if user should see the new customizable dashboard
+        # Skip redirect for POST requests (file uploads) and if use_classic is set
+        if request.method == 'GET' and not request.args.get('use_classic'):
+            # Check if user explicitly wants classic mode
+            if not session.get('use_classic_home'):
+                should_use_new_dashboard = False
+
+                # Check system setting for default homepage
+                try:
+                    from models.system_settings import SystemSettings
+                    db_session = SessionLocal()
+                    try:
+                        # Get homepage preference setting
+                        homepage_setting = db_session.query(SystemSettings).filter_by(
+                            setting_key='default_homepage'
+                        ).first()
+
+                        if homepage_setting:
+                            setting_value = homepage_setting.get_value()
+                            if setting_value == 'new':
+                                should_use_new_dashboard = True
+                            elif setting_value == 'classic':
+                                should_use_new_dashboard = False
+
+                        # DEVELOPER users default to new dashboard unless system says classic
+                        if user.user_type == UserType.DEVELOPER:
+                            # Check if there's a user-specific preference
+                            if user.preferences and 'use_new_dashboard' in user.preferences:
+                                should_use_new_dashboard = user.preferences['use_new_dashboard']
+                            elif not homepage_setting or homepage_setting.get_value() != 'classic':
+                                should_use_new_dashboard = True
+
+                        # Check user-specific preference (overrides system default for all users)
+                        if user.preferences and 'use_new_dashboard' in user.preferences:
+                            should_use_new_dashboard = user.preferences['use_new_dashboard']
+
+                    finally:
+                        db_session.close()
+                except Exception as e:
+                    logger.warning(f"Could not check dashboard preference: {str(e)}")
+
+                if should_use_new_dashboard:
+                    return redirect(url_for('dashboard.index'))
+
+        # Clear the use_classic_home flag if use_classic query param is present
+        if request.args.get('use_classic'):
+            session['use_classic_home'] = True
+
         # Handle file upload if POST request
         if request.method == 'POST':
             import_type = request.form.get('import_type', 'asset')  # Default to asset import
@@ -159,10 +208,10 @@ def index():
         queue_ticket_counts = {}
         for queue in queues:
             # Count ALL tickets for this queue
-            total_count = db.session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
+            total_count = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
 
             # Count OPEN tickets for this queue (exclude resolved tickets)
-            open_count = db.session.query(Ticket).filter(
+            open_count = db_session.query(Ticket).filter(
                 Ticket.queue_id == queue.id,
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
@@ -173,56 +222,87 @@ def index():
                 'open': open_count
             }
         
-        # Apply filtering to asset counts for COUNTRY_ADMIN
-        if user.user_type == UserType.COUNTRY_ADMIN:
-            asset_query = db.session.query(Asset)
+        # Apply filtering to asset counts for COUNTRY_ADMIN and SUPERVISOR
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_company_permission import UserCompanyPermission
+            asset_query = db_session.query(Asset)
+
+            # Filter by assigned countries
             if user.assigned_countries:
                 asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
-            if user.company_id:
-                asset_query = asset_query.filter(Asset.company_id == user.company_id)
-            tech_assets_count = asset_query.count()
+
+            # Filter by company permissions (same logic as inventory page)
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                permitted_company_names = [c.name.strip() for c in permitted_companies]
+
+                # Include child companies of parent companies
+                all_company_names = list(permitted_company_names)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        all_company_names.extend(child_names)
+
+                # Filter by company_id OR customer name
+                name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                asset_query = asset_query.filter(
+                    or_(
+                        Asset.company_id.in_(permitted_company_ids),
+                        *name_conditions
+                    )
+                )
+                tech_assets_count = asset_query.count()
+            else:
+                # No company permissions - show 0
+                tech_assets_count = 0
         else:
-            tech_assets_count = db.session.query(Asset).count()
+            tech_assets_count = db_session.query(Asset).count()
         
-        accessories_count = db.session.query(func.sum(Accessory.total_quantity)).scalar() or 0
+        accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
         total_inventory = tech_assets_count + accessories_count
         
         # Apply filtering to customer counts for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN and user.company_id:
-            total_customers = db.session.query(CustomerUser).filter(
+            total_customers = db_session.query(CustomerUser).filter(
                 CustomerUser.company_id == user.company_id
             ).count()
         else:
-            total_customers = db.session.query(CustomerUser).count()
+            total_customers = db_session.query(CustomerUser).count()
         
         # Apply filtering to total tickets for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:
-            total_ticket_query = db.session.query(Ticket)
+            total_ticket_query = db_session.query(Ticket)
             if user.assigned_countries:
                 total_ticket_query = total_ticket_query.filter(Ticket.country.in_(user.assigned_countries))
             if user.company_id:
                 total_ticket_query = total_ticket_query.filter(
                     or_(
                         Ticket.requester_id.in_(
-                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                            db_session.query(User.id).filter(User.company_id == user.company_id)
                         ),
                         Ticket.assigned_to_id.in_(
-                            db.session.query(User.id).filter(User.company_id == user.company_id)
+                            db_session.query(User.id).filter(User.company_id == user.company_id)
                         ),
                         Ticket.subject.in_(
-                            db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                            db_session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
                         )
                     )
                 )
             total_tickets = total_ticket_query.count()
         else:
-            total_tickets = db.session.query(Ticket).count()
+            total_tickets = db_session.query(Ticket).count()
         
         # Get shipment tickets with filtering for COUNTRY_ADMIN
         shipment_tickets = []
         # Only load shipment tickets for non-CLIENT users
         if user.user_type != UserType.CLIENT:
-            shipment_query = db.session.query(Ticket).filter(
+            shipment_query = db_session.query(Ticket).filter(
                 Ticket.category.in_([
                     TicketCategory.ASSET_CHECKOUT,
                     TicketCategory.ASSET_CHECKOUT_SINGPOST,
@@ -244,13 +324,13 @@ def index():
                     shipment_query = shipment_query.filter(
                         or_(
                             Ticket.requester_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                                db_session.query(User.id).filter(User.company_id == user.company_id)
                             ),
                             Ticket.assigned_to_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                                db_session.query(User.id).filter(User.company_id == user.company_id)
                             ),
                             Ticket.subject.in_(
-                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                                db_session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
                             )
                         )
                     )
@@ -274,32 +354,70 @@ def index():
             user_id = session['user_id']
             user_activities = activity_store.get_user_activities(user_id)
         
-        # Get counts for dashboard with filtering for COUNTRY_ADMIN
-        if user.user_type == UserType.COUNTRY_ADMIN:
-            asset_query = db.session.query(Asset)
+        # Get counts for dashboard with filtering for COUNTRY_ADMIN and SUPERVISOR
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_company_permission import UserCompanyPermission
+            asset_query = db_session.query(Asset)
+
+            # Filter by assigned countries
             if user.assigned_countries:
                 asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
-            if user.company_id:
-                asset_query = asset_query.filter(Asset.company_id == user.company_id)
 
-            total_assets = asset_query.count()
-            deployed_assets = asset_query.filter(Asset.status == 'DEPLOYED').count()
-            in_stock_assets = asset_query.filter(Asset.status == 'IN_STOCK').count()
+            # Filter by company permissions
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                permitted_company_names = [c.name.strip() for c in permitted_companies]
+
+                # Include child companies of parent companies
+                all_company_names = list(permitted_company_names)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        all_company_names.extend(child_names)
+
+                # Filter by company_id OR customer name
+                name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                asset_query = asset_query.filter(
+                    or_(
+                        Asset.company_id.in_(permitted_company_ids),
+                        *name_conditions
+                    )
+                )
+
+                total_assets = asset_query.count()
+                deployed_assets = db_session.query(Asset).filter(
+                    Asset.status == AssetStatus.DEPLOYED,
+                    or_(Asset.company_id.in_(permitted_company_ids), *name_conditions)
+                ).count()
+                in_stock_assets = db_session.query(Asset).filter(
+                    Asset.status == AssetStatus.IN_STOCK,
+                    or_(Asset.company_id.in_(permitted_company_ids), *name_conditions)
+                ).count()
+            else:
+                total_assets = 0
+                deployed_assets = 0
+                in_stock_assets = 0
         else:
-            total_assets = db.session.query(Asset).count()
-            deployed_assets = db.session.query(Asset).filter(Asset.status == 'DEPLOYED').count()
-            in_stock_assets = db.session.query(Asset).filter(Asset.status == 'IN_STOCK').count()
+            total_assets = db_session.query(Asset).count()
+            deployed_assets = db_session.query(Asset).filter(Asset.status == AssetStatus.DEPLOYED).count()
+            in_stock_assets = db_session.query(Asset).filter(Asset.status == AssetStatus.IN_STOCK).count()
         
         # Accessory counts
-        total_accessories = db.session.query(Accessory).count()
+        total_accessories = db_session.query(Accessory).count()
         
         # Ticket counts with filtering for COUNTRY_ADMIN
         if user.user_type == UserType.COUNTRY_ADMIN:
-            open_ticket_query = db.session.query(Ticket).filter(
+            open_ticket_query = db_session.query(Ticket).filter(
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
             )
-            resolved_ticket_query = db.session.query(Ticket).filter(
+            resolved_ticket_query = db_session.query(Ticket).filter(
                 Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
             )
             
@@ -310,13 +428,13 @@ def index():
             if user.company_id:
                 company_filter = or_(
                     Ticket.requester_id.in_(
-                        db.session.query(User.id).filter(User.company_id == user.company_id)
+                        db_session.query(User.id).filter(User.company_id == user.company_id)
                     ),
                     Ticket.assigned_to_id.in_(
-                        db.session.query(User.id).filter(User.company_id == user.company_id)
+                        db_session.query(User.id).filter(User.company_id == user.company_id)
                     ),
                     Ticket.subject.in_(
-                        db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                        db_session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
                     )
                 )
                 open_ticket_query = open_ticket_query.filter(company_filter)
@@ -325,21 +443,21 @@ def index():
             open_tickets = open_ticket_query.count()
             resolved_tickets = resolved_ticket_query.count()
         else:
-            open_tickets = db.session.query(Ticket).filter(
+            open_tickets = db_session.query(Ticket).filter(
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
             ).count()
-            resolved_tickets = db.session.query(Ticket).filter(
+            resolved_tickets = db_session.query(Ticket).filter(
                 Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
             ).count()
         
         # Get the 5 most recent activities for all users (no filtering needed here)
-        recent_activities = db.session.query(Activity).order_by(
+        recent_activities = db_session.query(Activity).order_by(
             Activity.created_at.desc()
         ).limit(5).all()
         
         # Get user count (no filtering needed)
-        user_count = db.session.query(User).count()
+        user_count = db_session.query(User).count()
         
         # Get ticket counts
         ticket_counts = {
@@ -351,7 +469,7 @@ def index():
         # Check for active audit session
         current_audit = None
         if user.permissions and user.permissions.can_access_inventory_audit:
-            current_audit = db.session.query(AuditSession).filter(
+            current_audit = db_session.query(AuditSession).filter(
                 AuditSession.is_active == True
             ).first()
 
@@ -363,7 +481,7 @@ def index():
         else:
             try:
                 from models.system_settings import SystemSettings
-                setting = db.session.query(SystemSettings).filter_by(setting_key='show_queue_cards').first()
+                setting = db_session.query(SystemSettings).filter_by(setting_key='show_queue_cards').first()
                 if setting:
                     show_queue_cards = setting.get_value()
             except Exception as e:
@@ -385,7 +503,7 @@ def index():
             day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
 
             # Query tickets created on this day
-            day_query = db.session.query(Ticket).filter(
+            day_query = db_session.query(Ticket).filter(
                 Ticket.created_at >= day_start,
                 Ticket.created_at <= day_end
             )
@@ -398,13 +516,13 @@ def index():
                     day_query = day_query.filter(
                         or_(
                             Ticket.requester_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                                db_session.query(User.id).filter(User.company_id == user.company_id)
                             ),
                             Ticket.assigned_to_id.in_(
-                                db.session.query(User.id).filter(User.company_id == user.company_id)
+                                db_session.query(User.id).filter(User.company_id == user.company_id)
                             ),
                             Ticket.subject.in_(
-                                db.session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
+                                db_session.query(Asset.asset_tag).filter(Asset.company_id == user.company_id)
                             )
                         )
                     )
@@ -441,6 +559,8 @@ def index():
         logging.error(f"Error in index route: {str(e)}", exc_info=True)
         flash('An error occurred while loading the dashboard')
         return redirect(url_for('auth.login'))
+    finally:
+        db_session.close()
 
 @main_bp.route('/refresh-supervisor-permissions')
 def refresh_supervisor_permissions():
@@ -511,6 +631,96 @@ def fix_supervisor_permissions():
             
     except Exception as e:
         return f"Error updating permissions: {str(e)}"
+
+@main_bp.route('/debug-user-company-permissions/<int:user_id>')
+def debug_user_company_permissions(user_id):
+    """Debug route to check UserCompanyPermission for a user"""
+    from models.user_company_permission import UserCompanyPermission
+    db_session = SessionLocal()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return f"User {user_id} not found"
+
+        perms = db_session.query(UserCompanyPermission).filter_by(user_id=user_id).all()
+
+        result = f"<h2>User: {user.username} ({user.email})</h2>"
+        result += f"<p>User Type: {user.user_type.value}</p>"
+        result += f"<p>Company ID: {user.company_id}</p>"
+        result += f"<p>Assigned Countries: {user.assigned_countries}</p>"
+        result += f"<h3>UserCompanyPermission records ({len(perms)}):</h3>"
+
+        if perms:
+            result += "<ul>"
+            for p in perms:
+                company = db_session.query(Company).get(p.company_id)
+                company_name = company.name if company else "Unknown"
+                result += f"<li>Company ID: {p.company_id} ({company_name}) - can_view: {p.can_view}</li>"
+            result += "</ul>"
+        else:
+            result += "<p style='color:red'>NO COMPANY PERMISSIONS - This user will see 0 assets!</p>"
+            result += f"<p><a href='/fix-user-company-permissions/{user_id}' style='color:blue;font-weight:bold'>Click here to auto-fix</a></p>"
+
+        return result
+    finally:
+        db_session.close()
+
+@main_bp.route('/fix-user-company-permissions/<int:user_id>')
+def fix_user_company_permissions(user_id):
+    """Auto-fix missing UserCompanyPermission for a SUPERVISOR/COUNTRY_ADMIN"""
+    from models.user_company_permission import UserCompanyPermission
+    db_session = SessionLocal()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return f"User {user_id} not found"
+
+        if user.user_type not in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+            return f"User {user.username} is not a SUPERVISOR or COUNTRY_ADMIN"
+
+        # Check if user has a company_id but no permissions
+        existing_perms = db_session.query(UserCompanyPermission).filter_by(user_id=user_id).all()
+
+        if existing_perms:
+            return f"User already has {len(existing_perms)} company permissions. No fix needed."
+
+        if not user.company_id:
+            return f"User has no company_id assigned. Please edit user in Admin > User Management first."
+
+        # Create permission for the user's company
+        new_perm = UserCompanyPermission(
+            user_id=user.id,
+            company_id=user.company_id,
+            can_view=True,
+            can_edit=False,
+            can_delete=False
+        )
+        db_session.add(new_perm)
+
+        # Also add permissions for child companies if this is a parent company
+        company = db_session.query(Company).get(user.company_id)
+        added_companies = [company.name]
+
+        if company and (company.is_parent_company or company.child_companies.count() > 0):
+            for child in company.child_companies.all():
+                child_perm = UserCompanyPermission(
+                    user_id=user.id,
+                    company_id=child.id,
+                    can_view=True,
+                    can_edit=False,
+                    can_delete=False
+                )
+                db_session.add(child_perm)
+                added_companies.append(child.name)
+
+        db_session.commit()
+
+        return f"Fixed! Added permissions for: {', '.join(added_companies)}. <a href='/inventory'>Go to Inventory</a>"
+    except Exception as e:
+        db_session.rollback()
+        return f"Error: {str(e)}"
+    finally:
+        db_session.close()
 
 @main_bp.route('/preview-ticket-import/<filename>')
 @login_required

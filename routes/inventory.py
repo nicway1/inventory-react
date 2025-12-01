@@ -20,6 +20,7 @@ import os
 from werkzeug.utils import secure_filename
 import pandas as pd
 from sqlalchemy import func, case, or_, text
+from sqlalchemy.orm.attributes import flag_modified
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
 from flask_login import current_user
@@ -27,7 +28,6 @@ import json
 import time
 import io
 import csv
-from models.company import Company
 from io import StringIO, BytesIO
 import logging
 import random
@@ -143,56 +143,69 @@ def view_inventory():
     try:
         # Get the current user
         user = db_manager.get_user(session['user_id'])
-        
+
         # Debug info
-        logger.info("DEBUG: User accessing inventory: ID={user.id}, Username={user.username}, Type={user.user_type}, Supervisor={user.user_type == UserType.SUPERVISOR}")
-        
+        logger.info(f"DEBUG: User accessing inventory: ID={user.id}, Username={user.username}, Type={user.user_type}")
+        logger.info(f"DEBUG: user.user_type == UserType.SUPERVISOR: {user.user_type == UserType.SUPERVISOR}")
+        logger.info(f"DEBUG: user.user_type == UserType.COUNTRY_ADMIN: {user.user_type == UserType.COUNTRY_ADMIN}")
+
         # Base query for tech assets
         tech_assets_query = db_session.query(Asset)
 
-        # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
-            logger.info(f"DEBUG: Filtering by assigned countries: {user.assigned_countries}")
-            tech_assets_query = tech_assets_query.filter(Asset.country.in_(user.assigned_countries))
+        # Apply filtering for COUNTRY_ADMIN and SUPERVISOR users
+        is_restricted_user = (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR)
+        logger.info(f"DEBUG: is_restricted_user = {is_restricted_user}")
 
-            # Additional filtering for COUNTRY_ADMIN: filter by child company permissions
-            if user.user_type == UserType.COUNTRY_ADMIN:
-                from models.user_company_permission import UserCompanyPermission
-                from models.company import Company
+        if is_restricted_user:
+            logger.info(f"DEBUG: Applying company filtering for {user.user_type.value} user")
+            from models.user_company_permission import UserCompanyPermission
 
-                # Get child companies this user has permission to view
-                # ONLY use UserCompanyPermission - ignore user.company_id
-                child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
-                    user_id=user.id,
-                    can_view=True
-                ).all()
+            # Filter by country if assigned
+            if user.assigned_countries:
+                logger.info(f"DEBUG: Filtering by assigned countries: {user.assigned_countries}")
+                tech_assets_query = tech_assets_query.filter(Asset.country.in_(user.assigned_countries))
 
-                if child_company_permissions:
-                    # User has specific child company permissions - filter by ONLY those companies
-                    permitted_company_ids = [perm.company_id for perm in child_company_permissions]
-                    logger.info(f"DEBUG: Filtering by child company IDs: {permitted_company_ids}")
+            # ALWAYS filter by company permissions for COUNTRY_ADMIN/SUPERVISOR
+            child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
 
-                    # Get the actual company objects to also check by name
-                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
-                    permitted_company_names = [c.name.strip() for c in permitted_companies]
-                    logger.info(f"DEBUG: Filtering by company names: {permitted_company_names}")
+            if child_company_permissions:
+                # User has specific company permissions - filter by ONLY those companies
+                permitted_company_ids = [perm.company_id for perm in child_company_permissions]
+                logger.info(f"DEBUG: Filtering by company IDs: {permitted_company_ids}")
 
-                    # Build OR conditions for flexible name matching
-                    # Match by company_id OR customer name (with case-insensitive partial match)
-                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in permitted_company_names]
-                    tech_assets_query = tech_assets_query.filter(
-                        or_(
-                            Asset.company_id.in_(permitted_company_ids),
-                            *name_conditions
-                        )
+                # Get the actual company objects to also check by name
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                permitted_company_names = [c.name.strip() for c in permitted_companies]
+                logger.info(f"DEBUG: Filtering by company names: {permitted_company_names}")
+
+                # Also include child companies of any parent company the user has permission to
+                # This enforces Asset Company Grouping for SUPERVISOR/COUNTRY_ADMIN
+                all_company_names = list(permitted_company_names)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        # This is a parent company - include all child company names
+                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        all_company_names.extend(child_names)
+                        logger.info(f"DEBUG: Including child companies of {company.name}: {child_names}")
+
+                # Build OR conditions for flexible name matching
+                # Match by company_id OR customer name (with case-insensitive partial match)
+                name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                tech_assets_query = tech_assets_query.filter(
+                    or_(
+                        Asset.company_id.in_(permitted_company_ids),
+                        *name_conditions
                     )
-                    logger.info(f"DEBUG: COUNTRY_ADMIN filtering by {len(permitted_company_ids)} assigned child companies: {permitted_company_ids}")
-                    logger.info(f"DEBUG: Also filtering by company names (partial match): {permitted_company_names}")
-                else:
-                    # No child company permissions assigned - show NO assets
-                    # This forces admin to explicitly assign companies through the UI
-                    tech_assets_query = tech_assets_query.filter(Asset.id == -1)  # Impossible condition = no results
-                    logger.info(f"DEBUG: COUNTRY_ADMIN has NO child company permissions - showing 0 assets")
+                )
+                logger.info(f"DEBUG: {user.user_type.value} filtering by {len(permitted_company_ids)} assigned companies + children: {all_company_names}")
+            else:
+                # No company permissions assigned - show NO assets
+                # This forces admin to explicitly assign companies through the UI
+                tech_assets_query = tech_assets_query.filter(Asset.id == -1)  # Impossible condition = no results
+                logger.info(f"DEBUG: {user.user_type.value} has NO company permissions - showing 0 assets")
 
         # Filter by company if user is a client (can only see their company's assets)
         if user.user_type == UserType.CLIENT and user.company:
@@ -207,6 +220,7 @@ def view_inventory():
         
         # Get counts
         tech_assets_count = tech_assets_query.count()
+        logger.info(f"DEBUG: Final tech_assets_count = {tech_assets_count}")
         accessories_count = db_session.query(func.sum(Accessory.total_quantity)).scalar() or 0
 
         # Get maintenance assets (assets where ERASED is not COMPLETED)
@@ -220,8 +234,25 @@ def view_inventory():
         maintenance_assets_count = maintenance_query.count()
 
         # Get unique values for filters from filtered assets only
-        companies = tech_assets_query.with_entities(Asset.customer).distinct().all()
-        companies = sorted(list(set([c[0] for c in companies if c[0]])))
+        company_names_raw = tech_assets_query.with_entities(Asset.customer).distinct().all()
+        company_names = sorted(list(set([c[0] for c in company_names_raw if c[0]])))
+
+        # Build company list with grouped display names for the filter dropdown
+        companies = []
+        for company_name in company_names:
+            company_obj = db_session.query(Company).filter(Company.name == company_name).first()
+            if company_obj:
+                companies.append({
+                    'value': company_name,
+                    'label': company_obj.grouped_display_name,
+                    'is_parent': company_obj.is_parent_company or company_obj.child_companies.count() > 0
+                })
+            else:
+                companies.append({
+                    'value': company_name,
+                    'label': company_name,
+                    'is_parent': False
+                })
 
         models = tech_assets_query.with_entities(Asset.model).distinct().all()
         models = sorted(list(set([m[0] for m in models if m[0]])))
@@ -315,6 +346,645 @@ def view_inventory():
     finally:
         db_session.close()
 
+
+# ============================================================
+# Salesforce-style Inventory View (Developer Only)
+# ============================================================
+
+@inventory_bp.route('/sf')
+@login_required
+def view_inventory_sf():
+    """Salesforce-style inventory view - Developer only"""
+    user = db_manager.get_user(session['user_id'])
+
+    # Only allow DEVELOPER users to access this view
+    if user.user_type != UserType.DEVELOPER:
+        flash('This view is only available for developers.', 'error')
+        return redirect(url_for('inventory.view_inventory'))
+
+    return render_template('inventory/view_sf.html', user=user)
+
+
+@inventory_bp.route('/api/sf/filters')
+@login_required
+def api_sf_filters():
+    """Get filter options for SF inventory view"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        logger.info(f"SF Filters API called - user_id: {user_id}, user_type: {user_type}")
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get status counts
+            status_counts = db_session.query(
+                Asset.status, func.count(Asset.id)
+            ).group_by(Asset.status).all()
+
+            statuses = [
+                {'value': s[0].value if s[0] else 'Unknown', 'label': s[0].value if s[0] else 'Unknown', 'count': s[1]}
+                for s in status_counts if s[0]
+            ]
+
+            # Get tech asset category counts
+            asset_category_counts = db_session.query(
+                Asset.asset_type, func.count(Asset.id)
+            ).group_by(Asset.asset_type).all()
+
+            asset_categories = [
+                {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
+                for c in asset_category_counts if c[0]
+            ]
+
+            # Get accessory category counts
+            accessory_category_counts = db_session.query(
+                Accessory.category, func.count(Accessory.id)
+            ).group_by(Accessory.category).all()
+
+            accessory_categories = [
+                {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
+                for c in accessory_category_counts if c[0]
+            ]
+
+            # Combined categories (for backward compatibility)
+            categories = asset_categories
+
+            # Get company counts (using customer field) with parent/child grouping info
+            company_counts = db_session.query(
+                Asset.customer, func.count(Asset.id)
+            ).group_by(Asset.customer).all()
+
+            # Build company list with parent/child relationship info
+            companies = []
+            company_grouping = {}  # Maps company name to parent company name
+
+            for company_name, count in company_counts:
+                if not company_name:
+                    continue
+
+                # Look up company to get grouping info
+                company_obj = db_session.query(Company).filter(Company.name == company_name).first()
+
+                parent_company_name = None
+                is_parent = False
+                child_companies = []
+
+                if company_obj:
+                    # Check if this company has a parent
+                    if company_obj.parent_company_id and company_obj.parent_company:
+                        parent_company_name = company_obj.parent_company.name
+                        company_grouping[company_name] = parent_company_name
+
+                    # Check if this company is a parent (has children)
+                    if company_obj.is_parent_company or company_obj.child_companies.count() > 0:
+                        is_parent = True
+                        child_companies = [c.name for c in company_obj.child_companies.all()]
+
+                companies.append({
+                    'value': company_name,
+                    'label': company_obj.grouped_display_name if company_obj else company_name,
+                    'count': count,
+                    'parent_company': parent_company_name,
+                    'is_parent': is_parent,
+                    'child_companies': child_companies
+                })
+
+            # Get country counts
+            country_counts = db_session.query(
+                Asset.country, func.count(Asset.id)
+            ).group_by(Asset.country).all()
+
+            countries = [
+                {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
+                for c in country_counts if c[0]
+            ]
+
+            # Get location counts
+            location_counts = db_session.query(
+                Asset.location, func.count(Asset.id)
+            ).group_by(Asset.location).all()
+
+            locations = [
+                {'value': l[0] or 'Unknown', 'label': l[0] or 'Unknown', 'count': l[1]}
+                for l in location_counts if l[0]
+            ]
+
+            return jsonify({
+                'success': True,
+                'statuses': sorted(statuses, key=lambda x: x['label']),
+                'categories': sorted(categories, key=lambda x: x['label']),
+                'asset_categories': sorted(asset_categories, key=lambda x: x['label']),
+                'accessory_categories': sorted(accessory_categories, key=lambda x: x['label']),
+                'companies': sorted(companies, key=lambda x: x['label']),
+                'company_grouping': company_grouping,  # Maps child company -> parent company
+                'countries': sorted(countries, key=lambda x: x['label']),
+                'locations': sorted(locations, key=lambda x: x['label'])
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting SF filters: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/sf/test')
+@login_required
+def api_sf_test():
+    """Simple test endpoint"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'user_type': user_type,
+            'message': 'API is working'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/sf/assets')
+@login_required
+def api_sf_assets():
+    """Get all assets for SF inventory view"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        logger.info(f"SF Assets API called - user_id: {user_id}, user_type: {user_type}")
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users (check from session directly to avoid DB call issues)
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get total count first
+            total_count = db_session.query(Asset).count()
+            logger.info(f"Total assets in DB: {total_count}")
+
+            # Get all assets
+            assets = db_session.query(Asset).all()
+            logger.info(f"Fetched {len(assets)} assets")
+
+            # Pre-fetch all company grouping info for efficiency
+            all_companies = db_session.query(Company).all()
+            company_parent_map = {}  # Maps company name -> parent company name
+            for company in all_companies:
+                if company.parent_company_id and company.parent_company:
+                    company_parent_map[company.name] = company.parent_company.name
+
+            assets_data = []
+            for asset in assets:
+                try:
+                    # Get parent company if this asset's company has one
+                    parent_company = company_parent_map.get(asset.customer, None)
+
+                    assets_data.append({
+                        'id': asset.id,
+                        'asset_tag': asset.asset_tag or '',
+                        'name': asset.name or '',
+                        'serial_number': asset.serial_num or '',
+                        'status': asset.status.value if asset.status else 'Unknown',
+                        'category': asset.asset_type or '',
+                        'customer': asset.customer or '',
+                        'company': asset.customer or '',
+                        'parent_company': parent_company,  # Parent company name for grouping filter
+                        'country': asset.country or '',
+                        'location': asset.location or '',
+                        'model': asset.model or '',
+                        'manufacturer': asset.manufacturer or ''
+                    })
+                except Exception as asset_error:
+                    logger.error(f"Error processing asset {asset.id}: {asset_error}")
+                    continue
+
+            logger.info(f"Processed {len(assets_data)} assets successfully")
+
+            return jsonify({
+                'success': True,
+                'assets': assets_data,
+                'total': len(assets_data)
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting SF assets: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/sf/accessories')
+@login_required
+def api_sf_accessories():
+    """Get all accessories for SF inventory view"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        logger.info(f"SF Accessories API called - user_id: {user_id}, user_type: {user_type}")
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': f'Access denied - Developer only (you are {user_type})'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get all accessories
+            accessories = db_session.query(Accessory).all()
+            logger.info(f"Fetched {len(accessories)} accessories")
+
+            accessories_data = []
+            for acc in accessories:
+                try:
+                    accessories_data.append({
+                        'id': acc.id,
+                        'name': acc.name or '',
+                        'category': acc.category or '',
+                        'manufacturer': acc.manufacturer or '',
+                        'model_no': acc.model_no or '',
+                        'total_quantity': acc.total_quantity or 0,
+                        'available_quantity': acc.available_quantity or 0,
+                        'country': acc.country or '',
+                        'status': acc.status or 'Unknown',
+                        'notes': acc.notes or ''
+                    })
+                except Exception as acc_error:
+                    logger.error(f"Error processing accessory {acc.id}: {acc_error}")
+                    continue
+
+            logger.info(f"Processed {len(accessories_data)} accessories successfully")
+
+            return jsonify({
+                'success': True,
+                'accessories': accessories_data,
+                'total': len(accessories_data)
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting SF accessories: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/sf/chart-settings', methods=['GET'])
+@login_required
+def api_sf_get_chart_settings():
+    """Get user's saved chart settings for SF inventory view"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+
+            # Get chart settings from user preferences
+            preferences = user.preferences or {}
+            # Handle stringified JSON stored in SQLite
+            if isinstance(preferences, str):
+                try:
+                    import json as _json
+                    preferences = _json.loads(preferences)
+                except Exception:
+                    preferences = {}
+
+            chart_settings = preferences.get('sf_inventory_charts', [
+                {'id': 1, 'chartType': 'doughnut', 'groupBy': 'status'}
+            ])
+
+            logger.info(f"Loading chart settings for user {user_id}: {chart_settings}")
+
+            return jsonify({
+                'success': True,
+                'charts': chart_settings
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting chart settings: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/sf/chart-settings', methods=['POST'])
+@login_required
+def api_sf_save_chart_settings():
+    """Save user's chart settings for SF inventory view"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+
+        data = request.get_json()
+        if not data or 'charts' not in data:
+            return jsonify({'success': False, 'error': 'No chart settings provided'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            if not user:
+                return jsonify({'success': False, 'error': 'User not found'}), 404
+
+            # Update user preferences
+            preferences = user.preferences or {}
+            if isinstance(preferences, str):
+                try:
+                    import json as _json
+                    preferences = _json.loads(preferences)
+                except Exception:
+                    preferences = {}
+
+            preferences['sf_inventory_charts'] = data['charts']
+            user.preferences = preferences
+
+            # Flag the preferences field as modified to ensure SQLAlchemy detects the change
+            flag_modified(user, 'preferences')
+
+            db_session.commit()
+
+            logger.info(f"Saved chart settings for user {user_id}: {data['charts']}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Chart settings saved successfully',
+                'charts': data['charts']
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error saving chart settings: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/asset/<int:asset_id>/image', methods=['POST'])
+@login_required
+def api_update_asset_image(asset_id):
+    """Update asset product image URL"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER users
+        if user_type != 'DEVELOPER':
+            return jsonify({'success': False, 'error': 'Access denied - Developer only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        image_url = data.get('image_url', '').strip()
+
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).get(asset_id)
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+            # Update the image URL
+            asset.image_url = image_url if image_url else None
+            db_session.commit()
+
+            logger.info(f"Updated asset {asset_id} image_url to: {image_url[:50] if image_url else 'None'}...")
+
+            return jsonify({
+                'success': True,
+                'asset_id': asset_id,
+                'image_url': asset.image_url
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error updating asset image: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/sf/asset/<int:asset_id>')
+@login_required
+def view_asset_sf(asset_id):
+    """Salesforce-style asset detail view - Developer only"""
+    user_type = session.get('user_type')
+
+    # Only allow DEVELOPER users
+    if user_type != 'DEVELOPER':
+        flash('This view is only available for developers.', 'error')
+        return redirect(url_for('inventory.view_asset', asset_id=asset_id))
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Get the asset with related data
+        asset = db_session.query(Asset).get(asset_id)
+        if not asset:
+            flash('Asset not found', 'error')
+            return redirect(url_for('inventory.view_inventory_sf'))
+
+        # Get related tickets/cases
+        related_tickets = asset.tickets if asset.tickets else []
+
+        # Get asset history
+        asset_history = asset.history[:10] if asset.history else []  # Last 10 entries
+
+        # Get asset transactions
+        asset_transactions = asset.transactions[:10] if asset.transactions else []
+
+        return render_template('inventory/view_asset_sf.html',
+                             asset=asset,
+                             user=user,
+                             related_tickets=related_tickets,
+                             asset_history=asset_history,
+                             asset_transactions=asset_transactions)
+    finally:
+        db_session.close()
+
+
+@inventory_bp.route('/sf/accessory/<int:accessory_id>')
+@login_required
+def view_accessory_sf(accessory_id):
+    """Salesforce-style accessory detail view - Developer only"""
+    user_type = session.get('user_type')
+
+    # Only allow DEVELOPER users
+    if user_type != 'DEVELOPER':
+        flash('This view is only available for developers.', 'error')
+        return redirect(url_for('inventory.view_accessory', id=accessory_id))
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Get the accessory with related data
+        accessory = db_session.query(Accessory).get(accessory_id)
+        if not accessory:
+            flash('Accessory not found', 'error')
+            return redirect(url_for('inventory.view_inventory_sf'))
+
+        # Get related tickets/cases
+        related_tickets = list(accessory.tickets) if accessory.tickets else []
+
+        # Get accessory history
+        accessory_history = accessory.history[:10] if accessory.history else []  # Last 10 entries
+
+        # Get accessory transactions
+        accessory_transactions = accessory.transactions[:10] if accessory.transactions else []
+
+        # Get customer info
+        customer = accessory.customer_user if accessory.customer_id else None
+
+        # Get prev/next accessories for navigation
+        prev_accessory = db_session.query(Accessory).filter(Accessory.id < accessory_id).order_by(Accessory.id.desc()).first()
+        next_accessory = db_session.query(Accessory).filter(Accessory.id > accessory_id).order_by(Accessory.id.asc()).first()
+
+        # Get all accessories for sidebar (same category first, then others)
+        same_category = db_session.query(Accessory).filter(
+            Accessory.category == accessory.category,
+            Accessory.id != accessory_id
+        ).order_by(Accessory.name).all()
+
+        other_accessories = db_session.query(Accessory).filter(
+            Accessory.category != accessory.category,
+            Accessory.id != accessory_id
+        ).order_by(Accessory.name).all()
+
+        sidebar_accessories = same_category + other_accessories
+
+        return render_template('inventory/view_accessory_sf.html',
+                             accessory=accessory,
+                             user=user,
+                             customer=customer,
+                             related_tickets=related_tickets,
+                             accessory_history=accessory_history,
+                             accessory_transactions=accessory_transactions,
+                             prev_accessory=prev_accessory,
+                             next_accessory=next_accessory,
+                             sidebar_accessories=sidebar_accessories)
+    finally:
+        db_session.close()
+
+
+@inventory_bp.route('/api/sf/accessory/<int:accessory_id>/image', methods=['POST'])
+@login_required
+def update_accessory_image(accessory_id):
+    """Update accessory image URL - Developer only"""
+    user_type = session.get('user_type')
+
+    if user_type != 'DEVELOPER':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        image_url = data.get('image_url', '').strip()
+
+        accessory = db_session.query(Accessory).get(accessory_id)
+        if not accessory:
+            return jsonify({'success': False, 'error': 'Accessory not found'}), 404
+
+        accessory.image_url = image_url if image_url else None
+        db_session.commit()
+
+        return jsonify({'success': True, 'image_url': accessory.image_url})
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@inventory_bp.route('/api/sf/accessory/search-image')
+@login_required
+def search_accessory_image():
+    """Search for product images using Unsplash API - Developer only"""
+    user_type = session.get('user_type')
+
+    if user_type != 'DEVELOPER':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({'success': False, 'error': 'Query required'}), 400
+
+    # Return placeholder URLs based on category
+    # These are free-to-use placeholder images
+    placeholder_urls = {
+        'keyboard': 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=400&fit=crop',
+        'mouse': 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=400&fit=crop',
+        'monitor': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&h=400&fit=crop',
+        'headset': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop',
+        'headphone': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop',
+        'cable': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop',
+        'charger': 'https://images.unsplash.com/photo-1583863788434-e62bd23c3da2?w=400&h=400&fit=crop',
+        'adapter': 'https://images.unsplash.com/photo-1625772452859-1c03d5bf1137?w=400&h=400&fit=crop',
+        'docking': 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=400&h=400&fit=crop',
+        'audio': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400&h=400&fit=crop',
+    }
+
+    # Find matching placeholder
+    query_lower = query.lower()
+    suggested_url = None
+    for key, url in placeholder_urls.items():
+        if key in query_lower:
+            suggested_url = url
+            break
+
+    return jsonify({
+        'success': True,
+        'query': query,
+        'suggested_url': suggested_url,
+        'placeholder_urls': placeholder_urls
+    })
+
+
 @inventory_bp.route('/tech-assets')
 @login_required
 def view_tech_assets():
@@ -331,12 +1001,46 @@ def view_tech_assets():
         # Base query for assets
         assets_query = db_session.query(Asset)
 
-        # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
-            assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
+        # Apply filtering for COUNTRY_ADMIN and SUPERVISOR users
+        if user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR:
+            from models.user_company_permission import UserCompanyPermission
+
+            # Filter by country if assigned
+            if user.assigned_countries:
+                assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
+
+            # ALWAYS filter by company permissions
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                permitted_company_names = [c.name.strip() for c in permitted_companies]
+
+                # Include child companies of parent companies
+                all_company_names = list(permitted_company_names)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        all_company_names.extend(child_names)
+
+                # Filter by company_id OR customer name
+                name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                assets_query = assets_query.filter(
+                    or_(
+                        Asset.company_id.in_(permitted_company_ids),
+                        *name_conditions
+                    )
+                )
+            else:
+                # No company permissions - show NO assets
+                assets_query = assets_query.filter(Asset.id == -1)
 
         # Filter by company if user is a client (can only see their company's assets)
-        if user.user_type == UserType.CLIENT and user.company:
+        elif user.user_type == UserType.CLIENT and user.company:
             # Filter by company_id and also by customer field matching company name
             assets_query = assets_query.filter(
                 or_(
@@ -563,7 +1267,17 @@ def filter_inventory():
         
         if 'customer' in data and data['customer'] or 'company' in data and data['company']:
             company_value = data.get('customer') or data.get('company')
-            query = query.filter(Asset.customer == company_value)
+            # Check if this company is a parent company - if so, include all child companies
+            company_obj = db_session.query(Company).filter(Company.name == company_value).first()
+            if company_obj and (company_obj.is_parent_company or company_obj.child_companies.count() > 0):
+                # This is a parent company - include assets from all child companies
+                child_company_names = [c.name for c in company_obj.child_companies.all()]
+                all_company_names = [company_value] + child_company_names
+                query = query.filter(Asset.customer.in_(all_company_names))
+                logger.info(f"Company grouping: filtering by parent '{company_value}' + children: {child_company_names}")
+            else:
+                # Regular company or no grouping - filter by exact match
+                query = query.filter(Asset.customer == company_value)
         
         if 'model' in data and data['model']:
             query = query.filter(Asset.model == data['model'])

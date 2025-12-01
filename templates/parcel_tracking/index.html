@@ -275,6 +275,51 @@
         border-radius: 8px;
         margin-top: 16px;
     }
+
+    .tracking-links {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .tracking-links-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tracking-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #f3f4f6;
+        color: #374151;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .tracking-link-btn:hover {
+        background: #e5e7eb;
+        color: #1f2937;
+    }
+
+    .tracking-link-btn.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .tracking-link-btn.primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .status-badge.fallback {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
 </style>
 
 <div class="parcel-tracking-container">
@@ -466,32 +511,66 @@ function displayResults(results) {
         card.className = 'result-card' + (result.success ? '' : ' error');
 
         if (result.success) {
+            // Build tracking links HTML if available
+            let trackingLinksHtml = '';
+            if (result.tracking_links) {
+                const links = Object.entries(result.tracking_links).map(([name, url]) =>
+                    `<a href="${url}" target="_blank" class="tracking-link-btn">${name}</a>`
+                ).join('');
+                trackingLinksHtml = `
+                    <div class="tracking-links">
+                        <div class="info-label" style="margin-bottom: 8px;">Track on:</div>
+                        <div class="tracking-links-grid">${links}</div>
+                    </div>
+                `;
+            } else if (result.tracking_url) {
+                trackingLinksHtml = `
+                    <div class="tracking-links">
+                        <a href="${result.tracking_url}" target="_blank" class="tracking-link-btn primary">
+                            <i class="fas fa-external-link-alt"></i> View on ${result.source || 'Tracking Site'}
+                        </a>
+                    </div>
+                `;
+            }
+
+            // Check if this is a fallback result (no real data)
+            const isFallback = result.source === 'fallback' || result.message;
+
             card.innerHTML = `
                 <div class="result-header">
                     <div>
                         <div class="tracking-number">${result.tracking_number}</div>
+                        ${result.source ? `<div style="font-size: 11px; color: #78858F; margin-top: 4px;">Source: ${result.source}</div>` : ''}
                     </div>
                     <div class="carrier-badge">${result.carrier}</div>
                 </div>
 
-                <div class="status-badge">${result.status}</div>
+                <div class="status-badge ${isFallback ? 'fallback' : ''}">${result.status}</div>
 
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Current Location</div>
-                        <div class="info-value">${result.current_location}</div>
+                ${result.message ? `
+                    <div class="info-message" style="background: #fef3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+                        <i class="fas fa-info-circle"></i> ${result.message}
                     </div>
-                    ${result.estimated_delivery ? `
+                ` : ''}
+
+                ${!isFallback ? `
+                    <div class="info-grid">
                         <div class="info-item">
-                            <div class="info-label">Estimated Delivery</div>
-                            <div class="info-value">${result.estimated_delivery}</div>
+                            <div class="info-label">Current Location</div>
+                            <div class="info-value">${result.current_location || 'Unknown'}</div>
                         </div>
-                    ` : ''}
-                    <div class="info-item">
-                        <div class="info-label">Last Updated</div>
-                        <div class="info-value">${new Date(result.last_updated).toLocaleString()}</div>
+                        ${result.estimated_delivery ? `
+                            <div class="info-item">
+                                <div class="info-label">Estimated Delivery</div>
+                                <div class="info-value">${result.estimated_delivery}</div>
+                            </div>
+                        ` : ''}
+                        <div class="info-item">
+                            <div class="info-label">Last Updated</div>
+                            <div class="info-value">${new Date(result.last_updated).toLocaleString()}</div>
+                        </div>
                     </div>
-                </div>
+                ` : ''}
 
                 ${result.events && result.events.length > 0 ? `
                     <div class="events-timeline">
@@ -499,11 +578,17 @@ function displayResults(results) {
                         ${result.events.map(event => `
                             <div class="event-item">
                                 <div class="event-dot"></div>
-                                <div class="event-description">${event.description}</div>
+                                <div class="event-description">
+                                    ${event.description}
+                                    ${event.location ? `<br><small style="color: #78858F;">${event.location}</small>` : ''}
+                                    ${event.timestamp ? `<br><small style="color: #78858F;">${event.timestamp}</small>` : ''}
+                                </div>
                             </div>
                         `).join('')}
                     </div>
                 ` : ''}
+
+                ${trackingLinksHtml}
             `;
         } else {
             card.innerHTML = `
@@ -515,6 +600,13 @@ function displayResults(results) {
                 <div class="error-message">
                     <strong>Error:</strong> ${result.message || result.error}
                 </div>
+                ${result.tracking_url ? `
+                    <div class="tracking-links" style="margin-top: 12px;">
+                        <a href="${result.tracking_url}" target="_blank" class="tracking-link-btn primary">
+                            <i class="fas fa-external-link-alt"></i> Try tracking manually
+                        </a>
+                    </div>
+                ` : ''}
             `;
         }
 

@@ -1,0 +1,14 @@
+{% set data = widget_data.get('recent_activities', {}) %}
+<div style="display: flex; flex-direction: column; gap: 0.75rem;">
+    {% for activity in data.get('activities', []) %}
+    <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--sf-gray-200);">
+        <div style="width: 8px; height: 8px; background: var(--sf-blue); border-radius: 50%; margin-top: 0.375rem; flex-shrink: 0;"></div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.8125rem; color: var(--sf-gray-800); line-height: 1.4;">{{ activity.content }}</div>
+            <div style="font-size: 0.6875rem; color: var(--sf-gray-500); margin-top: 0.25rem;">{{ activity.created_at }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div style="color: var(--sf-gray-500); font-size: 0.875rem; text-align: center; padding: 1rem;">No recent activities</div>
+    {% endfor %}
+</div>

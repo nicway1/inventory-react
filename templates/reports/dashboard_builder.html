@@ -1,0 +1,2671 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-green: #2e844a;
+        --sf-red: #ea001e;
+        --sf-orange: #fe9339;
+    }
+
+    .sf-dashboard-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header (positioned at bottom) */
+    .sf-dashboard-header {
+        background: white;
+        border-top: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        bottom: 0;
+        z-index: 100;
+    }
+
+    .sf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-header-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--sf-blue);
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .sf-header-title-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .sf-header-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .sf-header-label a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-header-label a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-dashboard-name-editable {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        border: 1px solid transparent;
+        background: transparent;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        min-width: 200px;
+        max-width: 400px;
+        margin-left: -0.375rem;
+    }
+
+    .sf-dashboard-name-editable:hover {
+        border-color: var(--sf-gray-300);
+        background: white;
+    }
+
+    .sf-dashboard-name-editable:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        background: white;
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    .sf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-btn-success {
+        background: var(--sf-green);
+        color: white;
+    }
+
+    .sf-btn-success:hover {
+        background: #256b3b;
+    }
+
+    /* Toolbar (positioned above header at bottom) */
+    .sf-dashboard-toolbar {
+        background: white;
+        border-top: 1px solid var(--sf-gray-200);
+        padding: 0.5rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .sf-toolbar-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+    }
+
+    .sf-toolbar-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .sf-toolbar-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sf-gray-800);
+        background: var(--sf-gray-100);
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-toolbar-btn:hover {
+        background: var(--sf-gray-200);
+        border-color: var(--sf-gray-300);
+    }
+
+    .sf-toolbar-btn.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+
+    /* Dashboard Grid */
+    .sf-dashboard-content {
+        padding: 1.5rem;
+        position: relative;
+    }
+
+    .sf-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        grid-auto-rows: minmax(80px, auto);
+        gap: 1rem;
+        min-height: calc(100vh - 200px);
+        position: relative;
+    }
+
+    /* Grid cell placeholder for drag/drop positioning */
+    .sf-grid-cell-placeholder {
+        position: absolute;
+        background: rgba(1, 118, 211, 0.1);
+        border: 2px dashed var(--sf-blue);
+        border-radius: 0.5rem;
+        pointer-events: none;
+        z-index: 50;
+        display: none;
+    }
+
+    .sf-grid-cell-placeholder.visible {
+        display: block;
+    }
+
+    /* Component Card */
+    .sf-component {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        transition: box-shadow 0.15s ease, transform 0.1s ease;
+        min-height: 150px;
+    }
+
+    .sf-component:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .sf-component.editing {
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    .sf-component.resizing {
+        user-select: none;
+        z-index: 100;
+    }
+
+    /* Component sizes - column span */
+    .sf-component.size-small { grid-column: span 3; }
+    .sf-component.size-medium { grid-column: span 4; }
+    .sf-component.size-large { grid-column: span 6; }
+    .sf-component.size-full { grid-column: span 12; }
+
+    /* Row span classes */
+    .sf-component.rows-1 { grid-row: span 1; }
+    .sf-component.rows-2 { grid-row: span 2; }
+    .sf-component.rows-3 { grid-row: span 3; }
+    .sf-component.rows-4 { grid-row: span 4; }
+    .sf-component.rows-5 { grid-row: span 5; }
+
+    /* Resize Handles */
+    .sf-resize-handle {
+        position: absolute;
+        z-index: 10;
+    }
+
+    .sf-resize-handle-e {
+        right: -4px;
+        top: 20%;
+        width: 8px;
+        height: 60%;
+        cursor: ew-resize;
+    }
+
+    .sf-resize-handle-s {
+        bottom: -4px;
+        left: 20%;
+        width: 60%;
+        height: 8px;
+        cursor: ns-resize;
+    }
+
+    .sf-resize-handle-se {
+        right: -4px;
+        bottom: -4px;
+        width: 16px;
+        height: 16px;
+        cursor: nwse-resize;
+        background: transparent;
+    }
+
+    .sf-resize-handle-se::after {
+        content: '';
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        width: 10px;
+        height: 10px;
+        border-right: 2px solid var(--sf-gray-400);
+        border-bottom: 2px solid var(--sf-gray-400);
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    .sf-component:hover .sf-resize-handle-se::after {
+        opacity: 1;
+    }
+
+    .sf-resize-handle-se:hover::after {
+        border-color: var(--sf-blue);
+    }
+
+    /* Size indicator tooltip */
+    .sf-size-indicator {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background: var(--sf-gray-800);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-4px);
+        z-index: 1000;
+    }
+
+    .sf-component.resizing .sf-size-indicator {
+        opacity: 1;
+    }
+
+    .sf-component-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: move;
+    }
+
+    .sf-component-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-component-actions {
+        display: flex;
+        gap: 0.25rem;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    .sf-component:hover .sf-component-actions {
+        opacity: 1;
+    }
+
+    .sf-component-btn {
+        padding: 0.25rem;
+        background: transparent;
+        border: none;
+        color: var(--sf-gray-600);
+        cursor: pointer;
+        border-radius: 0.25rem;
+    }
+
+    .sf-component-btn:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-blue);
+    }
+
+    .sf-component-body {
+        flex: 1;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+        overflow: auto;
+    }
+
+    /* Metric Component */
+    .sf-metric-component .sf-component-body {
+        flex-direction: column;
+        min-height: 80px;
+    }
+
+    /* Dynamic height based on row span */
+    .sf-component.rows-1 .sf-component-body { min-height: 80px; }
+    .sf-component.rows-2 .sf-component-body { min-height: 160px; }
+    .sf-component.rows-3 .sf-component-body { min-height: 240px; }
+    .sf-component.rows-4 .sf-component-body { min-height: 320px; }
+    .sf-component.rows-5 .sf-component-body { min-height: 400px; }
+
+    .sf-metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--sf-blue);
+        line-height: 1;
+    }
+
+    .sf-metric-value.green { color: var(--sf-green); }
+    .sf-metric-value.red { color: var(--sf-red); }
+    .sf-metric-value.orange { color: var(--sf-orange); }
+
+    .sf-metric-label {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.5rem;
+    }
+
+    /* Chart Component */
+    .sf-chart-component .sf-component-body {
+        min-height: 150px;
+    }
+
+    .sf-chart-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Table Component */
+    .sf-table-component .sf-component-body {
+        padding: 0;
+        display: block;
+        overflow-y: auto;
+    }
+
+    /* Report Component */
+    .sf-report-component .sf-component-body {
+        padding: 0;
+        display: block;
+        overflow-y: auto;
+    }
+
+    /* Dynamic max-height for tables/reports based on row span */
+    .sf-table-component.rows-1 .sf-component-body,
+    .sf-report-component.rows-1 .sf-component-body { max-height: 120px; }
+    .sf-table-component.rows-2 .sf-component-body,
+    .sf-report-component.rows-2 .sf-component-body { max-height: 200px; }
+    .sf-table-component.rows-3 .sf-component-body,
+    .sf-report-component.rows-3 .sf-component-body { max-height: 300px; }
+    .sf-table-component.rows-4 .sf-component-body,
+    .sf-report-component.rows-4 .sf-component-body { max-height: 400px; }
+    .sf-table-component.rows-5 .sf-component-body,
+    .sf-report-component.rows-5 .sf-component-body { max-height: 500px; }
+
+    /* Display Type Buttons */
+    .sf-display-types {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .sf-display-type-btn {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--sf-gray-100);
+        border: 2px solid transparent;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-display-type-btn:hover {
+        background: #e8f4ff;
+        border-color: var(--sf-blue-light);
+        color: var(--sf-blue);
+    }
+
+    .sf-display-type-btn.selected {
+        background: #e8f4ff;
+        border-color: var(--sf-blue);
+        color: var(--sf-blue);
+    }
+
+    /* Report Preview */
+    .sf-report-preview {
+        background: var(--sf-gray-100);
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        min-height: 150px;
+        max-height: 200px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .sf-preview-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 150px;
+        color: var(--sf-gray-600);
+        font-size: 0.875rem;
+    }
+
+    .sf-preview-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 150px;
+    }
+
+    .sf-preview-chart {
+        padding: 1rem;
+        height: 150px;
+    }
+
+    .sf-preview-table {
+        font-size: 0.75rem;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    .sf-preview-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-preview-table th,
+    .sf-preview-table td {
+        padding: 0.25rem 0.5rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        text-align: left;
+    }
+
+    .sf-preview-table th {
+        background: white;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+    }
+
+    /* Draggable Components */
+    .sf-component.dragging {
+        opacity: 0.5;
+        transform: scale(1.02);
+    }
+
+    .sf-component.drag-over {
+        border: 2px dashed var(--sf-blue);
+        background: #f8fcff;
+    }
+
+    .sf-component-header {
+        cursor: grab;
+    }
+
+    .sf-component-header:active {
+        cursor: grabbing;
+    }
+
+    /* Drag handle indicator */
+    .sf-drag-handle {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--sf-gray-400);
+        margin-right: 0.5rem;
+    }
+
+    .sf-component:hover .sf-drag-handle {
+        color: var(--sf-gray-600);
+    }
+
+    .sf-mini-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8125rem;
+    }
+
+    .sf-mini-table th {
+        background: var(--sf-gray-100);
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        position: sticky;
+        top: 0;
+    }
+
+    .sf-mini-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-mini-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    /* Add Component Placeholder */
+    .sf-add-component {
+        grid-column: span 4;
+        min-height: 200px;
+        background: white;
+        border: 2px dashed var(--sf-gray-300);
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-add-component:hover {
+        border-color: var(--sf-blue);
+        background: #f8fcff;
+    }
+
+    .sf-add-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--sf-gray-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-add-component:hover .sf-add-icon {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-add-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--sf-gray-600);
+    }
+
+    /* Modal */
+    .sf-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sf-modal-overlay.active {
+        display: flex;
+    }
+
+    .sf-modal {
+        background: white;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .sf-modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-modal-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        color: var(--sf-gray-600);
+        border-radius: 0.25rem;
+    }
+
+    .sf-modal-close:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+
+    .sf-modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--sf-gray-200);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    /* Form */
+    .sf-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .sf-form-label {
+        display: block;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-form-input,
+    .sf-form-select {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        background: white;
+    }
+
+    .sf-form-input:focus,
+    .sf-form-select:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    /* Component Type Grid */
+    .sf-component-types {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-component-type-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+        background: var(--sf-gray-100);
+        border: 2px solid transparent;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-component-type-btn:hover {
+        background: #e8f4ff;
+        border-color: var(--sf-blue-light);
+    }
+
+    .sf-component-type-btn.selected {
+        background: #e8f4ff;
+        border-color: var(--sf-blue);
+    }
+
+    .sf-component-type-icon {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 0.5rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-component-type-btn.selected .sf-component-type-icon {
+        color: var(--sf-blue);
+    }
+
+    .sf-component-type-name {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    /* Empty State */
+    .sf-empty-dashboard {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem;
+        text-align: center;
+    }
+
+    .sf-empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--sf-gray-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-600);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-empty-text {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        margin-bottom: 1.5rem;
+    }
+
+    /* Loading */
+    .sf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .sf-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--sf-gray-200);
+        border-top-color: var(--sf-blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-dashboard-page">
+    <!-- Dashboard Grid -->
+    <div class="sf-dashboard-content">
+        <div class="sf-dashboard-grid" id="dashboardGrid">
+            <!-- Empty state shown when no components -->
+            <div class="sf-empty-dashboard" id="emptyState">
+                <div class="sf-empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                </div>
+                <div class="sf-empty-title">Build Your Dashboard</div>
+                <div class="sf-empty-text">Add components to create a customized view of your reports data</div>
+                <button class="sf-btn sf-btn-brand" onclick="openAddComponentModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add Your First Component
+                </button>
+            </div>
+
+            <!-- Add component placeholder (shown when there are components) -->
+            <div class="sf-add-component" id="addComponentPlaceholder" style="display: none;" onclick="openAddComponentModal()">
+                <div class="sf-add-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                </div>
+                <span class="sf-add-text">Add Component</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="sf-dashboard-toolbar">
+        <span class="sf-toolbar-label">Date Range:</span>
+        <div class="sf-toolbar-buttons">
+            <button class="sf-toolbar-btn" data-days="7" onclick="setGlobalDateRange(7)">7 Days</button>
+            <button class="sf-toolbar-btn active" data-days="30" onclick="setGlobalDateRange(30)">30 Days</button>
+            <button class="sf-toolbar-btn" data-days="90" onclick="setGlobalDateRange(90)">90 Days</button>
+            <button class="sf-toolbar-btn" data-days="365" onclick="setGlobalDateRange(365)">1 Year</button>
+        </div>
+        <button class="sf-toolbar-btn" onclick="refreshAllComponents()" style="margin-left: auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+            Refresh All
+        </button>
+    </div>
+
+    <!-- Header -->
+    <div class="sf-dashboard-header">
+        <div class="sf-header-left">
+            <div class="sf-header-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+            </div>
+            <div class="sf-header-title-section">
+                <div class="sf-header-label">
+                    <span>Dashboard:</span>
+                    <a href="{{ url_for('reports.index') }}">Reports</a>
+                </div>
+                <input type="text" id="dashboardName" class="sf-dashboard-name-editable" value="Untitled Dashboard" placeholder="Dashboard Name">
+            </div>
+        </div>
+        <div class="sf-header-actions">
+            <button class="sf-btn sf-btn-neutral" onclick="loadDashboard()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4"/>
+                    <polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Load
+            </button>
+            <button class="sf-btn sf-btn-neutral" onclick="saveDashboard()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/>
+                </svg>
+                Save
+            </button>
+            <button class="sf-btn sf-btn-brand" onclick="openAddComponentModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Add Component
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Component Modal -->
+<div class="sf-modal-overlay" id="addComponentModal" onclick="closeModalOnOverlay(event, 'addComponentModal')">
+    <div class="sf-modal">
+        <div class="sf-modal-header">
+            <span class="sf-modal-title">Add Component</span>
+            <button class="sf-modal-close" onclick="closeModal('addComponentModal')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="sf-modal-body">
+            <!-- Component Type Selection -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Component Type</label>
+                <div class="sf-component-types">
+                    <button class="sf-component-type-btn selected" data-type="metric" onclick="selectComponentType('metric')">
+                        <svg class="sf-component-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20V10M18 20V4M6 20v-4"/>
+                        </svg>
+                        <span class="sf-component-type-name">Metric</span>
+                    </button>
+                    <button class="sf-component-type-btn" data-type="chart" onclick="selectComponentType('chart')">
+                        <svg class="sf-component-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+                            <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+                        </svg>
+                        <span class="sf-component-type-name">Chart</span>
+                    </button>
+                    <button class="sf-component-type-btn" data-type="table" onclick="selectComponentType('table')">
+                        <svg class="sf-component-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
+                            <line x1="9" y1="3" x2="9" y2="21"/>
+                        </svg>
+                        <span class="sf-component-type-name">Table</span>
+                    </button>
+                    <button class="sf-component-type-btn" data-type="report" onclick="selectComponentType('report')">
+                        <svg class="sf-component-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span class="sf-component-type-name">Saved Report</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Component Title -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Title</label>
+                <input type="text" class="sf-form-input" id="componentTitle" placeholder="Component title">
+            </div>
+
+            <!-- Metric Type (for metric components) -->
+            <div class="sf-form-group" id="metricTypeGroup">
+                <label class="sf-form-label">Metric Type</label>
+                <select class="sf-form-select" id="metricType">
+                    <option value="total">Total Tickets</option>
+                    <option value="open">Open Tickets</option>
+                    <option value="resolved">Resolved Tickets</option>
+                    <option value="resolution_rate">Resolution Rate</option>
+                </select>
+            </div>
+
+            <!-- Group By (for chart components) -->
+            <div class="sf-form-group" id="groupByGroup" style="display: none;">
+                <label class="sf-form-label">Group By</label>
+                <select class="sf-form-select" id="componentGroupBy">
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="category">Category</option>
+                    <option value="assigned_to">Assigned To</option>
+                </select>
+            </div>
+
+            <!-- Chart Type (for chart components) -->
+            <div class="sf-form-group" id="chartTypeGroup" style="display: none;">
+                <label class="sf-form-label">Chart Type</label>
+                <select class="sf-form-select" id="chartType">
+                    <option value="pie">Pie Chart</option>
+                    <option value="doughnut">Doughnut Chart</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="horizontalBar">Horizontal Bar</option>
+                </select>
+            </div>
+
+            <!-- Saved Report Selection (for report components) -->
+            <div class="sf-form-group" id="savedReportGroup" style="display: none;">
+                <label class="sf-form-label">Select Report</label>
+                <select class="sf-form-select" id="savedReportSelect" onchange="onReportSelected()">
+                    <option value="">-- Select a saved report --</option>
+                </select>
+                <div id="noReportsMessage" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #fff8e1; border-radius: 0.25rem; font-size: 0.8125rem; color: #856404;">
+                    No saved reports found. <a href="{{ url_for('reports.case_reports_builder') }}" style="color: var(--sf-blue);">Create a report first</a>
+                </div>
+            </div>
+
+            <!-- Display As (for report components) -->
+            <div class="sf-form-group" id="reportDisplayGroup" style="display: none;">
+                <label class="sf-form-label">Display As</label>
+                <div class="sf-display-types">
+                    <button type="button" class="sf-display-type-btn selected" data-display="table" onclick="selectReportDisplayType('table')" title="Table">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="bar" onclick="selectReportDisplayType('bar')" title="Bar Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="10" width="4" height="10"/><rect x="10" y="6" width="4" height="14"/><rect x="16" y="2" width="4" height="18"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="horizontalBar" onclick="selectReportDisplayType('horizontalBar')" title="Horizontal Bar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="4"/><rect x="4" y="10" width="12" height="4"/><rect x="4" y="16" width="8" height="4"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="pie" onclick="selectReportDisplayType('pie')" title="Pie Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="doughnut" onclick="selectReportDisplayType('doughnut')" title="Doughnut Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="line" onclick="selectReportDisplayType('line')" title="Line Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4,18 9,12 13,15 20,6"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="metric" onclick="selectReportDisplayType('metric')" title="Metric/Number">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <text x="5" y="17" font-size="12" fill="currentColor" stroke="none">123</text>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report Group By (for report chart display) -->
+            <div class="sf-form-group" id="reportGroupByGroup" style="display: none;">
+                <label class="sf-form-label">Group By (for chart)</label>
+                <select class="sf-form-select" id="reportGroupBy">
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="category">Category</option>
+                    <option value="assigned_to">Assigned To</option>
+                </select>
+            </div>
+
+            <!-- Report Preview -->
+            <div class="sf-form-group" id="reportPreviewGroup" style="display: none;">
+                <label class="sf-form-label">Preview</label>
+                <div id="reportPreview" class="sf-report-preview">
+                    <div class="sf-preview-placeholder">Select a report to see preview</div>
+                </div>
+            </div>
+
+            <!-- Component Size (Width) -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Width</label>
+                <select class="sf-form-select" id="componentSize">
+                    <option value="small">Small (3 columns)</option>
+                    <option value="medium" selected>Medium (4 columns)</option>
+                    <option value="large">Large (6 columns)</option>
+                    <option value="full">Full Width (12 columns)</option>
+                </select>
+            </div>
+
+            <!-- Component Height (Row Span) -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Height</label>
+                <select class="sf-form-select" id="componentRowSpan">
+                    <option value="1">Short (1 row)</option>
+                    <option value="2" selected>Medium (2 rows)</option>
+                    <option value="3">Tall (3 rows)</option>
+                    <option value="4">Extra Tall (4 rows)</option>
+                    <option value="5">Maximum (5 rows)</option>
+                </select>
+            </div>
+        </div>
+        <div class="sf-modal-footer">
+            <button class="sf-btn sf-btn-neutral" onclick="closeModal('addComponentModal')">Cancel</button>
+            <button class="sf-btn sf-btn-brand" id="addComponentBtn" onclick="addComponent()">Add Component</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Component Modal -->
+<div class="sf-modal-overlay" id="editComponentModal" onclick="closeModalOnOverlay(event, 'editComponentModal')">
+    <div class="sf-modal" style="max-width: 600px;">
+        <div class="sf-modal-header">
+            <span class="sf-modal-title">Edit Component</span>
+            <button class="sf-modal-close" onclick="closeModal('editComponentModal')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="sf-modal-body">
+            <input type="hidden" id="editComponentId">
+
+            <!-- Title -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Title</label>
+                <input type="text" class="sf-form-input" id="editComponentTitle">
+            </div>
+
+            <!-- Display Type (for report/chart) -->
+            <div class="sf-form-group" id="editDisplayTypeGroup">
+                <label class="sf-form-label">Display As</label>
+                <div class="sf-display-types" id="editDisplayTypes">
+                    <button type="button" class="sf-display-type-btn" data-display="table" onclick="selectEditDisplayType('table')" title="Table">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="bar" onclick="selectEditDisplayType('bar')" title="Bar Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="10" width="4" height="10"/><rect x="10" y="6" width="4" height="14"/><rect x="16" y="2" width="4" height="18"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="horizontalBar" onclick="selectEditDisplayType('horizontalBar')" title="Horizontal Bar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="4"/><rect x="4" y="10" width="12" height="4"/><rect x="4" y="16" width="8" height="4"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="pie" onclick="selectEditDisplayType('pie')" title="Pie Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="doughnut" onclick="selectEditDisplayType('doughnut')" title="Doughnut Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="line" onclick="selectEditDisplayType('line')" title="Line Chart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4,18 9,12 13,15 20,6"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="sf-display-type-btn" data-display="metric" onclick="selectEditDisplayType('metric')" title="Metric">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <text x="5" y="17" font-size="12" fill="currentColor" stroke="none">123</text>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Group By -->
+            <div class="sf-form-group" id="editGroupByGroup">
+                <label class="sf-form-label">Group By</label>
+                <select class="sf-form-select" id="editGroupBy">
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="category">Category</option>
+                    <option value="assigned_to">Assigned To</option>
+                </select>
+            </div>
+
+            <!-- Size (Width) -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Width</label>
+                <select class="sf-form-select" id="editComponentSize">
+                    <option value="small">Small (3 columns)</option>
+                    <option value="medium">Medium (4 columns)</option>
+                    <option value="large">Large (6 columns)</option>
+                    <option value="full">Full Width (12 columns)</option>
+                </select>
+            </div>
+
+            <!-- Height (Row Span) -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Height</label>
+                <select class="sf-form-select" id="editComponentRowSpan">
+                    <option value="1">Short (1 row)</option>
+                    <option value="2">Medium (2 rows)</option>
+                    <option value="3">Tall (3 rows)</option>
+                    <option value="4">Extra Tall (4 rows)</option>
+                    <option value="5">Maximum (5 rows)</option>
+                </select>
+            </div>
+
+            <!-- Position -->
+            <div class="sf-form-group">
+                <label class="sf-form-label">Position (Optional)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.75rem; color: var(--sf-gray-600);">Column (1-12)</label>
+                        <input type="number" class="sf-form-input" id="editGridColumn" min="1" max="12" placeholder="Auto">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.75rem; color: var(--sf-gray-600);">Row</label>
+                        <input type="number" class="sf-form-input" id="editGridRow" min="1" placeholder="Auto">
+                    </div>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--sf-gray-600); margin-top: 0.25rem;">Leave empty for auto-placement</div>
+            </div>
+        </div>
+        <div class="sf-modal-footer">
+            <button class="sf-btn sf-btn-neutral" onclick="closeModal('editComponentModal')">Cancel</button>
+            <button class="sf-btn sf-btn-brand" onclick="saveComponentEdit()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dashboard state
+let dashboardComponents = [];
+let globalDateRange = 30;
+let componentCharts = {};
+let editingComponentId = null;
+
+// Color palette
+const colors = [
+    '#0176d3', '#1b96ff', '#3ba755', '#fe9339', '#ea001e',
+    '#9050e9', '#04844b', '#ff538a', '#00b4d8', '#7c868d'
+];
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for URL parameter to load a specific dashboard
+    const params = new URLSearchParams(window.location.search);
+    const loadName = params.get('load');
+
+    if (loadName) {
+        // Load specific dashboard by name
+        const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+        const dashboard = dashboards.find(d => d.name === loadName);
+        if (dashboard) {
+            dashboardComponents = dashboard.components || [];
+            globalDateRange = dashboard.dateRange || 30;
+            document.getElementById('dashboardName').value = dashboard.name;
+
+            // Update date range buttons
+            document.querySelectorAll('.sf-toolbar-btn[data-days]').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.days) === globalDateRange);
+            });
+
+            renderDashboard();
+            refreshAllComponents();
+            return;
+        }
+    }
+
+    // Fall back to loading current dashboard if exists
+    const saved = localStorage.getItem('currentDashboard');
+    if (saved) {
+        const data = JSON.parse(saved);
+        dashboardComponents = data.components || [];
+        globalDateRange = data.dateRange || 30;
+        document.getElementById('dashboardName').value = data.name || 'Untitled Dashboard';
+
+        // Update date range buttons
+        document.querySelectorAll('.sf-toolbar-btn[data-days]').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.days) === globalDateRange);
+        });
+
+        renderDashboard();
+        refreshAllComponents();
+    }
+});
+
+// Current report display type for add modal
+let currentReportDisplayType = 'table';
+let previewChart = null;
+
+// Select component type in modal
+function selectComponentType(type) {
+    document.querySelectorAll('.sf-component-type-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.type === type);
+    });
+
+    // Show/hide relevant fields
+    document.getElementById('metricTypeGroup').style.display = type === 'metric' ? 'block' : 'none';
+    document.getElementById('groupByGroup').style.display = type === 'chart' ? 'block' : 'none';
+    document.getElementById('chartTypeGroup').style.display = type === 'chart' ? 'block' : 'none';
+    document.getElementById('savedReportGroup').style.display = type === 'report' ? 'block' : 'none';
+    document.getElementById('reportDisplayGroup').style.display = type === 'report' ? 'block' : 'none';
+    document.getElementById('reportGroupByGroup').style.display = type === 'report' && currentReportDisplayType !== 'table' && currentReportDisplayType !== 'metric' ? 'block' : 'none';
+    document.getElementById('reportPreviewGroup').style.display = type === 'report' ? 'block' : 'none';
+
+    // Set default size based on type
+    const sizeSelect = document.getElementById('componentSize');
+    if (type === 'metric') {
+        sizeSelect.value = 'small';
+    } else if (type === 'chart') {
+        sizeSelect.value = 'medium';
+    } else if (type === 'report') {
+        sizeSelect.value = currentReportDisplayType === 'table' ? 'full' : 'medium';
+    } else {
+        sizeSelect.value = 'large';
+    }
+
+    // Reset preview if switching away from report
+    if (type !== 'report') {
+        document.getElementById('reportPreview').innerHTML = '<div class="sf-preview-placeholder">Select a report to see preview</div>';
+    }
+}
+
+// Select report display type
+function selectReportDisplayType(displayType) {
+    currentReportDisplayType = displayType;
+
+    // Update button selection
+    document.querySelectorAll('#reportDisplayGroup .sf-display-type-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.display === displayType);
+    });
+
+    // Show/hide group by based on display type
+    const showGroupBy = displayType !== 'table' && displayType !== 'metric';
+    document.getElementById('reportGroupByGroup').style.display = showGroupBy ? 'block' : 'none';
+
+    // Update size default
+    const sizeSelect = document.getElementById('componentSize');
+    if (displayType === 'table') {
+        sizeSelect.value = 'full';
+    } else if (displayType === 'metric') {
+        sizeSelect.value = 'small';
+    } else {
+        sizeSelect.value = 'medium';
+    }
+
+    // Update preview
+    updateReportPreview();
+}
+
+// Handle report selection
+function onReportSelected() {
+    const reportName = document.getElementById('savedReportSelect').value;
+    if (reportName) {
+        // Auto-fill title with report name
+        if (!document.getElementById('componentTitle').value) {
+            document.getElementById('componentTitle').value = reportName;
+        }
+        updateReportPreview();
+    } else {
+        document.getElementById('reportPreview').innerHTML = '<div class="sf-preview-placeholder">Select a report to see preview</div>';
+    }
+}
+
+// Update report preview
+async function updateReportPreview() {
+    const reportName = document.getElementById('savedReportSelect').value;
+    if (!reportName) return;
+
+    const previewEl = document.getElementById('reportPreview');
+    previewEl.innerHTML = '<div class="sf-preview-loading"><div class="sf-spinner"></div></div>';
+
+    // Get report config
+    const savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+    const legacyReport = localStorage.getItem('savedReport');
+    let reportConfig = savedReports.find(r => r.name === reportName);
+
+    if (!reportConfig && legacyReport) {
+        const legacy = JSON.parse(legacyReport);
+        if (legacy.name === reportName) reportConfig = legacy;
+    }
+
+    if (!reportConfig) {
+        previewEl.innerHTML = '<div class="sf-preview-placeholder">Report not found</div>';
+        return;
+    }
+
+    // Fetch preview data
+    try {
+        const response = await fetch('/reports/api/report-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filters: reportConfig.filters || {},
+                columns: reportConfig.columns || ['case_id', 'subject', 'status', 'priority']
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            renderPreview(data.data, reportConfig);
+        } else {
+            previewEl.innerHTML = '<div class="sf-preview-placeholder">No data available</div>';
+        }
+    } catch (error) {
+        previewEl.innerHTML = '<div class="sf-preview-placeholder">Error loading preview</div>';
+    }
+}
+
+// Render preview based on display type
+function renderPreview(tickets, reportConfig) {
+    const previewEl = document.getElementById('reportPreview');
+    const displayType = currentReportDisplayType;
+
+    if (displayType === 'table') {
+        renderTablePreview(previewEl, tickets, reportConfig);
+    } else if (displayType === 'metric') {
+        previewEl.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 150px;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--sf-blue);">${tickets.length}</div>
+                <div style="font-size: 0.875rem; color: var(--sf-gray-600);">Total Records</div>
+            </div>
+        `;
+    } else {
+        renderChartPreview(previewEl, tickets, displayType);
+    }
+}
+
+// Render table preview
+function renderTablePreview(container, tickets, reportConfig) {
+    const columns = reportConfig.columns || ['case_id', 'subject', 'status'];
+    const displayTickets = tickets.slice(0, 5);
+
+    let html = '<div class="sf-preview-table"><table><thead><tr>';
+    columns.slice(0, 4).forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    displayTickets.forEach(t => {
+        html += '<tr>';
+        columns.slice(0, 4).forEach(col => {
+            html += `<td>${escapeHtml(String(t[col] || ''))}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    if (tickets.length > 5) {
+        html += `<div style="padding: 0.5rem; text-align: center; font-size: 0.75rem; color: var(--sf-gray-600);">+${tickets.length - 5} more rows</div>`;
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// Render chart preview
+function renderChartPreview(container, tickets, chartType) {
+    const groupBy = document.getElementById('reportGroupBy').value;
+
+    // Group data
+    const grouped = {};
+    tickets.forEach(t => {
+        const key = t[groupBy] || 'Unknown';
+        grouped[key] = (grouped[key] || 0) + 1;
+    });
+
+    const labels = Object.keys(grouped);
+    const values = Object.values(grouped);
+
+    container.innerHTML = '<div class="sf-preview-chart"><canvas id="previewCanvas"></canvas></div>';
+
+    // Destroy existing chart
+    if (previewChart) {
+        previewChart.destroy();
+    }
+
+    const ctx = document.getElementById('previewCanvas').getContext('2d');
+    const isCircular = ['pie', 'doughnut'].includes(chartType);
+    const isHorizontal = chartType === 'horizontalBar';
+
+    previewChart = new Chart(ctx, {
+        type: isHorizontal ? 'bar' : (chartType === 'horizontalBar' ? 'bar' : chartType),
+        data: {
+            labels: labels.slice(0, 6),
+            datasets: [{
+                data: values.slice(0, 6),
+                backgroundColor: colors.slice(0, 6),
+                borderColor: isCircular ? 'white' : colors.slice(0, 6),
+                borderWidth: isCircular ? 2 : 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: isHorizontal ? 'y' : 'x',
+            plugins: {
+                legend: { display: isCircular, position: 'right', labels: { boxWidth: 8, font: { size: 9 } } }
+            },
+            scales: isCircular ? {} : {
+                x: { display: !isHorizontal, ticks: { font: { size: 9 } } },
+                y: { display: isHorizontal || chartType === 'bar' || chartType === 'line', ticks: { font: { size: 9 } } }
+            }
+        }
+    });
+}
+
+// Open add component modal
+function openAddComponentModal() {
+    document.getElementById('addComponentModal').classList.add('active');
+    document.getElementById('componentTitle').value = '';
+    selectComponentType('metric');
+    populateSavedReportsDropdown();
+}
+
+// Populate saved reports dropdown
+function populateSavedReportsDropdown() {
+    const select = document.getElementById('savedReportSelect');
+    const noReportsMsg = document.getElementById('noReportsMessage');
+
+    // Clear existing options except the placeholder
+    select.innerHTML = '<option value="">-- Select a saved report --</option>';
+
+    // Get saved reports from localStorage
+    const savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+
+    // Also check for legacy single saved report
+    const legacyReport = localStorage.getItem('savedReport');
+    let allReports = [...savedReports];
+
+    if (legacyReport) {
+        const legacy = JSON.parse(legacyReport);
+        if (legacy.name && !allReports.find(r => r.name === legacy.name)) {
+            allReports.push(legacy);
+        }
+    }
+
+    if (allReports.length === 0) {
+        select.style.display = 'none';
+        noReportsMsg.style.display = 'block';
+    } else {
+        select.style.display = 'block';
+        noReportsMsg.style.display = 'none';
+
+        allReports.forEach(report => {
+            const option = document.createElement('option');
+            option.value = report.name;
+            option.textContent = report.name + (report.reportType ? ` (${report.reportType})` : '');
+            select.appendChild(option);
+        });
+    }
+}
+
+// Close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    editingComponentId = null;
+}
+
+// Close modal on overlay click
+function closeModalOnOverlay(event, modalId) {
+    if (event.target === document.getElementById(modalId)) {
+        closeModal(modalId);
+    }
+}
+
+// Add component
+function addComponent() {
+    const selectedType = document.querySelector('.sf-component-type-btn.selected').dataset.type;
+    const size = document.getElementById('componentSize').value;
+    const rowSpan = parseInt(document.getElementById('componentRowSpan').value) || 2;
+
+    // For report type, validate selection
+    if (selectedType === 'report') {
+        const reportName = document.getElementById('savedReportSelect').value;
+        if (!reportName) {
+            alert('Please select a saved report.');
+            return;
+        }
+    }
+
+    const title = document.getElementById('componentTitle').value || getDefaultTitle(selectedType);
+
+    const component = {
+        id: 'comp_' + Date.now(),
+        type: selectedType,
+        title: title,
+        size: size,
+        rowSpan: rowSpan
+    };
+
+    if (selectedType === 'metric') {
+        component.metricType = document.getElementById('metricType').value;
+        // Metrics are typically shorter
+        if (rowSpan === 2) component.rowSpan = 1;
+    } else if (selectedType === 'chart') {
+        component.groupBy = document.getElementById('componentGroupBy').value;
+        component.chartType = document.getElementById('chartType').value;
+    } else if (selectedType === 'report') {
+        component.reportName = document.getElementById('savedReportSelect').value;
+        component.displayType = currentReportDisplayType;
+        component.groupBy = document.getElementById('reportGroupBy').value;
+        // Use report name as title if no custom title
+        if (!document.getElementById('componentTitle').value) {
+            component.title = component.reportName;
+        }
+        // Tables need more height
+        if (component.displayType === 'table' && rowSpan === 2) {
+            component.rowSpan = 3;
+        }
+    }
+
+    dashboardComponents.push(component);
+    closeModal('addComponentModal');
+    renderDashboard();
+    loadComponentData(component);
+    saveDashboardAuto();
+}
+
+// Get default title based on type
+function getDefaultTitle(type) {
+    switch (type) {
+        case 'metric': return 'Total Tickets';
+        case 'chart': return 'Tickets by Status';
+        case 'table': return 'Recent Tickets';
+        case 'report': return 'Saved Report';
+        default: return 'New Component';
+    }
+}
+
+// Render dashboard
+function renderDashboard() {
+    const grid = document.getElementById('dashboardGrid');
+    const emptyState = document.getElementById('emptyState');
+    const addPlaceholder = document.getElementById('addComponentPlaceholder');
+
+    // Clear existing components (except empty state and placeholder)
+    grid.querySelectorAll('.sf-component').forEach(el => el.remove());
+
+    if (dashboardComponents.length === 0) {
+        emptyState.style.display = 'flex';
+        addPlaceholder.style.display = 'none';
+    } else {
+        emptyState.style.display = 'none';
+        addPlaceholder.style.display = 'flex';
+
+        // Render each component
+        dashboardComponents.forEach(comp => {
+            const el = createComponentElement(comp);
+            grid.insertBefore(el, addPlaceholder);
+        });
+    }
+}
+
+// Create component element
+function createComponentElement(component) {
+    const div = document.createElement('div');
+
+    // Build class list with size and row span
+    const rowSpan = component.rowSpan || 2;
+    div.className = `sf-component sf-${component.type}-component size-${component.size} rows-${rowSpan}`;
+    div.dataset.id = component.id;
+    div.draggable = true;
+
+    // Apply explicit grid position if specified
+    if (component.gridColumn) {
+        div.style.gridColumn = `${component.gridColumn} / span ${getColumnSpan(component.size)}`;
+    }
+    if (component.gridRow) {
+        div.style.gridRow = `${component.gridRow} / span ${rowSpan}`;
+    }
+
+    // Get display type info for reports
+    let displayInfo = '';
+    if (component.type === 'report' && component.displayType) {
+        const displayLabels = {
+            table: 'Table',
+            bar: 'Bar Chart',
+            horizontalBar: 'H-Bar',
+            pie: 'Pie',
+            doughnut: 'Doughnut',
+            line: 'Line',
+            metric: 'Metric'
+        };
+        displayInfo = `<span style="font-size: 0.7rem; color: var(--sf-gray-500); margin-left: 0.5rem;">(${displayLabels[component.displayType] || component.displayType})</span>`;
+    }
+
+    div.innerHTML = `
+        <div class="sf-size-indicator" id="sizeIndicator_${component.id}">${getColumnSpan(component.size)} × ${rowSpan}</div>
+        <div class="sf-component-header" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+            <div style="display: flex; align-items: center;">
+                <span class="sf-drag-handle" title="Drag to move">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/>
+                        <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                        <circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+                    </svg>
+                </span>
+                <span class="sf-component-title">${escapeHtml(component.title)}${displayInfo}</span>
+            </div>
+            <div class="sf-component-actions">
+                <button class="sf-component-btn" onclick="editComponent('${component.id}')" title="Edit">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="sf-component-btn" onclick="deleteComponent('${component.id}')" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="sf-component-body" id="body_${component.id}">
+            <div class="sf-loading"><div class="sf-spinner"></div></div>
+        </div>
+        <!-- Resize handles -->
+        <div class="sf-resize-handle sf-resize-handle-e" onmousedown="startResize(event, '${component.id}', 'e')"></div>
+        <div class="sf-resize-handle sf-resize-handle-s" onmousedown="startResize(event, '${component.id}', 's')"></div>
+        <div class="sf-resize-handle sf-resize-handle-se" onmousedown="startResize(event, '${component.id}', 'se')"></div>
+    `;
+
+    // Add drag event listeners for repositioning
+    div.addEventListener('dragover', handleDragOver);
+    div.addEventListener('drop', handleDrop);
+    div.addEventListener('dragleave', handleDragLeave);
+
+    return div;
+}
+
+// Get column span number from size name
+function getColumnSpan(size) {
+    const spans = { small: 3, medium: 4, large: 6, full: 12 };
+    return spans[size] || 4;
+}
+
+// Get size name from column span
+function getSizeFromSpan(span) {
+    if (span <= 3) return 'small';
+    if (span <= 4) return 'medium';
+    if (span <= 6) return 'large';
+    return 'full';
+}
+
+// Load component data
+async function loadComponentData(component) {
+    const bodyEl = document.getElementById(`body_${component.id}`);
+    if (!bodyEl) return;
+
+    // For report components, handle separately
+    if (component.type === 'report') {
+        await loadReportComponentData(component);
+        return;
+    }
+
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - globalDateRange);
+
+    const requestData = {
+        components: [{
+            id: component.id,
+            type: component.type,
+            groupBy: component.groupBy || 'status',
+            metricType: component.metricType || 'total',
+            filters: {
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0]
+            }
+        }]
+    };
+
+    try {
+        const response = await fetch('/reports/api/dashboard-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await response.json();
+        if (data.success && data.data[component.id]) {
+            renderComponentContent(component, data.data[component.id]);
+        } else {
+            bodyEl.innerHTML = '<div style="color: var(--sf-gray-600);">No data available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading component data:', error);
+        bodyEl.innerHTML = '<div style="color: var(--sf-red);">Error loading data</div>';
+    }
+}
+
+// Load saved report component data
+async function loadReportComponentData(component) {
+    const bodyEl = document.getElementById(`body_${component.id}`);
+    if (!bodyEl) return;
+
+    // Get saved report configuration from localStorage
+    const savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+    const legacyReport = localStorage.getItem('savedReport');
+    let reportConfig = savedReports.find(r => r.name === component.reportName);
+
+    if (!reportConfig && legacyReport) {
+        const legacy = JSON.parse(legacyReport);
+        if (legacy.name === component.reportName) {
+            reportConfig = legacy;
+        }
+    }
+
+    if (!reportConfig) {
+        bodyEl.innerHTML = `<div style="color: var(--sf-red); text-align: center;">
+            Report "${escapeHtml(component.reportName)}" not found.<br>
+            <small>It may have been deleted.</small>
+        </div>`;
+        return;
+    }
+
+    // Fetch data using the report's configuration
+    try {
+        const response = await fetch('/reports/api/report-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filters: reportConfig.filters || {},
+                columns: reportConfig.columns || [],
+                reportType: reportConfig.reportType || 'tabular',
+                summaryFields: reportConfig.summaryFields || [],
+                subGroupBy: reportConfig.subGroupBy || ''
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            renderReportComponent(component, data, reportConfig);
+        } else {
+            bodyEl.innerHTML = '<div style="color: var(--sf-gray-600);">No data available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading report data:', error);
+        bodyEl.innerHTML = '<div style="color: var(--sf-red);">Error loading report data</div>';
+    }
+}
+
+// Render component content based on type
+function renderComponentContent(component, data) {
+    const bodyEl = document.getElementById(`body_${component.id}`);
+    if (!bodyEl) return;
+
+    if (component.type === 'metric') {
+        const colorClass = getMetricColorClass(component.metricType, data.value);
+        bodyEl.innerHTML = `
+            <div class="sf-metric-value ${colorClass}">${data.value}</div>
+            <div class="sf-metric-label">${data.label}</div>
+        `;
+    } else if (component.type === 'chart') {
+        bodyEl.innerHTML = `<canvas class="sf-chart-canvas" id="chart_${component.id}"></canvas>`;
+        renderChart(component, data);
+    } else if (component.type === 'table') {
+        renderTableComponent(component, data);
+    }
+}
+
+// Get color class for metric
+function getMetricColorClass(metricType, value) {
+    if (metricType === 'resolution_rate') {
+        const rate = parseFloat(value);
+        if (rate >= 80) return 'green';
+        if (rate >= 50) return 'orange';
+        return 'red';
+    }
+    if (metricType === 'open') return 'orange';
+    if (metricType === 'resolved') return 'green';
+    return '';
+}
+
+// Render chart
+function renderChart(component, data) {
+    const ctx = document.getElementById(`chart_${component.id}`);
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (componentCharts[component.id]) {
+        componentCharts[component.id].destroy();
+    }
+
+    const chartType = component.chartType || 'pie';
+    const isHorizontal = chartType === 'horizontalBar';
+    const isCircular = ['pie', 'doughnut'].includes(chartType);
+
+    componentCharts[component.id] = new Chart(ctx, {
+        type: isHorizontal ? 'bar' : chartType,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.values,
+                backgroundColor: colors.slice(0, data.labels.length),
+                borderColor: isCircular ? 'white' : colors.slice(0, data.labels.length),
+                borderWidth: isCircular ? 2 : 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: isHorizontal ? 'y' : 'x',
+            plugins: {
+                legend: {
+                    display: isCircular,
+                    position: 'right',
+                    labels: { boxWidth: 12, font: { size: 11 } }
+                }
+            },
+            scales: isCircular ? {} : {
+                x: { beginAtZero: isHorizontal },
+                y: { beginAtZero: !isHorizontal }
+            }
+        }
+    });
+}
+
+// Render table component
+function renderTableComponent(component, data) {
+    const bodyEl = document.getElementById(`body_${component.id}`);
+    if (!bodyEl || !data.data) return;
+
+    let html = `
+        <table class="sf-mini-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    data.data.forEach(ticket => {
+        html += `
+            <tr>
+                <td><a href="/tickets/${ticket.case_id}" style="color: var(--sf-blue);">${ticket.case_id}</a></td>
+                <td>${escapeHtml(ticket.subject)}</td>
+                <td>${ticket.status}</td>
+                <td>${ticket.priority}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+    if (data.total > data.data.length) {
+        html += `<div style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--sf-gray-600);">Showing ${data.data.length} of ${data.total} tickets</div>`;
+    }
+
+    bodyEl.innerHTML = html;
+}
+
+// Render saved report component
+function renderReportComponent(component, data, reportConfig) {
+    const bodyEl = document.getElementById(`body_${component.id}`);
+    if (!bodyEl) return;
+
+    const tickets = data.data || [];
+    const displayType = component.displayType || 'table';
+
+    if (tickets.length === 0) {
+        bodyEl.innerHTML = '<div style="text-align: center; color: var(--sf-gray-600); padding: 2rem;">No data matching the report filters</div>';
+        return;
+    }
+
+    // Render based on display type
+    if (displayType === 'table') {
+        renderReportAsTable(bodyEl, component, tickets, reportConfig);
+    } else if (displayType === 'metric') {
+        renderReportAsMetric(bodyEl, component, tickets);
+    } else {
+        // Chart types: bar, horizontalBar, pie, doughnut, line
+        renderReportAsChart(bodyEl, component, tickets, displayType);
+    }
+}
+
+// Render report as table
+function renderReportAsTable(bodyEl, component, tickets, reportConfig) {
+    const columns = reportConfig.columns || ['case_id', 'subject', 'status', 'priority'];
+    const columnLabels = {
+        'case_id': 'ID', 'subject': 'Subject', 'status': 'Status', 'priority': 'Priority',
+        'category': 'Category', 'assigned_to': 'Assigned To', 'created_at': 'Created',
+        'updated_at': 'Updated', 'customer': 'Customer', 'client_company': 'Company', 'description': 'Description'
+    };
+
+    let html = '<table class="sf-mini-table"><thead><tr>';
+    columns.forEach(col => html += `<th>${escapeHtml(columnLabels[col] || col)}</th>`);
+    html += '</tr></thead><tbody>';
+
+    const displayTickets = tickets.slice(0, 20);
+    displayTickets.forEach(ticket => {
+        html += '<tr>';
+        columns.forEach(col => {
+            let value = ticket[col] || '';
+            if (col === 'case_id') {
+                html += `<td><a href="/tickets/${ticket.case_id}" style="color: var(--sf-blue);">${escapeHtml(value)}</a></td>`;
+            } else if (col === 'created_at' || col === 'updated_at') {
+                value = value ? new Date(value).toLocaleDateString() : '';
+                html += `<td>${escapeHtml(value)}</td>`;
+            } else {
+                html += `<td>${escapeHtml(String(value))}</td>`;
+            }
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    if (tickets.length > displayTickets.length) {
+        html += `<div style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--sf-gray-600); border-top: 1px solid var(--sf-gray-200);">
+            Showing ${displayTickets.length} of ${tickets.length} records
+            <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(component.reportName)}" style="margin-left: 0.5rem; color: var(--sf-blue);">View Full Report →</a>
+        </div>`;
+    } else {
+        html += `<div style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--sf-gray-600); border-top: 1px solid var(--sf-gray-200);">
+            ${tickets.length} records
+            <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(component.reportName)}" style="margin-left: 0.5rem; color: var(--sf-blue);">View Full Report →</a>
+        </div>`;
+    }
+
+    bodyEl.innerHTML = html;
+}
+
+// Render report as metric (count)
+function renderReportAsMetric(bodyEl, component, tickets) {
+    bodyEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 150px;">
+            <div style="font-size: 3rem; font-weight: 700; color: var(--sf-blue);">${tickets.length}</div>
+            <div style="font-size: 0.875rem; color: var(--sf-gray-600);">Total Records</div>
+            <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(component.reportName)}" style="font-size: 0.75rem; color: var(--sf-blue); margin-top: 0.5rem;">View Full Report →</a>
+        </div>
+    `;
+}
+
+// Render report as chart
+function renderReportAsChart(bodyEl, component, tickets, chartType) {
+    const groupBy = component.groupBy || 'status';
+
+    // Group data
+    const grouped = {};
+    tickets.forEach(t => {
+        const key = t[groupBy] || 'Unknown';
+        grouped[key] = (grouped[key] || 0) + 1;
+    });
+
+    const labels = Object.keys(grouped);
+    const values = Object.values(grouped);
+
+    const canvasId = `chart_report_${component.id}`;
+    bodyEl.innerHTML = `
+        <div style="padding: 1rem; height: 250px;">
+            <canvas id="${canvasId}"></canvas>
+        </div>
+        <div style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--sf-gray-600); border-top: 1px solid var(--sf-gray-200);">
+            ${tickets.length} records grouped by ${groupBy}
+            <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(component.reportName)}" style="margin-left: 0.5rem; color: var(--sf-blue);">View Full Report →</a>
+        </div>
+    `;
+
+    // Destroy existing chart if any
+    if (componentCharts[component.id]) {
+        componentCharts[component.id].destroy();
+    }
+
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const isCircular = ['pie', 'doughnut'].includes(chartType);
+    const isHorizontal = chartType === 'horizontalBar';
+    const actualChartType = isHorizontal ? 'bar' : chartType;
+
+    componentCharts[component.id] = new Chart(ctx, {
+        type: actualChartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: isCircular ? 'white' : colors.slice(0, labels.length),
+                borderWidth: isCircular ? 2 : 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: isHorizontal ? 'y' : 'x',
+            plugins: {
+                legend: { display: isCircular, position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+            },
+            scales: isCircular ? {} : {
+                x: { beginAtZero: isHorizontal },
+                y: { beginAtZero: !isHorizontal }
+            }
+        }
+    });
+}
+
+// Delete component
+function deleteComponent(componentId) {
+    if (!confirm('Are you sure you want to delete this component?')) return;
+
+    dashboardComponents = dashboardComponents.filter(c => c.id !== componentId);
+    if (componentCharts[componentId]) {
+        componentCharts[componentId].destroy();
+        delete componentCharts[componentId];
+    }
+    renderDashboard();
+    saveDashboardAuto();
+}
+
+// Edit component - open edit modal
+function editComponent(componentId) {
+    const component = dashboardComponents.find(c => c.id === componentId);
+    if (!component) return;
+
+    editingComponentId = componentId;
+
+    // Populate edit modal
+    document.getElementById('editComponentId').value = componentId;
+    document.getElementById('editComponentTitle').value = component.title;
+    document.getElementById('editComponentSize').value = component.size;
+    document.getElementById('editComponentRowSpan').value = component.rowSpan || 2;
+
+    // Populate grid position fields
+    document.getElementById('editGridColumn').value = component.gridColumn || '';
+    document.getElementById('editGridRow').value = component.gridRow || '';
+
+    // Determine what fields to show based on component type
+    const showDisplayType = component.type === 'report' || component.type === 'chart';
+    const showGroupBy = component.type === 'report' || component.type === 'chart';
+
+    document.getElementById('editDisplayTypeGroup').style.display = showDisplayType ? 'block' : 'none';
+    document.getElementById('editGroupByGroup').style.display = showGroupBy ? 'block' : 'none';
+
+    // Set current values
+    if (component.type === 'report') {
+        const displayType = component.displayType || 'table';
+        document.querySelectorAll('#editDisplayTypes .sf-display-type-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.display === displayType);
+        });
+        document.getElementById('editGroupBy').value = component.groupBy || 'status';
+    } else if (component.type === 'chart') {
+        const chartType = component.chartType || 'pie';
+        document.querySelectorAll('#editDisplayTypes .sf-display-type-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.display === chartType);
+        });
+        document.getElementById('editGroupBy').value = component.groupBy || 'status';
+    }
+
+    document.getElementById('editComponentModal').classList.add('active');
+}
+
+// Select display type in edit modal
+function selectEditDisplayType(displayType) {
+    document.querySelectorAll('#editDisplayTypes .sf-display-type-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.display === displayType);
+    });
+}
+
+// Save component edits
+function saveComponentEdit() {
+    const componentId = document.getElementById('editComponentId').value;
+    const component = dashboardComponents.find(c => c.id === componentId);
+    if (!component) return;
+
+    // Update component properties
+    component.title = document.getElementById('editComponentTitle').value;
+    component.size = document.getElementById('editComponentSize').value;
+    component.rowSpan = parseInt(document.getElementById('editComponentRowSpan').value) || 2;
+
+    // Update grid position (empty = auto)
+    const gridCol = document.getElementById('editGridColumn').value;
+    const gridRow = document.getElementById('editGridRow').value;
+
+    if (gridCol && parseInt(gridCol) >= 1 && parseInt(gridCol) <= 12) {
+        component.gridColumn = parseInt(gridCol);
+    } else {
+        delete component.gridColumn;
+    }
+
+    if (gridRow && parseInt(gridRow) >= 1) {
+        component.gridRow = parseInt(gridRow);
+    } else {
+        delete component.gridRow;
+    }
+
+    if (component.type === 'report') {
+        const selectedBtn = document.querySelector('#editDisplayTypes .sf-display-type-btn.selected');
+        if (selectedBtn) {
+            component.displayType = selectedBtn.dataset.display;
+        }
+        component.groupBy = document.getElementById('editGroupBy').value;
+    } else if (component.type === 'chart') {
+        const selectedBtn = document.querySelector('#editDisplayTypes .sf-display-type-btn.selected');
+        if (selectedBtn) {
+            component.chartType = selectedBtn.dataset.display;
+        }
+        component.groupBy = document.getElementById('editGroupBy').value;
+    }
+
+    closeModal('editComponentModal');
+    renderDashboard();
+    loadComponentData(component);
+    saveDashboardAuto();
+}
+
+// Drag and Drop handling - defined in the resize/drag section below
+let draggedComponent = null;
+
+// Set global date range
+function setGlobalDateRange(days) {
+    globalDateRange = days;
+
+    document.querySelectorAll('.sf-toolbar-btn[data-days]').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.days) === days);
+    });
+
+    refreshAllComponents();
+}
+
+// Refresh all components
+function refreshAllComponents() {
+    dashboardComponents.forEach(comp => loadComponentData(comp));
+}
+
+// Save dashboard
+function saveDashboard() {
+    const name = document.getElementById('dashboardName').value || 'Untitled Dashboard';
+    const data = {
+        name: name,
+        components: dashboardComponents,
+        dateRange: globalDateRange,
+        savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem('currentDashboard', JSON.stringify(data));
+
+    // Also save to named dashboards list
+    let dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+    const existingIndex = dashboards.findIndex(d => d.name === name);
+    if (existingIndex >= 0) {
+        dashboards[existingIndex] = data;
+    } else {
+        dashboards.push(data);
+    }
+    localStorage.setItem('savedDashboards', JSON.stringify(dashboards));
+
+    alert(`Dashboard "${name}" saved!`);
+}
+
+// Auto-save dashboard
+function saveDashboardAuto() {
+    const name = document.getElementById('dashboardName').value || 'Untitled Dashboard';
+    const data = {
+        name: name,
+        components: dashboardComponents,
+        dateRange: globalDateRange,
+        savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('currentDashboard', JSON.stringify(data));
+}
+
+// Load dashboard
+function loadDashboard() {
+    const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+
+    if (dashboards.length === 0) {
+        alert('No saved dashboards found.');
+        return;
+    }
+
+    const name = prompt('Enter dashboard name to load:\n\nAvailable: ' + dashboards.map(d => d.name).join(', '));
+    if (!name) return;
+
+    const dashboard = dashboards.find(d => d.name.toLowerCase() === name.toLowerCase());
+    if (!dashboard) {
+        alert('Dashboard not found.');
+        return;
+    }
+
+    dashboardComponents = dashboard.components || [];
+    globalDateRange = dashboard.dateRange || 30;
+    document.getElementById('dashboardName').value = dashboard.name;
+
+    // Update date range buttons
+    document.querySelectorAll('.sf-toolbar-btn[data-days]').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.days) === globalDateRange);
+    });
+
+    renderDashboard();
+    refreshAllComponents();
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal('addComponentModal');
+        closeModal('editComponentModal');
+    }
+});
+
+// ============================================
+// RESIZE FUNCTIONALITY
+// ============================================
+
+let resizeState = {
+    active: false,
+    componentId: null,
+    componentEl: null,
+    direction: null,
+    startX: 0,
+    startY: 0,
+    startWidth: 0,
+    startHeight: 0,
+    gridRect: null,
+    cellWidth: 0,
+    cellHeight: 0
+};
+
+// Start resize operation
+function startResize(event, componentId, direction) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const component = dashboardComponents.find(c => c.id === componentId);
+    if (!component) return;
+
+    const componentEl = document.querySelector(`[data-id="${componentId}"]`);
+    const grid = document.getElementById('dashboardGrid');
+
+    if (!componentEl || !grid) return;
+
+    // Calculate grid cell dimensions
+    const gridRect = grid.getBoundingClientRect();
+    const gridStyle = window.getComputedStyle(grid);
+    const gap = parseFloat(gridStyle.gap) || 16;
+    const cellWidth = (gridRect.width - (11 * gap)) / 12;
+    const cellHeight = 80 + gap; // minmax(80px, auto) + gap
+
+    resizeState = {
+        active: true,
+        componentId: componentId,
+        componentEl: componentEl,
+        direction: direction,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: componentEl.offsetWidth,
+        startHeight: componentEl.offsetHeight,
+        gridRect: gridRect,
+        cellWidth: cellWidth,
+        cellHeight: cellHeight,
+        initialColSpan: getColumnSpan(component.size),
+        initialRowSpan: component.rowSpan || 2
+    };
+
+    componentEl.classList.add('resizing');
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+}
+
+// Handle resize drag
+function handleResize(event) {
+    if (!resizeState.active) return;
+
+    const deltaX = event.clientX - resizeState.startX;
+    const deltaY = event.clientY - resizeState.startY;
+
+    let newColSpan = resizeState.initialColSpan;
+    let newRowSpan = resizeState.initialRowSpan;
+
+    // Calculate new column span based on horizontal movement
+    if (resizeState.direction === 'e' || resizeState.direction === 'se') {
+        const colDelta = Math.round(deltaX / resizeState.cellWidth);
+        newColSpan = Math.max(2, Math.min(12, resizeState.initialColSpan + colDelta));
+    }
+
+    // Calculate new row span based on vertical movement
+    if (resizeState.direction === 's' || resizeState.direction === 'se') {
+        const rowDelta = Math.round(deltaY / resizeState.cellHeight);
+        newRowSpan = Math.max(1, Math.min(5, resizeState.initialRowSpan + rowDelta));
+    }
+
+    // Update size indicator
+    const indicator = document.getElementById(`sizeIndicator_${resizeState.componentId}`);
+    if (indicator) {
+        indicator.textContent = `${newColSpan} × ${newRowSpan}`;
+    }
+
+    // Apply temporary visual feedback using transform scale
+    const component = dashboardComponents.find(c => c.id === resizeState.componentId);
+    if (component) {
+        // Update classes to reflect new size
+        resizeState.componentEl.className = resizeState.componentEl.className
+            .replace(/size-\w+/, `size-${getSizeFromSpan(newColSpan)}`)
+            .replace(/rows-\d+/, `rows-${newRowSpan}`);
+
+        // Store pending values
+        resizeState.pendingColSpan = newColSpan;
+        resizeState.pendingRowSpan = newRowSpan;
+    }
+}
+
+// Stop resize operation
+function stopResize(event) {
+    if (!resizeState.active) return;
+
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+
+    resizeState.componentEl.classList.remove('resizing');
+
+    // Apply final size to component data
+    const component = dashboardComponents.find(c => c.id === resizeState.componentId);
+    if (component && (resizeState.pendingColSpan || resizeState.pendingRowSpan)) {
+        component.size = getSizeFromSpan(resizeState.pendingColSpan || resizeState.initialColSpan);
+        component.rowSpan = resizeState.pendingRowSpan || resizeState.initialRowSpan;
+
+        // Re-render to ensure proper layout
+        renderDashboard();
+        loadComponentData(component);
+        saveDashboardAuto();
+    }
+
+    resizeState.active = false;
+}
+
+// ============================================
+// FREE-FORM DRAG AND DROP POSITIONING
+// ============================================
+
+let dragState = {
+    active: false,
+    componentId: null,
+    placeholder: null
+};
+
+// Enhanced drag start for free-form positioning
+function handleDragStart(event) {
+    const componentEl = event.target.closest('.sf-component');
+    if (!componentEl) return;
+
+    draggedComponent = componentEl;
+    dragState.componentId = componentEl.dataset.id;
+    dragState.active = true;
+
+    componentEl.classList.add('dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', componentEl.dataset.id);
+
+    // Create placeholder element
+    createDragPlaceholder();
+}
+
+// Create a placeholder to show drop position
+function createDragPlaceholder() {
+    let placeholder = document.getElementById('gridPlaceholder');
+    if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.id = 'gridPlaceholder';
+        placeholder.className = 'sf-grid-cell-placeholder';
+        document.getElementById('dashboardGrid').appendChild(placeholder);
+    }
+    dragState.placeholder = placeholder;
+}
+
+// Handle drag end for free-form positioning
+function handleDragEnd(event) {
+    const componentEl = event.target.closest('.sf-component');
+    if (componentEl) {
+        componentEl.classList.remove('dragging');
+    }
+    draggedComponent = null;
+    dragState.active = false;
+
+    // Hide placeholder
+    if (dragState.placeholder) {
+        dragState.placeholder.classList.remove('visible');
+    }
+
+    // Remove all drag-over states
+    document.querySelectorAll('.sf-component.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+}
+
+// Enhanced drag over for grid positioning
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+
+    const targetEl = event.currentTarget;
+    if (targetEl && targetEl !== draggedComponent) {
+        targetEl.classList.add('drag-over');
+    }
+
+    // Update placeholder position based on mouse position in grid
+    if (dragState.active && dragState.placeholder) {
+        updatePlaceholderPosition(event);
+    }
+}
+
+// Update placeholder position in grid
+function updatePlaceholderPosition(event) {
+    const grid = document.getElementById('dashboardGrid');
+    const gridRect = grid.getBoundingClientRect();
+    const gridStyle = window.getComputedStyle(grid);
+    const gap = parseFloat(gridStyle.gap) || 16;
+    const cellWidth = (gridRect.width - (11 * gap)) / 12;
+    const cellHeight = 80 + gap;
+
+    // Calculate which cell the mouse is over
+    const relX = event.clientX - gridRect.left;
+    const relY = event.clientY - gridRect.top;
+
+    const col = Math.floor(relX / (cellWidth + gap / 12)) + 1;
+    const row = Math.floor(relY / cellHeight) + 1;
+
+    // Get dragged component size
+    const component = dashboardComponents.find(c => c.id === dragState.componentId);
+    if (!component) return;
+
+    const colSpan = getColumnSpan(component.size);
+    const rowSpan = component.rowSpan || 2;
+
+    // Constrain to grid bounds
+    const constrainedCol = Math.max(1, Math.min(13 - colSpan, col));
+    const constrainedRow = Math.max(1, row);
+
+    // Position placeholder
+    const left = (constrainedCol - 1) * (cellWidth + gap / 12);
+    const top = (constrainedRow - 1) * cellHeight;
+    const width = colSpan * cellWidth + (colSpan - 1) * gap;
+    const height = rowSpan * cellHeight - gap;
+
+    dragState.placeholder.style.left = left + 'px';
+    dragState.placeholder.style.top = top + 'px';
+    dragState.placeholder.style.width = width + 'px';
+    dragState.placeholder.style.height = height + 'px';
+    dragState.placeholder.classList.add('visible');
+
+    // Store target position
+    dragState.targetCol = constrainedCol;
+    dragState.targetRow = constrainedRow;
+}
+
+function handleDragLeave(event) {
+    const targetEl = event.currentTarget;
+    if (targetEl) {
+        targetEl.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    const targetEl = event.currentTarget;
+    targetEl.classList.remove('drag-over');
+
+    if (!draggedComponent || targetEl === draggedComponent) return;
+
+    const draggedId = draggedComponent.dataset.id;
+    const targetId = targetEl.dataset.id;
+
+    // Find indices
+    const draggedIndex = dashboardComponents.findIndex(c => c.id === draggedId);
+    const targetIndex = dashboardComponents.findIndex(c => c.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Check if we have explicit position from placeholder
+    if (dragState.targetCol && dragState.targetRow) {
+        // Apply explicit grid position
+        const component = dashboardComponents[draggedIndex];
+        component.gridColumn = dragState.targetCol;
+        component.gridRow = dragState.targetRow;
+    } else {
+        // Reorder array (old behavior)
+        const [removed] = dashboardComponents.splice(draggedIndex, 1);
+        dashboardComponents.splice(targetIndex, 0, removed);
+    }
+
+    // Hide placeholder
+    if (dragState.placeholder) {
+        dragState.placeholder.classList.remove('visible');
+    }
+
+    // Re-render and save
+    renderDashboard();
+    refreshAllComponents();
+    saveDashboardAuto();
+}
+
+// Handle drop on the grid itself (not on another component)
+document.addEventListener('DOMContentLoaded', function() {
+    const grid = document.getElementById('dashboardGrid');
+    if (grid) {
+        grid.addEventListener('dragover', function(event) {
+            if (dragState.active) {
+                event.preventDefault();
+                updatePlaceholderPosition(event);
+            }
+        });
+
+        grid.addEventListener('drop', function(event) {
+            if (!dragState.active || !dragState.componentId) return;
+
+            // Check if dropped on empty space (not on a component)
+            if (event.target === grid || event.target.id === 'addComponentPlaceholder' || event.target.id === 'emptyState') {
+                event.preventDefault();
+
+                const component = dashboardComponents.find(c => c.id === dragState.componentId);
+                if (component && dragState.targetCol && dragState.targetRow) {
+                    component.gridColumn = dragState.targetCol;
+                    component.gridRow = dragState.targetRow;
+
+                    // Hide placeholder
+                    if (dragState.placeholder) {
+                        dragState.placeholder.classList.remove('visible');
+                    }
+
+                    renderDashboard();
+                    refreshAllComponents();
+                    saveDashboardAuto();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

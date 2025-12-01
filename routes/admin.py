@@ -390,8 +390,8 @@ def create_user():
                 db_session.add(user)
                 db_session.flush()  # Get the user ID before committing
 
-                # Create country permissions for Country Admin
-                if user_type == 'COUNTRY_ADMIN' and assigned_countries:
+                # Create country permissions for Country Admin/Supervisor
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and assigned_countries:
                     from models.user_country_permission import UserCountryPermission
                     for country in assigned_countries:
                         country_permission = UserCountryPermission(
@@ -401,20 +401,38 @@ def create_user():
                         db_session.add(country_permission)
                         logger.info(f"DEBUG: Created country permission for {country}")
 
-                # Create child company permissions for Country Admin
-                if user_type == 'COUNTRY_ADMIN' and child_company_ids:
-                    for child_company_id in child_company_ids:
+                # Create company permissions for Country Admin/Supervisor
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
+                    # First add permission for the PARENT company itself
+                    if country_admin_company:
                         company_permission = UserCompanyPermission(
                             user_id=user.id,
-                            company_id=int(child_company_id),
+                            company_id=int(country_admin_company),
                             can_view=True,
                             can_edit=False,
                             can_delete=False
                         )
                         db_session.add(company_permission)
+                        logger.info(f"DEBUG: Added permission for PARENT company {country_admin_company}")
 
-                # Create queue permissions for Country Admin
-                if user_type == 'COUNTRY_ADMIN' and queue_ids and country_admin_company:
+                    # Then add permissions for selected CHILD companies
+                    if child_company_ids:
+                        for child_company_id in child_company_ids:
+                            # Skip if same as parent (already added)
+                            if str(child_company_id) == str(country_admin_company):
+                                continue
+                            company_permission = UserCompanyPermission(
+                                user_id=user.id,
+                                company_id=int(child_company_id),
+                                can_view=True,
+                                can_edit=False,
+                                can_delete=False
+                            )
+                            db_session.add(company_permission)
+                            logger.info(f"DEBUG: Added permission for CHILD company {child_company_id}")
+
+                # Create queue permissions for Country Admin/Supervisor
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and queue_ids and country_admin_company:
                     for queue_id in queue_ids:
                         permission = CompanyQueuePermission(
                             company_id=country_admin_company,
@@ -479,11 +497,11 @@ def edit_user(user_id):
     ).distinct().all()
     available_countries = sorted([c[0] for c in asset_countries if c[0]])
 
-    # Get existing permissions for COUNTRY_ADMIN users
+    # Get existing permissions for COUNTRY_ADMIN and SUPERVISOR users
     existing_child_companies = []
     existing_queues = []
     existing_countries = []
-    if user.user_type == UserType.COUNTRY_ADMIN:
+    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
         # Get assigned countries
         existing_countries = user.assigned_countries
 
@@ -519,8 +537,8 @@ def edit_user(user_id):
             # Handle company assignment
             if user_type == 'CLIENT':
                 user.company_id = company_id if company_id else None
-            elif user_type == 'COUNTRY_ADMIN':
-                # Set first parent company as the primary company for COUNTRY_ADMIN
+            elif user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
+                # Set first parent company as the primary company for COUNTRY_ADMIN/SUPERVISOR
                 # (for backwards compatibility, but permissions will work with all selected parents)
                 user.company_id = int(parent_company_ids[0]) if parent_company_ids else None
             else:
@@ -543,10 +561,10 @@ def edit_user(user_id):
             if password:
                 user.password_hash = safe_generate_password_hash(password)
 
-            # Handle country assignment
-            if user_type == 'COUNTRY_ADMIN':
+            # Handle country assignment for COUNTRY_ADMIN and SUPERVISOR
+            if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
                 if not assigned_countries:
-                    flash('At least one country selection is required for Country Admin', 'error')
+                    flash('At least one country selection is required for Country Admin/Supervisor', 'error')
                     companies_data = [{'id': c.id, 'name': c.name} for c in companies]
                     parent_companies_data = _format_parent_companies(parent_companies)
                     queues_data = [{'id': q.id, 'name': q.name} for q in queues]
@@ -570,14 +588,32 @@ def edit_user(user_id):
                     db_session.add(country_permission)
                     logger.info(f"DEBUG: Created country permission for {country}")
 
-                # Update child company permissions
+                # Update company permissions (both parent and child companies)
                 # Delete existing permissions
                 deleted_count = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
-                logger.info(f"DEBUG: Deleted {deleted_count} existing child company permissions for user {user.id}")
-                # Add new permissions
+                logger.info(f"DEBUG: Deleted {deleted_count} existing company permissions for user {user.id}")
+
+                # Add permissions for PARENT companies first
+                if parent_company_ids:
+                    logger.info(f"DEBUG: Adding {len(parent_company_ids)} parent company permissions: {parent_company_ids}")
+                    for parent_company_id in parent_company_ids:
+                        company_permission = UserCompanyPermission(
+                            user_id=user.id,
+                            company_id=int(parent_company_id),
+                            can_view=True,
+                            can_edit=False,
+                            can_delete=False
+                        )
+                        db_session.add(company_permission)
+                        logger.info(f"DEBUG: Added permission for user {user.id} to view PARENT company {parent_company_id}")
+
+                # Add permissions for CHILD companies
                 if child_company_ids:
-                    logger.info(f"DEBUG: Adding {len(child_company_ids)} new child company permissions: {child_company_ids}")
+                    logger.info(f"DEBUG: Adding {len(child_company_ids)} child company permissions: {child_company_ids}")
                     for child_company_id in child_company_ids:
+                        # Skip if already added as parent
+                        if child_company_id in parent_company_ids:
+                            continue
                         company_permission = UserCompanyPermission(
                             user_id=user.id,
                             company_id=int(child_company_id),
@@ -586,9 +622,10 @@ def edit_user(user_id):
                             can_delete=False
                         )
                         db_session.add(company_permission)
-                        logger.info(f"DEBUG: Added permission for user {user.id} to view company {child_company_id}")
-                else:
-                    logger.info(f"DEBUG: No child company IDs provided - user will see all child companies under parent")
+                        logger.info(f"DEBUG: Added permission for user {user.id} to view CHILD company {child_company_id}")
+
+                if not parent_company_ids and not child_company_ids:
+                    logger.info(f"DEBUG: No company IDs provided - user will see NO assets (must assign companies)")
 
                 # Update queue permissions
                 # Delete existing queue permissions for this company
@@ -605,7 +642,7 @@ def edit_user(user_id):
                             )
                             db_session.add(permission)
             else:
-                # Clean up permissions if changing from COUNTRY_ADMIN to another type
+                # Clean up permissions if changing from COUNTRY_ADMIN/SUPERVISOR to another type
                 from models.user_country_permission import UserCountryPermission
                 db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
@@ -1187,19 +1224,71 @@ def system_config():
             'MS_FROM_EMAIL': os.getenv('MS_FROM_EMAIL'),
         })
 
-        return render_template('admin/system_config.html', 
+        # Get default homepage setting
+        default_homepage = 'classic'
+        try:
+            from models.system_settings import SystemSettings
+            homepage_setting = db_session.query(SystemSettings).filter_by(
+                setting_key='default_homepage'
+            ).first()
+            if homepage_setting:
+                default_homepage = homepage_setting.get_value()
+        except Exception as e:
+            logger.warning(f"Could not load default_homepage setting: {str(e)}")
+
+        return render_template('admin/system_config.html',
                              user=user,
                              firecrawl_keys=firecrawl_keys,
                              active_key=active_key,
                              current_api_key=current_api_key,
                              version_info=version_info,
-                             config=config_with_ms)
+                             config=config_with_ms,
+                             default_homepage=default_homepage)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
         return redirect(url_for('main.index'))
     finally:
         db_session.close()
+
+
+@admin_bp.route('/update-default-homepage', methods=['POST'])
+@super_admin_required
+def update_default_homepage():
+    """Update the default homepage setting"""
+    db_session = db_manager.get_session()
+    try:
+        from models.system_settings import SystemSettings
+
+        homepage_value = request.form.get('homepage', 'classic')
+
+        # Get or create the setting
+        homepage_setting = db_session.query(SystemSettings).filter_by(
+            setting_key='default_homepage'
+        ).first()
+
+        if homepage_setting:
+            homepage_setting.setting_value = homepage_value
+        else:
+            homepage_setting = SystemSettings(
+                setting_key='default_homepage',
+                setting_value=homepage_value,
+                setting_type='string',
+                description='Default homepage for users (classic or new)'
+            )
+            db_session.add(homepage_setting)
+
+        db_session.commit()
+        flash(f'Default homepage changed to {"New Dashboard" if homepage_value == "new" else "Classic Homepage"}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating homepage setting: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.system_config'))
+
 
 @admin_bp.route('/customer-permissions')
 @super_admin_required

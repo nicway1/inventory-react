@@ -1,261 +1,739 @@
 {% extends "base.html" %}
 
-{% block content %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-.profile-card {
-    --main-color: #000;
-    --submain-color: #78858F;
-    --bg-color: #fff;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border-radius: 20px;
-    background: var(--bg-color);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    overflow: hidden;
-    min-height: 450px;
-    height: 100%;
-}
+    /* Salesforce-style design tokens */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-50: #fafaf9;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-400: #939393;
+        --sf-gray-600: #706e6b;
+        --sf-gray-700: #514f4d;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
+        --sf-purple: #9050e9;
+        --sf-cyan: #0d9dda;
+        --sf-teal: #0b827c;
+        --sf-indigo: #5867e8;
+    }
 
-.profile-card__img {
-    height: 192px;
-    width: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
+    .profile-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+        padding-bottom: 2rem;
+    }
 
-.profile-card__avatar {
-    position: absolute;
-    width: 114px;
-    height: 114px;
-    background: var(--bg-color);
-    border-radius: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    top: 135px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
+    /* Profile Header */
+    .profile-header {
+        background: linear-gradient(135deg, #0176d3 0%, #5867e8 100%);
+        padding: 0;
+        position: relative;
+        overflow: hidden;
+    }
 
-.profile-card__avatar-text {
-    font-size: 48px;
-    font-weight: 700;
-    color: #667eea;
-}
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.5;
+    }
 
-.profile-card__title {
-    margin-top: 70px;
-    font-weight: 600;
-    font-size: 24px;
-    color: var(--main-color);
-}
+    .profile-header-content {
+        position: relative;
+        z-index: 1;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+    }
 
-.profile-card__subtitle {
-    margin-top: 8px;
-    font-weight: 400;
-    font-size: 15px;
-    color: var(--submain-color);
-}
+    @media (max-width: 768px) {
+        .profile-header-content {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+    }
 
-.profile-card__company {
-    margin-top: 4px;
-    font-weight: 400;
-    font-size: 13px;
-    color: var(--submain-color);
-}
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: 700;
+        color: var(--sf-blue);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        border: 4px solid white;
+        flex-shrink: 0;
+    }
 
-.profile-card__btn {
-    margin-top: 20px;
-    padding: 10px 24px;
-    border: 2px solid var(--main-color);
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--main-color);
-    background: var(--bg-color);
-    text-transform: uppercase;
-    transition: all 0.3s;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-}
+    .profile-info {
+        flex: 1;
+        color: white;
+        padding-bottom: 0.5rem;
+    }
 
-.profile-card__btn-solid {
-    background: var(--main-color);
-    color: var(--bg-color);
-}
+    .profile-name {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
 
-.profile-card__btn:hover {
-    background: var(--main-color);
-    color: var(--bg-color);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
+    .profile-role {
+        font-size: 1rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
 
-.profile-card__btn-solid:hover {
-    background: var(--bg-color);
-    color: var(--main-color);
-}
+    @media (max-width: 768px) {
+        .profile-role {
+            justify-content: center;
+        }
+    }
 
-.stats-card {
-    background: white;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
+    .profile-role-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
 
-.chart-container {
-    position: relative;
-    height: 250px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    .profile-company {
+        font-size: 0.875rem;
+        opacity: 0.8;
+        margin-top: 0.25rem;
+    }
 
-.info-card {
-    background: white;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
+    .profile-actions {
+        display: flex;
+        gap: 0.75rem;
+        padding-bottom: 0.5rem;
+        flex-wrap: wrap;
+    }
 
-.info-item {
-    padding: 16px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
+    @media (max-width: 768px) {
+        .profile-actions {
+            justify-content: center;
+        }
+    }
 
-.info-item:last-child {
-    border-bottom: none;
-}
+    .profile-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s;
+        cursor: pointer;
+        border: none;
+    }
 
-.info-label {
-    font-size: 13px;
-    color: #78858F;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-}
+    .profile-btn-primary {
+        background: white;
+        color: var(--sf-blue);
+    }
 
-.info-value {
-    font-size: 16px;
-    color: #000;
-    font-weight: 600;
-}
+    .profile-btn-primary:hover {
+        background: var(--sf-gray-100);
+        transform: translateY(-1px);
+    }
 
-.stat-box {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    color: white;
-    transition: transform 0.3s;
-}
+    .profile-btn-secondary {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
 
-.stat-box:hover {
-    transform: translateY(-5px);
-}
+    .profile-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
 
-.stat-number {
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
+    /* Main Content */
+    .profile-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem 2rem;
+    }
 
-.stat-label {
-    font-size: 14px;
-    opacity: 0.9;
-    font-weight: 500;
-}
+    .profile-grid {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .profile-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Cards */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-card-body {
+        padding: 1.25rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        padding: 1.25rem;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+        font-size: 1.25rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* Activity Timeline */
+    .activity-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--sf-gray-100);
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--sf-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-600);
+        font-size: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .activity-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .activity-text {
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+        line-height: 1.4;
+    }
+
+    .activity-time {
+        font-size: 0.75rem;
+        color: var(--sf-gray-400);
+        margin-top: 0.25rem;
+    }
+
+    /* Ticket List */
+    .ticket-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.875rem 0;
+        border-bottom: 1px solid var(--sf-gray-100);
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+
+    .ticket-item:hover {
+        background: var(--sf-gray-50);
+        margin: 0 -1.25rem;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    .ticket-item:last-child {
+        border-bottom: none;
+    }
+
+    .ticket-status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .ticket-status.open { background: var(--sf-warning); }
+    .ticket-status.resolved { background: var(--sf-success); }
+    .ticket-status.new { background: var(--sf-blue); }
+
+    .ticket-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ticket-id {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-blue);
+    }
+
+    .ticket-subject {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ticket-date {
+        font-size: 0.75rem;
+        color: var(--sf-gray-400);
+        flex-shrink: 0;
+    }
+
+    /* Details List */
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.875rem 0;
+        border-bottom: 1px solid var(--sf-gray-100);
+    }
+
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+    }
+
+    .detail-value {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    /* Quick Actions */
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        color: var(--sf-gray-800);
+        transition: all 0.15s;
+    }
+
+    .quick-action:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .quick-action-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.875rem;
+    }
+
+    .quick-action-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Preferences Toggle */
+    .pref-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 0;
+        border-bottom: 1px solid var(--sf-gray-100);
+    }
+
+    .pref-item:last-child {
+        border-bottom: none;
+    }
+
+    .pref-label {
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+    }
+
+    .pref-desc {
+        font-size: 0.75rem;
+        color: var(--sf-gray-500);
+        margin-top: 0.125rem;
+    }
+
+    /* Chart */
+    .chart-container {
+        height: 200px;
+        position: relative;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--sf-gray-500);
+    }
+
+    .empty-state i {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.5;
+    }
 </style>
+{% endblock %}
 
-<div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <!-- Profile Card -->
-        <div class="md:col-span-4">
-            <div class="profile-card">
-                <div class="profile-card__img">
-                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
-                        <defs>
-                            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
-                            </pattern>
-                        </defs>
-                        <rect width="100" height="100" fill="url(#grid)"/>
-                        <circle cx="20" cy="30" r="2" fill="rgba(255,255,255,0.3)"/>
-                        <circle cx="80" cy="20" r="3" fill="rgba(255,255,255,0.2)"/>
-                        <circle cx="70" cy="70" r="2.5" fill="rgba(255,255,255,0.25)"/>
-                    </svg>
+{% block content %}
+<div class="profile-page">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-header-content">
+            <div class="profile-avatar">
+                {{ user.username[0].upper() }}
+            </div>
+            <div class="profile-info">
+                <div class="profile-name">{{ user.username }}</div>
+                <div class="profile-role">
+                    <span class="profile-role-badge">{{ user.user_type.value }}</span>
+                    {% if user.company %}
+                    <span>{{ user.company.name }}</span>
+                    {% endif %}
                 </div>
-                <div class="profile-card__avatar">
-                    <span class="profile-card__avatar-text">{{ user.username[0].upper() }}</span>
+                <div class="profile-company">
+                    <i class="fas fa-envelope"></i> {{ user.email }}
                 </div>
-                <h1 class="profile-card__title">{{ user.username }}</h1>
-                <p class="profile-card__subtitle">{{ user.user_type.value }}</p>
-                <p class="profile-card__company">{{ user.company.name if user.company else 'No Company' }}</p>
+            </div>
+            <div class="profile-actions">
+                <a href="{{ url_for('auth.edit_profile') }}" class="profile-btn profile-btn-primary">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </a>
+                <a href="{{ url_for('auth.change_password') }}" class="profile-btn profile-btn-secondary">
+                    <i class="fas fa-lock"></i> Change Password
+                </a>
+                <a href="{{ url_for('dashboard.index') }}" class="profile-btn profile-btn-secondary">
+                    <i class="fas fa-th-large"></i> Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
 
-                <div style="display: flex; gap: 12px; margin-top: 24px; margin-bottom: 24px;">
-                    <a href="{{ url_for('auth.edit_profile') }}" class="profile-card__btn profile-card__btn-solid">
-                        Edit Profile
-                    </a>
-                    <a href="{{ url_for('auth.change_password') }}" class="profile-card__btn">
-                        Password
-                    </a>
+    <!-- Main Content -->
+    <div class="profile-content">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #5867e8, #8b93f0);">
+                    <i class="fas fa-ticket-alt" style="color: white;"></i>
                 </div>
+                <div class="stat-value">{{ ticket_stats.total }}</div>
+                <div class="stat-label">Total Assigned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #fe9339, #ffb75d);">
+                    <i class="fas fa-clock" style="color: white;"></i>
+                </div>
+                <div class="stat-value">{{ ticket_stats.open }}</div>
+                <div class="stat-label">Open Tickets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #2e844a, #41b658);">
+                    <i class="fas fa-check-circle" style="color: white;"></i>
+                </div>
+                <div class="stat-value">{{ ticket_stats.closed }}</div>
+                <div class="stat-label">Resolved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #0176d3, #1b96ff);">
+                    <i class="fas fa-plus-circle" style="color: white;"></i>
+                </div>
+                <div class="stat-value">{{ ticket_stats.created }}</div>
+                <div class="stat-label">Created by You</div>
             </div>
         </div>
 
-        <!-- Right Section -->
-        <div class="md:col-span-8 space-y-6">
-            <!-- Ticket Statistics with Chart -->
-            <div class="stats-card">
-                <h2 class="text-xl font-bold mb-6" style="color: #000;">Ticket Ownership</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Chart -->
-                    <div class="chart-container">
-                        <canvas id="ticketChart"></canvas>
+        <div class="profile-grid">
+            <!-- Left Column -->
+            <div>
+                <!-- This Week Performance -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-chart-line" style="color: var(--sf-blue);"></i>
+                            This Week's Performance
+                        </span>
                     </div>
+                    <div class="sf-card-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div style="text-align: center; padding: 1rem; background: var(--sf-gray-50); border-radius: 0.5rem;">
+                                <div style="font-size: 2rem; font-weight: 700; color: var(--sf-indigo);">{{ ticket_stats.this_week }}</div>
+                                <div style="font-size: 0.75rem; color: var(--sf-gray-600); text-transform: uppercase;">New Assignments</div>
+                            </div>
+                            <div style="text-align: center; padding: 1rem; background: var(--sf-gray-50); border-radius: 0.5rem;">
+                                <div style="font-size: 2rem; font-weight: 700; color: var(--sf-success);">{{ ticket_stats.resolved_this_week }}</div>
+                                <div style="font-size: 0.75rem; color: var(--sf-gray-600); text-transform: uppercase;">Resolved</div>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="margin-top: 1rem;">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
 
-                    <!-- Stats Boxes -->
-                    <div class="space-y-4">
-                        <div class="stat-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <div class="stat-number">{{ ticket_stats.total }}</div>
-                            <div class="stat-label">Total Tickets</div>
-                        </div>
-                        <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                            <div class="stat-number">{{ ticket_stats.open }}</div>
-                            <div class="stat-label">Open Tickets</div>
-                        </div>
-                        <div class="stat-box" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                            <div class="stat-number">{{ ticket_stats.closed }}</div>
-                            <div class="stat-label">Closed Tickets</div>
-                        </div>
+                <!-- Recent Tickets -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-ticket-alt" style="color: var(--sf-warning);"></i>
+                            Recent Tickets
+                        </span>
+                        <a href="{{ url_for('tickets.list_tickets') }}?assigned_to={{ user.id }}" style="font-size: 0.8125rem; color: var(--sf-blue); text-decoration: none;">View All</a>
+                    </div>
+                    <div class="sf-card-body" style="padding: 0.5rem 1.25rem;">
+                        {% if recent_tickets %}
+                            {% for ticket in recent_tickets %}
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="ticket-item">
+                                <div class="ticket-status {% if ticket.status.value in ['RESOLVED', 'RESOLVED_DELIVERED'] %}resolved{% elif ticket.status.value == 'NEW' %}new{% else %}open{% endif %}"></div>
+                                <div class="ticket-info">
+                                    <div class="ticket-id">{{ ticket.display_id }}</div>
+                                    <div class="ticket-subject">{{ ticket.subject or 'No subject' }}</div>
+                                </div>
+                                <div class="ticket-date">{{ ticket.created_at.strftime('%b %d') }}</div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <div>No tickets assigned to you</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-history" style="color: var(--sf-purple);"></i>
+                            Recent Activity
+                        </span>
+                    </div>
+                    <div class="sf-card-body" style="padding: 0.5rem 1.25rem;">
+                        {% if recent_activities %}
+                            {% for activity in recent_activities %}
+                            <div class="activity-item">
+                                <div class="activity-icon">
+                                    <i class="fas fa-circle"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-text">{{ activity.content }}</div>
+                                    <div class="activity-time">{{ activity.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-stream"></i>
+                                <div>No recent activity</div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- User Information -->
-            <div class="info-card">
-                <h2 class="text-xl font-bold mb-6" style="color: #000;">Account Details</h2>
+            <!-- Right Column -->
+            <div>
+                <!-- Account Details -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-user" style="color: var(--sf-cyan);"></i>
+                            Account Details
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="detail-item">
+                            <span class="detail-label">Username</span>
+                            <span class="detail-value">{{ user.username }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value">{{ user.email }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Role</span>
+                            <span class="detail-value">{{ user.user_type.value }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Company</span>
+                            <span class="detail-value">{{ user.company.name if user.company else 'N/A' }}</span>
+                        </div>
+                        {% if user.assigned_countries %}
+                        <div class="detail-item">
+                            <span class="detail-label">Countries</span>
+                            <span class="detail-value">{{ user.assigned_countries | join(', ') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                    <div class="info-item">
-                        <div class="info-label">Username</div>
-                        <div class="info-value">{{ user.username }}</div>
+                <!-- Quick Actions -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-bolt" style="color: var(--sf-warning);"></i>
+                            Quick Actions
+                        </span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Email Address</div>
-                        <div class="info-value">{{ user.email }}</div>
+                    <div class="sf-card-body" style="padding: 0.75rem;">
+                        <a href="{{ url_for('tickets.create_ticket') }}" class="quick-action">
+                            <div class="quick-action-icon" style="background: var(--sf-blue);">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <span class="quick-action-text">Create New Ticket</span>
+                        </a>
+                        <a href="{{ url_for('tickets.list_tickets') }}?assigned_to={{ user.id }}" class="quick-action">
+                            <div class="quick-action-icon" style="background: var(--sf-warning);">
+                                <i class="fas fa-tasks"></i>
+                            </div>
+                            <span class="quick-action-text">My Assigned Tickets</span>
+                        </a>
+                        <a href="{{ url_for('inventory.view_inventory_sf') }}" class="quick-action">
+                            <div class="quick-action-icon" style="background: var(--sf-purple);">
+                                <i class="fas fa-boxes"></i>
+                            </div>
+                            <span class="quick-action-text">View Inventory</span>
+                        </a>
+                        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}
+                        <a href="{{ url_for('admin.system_config') }}" class="quick-action">
+                            <div class="quick-action-icon" style="background: var(--sf-teal);">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <span class="quick-action-text">System Settings</span>
+                        </a>
+                        {% endif %}
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">User Role</div>
-                        <div class="info-value">{{ user.user_type.value }}</div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <i class="fas fa-sliders-h" style="color: var(--sf-indigo);"></i>
+                            Preferences
+                        </span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Company</div>
-                        <div class="info-value">{{ user.company.name if user.company else 'Truelog' }}</div>
+                    <div class="sf-card-body">
+                        <div class="pref-item">
+                            <div>
+                                <div class="pref-label">Dashboard Style</div>
+                                <div class="pref-desc">Choose your preferred homepage</div>
+                            </div>
+                            <a href="{{ url_for('dashboard.index') }}" style="font-size: 0.75rem; color: var(--sf-blue); text-decoration: none;">
+                                Customize <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="pref-item">
+                            <div>
+                                <div class="pref-label">Email Notifications</div>
+                                <div class="pref-desc">Receive ticket updates via email</div>
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--sf-success);"><i class="fas fa-check"></i> Enabled</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,62 +741,38 @@
     </div>
 </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('ticketChart');
-
-    const data = {
-        labels: ['Open Tickets', 'Closed Tickets'],
-        datasets: [{
-            data: [{{ ticket_stats.open }}, {{ ticket_stats.closed }}],
-            backgroundColor: [
-                'rgba(245, 87, 108, 0.8)',
-                'rgba(79, 172, 254, 0.8)'
-            ],
-            borderColor: [
-                'rgba(245, 87, 108, 1)',
-                'rgba(79, 172, 254, 1)'
-            ],
-            borderWidth: 2
-        }]
-    };
-
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        font: {
-                            size: 14,
-                            weight: '600'
+    // Performance Chart
+    const ctx = document.getElementById('performanceChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Open', 'Resolved'],
+                datasets: [{
+                    data: [{{ ticket_stats.open }}, {{ ticket_stats.closed }}],
+                    backgroundColor: ['#fe9339', '#2e844a'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: { size: 12, weight: '500' }
                         }
                     }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    padding: 12,
-                    titleFont: {
-                        size: 14,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        size: 13
-                    },
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    borderWidth: 1
                 }
-            },
-            cutout: '65%'
-        }
-    });
+            }
+        });
+    }
 });
 </script>
-{% endblock %} 
+{% endblock %}

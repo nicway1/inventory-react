@@ -1,0 +1,1844 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<style>
+    /* Salesforce-style design tokens */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-50: #fafaf9;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-400: #939393;
+        --sf-gray-600: #706e6b;
+        --sf-gray-700: #514f4d;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
+        --sf-purple: #9050e9;
+        --sf-cyan: #0d9dda;
+        --sf-teal: #0b827c;
+        --sf-indigo: #5867e8;
+        --sf-orange: #dd7a01;
+        --sf-pink: #e3066a;
+
+        /* Widget gradient colors */
+        --gradient-blue: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);
+        --gradient-green: linear-gradient(135deg, #2e844a 0%, #41b658 100%);
+        --gradient-purple: linear-gradient(135deg, #9050e9 0%, #b78def 100%);
+        --gradient-orange: linear-gradient(135deg, #fe9339 0%, #ffb75d 100%);
+        --gradient-red: linear-gradient(135deg, #ea001e 0%, #ff5d5d 100%);
+        --gradient-cyan: linear-gradient(135deg, #0d9dda 0%, #5eb9f0 100%);
+        --gradient-teal: linear-gradient(135deg, #0b827c 0%, #2d9d98 100%);
+        --gradient-indigo: linear-gradient(135deg, #5867e8 0%, #8b93f0 100%);
+        --gradient-gray: linear-gradient(135deg, #706e6b 0%, #939393 100%);
+        --gradient-yellow: linear-gradient(135deg, #ca8501 0%, #ffb75d 100%);
+        --gradient-pink: linear-gradient(135deg, #e3066a 0%, #f772a1 100%);
+    }
+
+    .dark {
+        --sf-gray-50: #1a1a1a;
+        --sf-gray-100: #2d2d2d;
+        --sf-gray-200: #3d3d3d;
+        --sf-gray-300: #4d4d4d;
+        --sf-gray-400: #6d6d6d;
+        --sf-gray-600: #9d9d9d;
+        --sf-gray-700: #bdbdbd;
+        --sf-gray-800: #e0e0e0;
+    }
+
+    /* Main page styles */
+    .sf-dashboard {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+        padding-bottom: 2rem;
+    }
+
+    .dark .sf-dashboard {
+        background: var(--sf-gray-50);
+    }
+
+    /* Header bar */
+    .sf-header-bar {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .dark .sf-header-bar {
+        background: #1e1e1e;
+        border-bottom-color: var(--sf-gray-300);
+    }
+
+    .sf-header-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-header-subtitle {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    .sf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* Buttons */
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-btn-success {
+        background: var(--sf-success);
+        color: white;
+    }
+
+    .sf-btn-destructive {
+        background: var(--sf-error);
+        color: white;
+    }
+
+    /* Main content area - full width */
+    .sf-content {
+        padding: 1.5rem 2rem;
+    }
+
+    /* Widget grid - responsive columns */
+    .widget-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1.25rem;
+        min-height: 200px;
+    }
+
+    @media (max-width: 1600px) {
+        .widget-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+    }
+
+    @media (max-width: 1400px) {
+        .widget-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .widget-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .widget-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .widget-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Widget sizes */
+    .widget-small { grid-column: span 1; }
+    .widget-medium { grid-column: span 2; }
+    .widget-large { grid-column: span 3; }
+    .widget-full { grid-column: span 6; }
+
+    @media (max-width: 1600px) {
+        .widget-full { grid-column: span 5; }
+    }
+
+    @media (max-width: 1400px) {
+        .widget-large { grid-column: span 2; }
+        .widget-full { grid-column: span 4; }
+    }
+
+    @media (max-width: 1024px) {
+        .widget-medium { grid-column: span 2; }
+        .widget-large { grid-column: span 3; }
+        .widget-full { grid-column: span 3; }
+    }
+
+    @media (max-width: 768px) {
+        .widget-large { grid-column: span 2; }
+        .widget-full { grid-column: span 2; }
+    }
+
+    @media (max-width: 480px) {
+        .widget-small, .widget-medium, .widget-large, .widget-full {
+            grid-column: span 1;
+        }
+    }
+
+    /* Widget card */
+    .widget-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dark .widget-card {
+        background: #1e1e1e;
+        border-color: var(--sf-gray-300);
+    }
+
+    .widget-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Drag & Drop styles */
+    .widget-card.sortable-ghost {
+        opacity: 0.4;
+        background: var(--sf-blue-light);
+    }
+
+    .widget-card.sortable-drag {
+        opacity: 1;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        transform: rotate(2deg);
+    }
+
+    .widget-card.sortable-chosen {
+        cursor: grabbing;
+    }
+
+    .edit-mode .widget-card {
+        border: 2px dashed var(--sf-blue);
+        cursor: grab;
+    }
+
+    .edit-mode .widget-card:hover {
+        border-color: var(--sf-blue-dark);
+    }
+
+    /* Widget header */
+    .widget-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-50);
+    }
+
+    /* Hide header when not in edit mode (default view) */
+    .widget-header {
+        display: none;
+    }
+
+    /* Show header in edit mode */
+    .edit-mode .widget-header {
+        display: flex;
+    }
+
+    .dark .widget-header {
+        background: rgba(255,255,255,0.03);
+        border-bottom-color: var(--sf-gray-300);
+    }
+
+    .widget-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .widget-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+    }
+
+    .widget-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .widget-card:hover .widget-actions,
+    .edit-mode .widget-actions {
+        opacity: 1;
+    }
+
+    .widget-action-btn {
+        padding: 0.375rem;
+        border-radius: 4px;
+        background: transparent;
+        border: none;
+        color: var(--sf-gray-600);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .widget-action-btn:hover {
+        background: var(--sf-gray-200);
+        color: var(--sf-gray-800);
+    }
+
+    .widget-action-btn.remove:hover {
+        background: #fee2e2;
+        color: var(--sf-error);
+    }
+
+    /* Widget body */
+    .widget-body {
+        padding: 1rem;
+        flex: 1;
+        overflow: auto;
+        min-height: 100px;
+    }
+
+    /* Stats widget styles */
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-subtitle {
+        font-size: 0.75rem;
+        color: var(--sf-gray-400);
+        margin-top: 0.25rem;
+    }
+
+    .stat-action {
+        margin-top: 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--sf-blue);
+        text-decoration: none;
+        transition: color 0.15s;
+    }
+
+    .stat-action:hover {
+        color: var(--sf-blue-dark);
+    }
+
+    /* Color classes */
+    .text-blue { color: var(--sf-blue); }
+    .text-green { color: var(--sf-success); }
+    .text-purple { color: var(--sf-purple); }
+    .text-orange { color: var(--sf-orange); }
+    .text-red { color: var(--sf-error); }
+    .text-cyan { color: var(--sf-cyan); }
+    .text-teal { color: var(--sf-teal); }
+    .text-indigo { color: var(--sf-indigo); }
+    .text-gray { color: var(--sf-gray-600); }
+
+    .bg-blue { background: var(--gradient-blue); }
+    .bg-green { background: var(--gradient-green); }
+    .bg-purple { background: var(--gradient-purple); }
+    .bg-orange { background: var(--gradient-orange); }
+    .bg-red { background: var(--gradient-red); }
+    .bg-cyan { background: var(--gradient-cyan); }
+    .bg-teal { background: var(--gradient-teal); }
+    .bg-indigo { background: var(--gradient-indigo); }
+    .bg-gray { background: var(--gradient-gray); }
+    .bg-yellow { background: var(--gradient-yellow); }
+    .bg-pink { background: var(--gradient-pink); }
+
+    /* Add widget panel */
+    .add-widget-panel {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: 400px;
+        height: 100vh;
+        background: white;
+        border-left: 1px solid var(--sf-gray-200);
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+        z-index: 200;
+        transition: right 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .add-widget-panel.open {
+        right: 0;
+    }
+
+    .add-widget-panel-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .add-widget-panel-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .add-widget-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    .widget-category {
+        margin-bottom: 1.5rem;
+    }
+
+    .widget-category-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .widget-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: background 0.15s;
+        border: 1px solid transparent;
+    }
+
+    .widget-option:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .widget-option.added {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: var(--sf-gray-100);
+    }
+
+    .widget-option.selected {
+        background: #e0f2fe;
+        border-color: var(--sf-blue);
+    }
+
+    .widget-option.selected .widget-option-status {
+        color: var(--sf-blue) !important;
+    }
+
+    .widget-option.selected .widget-option-status i {
+        transform: rotate(45deg);
+    }
+
+    .add-widget-panel-footer {
+        padding: 1rem;
+        border-top: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-50);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .add-widget-panel-footer span {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        font-weight: 500;
+    }
+
+    .widget-option-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .widget-option-info {
+        flex: 1;
+    }
+
+    .widget-option-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .widget-option-desc {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Overlay */
+    .panel-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 199;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .panel-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Edit mode indicator */
+    .edit-mode-indicator {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--sf-blue);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 2rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 20px rgba(1, 118, 211, 0.4);
+        z-index: 150;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .edit-mode-indicator.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Empty state for drag target */
+    .widget-placeholder {
+        border: 2px dashed var(--sf-gray-300);
+        border-radius: 0.5rem;
+        background: var(--sf-gray-50);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 150px;
+        color: var(--sf-gray-400);
+        font-size: 0.875rem;
+    }
+
+    /* Toast notifications */
+    .toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--sf-gray-800);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        transform: translateY(100px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 300;
+    }
+
+    .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .toast.success {
+        background: var(--sf-success);
+    }
+
+    .toast.error {
+        background: var(--sf-error);
+    }
+
+    /* Loading spinner */
+    .widget-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--sf-gray-200);
+        border-top-color: var(--sf-blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Analog Clock Styles */
+    .clock-face {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
+        box-shadow:
+            0 0 0 8px var(--sf-gray-800),
+            inset 0 0 20px rgba(0,0,0,0.1);
+        margin: 0 auto;
+    }
+
+    .clock-face::before {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: var(--sf-gray-800);
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+    }
+
+    .clock-hand {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        transform-origin: bottom center;
+        border-radius: 2px;
+    }
+
+    .clock-hour {
+        width: 4px;
+        height: 30px;
+        background: var(--sf-gray-700);
+        margin-left: -2px;
+    }
+
+    .clock-minute {
+        width: 3px;
+        height: 40px;
+        background: var(--sf-gray-600);
+        margin-left: -1.5px;
+    }
+
+    .clock-second {
+        width: 1px;
+        height: 45px;
+        background: var(--sf-error);
+        margin-left: -0.5px;
+    }
+
+    .clock-time {
+        text-align: center;
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Switch back to classic banner */
+    .classic-banner {
+        background: linear-gradient(90deg, var(--sf-blue) 0%, var(--sf-indigo) 100%);
+        color: white;
+        padding: 0.5rem 2rem;
+        font-size: 0.8125rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .classic-banner a {
+        color: white;
+        text-decoration: underline;
+    }
+
+    /* Widget Settings - Theme Selector */
+    .settings-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+
+    .theme-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+
+    .theme-option {
+        border: 2px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+    }
+
+    .theme-option:hover {
+        border-color: var(--sf-blue);
+        background: var(--sf-gray-50);
+    }
+
+    .theme-option.selected {
+        border-color: var(--sf-blue);
+        background: rgba(1, 118, 211, 0.1);
+    }
+
+    .theme-preview {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin: 0 auto 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .theme-name {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sf-gray-700);
+    }
+
+    /* Clock Themes - with !important for specificity */
+    .widget-card.clock-theme-blue .clock-face {
+        box-shadow: 0 0 0 8px var(--sf-blue), inset 0 0 20px rgba(0,0,0,0.1) !important;
+    }
+    .widget-card.clock-theme-blue .clock-face::before { background: var(--sf-blue) !important; }
+    .widget-card.clock-theme-blue .clock-hour { background: var(--sf-blue) !important; }
+    .widget-card.clock-theme-blue .clock-minute { background: var(--sf-blue-light) !important; }
+
+    .widget-card.clock-theme-green .clock-face {
+        box-shadow: 0 0 0 8px var(--sf-success), inset 0 0 20px rgba(0,0,0,0.1) !important;
+    }
+    .widget-card.clock-theme-green .clock-face::before { background: var(--sf-success) !important; }
+    .widget-card.clock-theme-green .clock-hour { background: var(--sf-success) !important; }
+    .widget-card.clock-theme-green .clock-minute { background: #41b658 !important; }
+
+    .widget-card.clock-theme-purple .clock-face {
+        box-shadow: 0 0 0 8px var(--sf-purple), inset 0 0 20px rgba(0,0,0,0.1) !important;
+    }
+    .widget-card.clock-theme-purple .clock-face::before { background: var(--sf-purple) !important; }
+    .widget-card.clock-theme-purple .clock-hour { background: var(--sf-purple) !important; }
+    .widget-card.clock-theme-purple .clock-minute { background: #b78def !important; }
+
+    .widget-card.clock-theme-orange .clock-face {
+        box-shadow: 0 0 0 8px var(--sf-orange), inset 0 0 20px rgba(0,0,0,0.1) !important;
+    }
+    .widget-card.clock-theme-orange .clock-face::before { background: var(--sf-orange) !important; }
+    .widget-card.clock-theme-orange .clock-hour { background: var(--sf-orange) !important; }
+    .widget-card.clock-theme-orange .clock-minute { background: #ffb75d !important; }
+
+    .widget-card.clock-theme-red .clock-face {
+        box-shadow: 0 0 0 8px var(--sf-error), inset 0 0 20px rgba(0,0,0,0.1) !important;
+    }
+    .widget-card.clock-theme-red .clock-face::before { background: var(--sf-error) !important; }
+    .widget-card.clock-theme-red .clock-hour { background: var(--sf-error) !important; }
+    .widget-card.clock-theme-red .clock-minute { background: #ff5d5d !important; }
+    .widget-card.clock-theme-red .clock-second { background: var(--sf-gray-800) !important; }
+
+    .widget-card.clock-theme-dark .clock-face {
+        background: linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 100%) !important;
+        box-shadow: 0 0 0 8px #1a1a1a, inset 0 0 20px rgba(255,255,255,0.05) !important;
+    }
+    .widget-card.clock-theme-dark .clock-face::before { background: #e0e0e0 !important; }
+    .widget-card.clock-theme-dark .clock-hour { background: #e0e0e0 !important; }
+    .widget-card.clock-theme-dark .clock-minute { background: #9d9d9d !important; }
+    .widget-card.clock-theme-dark .clock-second { background: var(--sf-error) !important; }
+    .widget-card.clock-theme-dark .clock-time { color: var(--sf-gray-500) !important; }
+
+    /* Design option for stats widgets */
+    .design-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .design-option {
+        border: 2px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .design-option:hover {
+        border-color: var(--sf-blue);
+    }
+
+    .design-option.selected {
+        border-color: var(--sf-blue);
+        background: rgba(1, 118, 211, 0.1);
+    }
+
+    .design-preview {
+        height: 60px;
+        background: var(--sf-gray-100);
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .design-name {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sf-gray-700);
+        text-align: center;
+    }
+
+    /* Size picker grid */
+    .size-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .size-option {
+        border: 2px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+    }
+
+    .size-option:hover {
+        border-color: var(--sf-blue);
+        background: var(--sf-gray-50);
+    }
+
+    .size-option.selected {
+        border-color: var(--sf-blue);
+        background: rgba(1, 118, 211, 0.1);
+    }
+
+    .size-preview {
+        font-size: 0.625rem;
+        color: var(--sf-blue);
+        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+    }
+
+    .size-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .size-desc {
+        font-size: 0.6875rem;
+        color: var(--sf-gray-500);
+        margin-top: 0.25rem;
+    }
+
+    /* Stats Widget Themes */
+    .widget-theme-blue .stat-value { color: var(--sf-blue) !important; }
+    .widget-theme-blue .stat-action { color: var(--sf-blue) !important; }
+    .widget-theme-blue .stat-icon { background: var(--gradient-blue) !important; }
+
+    .widget-theme-green .stat-value { color: var(--sf-success) !important; }
+    .widget-theme-green .stat-action { color: var(--sf-success) !important; }
+    .widget-theme-green .stat-icon { background: var(--gradient-green) !important; }
+
+    .widget-theme-purple .stat-value { color: var(--sf-purple) !important; }
+    .widget-theme-purple .stat-action { color: var(--sf-purple) !important; }
+    .widget-theme-purple .stat-icon { background: var(--gradient-purple) !important; }
+
+    .widget-theme-orange .stat-value { color: var(--sf-orange) !important; }
+    .widget-theme-orange .stat-action { color: var(--sf-orange) !important; }
+    .widget-theme-orange .stat-icon { background: var(--gradient-orange) !important; }
+
+    .widget-theme-teal .stat-value { color: var(--sf-teal) !important; }
+    .widget-theme-teal .stat-action { color: var(--sf-teal) !important; }
+    .widget-theme-teal .stat-icon { background: var(--gradient-teal) !important; }
+
+    .widget-theme-indigo .stat-value { color: var(--sf-indigo) !important; }
+    .widget-theme-indigo .stat-action { color: var(--sf-indigo) !important; }
+    .widget-theme-indigo .stat-icon { background: var(--gradient-indigo) !important; }
+
+    .widget-theme-cyan .stat-value { color: var(--sf-cyan) !important; }
+    .widget-theme-cyan .stat-action { color: var(--sf-cyan) !important; }
+    .widget-theme-cyan .stat-icon { background: var(--gradient-cyan) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- New Dashboard Banner -->
+<div class="classic-banner">
+    <span>You're viewing the new customizable dashboard.</span>
+    <a href="{{ url_for('main.index') }}?use_classic=1">Switch to Classic View</a>
+</div>
+
+<div class="sf-dashboard {% if edit_mode %}edit-mode{% endif %}">
+    <!-- Header -->
+    <div class="sf-header-bar">
+        <div>
+            <div class="sf-header-title">Welcome, {{ user.username }}!</div>
+            <div class="sf-header-subtitle">Here's an overview of your system</div>
+        </div>
+        <div class="sf-header-actions">
+            <button class="sf-btn sf-btn-neutral" id="toggleEditMode" onclick="toggleEditMode()">
+                <i class="fas fa-edit"></i>
+                <span id="editModeText">Customize</span>
+            </button>
+            <button class="sf-btn sf-btn-brand" id="addWidgetBtn" onclick="openAddWidgetPanel()" style="display: none;">
+                <i class="fas fa-plus"></i>
+                Add Widget
+            </button>
+            <button class="sf-btn sf-btn-success" id="saveLayoutBtn" onclick="saveLayout()" style="display: none;">
+                <i class="fas fa-save"></i>
+                Save Layout
+            </button>
+            <button class="sf-btn sf-btn-destructive" id="resetLayoutBtn" onclick="resetLayout()" style="display: none;">
+                <i class="fas fa-undo"></i>
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="sf-content">
+        <div class="widget-grid" id="widgetGrid">
+            {% for item in layout %}
+                {% set widget = widgets_map.get(item.widget_id) %}
+                {% if widget %}
+                {% set size = item.size|default('small') %}
+                {% set config = item.config|default({}) %}
+                {% set theme = config.get('theme', 'default') if config else 'default' %}
+                {% set theme_class = '' %}
+                {% if theme != 'default' %}
+                    {% if item.widget_id == 'clock_widget' %}
+                        {% set theme_class = 'clock-theme-' ~ theme %}
+                    {% else %}
+                        {% set theme_class = 'widget-theme-' ~ theme %}
+                    {% endif %}
+                {% endif %}
+                <div class="widget-card widget-{{ size }} {{ theme_class }}"
+                     data-widget-id="{{ item.widget_id }}"
+                     data-position="{{ loop.index0 }}"
+                     data-size="{{ size }}"
+                     data-config="{{ config|tojson|e }}">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <div class="widget-icon bg-{{ widget.color }}">
+                                <i class="{{ widget.icon }}"></i>
+                            </div>
+                            <span>{{ widget.name }}</span>
+                        </div>
+                        <div class="widget-actions">
+                            {% if widget.refreshable %}
+                            <button class="widget-action-btn" onclick="refreshWidget('{{ item.widget_id }}')" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            {% endif %}
+                            <button class="widget-action-btn" onclick="openWidgetSettings('{{ item.widget_id }}')" title="Settings">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button class="widget-action-btn" onclick="resizeWidget('{{ item.widget_id }}')" title="Resize">
+                                <i class="fas fa-expand-alt"></i>
+                            </button>
+                            <button class="widget-action-btn remove" onclick="removeWidget('{{ item.widget_id }}')" title="Remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="widget-body" id="widget-body-{{ item.widget_id }}">
+                        {% include widget.template ignore missing %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Widget Panel -->
+<div class="panel-overlay" id="panelOverlay" onclick="closeAddWidgetPanel()"></div>
+<div class="add-widget-panel" id="addWidgetPanel">
+    <div class="add-widget-panel-header">
+        <span class="add-widget-panel-title">Add Widgets</span>
+        <button class="widget-action-btn" onclick="closeAddWidgetPanel()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="add-widget-panel-body">
+        {% for category in widget_categories %}
+        <div class="widget-category">
+            <div class="widget-category-title">{{ category.name }}</div>
+            {% for widget in available_widgets %}
+                {% if widget.category.value == category.value %}
+                <div class="widget-option {% if widget.id in active_widget_ids %}added{% endif %}"
+                     onclick="{% if widget.id not in active_widget_ids %}toggleWidgetSelection('{{ widget.id }}', this){% endif %}"
+                     data-widget-id="{{ widget.id }}">
+                    <div class="widget-option-icon bg-{{ widget.color }}">
+                        <i class="{{ widget.icon }}"></i>
+                    </div>
+                    <div class="widget-option-info">
+                        <div class="widget-option-name">{{ widget.name }}</div>
+                        <div class="widget-option-desc">{{ widget.description }}</div>
+                    </div>
+                    {% if widget.id in active_widget_ids %}
+                    <span class="widget-option-status" style="font-size: 0.75rem; color: var(--sf-success);"><i class="fas fa-check"></i> Added</span>
+                    {% else %}
+                    <span class="widget-option-status" style="font-size: 0.75rem; color: var(--sf-gray-400);"><i class="fas fa-plus"></i></span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="add-widget-panel-footer" id="addWidgetPanelFooter" style="display: none;">
+        <span id="selectedCount">0 widgets selected</span>
+        <button class="sf-btn sf-btn-brand" onclick="addSelectedWidgets()">
+            <i class="fas fa-plus"></i> Add Selected
+        </button>
+    </div>
+</div>
+
+<!-- Widget Settings Panel -->
+<div class="panel-overlay" id="settingsPanelOverlay" onclick="closeWidgetSettings()"></div>
+<div class="add-widget-panel" id="widgetSettingsPanel">
+    <div class="add-widget-panel-header">
+        <span class="add-widget-panel-title" id="settingsPanelTitle">Widget Settings</span>
+        <button class="widget-action-btn" onclick="closeWidgetSettings()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="add-widget-panel-body" id="settingsPanelBody">
+        <!-- Settings content will be dynamically loaded -->
+    </div>
+    <div class="add-widget-panel-footer" id="settingsPanelFooter" style="display: flex !important;">
+        <button class="sf-btn sf-btn-neutral" onclick="closeWidgetSettings()">Cancel</button>
+        <button class="sf-btn sf-btn-brand" onclick="saveWidgetSettings()">
+            <i class="fas fa-check"></i> Apply
+        </button>
+    </div>
+</div>
+
+<!-- Edit Mode Indicator -->
+<div class="edit-mode-indicator" id="editModeIndicator">
+    <i class="fas fa-arrows-alt"></i>
+    <span>Drag widgets to rearrange</span>
+    <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.75rem; margin-left: 0.5rem;" onclick="toggleEditMode()">
+        Done
+    </button>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+// State
+let isEditMode = false;
+let sortable = null;
+let currentLayout = {{ layout_json | safe }};
+let hasChanges = false;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    initClocks();
+    initCharts();
+    // Themes are now applied via server-side Jinja template
+});
+
+// Toggle edit mode
+function toggleEditMode() {
+    isEditMode = !isEditMode;
+    const container = document.querySelector('.sf-dashboard');
+    const editBtn = document.getElementById('toggleEditMode');
+    const editText = document.getElementById('editModeText');
+    const addBtn = document.getElementById('addWidgetBtn');
+    const saveBtn = document.getElementById('saveLayoutBtn');
+    const resetBtn = document.getElementById('resetLayoutBtn');
+    const indicator = document.getElementById('editModeIndicator');
+
+    if (isEditMode) {
+        container.classList.add('edit-mode');
+        editText.textContent = 'Done Editing';
+        addBtn.style.display = 'inline-flex';
+        saveBtn.style.display = hasChanges ? 'inline-flex' : 'none';
+        resetBtn.style.display = 'inline-flex';
+        indicator.classList.add('visible');
+        initSortable();
+    } else {
+        container.classList.remove('edit-mode');
+        editText.textContent = 'Customize';
+        addBtn.style.display = 'none';
+        saveBtn.style.display = 'none';
+        resetBtn.style.display = 'none';
+        indicator.classList.remove('visible');
+        if (sortable) {
+            sortable.destroy();
+            sortable = null;
+        }
+    }
+}
+
+// Initialize Sortable.js
+function initSortable() {
+    const grid = document.getElementById('widgetGrid');
+    sortable = new Sortable(grid, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        chosenClass: 'sortable-chosen',
+        handle: '.widget-header',
+        onEnd: function(evt) {
+            updateLayoutFromDOM();
+            hasChanges = true;
+            document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+        }
+    });
+}
+
+// Update layout from DOM order
+function updateLayoutFromDOM() {
+    const widgets = document.querySelectorAll('#widgetGrid .widget-card');
+    const newLayout = [];
+    widgets.forEach((widget, index) => {
+        // Find existing config from current layout to preserve it
+        const existingItem = currentLayout.find(w => w.widget_id === widget.dataset.widgetId);
+        newLayout.push({
+            widget_id: widget.dataset.widgetId,
+            position: index,
+            size: widget.dataset.size,
+            config: existingItem?.config || {}
+        });
+    });
+    currentLayout = newLayout;
+}
+
+// Track selected widgets for multi-add
+let selectedWidgets = new Set();
+
+// Toggle widget selection for multi-add
+function toggleWidgetSelection(widgetId, element) {
+    // Check if already in current layout
+    if (currentLayout.some(w => w.widget_id === widgetId)) {
+        showToast('Widget already added', 'error');
+        return;
+    }
+
+    if (selectedWidgets.has(widgetId)) {
+        selectedWidgets.delete(widgetId);
+        element.classList.remove('selected');
+    } else {
+        selectedWidgets.add(widgetId);
+        element.classList.add('selected');
+    }
+
+    updateSelectedCount();
+}
+
+// Update the selected count display
+function updateSelectedCount() {
+    const footer = document.getElementById('addWidgetPanelFooter');
+    const countSpan = document.getElementById('selectedCount');
+    const count = selectedWidgets.size;
+
+    if (count > 0) {
+        footer.style.display = 'flex';
+        countSpan.textContent = count === 1 ? '1 widget selected' : `${count} widgets selected`;
+    } else {
+        footer.style.display = 'none';
+    }
+}
+
+// Add all selected widgets
+function addSelectedWidgets() {
+    if (selectedWidgets.size === 0) {
+        showToast('No widgets selected', 'error');
+        return;
+    }
+
+    const count = selectedWidgets.size;
+
+    // Add each selected widget to layout
+    selectedWidgets.forEach(widgetId => {
+        if (!currentLayout.some(w => w.widget_id === widgetId)) {
+            currentLayout.push({
+                widget_id: widgetId,
+                position: currentLayout.length,
+                size: 'small',
+                config: {}
+            });
+        }
+    });
+
+    hasChanges = true;
+    document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+
+    // Close panel and save
+    closeAddWidgetPanel();
+    showToast(`${count} widget(s) added!`, 'success');
+
+    // Clear selection and save
+    selectedWidgets.clear();
+    saveLayout();
+}
+
+// Legacy single add (still available for quick add)
+function addWidget(widgetId) {
+    if (currentLayout.some(w => w.widget_id === widgetId)) {
+        showToast('Widget already added', 'error');
+        return;
+    }
+
+    currentLayout.push({
+        widget_id: widgetId,
+        position: currentLayout.length,
+        size: 'small',
+        config: {}
+    });
+
+    hasChanges = true;
+    document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+    closeAddWidgetPanel();
+    showToast('Widget added!');
+    saveLayout();
+}
+
+// Remove widget
+function removeWidget(widgetId) {
+    if (!confirm('Remove this widget from your dashboard?')) return;
+
+    currentLayout = currentLayout.filter(w => w.widget_id !== widgetId);
+
+    // Remove from DOM
+    const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    if (widget) {
+        widget.remove();
+    }
+
+    hasChanges = true;
+    document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+    showToast('Widget removed. Save to keep changes.');
+}
+
+// Resize widget - show size picker
+let currentResizeWidgetId = null;
+
+function resizeWidget(widgetId) {
+    currentResizeWidgetId = widgetId;
+    const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    if (!widget) return;
+
+    const currentSize = widget.dataset.size || 'small';
+
+    const panelBody = document.getElementById('settingsPanelBody');
+    const panelTitle = document.getElementById('settingsPanelTitle');
+
+    panelTitle.textContent = 'Widget Size';
+
+    const sizes = [
+        { value: 'small', label: 'Small', icon: '◼', desc: '1 column' },
+        { value: 'medium', label: 'Medium', icon: '◼◼', desc: '2 columns' },
+        { value: 'large', label: 'Large', icon: '◼◼◼', desc: '3 columns' },
+        { value: 'full', label: 'Full Width', icon: '◼◼◼◼◼◼', desc: '6 columns' }
+    ];
+
+    let html = `
+        <div class="settings-section">
+            <div class="settings-section-title">Select Size</div>
+            <div class="size-grid">
+    `;
+
+    sizes.forEach(size => {
+        const isSelected = currentSize === size.value;
+        html += `
+            <div class="size-option ${isSelected ? 'selected' : ''}"
+                 onclick="selectSize('${size.value}', this)">
+                <div class="size-preview">${size.icon}</div>
+                <div class="size-name">${size.label}</div>
+                <div class="size-desc">${size.desc}</div>
+            </div>
+        `;
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    panelBody.innerHTML = html;
+
+    document.getElementById('widgetSettingsPanel').classList.add('open');
+    document.getElementById('settingsPanelOverlay').classList.add('visible');
+}
+
+function selectSize(size, element) {
+    // Update selection UI
+    element.parentElement.querySelectorAll('.size-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    element.classList.add('selected');
+
+    // Apply size immediately
+    if (currentResizeWidgetId) {
+        const widget = document.querySelector(`[data-widget-id="${currentResizeWidgetId}"]`);
+        if (widget) {
+            // Remove old size classes
+            widget.classList.remove('widget-small', 'widget-medium', 'widget-large', 'widget-full');
+            widget.classList.add(`widget-${size}`);
+            widget.dataset.size = size;
+
+            // Update layout
+            const item = currentLayout.find(w => w.widget_id === currentResizeWidgetId);
+            if (item) {
+                item.size = size;
+            }
+
+            hasChanges = true;
+            document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+        }
+    }
+}
+
+// Refresh widget
+function refreshWidget(widgetId) {
+    const body = document.getElementById(`widget-body-${widgetId}`);
+    if (!body) return;
+
+    body.innerHTML = '<div class="widget-loading"><div class="spinner"></div></div>';
+
+    fetch(`/dashboard/api/widget/${widgetId}/data`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.html) {
+                body.innerHTML = data.html;
+                // Reinit any charts in the widget
+                initChartsInElement(body);
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing widget:', error);
+            body.innerHTML = '<div style="color: var(--sf-error); padding: 1rem;">Error loading data</div>';
+        });
+}
+
+// Get CSRF token
+function getCsrfToken() {
+    return '{{ csrf_token() }}';
+}
+
+// Save layout
+function saveLayout() {
+    const saveBtn = document.getElementById('saveLayoutBtn');
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveBtn.disabled = true;
+
+    fetch('/dashboard/api/save-layout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ layout: currentLayout })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            hasChanges = false;
+            showToast('Dashboard saved!', 'success');
+            // Reload to get fresh widget renders
+            window.location.reload();
+        } else {
+            showToast('Error saving: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving layout:', error);
+        showToast('Error saving dashboard', 'error');
+    })
+    .finally(() => {
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Layout';
+        saveBtn.disabled = false;
+    });
+}
+
+// Reset layout to default
+function resetLayout() {
+    if (!confirm('Reset your dashboard to the default layout? This will remove all your customizations.')) {
+        return;
+    }
+
+    const resetBtn = document.getElementById('resetLayoutBtn');
+    resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+    resetBtn.disabled = true;
+
+    fetch('/dashboard/api/reset-layout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Dashboard reset to default!', 'success');
+            window.location.reload();
+        } else {
+            showToast('Error resetting: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting layout:', error);
+        showToast('Error resetting dashboard', 'error');
+    })
+    .finally(() => {
+        resetBtn.innerHTML = '<i class="fas fa-undo"></i> Reset';
+        resetBtn.disabled = false;
+    });
+}
+
+// Panel controls
+function openAddWidgetPanel() {
+    document.getElementById('addWidgetPanel').classList.add('open');
+    document.getElementById('panelOverlay').classList.add('visible');
+}
+
+function closeAddWidgetPanel() {
+    document.getElementById('addWidgetPanel').classList.remove('open');
+    document.getElementById('panelOverlay').classList.remove('visible');
+
+    // Clear selections
+    selectedWidgets.clear();
+    document.querySelectorAll('.widget-option.selected').forEach(el => el.classList.remove('selected'));
+    updateSelectedCount();
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// Initialize clocks
+function initClocks() {
+    function updateClock() {
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const gmt8Time = new Date(utc + (3600000 * 8));
+
+        const hours = gmt8Time.getHours();
+        const minutes = gmt8Time.getMinutes();
+        const seconds = gmt8Time.getSeconds();
+
+        const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+        const minuteDeg = minutes * 6 + seconds * 0.1;
+        const secondDeg = seconds * 6;
+
+        document.querySelectorAll('.clock-hour').forEach(h => {
+            h.style.transform = `rotate(${hourDeg}deg)`;
+        });
+        document.querySelectorAll('.clock-minute').forEach(m => {
+            m.style.transform = `rotate(${minuteDeg}deg)`;
+        });
+        document.querySelectorAll('.clock-second').forEach(s => {
+            s.style.transform = `rotate(${secondDeg}deg)`;
+        });
+        document.querySelectorAll('.clock-time').forEach(t => {
+            t.textContent = gmt8Time.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }) + ' (GMT+8)';
+        });
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+}
+
+// Initialize charts
+function initCharts() {
+    initChartsInElement(document);
+}
+
+function initChartsInElement(container) {
+    // Weekly tickets chart
+    const weeklyCanvas = container.querySelector('#weeklyTicketsChart');
+    if (weeklyCanvas && window.weeklyTicketData) {
+        new Chart(weeklyCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: weeklyTicketData.labels,
+                datasets: [{
+                    label: 'Tickets',
+                    data: weeklyTicketData.values,
+                    backgroundColor: 'rgba(1, 118, 211, 0.8)',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    // Asset status chart
+    const statusCanvas = container.querySelector('#assetStatusChart');
+    if (statusCanvas && window.assetStatusData) {
+        new Chart(statusCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: assetStatusData.labels,
+                datasets: [{
+                    data: assetStatusData.values,
+                    backgroundColor: [
+                        '#2e844a', '#0176d3', '#fe9339', '#ea001e', '#706e6b'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 12 }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Widget Settings
+let currentSettingsWidgetId = null;
+let currentSettingsConfig = {};
+
+// Widget settings definitions
+const widgetSettingsConfig = {
+    'clock_widget': {
+        title: 'Clock Settings',
+        options: [
+            {
+                type: 'theme',
+                label: 'Color Theme',
+                key: 'theme',
+                choices: [
+                    { value: 'default', label: 'Classic', color: '#3e3e3c' },
+                    { value: 'blue', label: 'Blue', color: '#0176d3' },
+                    { value: 'green', label: 'Green', color: '#2e844a' },
+                    { value: 'purple', label: 'Purple', color: '#9050e9' },
+                    { value: 'orange', label: 'Orange', color: '#dd7a01' },
+                    { value: 'red', label: 'Red', color: '#ea001e' },
+                    { value: 'dark', label: 'Dark', color: '#1a1a1a' }
+                ]
+            }
+        ]
+    },
+    'inventory_stats': {
+        title: 'Inventory Stats Settings',
+        options: [
+            {
+                type: 'theme',
+                label: 'Color Theme',
+                key: 'theme',
+                choices: [
+                    { value: 'default', label: 'Purple', color: '#9050e9' },
+                    { value: 'blue', label: 'Blue', color: '#0176d3' },
+                    { value: 'green', label: 'Green', color: '#2e844a' },
+                    { value: 'orange', label: 'Orange', color: '#dd7a01' },
+                    { value: 'teal', label: 'Teal', color: '#0b827c' }
+                ]
+            }
+        ]
+    },
+    'ticket_stats': {
+        title: 'Ticket Stats Settings',
+        options: [
+            {
+                type: 'theme',
+                label: 'Color Theme',
+                key: 'theme',
+                choices: [
+                    { value: 'default', label: 'Blue', color: '#0176d3' },
+                    { value: 'green', label: 'Green', color: '#2e844a' },
+                    { value: 'purple', label: 'Purple', color: '#9050e9' },
+                    { value: 'orange', label: 'Orange', color: '#dd7a01' },
+                    { value: 'indigo', label: 'Indigo', color: '#5867e8' }
+                ]
+            }
+        ]
+    },
+    'customer_stats': {
+        title: 'Customer Stats Settings',
+        options: [
+            {
+                type: 'theme',
+                label: 'Color Theme',
+                key: 'theme',
+                choices: [
+                    { value: 'default', label: 'Green', color: '#2e844a' },
+                    { value: 'blue', label: 'Blue', color: '#0176d3' },
+                    { value: 'purple', label: 'Purple', color: '#9050e9' },
+                    { value: 'teal', label: 'Teal', color: '#0b827c' },
+                    { value: 'cyan', label: 'Cyan', color: '#0d9dda' }
+                ]
+            }
+        ]
+    }
+};
+
+function openWidgetSettings(widgetId) {
+    currentSettingsWidgetId = widgetId;
+
+    // Get current config from layout
+    const layoutItem = currentLayout.find(w => w.widget_id === widgetId);
+    currentSettingsConfig = layoutItem?.config || {};
+
+    const settings = widgetSettingsConfig[widgetId];
+    const panelBody = document.getElementById('settingsPanelBody');
+    const panelTitle = document.getElementById('settingsPanelTitle');
+
+    if (!settings) {
+        // Default settings for widgets without specific config
+        panelTitle.textContent = 'Widget Settings';
+        panelBody.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--sf-gray-500);">
+                <i class="fas fa-cog" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <p>No customization options available for this widget yet.</p>
+            </div>
+        `;
+    } else {
+        panelTitle.textContent = settings.title;
+        let html = '';
+
+        settings.options.forEach(option => {
+            if (option.type === 'theme') {
+                html += `
+                    <div class="settings-section">
+                        <div class="settings-section-title">${option.label}</div>
+                        <div class="theme-grid">
+                `;
+
+                option.choices.forEach(choice => {
+                    const isSelected = (currentSettingsConfig[option.key] || 'default') === choice.value;
+                    html += `
+                        <div class="theme-option ${isSelected ? 'selected' : ''}"
+                             onclick="selectTheme('${option.key}', '${choice.value}', this)">
+                            <div class="theme-preview" style="background: ${choice.color};">
+                                <i class="fas fa-check" style="color: white; ${isSelected ? '' : 'display: none;'}"></i>
+                            </div>
+                            <div class="theme-name">${choice.label}</div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        panelBody.innerHTML = html;
+    }
+
+    document.getElementById('widgetSettingsPanel').classList.add('open');
+    document.getElementById('settingsPanelOverlay').classList.add('visible');
+}
+
+function closeWidgetSettings() {
+    document.getElementById('widgetSettingsPanel').classList.remove('open');
+    document.getElementById('settingsPanelOverlay').classList.remove('visible');
+    currentSettingsWidgetId = null;
+    currentSettingsConfig = {};
+    currentResizeWidgetId = null;
+}
+
+function selectTheme(key, value, element) {
+    // Update selection UI
+    element.parentElement.querySelectorAll('.theme-option').forEach(opt => {
+        opt.classList.remove('selected');
+        opt.querySelector('.fa-check').style.display = 'none';
+    });
+    element.classList.add('selected');
+    element.querySelector('.fa-check').style.display = '';
+
+    // Store in current config
+    currentSettingsConfig[key] = value;
+
+    // Apply theme immediately for instant feedback
+    if (currentSettingsWidgetId) {
+        applyWidgetTheme(currentSettingsWidgetId, { [key]: value });
+    }
+}
+
+function saveWidgetSettings() {
+    // Handle resize - size is already applied, just close
+    if (currentResizeWidgetId) {
+        closeWidgetSettings();
+        showToast('Size changed! Save to keep changes.', 'success');
+        return;
+    }
+
+    // Handle theme settings
+    if (!currentSettingsWidgetId) {
+        closeWidgetSettings();
+        return;
+    }
+
+    // Update layout config
+    const layoutItem = currentLayout.find(w => w.widget_id === currentSettingsWidgetId);
+    if (layoutItem) {
+        layoutItem.config = { ...layoutItem.config, ...currentSettingsConfig };
+    }
+
+    // Apply theme immediately to the widget
+    applyWidgetTheme(currentSettingsWidgetId, currentSettingsConfig);
+
+    hasChanges = true;
+    document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
+
+    closeWidgetSettings();
+    showToast('Widget settings applied! Save to keep changes.', 'success');
+}
+
+function applyWidgetTheme(widgetId, config) {
+    const widgetCard = document.querySelector(`[data-widget-id="${widgetId}"]`);
+    if (!widgetCard) return;
+
+    const theme = config.theme || 'default';
+
+    // Remove existing theme classes
+    widgetCard.className = widgetCard.className.replace(/\bwidget-theme-\S+/g, '').trim();
+    widgetCard.className = widgetCard.className.replace(/\bclock-theme-\S+/g, '').trim();
+
+    // Add new theme class
+    if (theme !== 'default') {
+        if (widgetId === 'clock_widget') {
+            widgetCard.classList.add(`clock-theme-${theme}`);
+        } else {
+            widgetCard.classList.add(`widget-theme-${theme}`);
+        }
+    }
+}
+
+// Apply saved themes on page load (kept for dynamic updates, but initial themes are now server-rendered)
+function applyAllWidgetThemes() {
+    currentLayout.forEach(item => {
+        if (item.config && Object.keys(item.config).length > 0) {
+            applyWidgetTheme(item.widget_id, item.config);
+        }
+    });
+}
+
+// Data for charts (will be populated by the server)
+{% if weekly_ticket_data %}
+window.weeklyTicketData = {
+    labels: {{ weekly_ticket_data['labels'] | tojson }},
+    values: {{ weekly_ticket_data['values'] | tojson }}
+};
+{% endif %}
+
+{% if asset_status_data %}
+window.assetStatusData = {
+    labels: {{ asset_status_data['labels'] | tojson }},
+    values: {{ asset_status_data['values'] | tojson }}
+};
+{% endif %}
+</script>
+{% endblock %}

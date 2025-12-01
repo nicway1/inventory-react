@@ -157,8 +157,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const queueSelect = document.getElementById('queueSelect');
 
     userTypeSelect.addEventListener('change', function() {
-        // Handle country select visibility
-        if (this.value === 'COUNTRY_ADMIN') {
+        // Handle country select visibility for COUNTRY_ADMIN and SUPERVISOR
+        if (this.value === 'COUNTRY_ADMIN' || this.value === 'SUPERVISOR') {
             countrySelect.style.display = 'block';
             countryAdminCompanySelect.style.display = 'block';
             queueSelect.style.display = 'block';

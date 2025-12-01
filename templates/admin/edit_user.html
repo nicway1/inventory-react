@@ -194,8 +194,8 @@
         function toggleFields() {
             const selectedType = userTypeSelect.value;
 
-            // Control country visibility
-            if (selectedType === 'COUNTRY_ADMIN') {
+            // Control country and company visibility for COUNTRY_ADMIN and SUPERVISOR
+            if (selectedType === 'COUNTRY_ADMIN' || selectedType === 'SUPERVISOR') {
                 countrySelection.style.display = 'block';
                 countryAdminCompanySelect.style.display = 'block';
                 queueSelect.style.display = 'block';

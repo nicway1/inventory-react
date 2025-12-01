@@ -7,7 +7,18 @@ class TabSystem {
     constructor() {
         this.tabs = this.loadTabs();
         this.activeTabId = this.getActiveTabId();
+        // Fix stale home tab URL if it exists
+        this.fixHomeTabUrl();
         this.init();
+    }
+
+    // Ensure home tab always has the correct URL
+    fixHomeTabUrl() {
+        const homeTab = this.tabs.find(tab => tab.id === 'home');
+        if (homeTab && homeTab.url !== '/dashboard/') {
+            homeTab.url = '/dashboard/';
+            this.saveTabs();
+        }
     }
 
     init() {
@@ -78,7 +89,7 @@ class TabSystem {
             } else {
                 // No tabs left, go to home
                 this.setActiveTab('home');
-                window.location.href = '/tickets/';
+                window.location.href = '/dashboard/';
             }
         }
 
@@ -114,6 +125,79 @@ class TabSystem {
             <div class="sf-tab-container">
                 <div class="sf-tab-wrapper">
                     <div class="sf-tab-nav">
+                        <!-- App Launcher (9-dot waffle) -->
+                        <div class="sf-app-launcher">
+                            <button class="sf-app-launcher-btn" onclick="tabSystem.toggleAppMenu()" title="App Launcher">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="5" cy="5" r="2"/>
+                                    <circle cx="12" cy="5" r="2"/>
+                                    <circle cx="19" cy="5" r="2"/>
+                                    <circle cx="5" cy="12" r="2"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                    <circle cx="19" cy="12" r="2"/>
+                                    <circle cx="5" cy="19" r="2"/>
+                                    <circle cx="12" cy="19" r="2"/>
+                                    <circle cx="19" cy="19" r="2"/>
+                                </svg>
+                            </button>
+                            <div class="sf-app-menu" id="sf-app-menu">
+                                <div class="sf-app-menu-header">App Launcher</div>
+                                <div class="sf-app-menu-grid">
+                                    <a href="/dashboard/" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #0176d3;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                            </svg>
+                                        </div>
+                                        <span>Home</span>
+                                    </a>
+                                    <a href="/tickets/" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #ff5d2d;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </div>
+                                        <span>Cases</span>
+                                    </a>
+                                    <a href="/inventory/sf" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #2e844a;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                                            </svg>
+                                        </div>
+                                        <span>Inventory</span>
+                                    </a>
+                                    <a href="/reports/" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #9050e9;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                            </svg>
+                                        </div>
+                                        <span>Reports</span>
+                                    </a>
+                                    <a href="/customers/" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #fe9339;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                            </svg>
+                                        </div>
+                                        <span>Customers</span>
+                                    </a>
+                                    <a href="/parcel-tracking/" class="sf-app-item">
+                                        <div class="sf-app-icon" style="background: #00a1e0;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                            </svg>
+                                        </div>
+                                        <span>Tracking</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Console Label -->
+                        <div class="sf-console-label">
+                            <span>Service Console</span>
+                        </div>
                         <div class="sf-tab-list" id="sf-tab-list">
                             <!-- Tabs will be rendered here -->
                         </div>
@@ -154,7 +238,7 @@ class TabSystem {
             this.tabs.unshift({
                 id: 'home',
                 title: 'Home',
-                url: '/tickets/',
+                url: '/dashboard/',
                 icon: 'home',
                 closable: false
             });
@@ -185,6 +269,18 @@ class TabSystem {
                    </svg>`,
             ticket: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                     </svg>`,
+            asset: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>`,
+            accessory: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>`,
+            inventory: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                        </svg>`,
+            report: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                      </svg>`
         };
         return icons[iconType] || icons.ticket;
@@ -198,7 +294,30 @@ class TabSystem {
     }
 
     openNewTab() {
-        window.open('/tickets/', '_blank');
+        window.open('/dashboard/', '_blank');
+    }
+
+    toggleAppMenu() {
+        const menu = document.getElementById('sf-app-menu');
+        if (menu) {
+            menu.classList.toggle('open');
+
+            // Close menu when clicking outside
+            if (menu.classList.contains('open')) {
+                setTimeout(() => {
+                    document.addEventListener('click', this.closeAppMenuOnClickOutside);
+                }, 0);
+            }
+        }
+    }
+
+    closeAppMenuOnClickOutside = (e) => {
+        const menu = document.getElementById('sf-app-menu');
+        const launcher = document.querySelector('.sf-app-launcher');
+        if (menu && launcher && !launcher.contains(e.target)) {
+            menu.classList.remove('open');
+            document.removeEventListener('click', this.closeAppMenuOnClickOutside);
+        }
     }
 
     bindEvents() {
@@ -218,7 +337,7 @@ class TabSystem {
                         break;
                     case '1':
                         e.preventDefault();
-                        this.switchToTab('home', '/tickets/');
+                        this.switchToTab('home', '/dashboard/');
                         break;
                 }
             }
@@ -239,33 +358,139 @@ class TabSystem {
             .sf-tab-system {
                 position: relative;
                 z-index: 999;
-                background: #f8f9fa;
-                border-bottom: 1px solid #e5e7eb;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                background: linear-gradient(to bottom, #ffffff 0%, #f3f3f3 100%);
+                border-bottom: 1px solid #dddbda;
                 width: 100%;
             }
 
             .sf-tab-container {
-                background-color: #f8f9fa;
+                max-width: 100%;
+                margin: 0 auto;
+                background: transparent;
             }
 
             .sf-tab-wrapper {
-                padding: 0 2rem;
+                padding: 0 1.5rem;
             }
 
             .sf-tab-nav {
                 display: flex;
+                align-items: stretch;
+                min-height: 44px;
+                gap: 2px;
+            }
+
+            /* App Launcher (9-dot waffle) */
+            .sf-app-launcher {
+                position: relative;
+                display: flex;
                 align-items: center;
-                min-height: 48px;
+                padding: 0 8px;
+            }
+
+            .sf-app-launcher-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border: none;
+                background: transparent;
+                border-radius: 4px;
+                color: #0176d3;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+
+            .sf-app-launcher-btn:hover {
+                background: rgba(1, 118, 211, 0.1);
+            }
+
+            .sf-app-menu {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                margin-top: 4px;
+                background: #ffffff;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+                min-width: 320px;
+                z-index: 1000;
+                display: none;
+                overflow: hidden;
+            }
+
+            .sf-app-menu.open {
+                display: block;
+            }
+
+            .sf-app-menu-header {
+                padding: 16px 20px;
+                font-size: 16px;
+                font-weight: 700;
+                color: #080707;
+                border-bottom: 1px solid #e5e5e5;
+            }
+
+            .sf-app-menu-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 4px;
+                padding: 16px;
+            }
+
+            .sf-app-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 12px 8px;
+                border-radius: 8px;
+                text-decoration: none;
+                color: #3e3e3c;
+                transition: all 0.15s ease;
+            }
+
+            .sf-app-item:hover {
+                background: #f3f3f3;
+            }
+
+            .sf-app-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 8px;
+            }
+
+            .sf-app-item span {
+                font-size: 12px;
+                font-weight: 500;
+                text-align: center;
+            }
+
+            /* Console Label */
+            .sf-console-label {
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                font-size: 16px;
+                font-weight: 700;
+                color: #0176d3;
+                white-space: nowrap;
+                border-right: 1px solid #dddbda;
+                margin-right: 8px;
             }
 
             .sf-tab-list {
                 display: flex;
-                align-items: center;
+                align-items: stretch;
                 overflow-x: auto;
                 scrollbar-width: none;
                 -ms-overflow-style: none;
-                flex: 1;
+                gap: 2px;
+                padding: 6px 0 0 0;
             }
 
             .sf-tab-list::-webkit-scrollbar {
@@ -275,40 +500,44 @@ class TabSystem {
             .sf-tab-item {
                 display: flex;
                 align-items: center;
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-                color: #6b7280;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #3e3e3c;
                 text-decoration: none;
-                border-bottom: 2px solid transparent;
                 white-space: nowrap;
                 cursor: pointer;
-                transition: all 0.2s ease;
+                transition: all 0.15s ease;
                 position: relative;
-                min-width: 120px;
-                max-width: 200px;
+                min-width: 140px;
+                max-width: 240px;
+                background: #f3f3f3;
+                border: 1px solid #dddbda;
+                border-bottom: none;
+                border-radius: 0.25rem 0.25rem 0 0;
+                margin-bottom: -1px;
             }
 
             .sf-tab-item:hover {
-                color: #374151;
-                background-color: #f3f4f6;
-                transform: translateY(-1px);
+                color: #0176d3;
+                background: #ffffff;
             }
 
             .sf-tab-item.active {
-                color: #1d4ed8;
-                background-color: #eff6ff;
-                border-bottom-color: #1d4ed8;
+                color: #0176d3;
+                background: #ffffff;
+                border-color: #dddbda;
+                z-index: 1;
             }
 
-            .sf-tab-item.active::before {
+            .sf-tab-item.active::after {
                 content: '';
                 position: absolute;
-                top: 0;
+                bottom: 0;
                 left: 0;
                 right: 0;
-                height: 2px;
-                background-color: #1d4ed8;
+                height: 3px;
+                background: #0176d3;
             }
 
             .sf-tab-title {
@@ -319,11 +548,11 @@ class TabSystem {
             }
 
             .sf-tab-close {
-                margin-left: 8px;
-                padding: 2px;
-                border-radius: 2px;
-                color: #9ca3af;
-                transition: all 0.2s ease;
+                margin-left: 10px;
+                padding: 4px;
+                border-radius: 4px;
+                color: #706e6b;
+                transition: all 0.15s ease;
                 background: none;
                 border: none;
                 cursor: pointer;
@@ -333,70 +562,74 @@ class TabSystem {
             }
 
             .sf-tab-close:hover {
-                color: #ef4444;
-                background-color: #fee2e2;
+                color: #c23934;
+                background-color: #fce4e4;
             }
 
             .sf-tab-actions {
-                padding: 0 16px;
+                padding: 0 12px;
                 display: flex;
                 align-items: center;
+                margin-left: auto;
             }
 
             .sf-tab-action-btn {
-                padding: 6px;
+                padding: 8px;
                 border-radius: 4px;
-                color: #6b7280;
+                color: #706e6b;
                 background: none;
-                border: none;
+                border: 1px solid transparent;
                 cursor: pointer;
-                transition: all 0.2s ease;
+                transition: all 0.15s ease;
                 display: flex;
                 align-items: center;
                 justify-content: center;
             }
 
             .sf-tab-action-btn:hover {
-                color: #374151;
-                background-color: #f3f4f6;
+                color: #0176d3;
+                background-color: #f3f3f3;
+                border-color: #dddbda;
             }
 
             /* Dark mode support */
             body.dark-theme .sf-tab-system {
-                background: #1f2937;
+                background: linear-gradient(to bottom, #1f2937 0%, #111827 100%);
                 border-bottom: 1px solid #374151;
             }
 
             body.dark-theme .sf-tab-container {
-                background-color: #1f2937;
+                background: transparent;
             }
 
             body.dark-theme .sf-tab-item {
-                color: #9ca3af;
+                color: #d1d5db;
+                background: #1f2937;
+                border-color: #374151;
             }
 
             body.dark-theme .sf-tab-item:hover {
-                color: #e5e7eb;
-                background-color: #374151;
+                color: #60a5fa;
+                background: #374151;
             }
 
             body.dark-theme .sf-tab-item.active {
                 color: #60a5fa;
-                background-color: #1e3a8a;
-                border-bottom-color: #60a5fa;
+                background: #111827;
+                border-color: #374151;
             }
 
-            body.dark-theme .sf-tab-item.active::before {
-                background-color: #60a5fa;
+            body.dark-theme .sf-tab-item.active::after {
+                background: #60a5fa;
             }
 
             body.dark-theme .sf-tab-close {
-                color: #6b7280;
+                color: #9ca3af;
             }
 
             body.dark-theme .sf-tab-close:hover {
                 color: #f87171;
-                background-color: #7f1d1d;
+                background-color: #450a0a;
             }
 
             body.dark-theme .sf-tab-action-btn {
@@ -404,8 +637,41 @@ class TabSystem {
             }
 
             body.dark-theme .sf-tab-action-btn:hover {
-                color: #e5e7eb;
+                color: #60a5fa;
                 background-color: #374151;
+                border-color: #4b5563;
+            }
+
+            /* Dark mode - App Launcher */
+            body.dark-theme .sf-app-launcher-btn {
+                color: #60a5fa;
+            }
+
+            body.dark-theme .sf-app-launcher-btn:hover {
+                background: rgba(96, 165, 250, 0.1);
+            }
+
+            body.dark-theme .sf-app-menu {
+                background: #1f2937;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            }
+
+            body.dark-theme .sf-app-menu-header {
+                color: #f9fafb;
+                border-bottom: 1px solid #374151;
+            }
+
+            body.dark-theme .sf-app-item {
+                color: #d1d5db;
+            }
+
+            body.dark-theme .sf-app-item:hover {
+                background: #374151;
+            }
+
+            body.dark-theme .sf-console-label {
+                color: #60a5fa;
+                border-right-color: #374151;
             }
 
             /* Ensure proper spacing */
@@ -438,29 +704,106 @@ class TabSystem {
         this.addTab(tabId, title, url, 'ticket');
     }
 
+    openAsset(assetId, assetName) {
+        const tabId = `asset-${assetId}`;
+        const title = assetName || `Asset ${assetId}`;
+        const url = `/inventory/view-sf/${assetId}`;
+        this.addTab(tabId, title, url, 'asset');
+    }
+
+    openAccessory(accessoryId, accessoryName) {
+        const tabId = `accessory-${accessoryId}`;
+        const title = accessoryName || `Accessory ${accessoryId}`;
+        const url = `/inventory/accessory-sf/${accessoryId}`;
+        this.addTab(tabId, title, url, 'accessory');
+    }
+
     getCurrentPage() {
         const path = window.location.pathname;
-        if (path === '/tickets/' || path === '/tickets') {
+
+        // Home page / Dashboard
+        if (path === '/' || path === '/home' || path === '/home/' || path === '/dashboard' || path === '/dashboard/') {
             return 'home';
-        } else if (path.match(/^\/tickets\/\d+/)) {
+        }
+
+        // Tickets list
+        if (path === '/tickets/' || path === '/tickets') {
+            return 'tickets';
+        }
+
+        // Individual ticket
+        if (path.match(/^\/tickets\/\d+/)) {
             const ticketId = path.match(/\/tickets\/(\d+)/)[1];
             return `ticket-${ticketId}`;
         }
+
+        // Inventory list
+        if (path === '/inventory/' || path === '/inventory' || path === '/inventory/sf') {
+            return 'inventory';
+        }
+
+        // Individual asset (SF view)
+        if (path.match(/^\/inventory\/view-sf\/\d+/)) {
+            const assetId = path.match(/\/inventory\/view-sf\/(\d+)/)[1];
+            return `asset-${assetId}`;
+        }
+
+        // Individual accessory (SF view)
+        if (path.match(/^\/inventory\/accessory-sf\/\d+/)) {
+            const accessoryId = path.match(/\/inventory\/accessory-sf\/(\d+)/)[1];
+            return `accessory-${accessoryId}`;
+        }
+
+        // Reports
+        if (path.match(/^\/reports/)) {
+            return 'reports';
+        }
+
         return null;
     }
 
     initCurrentPage() {
         const currentPage = this.getCurrentPage();
-        if (currentPage) {
-            this.setActiveTab(currentPage);
-            
-            // If this is a ticket page and the tab doesn't exist, add it
-            if (currentPage.startsWith('ticket-') && !this.tabs.find(tab => tab.id === currentPage)) {
+        if (!currentPage) return;
+
+        this.setActiveTab(currentPage);
+
+        // If this tab doesn't exist, add it
+        if (!this.tabs.find(tab => tab.id === currentPage)) {
+            const path = window.location.pathname;
+            const titleElement = document.querySelector('.sf-record-title, h1, .sf-card-title');
+            const title = titleElement ? titleElement.textContent.trim().substring(0, 30) : '';
+
+            // Home page - skip, home is always there
+            if (currentPage === 'home') {
+                return;
+            }
+            // Tickets list
+            else if (currentPage === 'tickets') {
+                this.addTab('tickets', 'Tickets', '/tickets/', 'ticket');
+            }
+            // Ticket pages
+            else if (currentPage.startsWith('ticket-')) {
                 const ticketId = currentPage.replace('ticket-', '');
-                // Try to get ticket subject from the page
-                const titleElement = document.querySelector('h1, .sf-card-title');
-                const ticketSubject = titleElement ? titleElement.textContent.trim() : `Case ${ticketId}`;
-                this.addTab(currentPage, ticketSubject, window.location.pathname, 'ticket');
+                this.addTab(currentPage, title || `Case ${ticketId}`, path, 'ticket');
+            }
+            // Asset pages
+            else if (currentPage.startsWith('asset-')) {
+                const assetId = currentPage.replace('asset-', '');
+                this.addTab(currentPage, title || `Asset ${assetId}`, path, 'asset');
+            }
+            // Accessory pages
+            else if (currentPage.startsWith('accessory-')) {
+                const accessoryId = currentPage.replace('accessory-', '');
+                this.addTab(currentPage, title || `Accessory ${accessoryId}`, path, 'accessory');
+            }
+            // Inventory list
+            else if (currentPage === 'inventory') {
+                this.addTab('inventory', 'Inventory', '/inventory/sf', 'inventory');
+            }
+            // Reports
+            else if (currentPage === 'reports') {
+                this.addTab('reports', 'Reports', '/reports/', 'report');
             }
         }
     }
@@ -472,7 +815,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Wait a bit longer to ensure navigation is fully rendered
     setTimeout(() => {
         tabSystem = new TabSystem();
-        
+        window.tabSystem = tabSystem;
+
         // Initialize current page
         setTimeout(() => {
             tabSystem.initCurrentPage();
@@ -480,5 +824,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 50);
 });
 
-// Make tabSystem globally available
-window.tabSystem = tabSystem;
+// Reset tabs function - can be called from console to fix issues
+window.resetTabs = function() {
+    sessionStorage.removeItem('sf-tabs');
+    sessionStorage.removeItem('sf-active-tab');
+    console.log('Tabs reset. Refreshing page...');
+    window.location.reload();
+};

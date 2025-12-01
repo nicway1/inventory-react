@@ -155,8 +155,13 @@ def profile():
 
     # Get ticket statistics for the user
     from models.ticket import Ticket, TicketStatus
+    from models.activity import Activity
+    from models.asset import Asset
+    from datetime import timedelta
+
     db = SessionLocal()
     try:
+        # Ticket stats
         total_tickets = db.query(Ticket).filter(Ticket.assigned_to_id == current_user.id).count()
         open_tickets = db.query(Ticket).filter(
             Ticket.assigned_to_id == current_user.id,
@@ -166,16 +171,51 @@ def profile():
             Ticket.assigned_to_id == current_user.id,
             Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
         ).count()
+
+        # Recent tickets assigned to user
+        recent_tickets = db.query(Ticket).filter(
+            Ticket.assigned_to_id == current_user.id
+        ).order_by(Ticket.created_at.desc()).limit(5).all()
+
+        # Recent activities by user
+        recent_activities = db.query(Activity).filter(
+            Activity.user_id == current_user.id
+        ).order_by(Activity.created_at.desc()).limit(10).all()
+
+        # Tickets created by user
+        tickets_created = db.query(Ticket).filter(Ticket.requester_id == current_user.id).count()
+
+        # This week's activity
+        week_ago = singapore_now_as_utc() - timedelta(days=7)
+        tickets_this_week = db.query(Ticket).filter(
+            Ticket.assigned_to_id == current_user.id,
+            Ticket.created_at >= week_ago
+        ).count()
+
+        tickets_resolved_this_week = db.query(Ticket).filter(
+            Ticket.assigned_to_id == current_user.id,
+            Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]),
+            Ticket.updated_at >= week_ago
+        ).count()
+
     finally:
         db.close()
 
     ticket_stats = {
         'total': total_tickets,
         'open': open_tickets,
-        'closed': closed_tickets
+        'closed': closed_tickets,
+        'created': tickets_created,
+        'this_week': tickets_this_week,
+        'resolved_this_week': tickets_resolved_this_week
     }
 
-    return render_template('profile.html', user=user, ticket_stats=ticket_stats)
+    return render_template('profile.html',
+        user=user,
+        ticket_stats=ticket_stats,
+        recent_tickets=recent_tickets,
+        recent_activities=recent_activities
+    )
 
 @auth_bp.route('/profile/edit', methods=['GET', 'POST'])
 @login_required

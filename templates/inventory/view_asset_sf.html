@@ -1,0 +1,1173 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style colors */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+        --sf-success: #2e844a;
+        --sf-warning: #fe9339;
+        --sf-error: #ea001e;
+        --sf-purple: #9050e9;
+    }
+
+    .sf-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+        padding-bottom: 2rem;
+    }
+
+    /* Header */
+    .sf-record-header {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 1rem 1.5rem;
+    }
+
+    .sf-header-top {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-breadcrumb {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-breadcrumb a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-header-main {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .sf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .sf-record-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--sf-blue) 0%, var(--sf-blue-light) 100%);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .sf-record-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        margin: 0;
+    }
+
+    .sf-record-subtitle {
+        font-size: 0.875rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    .sf-header-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    /* Status badge */
+    .sf-status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 1rem;
+        margin-left: 0.75rem;
+    }
+
+    .sf-status-deployed { background: #d4edda; color: #155724; }
+    .sf-status-instock { background: #e8f4ff; color: #0176d3; }
+    .sf-status-readytodeploy { background: #cce5ff; color: #004085; }
+    .sf-status-shipped { background: #fff3cd; color: #856404; }
+    .sf-status-repair { background: #f8d7da; color: #721c24; }
+    .sf-status-archived { background: #e2e3e5; color: #383d41; }
+    .sf-status-disposed { background: #d6d8db; color: #1b1e21; }
+
+    /* Content layout */
+    .sf-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    .sf-content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .sf-content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Cards */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-card-body {
+        padding: 1.25rem;
+    }
+
+    /* Detail fields */
+    .sf-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    @media (max-width: 640px) {
+        .sf-detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .sf-detail-field {
+        padding: 0.5rem 0;
+    }
+
+    .sf-detail-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-detail-value {
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-detail-value a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-detail-value a:hover {
+        text-decoration: underline;
+    }
+
+    /* Related list */
+    .sf-related-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-100);
+    }
+
+    .sf-related-title {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-related-count {
+        font-size: 0.75rem;
+        color: white;
+        background: var(--sf-blue);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+        margin-left: 0.5rem;
+    }
+
+    .sf-related-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-related-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        background: var(--sf-gray-100);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-related-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-related-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .sf-related-table a {
+        color: var(--sf-blue);
+        text-decoration: none;
+    }
+
+    .sf-related-table a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-empty-state {
+        padding: 2rem;
+        text-align: center;
+        color: var(--sf-gray-600);
+        font-size: 0.875rem;
+    }
+
+    /* Timeline */
+    .sf-timeline {
+        padding: 1rem 1.25rem;
+    }
+
+    .sf-timeline-item {
+        display: flex;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        position: relative;
+    }
+
+    .sf-timeline-item:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 1.5rem;
+        bottom: 0;
+        width: 2px;
+        background: var(--sf-gray-200);
+    }
+
+    .sf-timeline-dot {
+        width: 1rem;
+        height: 1rem;
+        background: var(--sf-blue);
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .sf-timeline-content {
+        flex: 1;
+    }
+
+    .sf-timeline-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-timeline-meta {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    .sf-timeline-details {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.5rem;
+        background: var(--sf-gray-100);
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+    }
+
+    /* Ticket status badges */
+    .sf-ticket-status {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+
+    .sf-ticket-open { background: #fef3c7; color: #92400e; }
+    .sf-ticket-inprogress { background: #dbeafe; color: #1e40af; }
+    .sf-ticket-pending { background: #e0e7ff; color: #3730a3; }
+    .sf-ticket-resolved { background: #d1fae5; color: #065f46; }
+    .sf-ticket-closed { background: #e5e7eb; color: #374151; }
+
+    /* Highlight cards */
+    .sf-highlight-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .sf-highlight-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .sf-highlight-card {
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .sf-highlight-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--sf-blue);
+    }
+
+    .sf-highlight-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Highlights Panel (like accessory view) */
+    .sf-highlights-panel {
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sf-highlights-header {
+        background: linear-gradient(135deg, var(--sf-blue) 0%, var(--sf-blue-dark) 100%);
+        padding: 0.75rem 1.25rem;
+        color: white;
+    }
+
+    .sf-highlights-header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .sf-highlights-content {
+        display: flex;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        align-items: flex-start;
+    }
+
+    /* Product Section */
+    .sf-product-section {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, var(--sf-gray-100) 0%, #e8f4ff 100%);
+        border-radius: 0.5rem;
+        position: relative;
+    }
+
+    .sf-product-card-image {
+        width: 180px;
+        height: 180px;
+        max-width: 200px;
+        max-height: 200px;
+        object-fit: contain;
+        border-radius: 0.5rem;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-product-card-placeholder {
+        width: 180px;
+        height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        color: var(--sf-blue);
+    }
+
+    .sf-product-card-category {
+        position: absolute;
+        top: 0.5rem;
+        left: 0.5rem;
+        padding: 0.25rem 0.625rem;
+        background: var(--sf-blue);
+        color: white;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        border-radius: 0.25rem;
+    }
+
+    .sf-product-edit-btn {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        padding: 0.375rem;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.375rem;
+        cursor: pointer;
+        color: var(--sf-gray-600);
+        opacity: 0;
+        transition: opacity 0.15s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .sf-product-section:hover .sf-product-edit-btn {
+        opacity: 1;
+    }
+
+    .sf-product-edit-btn:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-blue);
+    }
+
+    /* Stats Section */
+    .sf-stats-section {
+        flex: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .sf-stat-card {
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        padding: 1.25rem 1rem;
+        text-align: center;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .sf-stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .sf-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+    }
+
+    .sf-stat-icon.blue { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: var(--sf-blue); }
+    .sf-stat-icon.green { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: var(--sf-success); }
+    .sf-stat-icon.orange { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #d97706; }
+    .sf-stat-icon.purple { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); color: #7c3aed; }
+
+    .sf-stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.1;
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-stat-number.blue { color: var(--sf-blue); }
+    .sf-stat-number.green { color: var(--sf-success); }
+    .sf-stat-number.orange { color: #d97706; }
+    .sf-stat-number.purple { color: #7c3aed; }
+
+    .sf-stat-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 900px) {
+        .sf-highlights-content {
+            flex-direction: column;
+            align-items: center;
+        }
+        .sf-stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .sf-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-page">
+    <!-- Record Header -->
+    <div class="sf-record-header">
+        <div class="sf-header-top">
+            <span class="sf-breadcrumb">
+                <a href="{{ url_for('inventory.view_inventory_sf') }}">Inventory</a> / Asset
+            </span>
+        </div>
+        <div class="sf-header-main">
+            <div class="sf-header-left">
+                <div class="sf-record-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="sf-record-title">
+                        {{ asset.asset_tag or asset.name or 'Unknown Asset' }}
+                        {% if asset.status %}
+                        <span class="sf-status-badge sf-status-{{ asset.status.value|lower|replace(' ', '') }}">
+                            {{ asset.status.value }}
+                        </span>
+                        {% endif %}
+                    </h1>
+                    <div class="sf-record-subtitle">
+                        {{ asset.serial_num or 'No Serial Number' }}
+                        {% if asset.model %} | {{ asset.model }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="sf-header-actions">
+                <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" class="sf-btn sf-btn-neutral">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Edit (Classic)
+                </a>
+                <a href="{{ url_for('inventory.view_inventory_sf') }}" class="sf-btn sf-btn-neutral">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                    Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="sf-content">
+        <!-- Highlights Panel with Product Image -->
+        <div class="sf-highlights-panel">
+            <div class="sf-highlights-header">
+                <div class="sf-highlights-header-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                    </svg>
+                    Asset Highlights
+                </div>
+            </div>
+            <div class="sf-highlights-content">
+                <!-- Product Image Section -->
+                <div class="sf-product-section">
+                    {% if asset.category or asset.asset_type %}
+                    <span class="sf-product-card-category">{{ asset.category or asset.asset_type }}</span>
+                    {% endif %}
+
+                    {% set product_image = asset.image_url %}
+                    {% if not product_image %}
+                        {# Auto-detect image based on manufacturer/model #}
+                        {% set model_lower = (asset.model or '')|lower %}
+                        {% set name_lower = (asset.name or '')|lower %}
+                        {% set mfg_lower = (asset.manufacturer or '')|lower %}
+
+                        {% if 'macbook' in model_lower or 'macbook' in name_lower or mfg_lower == 'apple' %}
+                            {% set product_image = 'https://pngimg.com/uploads/macbook/small/macbook_PNG101754.png' %}
+                        {% elif 'thinkpad' in model_lower or 'thinkpad' in name_lower or mfg_lower == 'lenovo' %}
+                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101762.png' %}
+                        {% elif 'latitude' in model_lower or 'xps' in model_lower or mfg_lower == 'dell' %}
+                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101775.png' %}
+                        {% elif 'elitebook' in model_lower or 'probook' in model_lower or mfg_lower == 'hp' %}
+                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101764.png' %}
+                        {% elif 'surface' in model_lower or mfg_lower == 'microsoft' %}
+                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101770.png' %}
+                        {% elif 'iphone' in model_lower or 'iphone' in name_lower %}
+                            {% set product_image = 'https://pngimg.com/uploads/iphone/small/iphone_PNG5732.png' %}
+                        {% elif 'ipad' in model_lower or 'ipad' in name_lower %}
+                            {% set product_image = 'https://pngimg.com/uploads/ipad/small/ipad_PNG101936.png' %}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if product_image %}
+                    <img src="{{ product_image }}" alt="{{ asset.name or asset.model or 'Asset' }}" class="sf-product-card-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="sf-product-card-placeholder" style="display: none;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                        </svg>
+                    </div>
+                    {% else %}
+                    <div class="sf-product-card-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+
+                    <button class="sf-product-edit-btn" onclick="editProductImage()" title="Edit product image">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Stats Section -->
+                <div class="sf-stats-section">
+                    <div class="sf-stats-grid">
+                        <div class="sf-stat-card">
+                            <div class="sf-stat-icon blue">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                </svg>
+                            </div>
+                            <div class="sf-stat-number blue">{{ related_tickets|length }}</div>
+                            <div class="sf-stat-label">Related Cases</div>
+                        </div>
+                        <div class="sf-stat-card">
+                            <div class="sf-stat-icon green">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="sf-stat-number green">{{ asset_history|length }}</div>
+                            <div class="sf-stat-label">History Entries</div>
+                        </div>
+                        <div class="sf-stat-card">
+                            <div class="sf-stat-icon orange">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                </svg>
+                            </div>
+                            <div class="sf-stat-number orange">{{ asset_transactions|length }}</div>
+                            <div class="sf-stat-label">Transactions</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sf-content-grid">
+            <!-- Left Column -->
+            <div>
+                <!-- Asset Details -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                            </svg>
+                            Asset Information
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-grid">
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Asset Tag</div>
+                                <div class="sf-detail-value">{{ asset.asset_tag or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Serial Number</div>
+                                <div class="sf-detail-value">{{ asset.serial_num or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Name</div>
+                                <div class="sf-detail-value">{{ asset.name or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Model</div>
+                                <div class="sf-detail-value">{{ asset.model or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Manufacturer</div>
+                                <div class="sf-detail-value">{{ asset.manufacturer or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Category / Type</div>
+                                <div class="sf-detail-value">{{ asset.asset_type or asset.category or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Status</div>
+                                <div class="sf-detail-value">
+                                    {% if asset.status %}
+                                    <span class="sf-status-badge sf-status-{{ asset.status.value|lower|replace(' ', '') }}">
+                                        {{ asset.status.value }}
+                                    </span>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Condition</div>
+                                <div class="sf-detail-value">{{ asset.condition or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location & Assignment -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            Location & Assignment
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-grid">
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Customer</div>
+                                <div class="sf-detail-value">{{ asset.customer or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Country</div>
+                                <div class="sf-detail-value">{{ asset.country or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Location</div>
+                                <div class="sf-detail-value">
+                                    {% if asset.location %}
+                                    {{ asset.location.name }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Inventory</div>
+                                <div class="sf-detail-value">{{ asset.inventory or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Specifications -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h6"/>
+                            </svg>
+                            Specifications
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-grid">
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">CPU Type</div>
+                                <div class="sf-detail-value">{{ asset.cpu_type or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">CPU Cores</div>
+                                <div class="sf-detail-value">{{ asset.cpu_cores or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Memory</div>
+                                <div class="sf-detail-value">{{ asset.memory or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Hard Drive</div>
+                                <div class="sf-detail-value">{{ asset.harddrive or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">GPU Cores</div>
+                                <div class="sf-detail-value">{{ asset.gpu_cores or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Keyboard</div>
+                                <div class="sf-detail-value">{{ asset.keyboard or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Charger</div>
+                                <div class="sf-detail-value">{{ asset.charger or '-' }}</div>
+                            </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Diagnostics</div>
+                                <div class="sf-detail-value">{{ asset.diag or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Related Cases -->
+                <div class="sf-card">
+                    <div class="sf-related-header">
+                        <span class="sf-related-title">
+                            Related Cases
+                            <span class="sf-related-count">{{ related_tickets|length }}</span>
+                        </span>
+                    </div>
+                    {% if related_tickets %}
+                    <table class="sf-related-table">
+                        <thead>
+                            <tr>
+                                <th>Case Number</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in related_tickets %}
+                            <tr>
+                                <td><a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}">{{ ticket.ticket_number or ticket.id }}</a></td>
+                                <td>{{ ticket.subject or ticket.title or '-' }}</td>
+                                <td>
+                                    <span class="sf-ticket-status sf-ticket-{{ ticket.status.value|lower|replace(' ', '') if ticket.status else 'open' }}">
+                                        {{ ticket.status.value if ticket.status else 'Open' }}
+                                    </span>
+                                </td>
+                                <td>{{ ticket.priority.value if ticket.priority else '-' }}</td>
+                                <td>{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="sf-empty-state">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto 0.5rem; opacity: 0.5;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                        </svg>
+                        <p>No related cases found for this asset</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div>
+                <!-- Notes -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                            Notes
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">General Notes</div>
+                            <div class="sf-detail-value">{{ asset.notes or 'No notes' }}</div>
+                        </div>
+                        <div class="sf-detail-field" style="margin-top: 1rem;">
+                            <div class="sf-detail-label">Technical Notes</div>
+                            <div class="sf-detail-value">{{ asset.tech_notes or 'No technical notes' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchase Info -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                            Purchase Information
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Cost Price</div>
+                            <div class="sf-detail-value">{{ '${:,.2f}'.format(asset.cost_price) if asset.cost_price else '-' }}</div>
+                        </div>
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">PO Number</div>
+                            <div class="sf-detail-value">{{ asset.po or '-' }}</div>
+                        </div>
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Receiving Date</div>
+                            <div class="sf-detail-value">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '-' }}</div>
+                        </div>
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Erased</div>
+                            <div class="sf-detail-value">{{ asset.erased or '-' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Timeline -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            Recent Activity
+                        </span>
+                    </div>
+                    {% if asset_history %}
+                    <div class="sf-timeline">
+                        {% for entry in asset_history %}
+                        <div class="sf-timeline-item">
+                            <div class="sf-timeline-dot"></div>
+                            <div class="sf-timeline-content">
+                                <div class="sf-timeline-title">{{ entry.action }}</div>
+                                <div class="sf-timeline-meta">
+                                    {{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '' }}
+                                    {% if entry.user %} by {{ entry.user.username }}{% endif %}
+                                </div>
+                                {% if entry.notes %}
+                                <div class="sf-timeline-details">{{ entry.notes }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="sf-empty-state">
+                        <p>No activity recorded</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- System Info -->
+                <div class="sf-card">
+                    <div class="sf-card-header">
+                        <span class="sf-card-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                            </svg>
+                            System Information
+                        </span>
+                    </div>
+                    <div class="sf-card-body">
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Asset ID</div>
+                            <div class="sf-detail-value">{{ asset.id }}</div>
+                        </div>
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Created</div>
+                            <div class="sf-detail-value">{{ asset.created_at.strftime('%Y-%m-%d %H:%M') if asset.created_at else '-' }}</div>
+                        </div>
+                        <div class="sf-detail-field">
+                            <div class="sf-detail-label">Last Updated</div>
+                            <div class="sf-detail-value">{{ asset.updated_at.strftime('%Y-%m-%d %H:%M') if asset.updated_at else '-' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Image Modal -->
+<div id="imageModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 0.5rem; width: 90%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--sf-gray-200); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--sf-gray-800);">Edit Product Image</h3>
+            <button onclick="closeImageModal()" style="background: none; border: none; cursor: pointer; color: var(--sf-gray-600); padding: 0.25rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--sf-gray-600); margin-bottom: 0.5rem;">Image URL</label>
+                <input type="url" id="imageUrlInput" placeholder="https://example.com/image.png" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--sf-gray-300); border-radius: 0.25rem; font-size: 0.875rem;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--sf-gray-600); margin-bottom: 0.5rem;">Preview</label>
+                <div id="imagePreview" style="width: 150px; height: 150px; border: 1px solid var(--sf-gray-200); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; background: var(--sf-gray-100);">
+                    <span style="color: var(--sf-gray-600); font-size: 0.75rem;">No preview</span>
+                </div>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--sf-gray-600); margin-bottom: 1rem;">
+                <strong>Suggested image sources:</strong>
+                <ul style="margin: 0.5rem 0 0 1rem; padding: 0;">
+                    <li><a href="https://pngimg.com/images/electronics/macbook" target="_blank" style="color: var(--sf-blue);">MacBook images</a></li>
+                    <li><a href="https://pngimg.com/images/electronics/laptop" target="_blank" style="color: var(--sf-blue);">Windows laptop images</a></li>
+                    <li><a href="https://pngimg.com/images/electronics" target="_blank" style="color: var(--sf-blue);">Other electronics</a></li>
+                </ul>
+            </div>
+        </div>
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--sf-gray-200); display: flex; justify-content: flex-end; gap: 0.5rem;">
+            <button onclick="closeImageModal()" class="sf-btn sf-btn-neutral">Cancel</button>
+            <button onclick="saveProductImage()" class="sf-btn sf-btn-brand">Save Image</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const assetId = {{ asset.id }};
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+function editProductImage() {
+    const modal = document.getElementById('imageModal');
+    const input = document.getElementById('imageUrlInput');
+
+    // Get current image URL if exists
+    const currentImg = document.querySelector('.sf-product-card-image');
+    if (currentImg && currentImg.src && !currentImg.src.includes('undefined')) {
+        input.value = currentImg.src;
+        updatePreview();
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+}
+
+function updatePreview() {
+    const url = document.getElementById('imageUrlInput').value;
+    const preview = document.getElementById('imagePreview');
+
+    if (url) {
+        preview.innerHTML = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.parentElement.innerHTML='<span style=\\'color: var(--sf-error); font-size: 0.75rem;\\'>Failed to load image</span>'">`;
+    } else {
+        preview.innerHTML = '<span style="color: var(--sf-gray-600); font-size: 0.75rem;">No preview</span>';
+    }
+}
+
+// Add input event listener
+document.getElementById('imageUrlInput').addEventListener('input', updatePreview);
+
+async function saveProductImage() {
+    const url = document.getElementById('imageUrlInput').value.trim();
+
+    try {
+        const response = await fetch(`/inventory/api/asset/${assetId}/image`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ image_url: url })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeImageModal();
+            // Refresh the page to show updated image
+            window.location.reload();
+        } else {
+            alert('Error saving image: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error saving image: ' + error.message);
+    }
+}
+
+// Close modal on background click
+document.getElementById('imageModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeImageModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,238 @@
+<style>
+.launchpad-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+.launchpad-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    padding: 0.5rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.launchpad-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.05);
+}
+
+.dark .launchpad-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.launchpad-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.launchpad-icon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.3), rgba(255,255,255,0));
+    border-radius: 14px 14px 0 0;
+}
+
+.launchpad-icon i {
+    color: white;
+    font-size: 1.5rem;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.launchpad-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--sf-gray-700);
+    text-align: center;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dark .launchpad-label {
+    color: var(--sf-gray-300);
+}
+
+/* Icon gradient backgrounds - iOS style */
+.lp-blue { background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); }
+.lp-green { background: linear-gradient(135deg, #34C759 0%, #30B94D 100%); }
+.lp-orange { background: linear-gradient(135deg, #FF9500 0%, #FF6B00 100%); }
+.lp-red { background: linear-gradient(135deg, #FF3B30 0%, #FF2D55 100%); }
+.lp-purple { background: linear-gradient(135deg, #AF52DE 0%, #5856D6 100%); }
+.lp-pink { background: linear-gradient(135deg, #FF2D55 0%, #FF6B8A 100%); }
+.lp-teal { background: linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%); }
+.lp-indigo { background: linear-gradient(135deg, #5856D6 0%, #3634A3 100%); }
+.lp-yellow { background: linear-gradient(135deg, #FFCC00 0%, #FF9500 100%); }
+.lp-gray { background: linear-gradient(135deg, #8E8E93 0%, #636366 100%); }
+.lp-cyan { background: linear-gradient(135deg, #32D4DE 0%, #5AC8FA 100%); }
+.lp-mint { background: linear-gradient(135deg, #00C7BE 0%, #34C759 100%); }
+</style>
+
+<div class="launchpad-grid">
+    {# Tickets - available to all users #}
+    <a href="{{ url_for('tickets.list_tickets') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-green">
+            <i class="fas fa-ticket-alt"></i>
+        </div>
+        <span class="launchpad-label">Tickets</span>
+    </a>
+
+    {# New Ticket - available to all users #}
+    <a href="{{ url_for('tickets.create_ticket') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-blue">
+            <i class="fas fa-plus-circle"></i>
+        </div>
+        <span class="launchpad-label">New Ticket</span>
+    </a>
+
+    {# Inventory - SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
+    <a href="{{ url_for('inventory.view_inventory') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-purple">
+            <i class="fas fa-boxes"></i>
+        </div>
+        <span class="launchpad-label">Inventory</span>
+    </a>
+    {% endif %}
+
+    {# Add Asset - SUPER_ADMIN, DEVELOPER, COUNTRY_ADMIN only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN'] %}
+    <a href="{{ url_for('inventory.add_asset') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-indigo">
+            <i class="fas fa-laptop"></i>
+        </div>
+        <span class="launchpad-label">Add Asset</span>
+    </a>
+    {% endif %}
+
+    {# Accessories - SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
+    <a href="{{ url_for('inventory.view_accessories') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-teal">
+            <i class="fas fa-keyboard"></i>
+        </div>
+        <span class="launchpad-label">Accessories</span>
+    </a>
+    {% endif %}
+
+    {# Customers - SUPER_ADMIN, DEVELOPER, COUNTRY_ADMIN #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN'] %}
+    <a href="{{ url_for('inventory.list_customer_users') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-cyan">
+            <i class="fas fa-users"></i>
+        </div>
+        <span class="launchpad-label">Customers</span>
+    </a>
+    {% endif %}
+
+    {# Reports - SUPER_ADMIN, DEVELOPER only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER'] %}
+    <a href="{{ url_for('reports.index') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-orange">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <span class="launchpad-label">Reports</span>
+    </a>
+    {% endif %}
+
+    {# Knowledge Base - available to all users #}
+    <a href="{{ url_for('knowledge.index') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-yellow">
+            <i class="fas fa-book"></i>
+        </div>
+        <span class="launchpad-label">Knowledge</span>
+    </a>
+
+    {# Documents - available to all users #}
+    <a href="{{ url_for('documents.dashboard') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-red">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <span class="launchpad-label">Documents</span>
+    </a>
+
+    {# Companies - SUPER_ADMIN, DEVELOPER only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER'] %}
+    <a href="{{ url_for('admin.manage_companies') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-mint">
+            <i class="fas fa-building"></i>
+        </div>
+        <span class="launchpad-label">Companies</span>
+    </a>
+    {% endif %}
+
+    {# Users - SUPER_ADMIN, DEVELOPER only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER'] %}
+    <a href="{{ url_for('admin.manage_users') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-pink">
+            <i class="fas fa-user-cog"></i>
+        </div>
+        <span class="launchpad-label">Users</span>
+    </a>
+    {% endif %}
+
+    {# Queues - SUPER_ADMIN, DEVELOPER only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER'] %}
+    <a href="{{ url_for('tickets.list_queues') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-gray">
+            <i class="fas fa-layer-group"></i>
+        </div>
+        <span class="launchpad-label">Queues</span>
+    </a>
+    {% endif %}
+
+    {# Billing - SUPER_ADMIN only #}
+    {% if session.get('user_type') == 'SUPER_ADMIN' %}
+    <a href="{{ url_for('admin.billing_generator') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-green">
+            <i class="fas fa-calculator"></i>
+        </div>
+        <span class="launchpad-label">Billing</span>
+    </a>
+    {% endif %}
+
+    {# Activity Log - SUPER_ADMIN, DEVELOPER only #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER'] %}
+    <a href="{{ url_for('admin.view_history') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-indigo">
+            <i class="fas fa-history"></i>
+        </div>
+        <span class="launchpad-label">Activity</span>
+    </a>
+    {% endif %}
+
+    {# Settings - available to all users #}
+    <a href="{{ url_for('admin.theme_settings') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-gray">
+            <i class="fas fa-cog"></i>
+        </div>
+        <span class="launchpad-label">Settings</span>
+    </a>
+
+    {# Profile - available to all users #}
+    <a href="{{ url_for('auth.profile') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-blue">
+            <i class="fas fa-user-circle"></i>
+        </div>
+        <span class="launchpad-label">Profile</span>
+    </a>
+</div>

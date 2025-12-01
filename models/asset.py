@@ -40,6 +40,7 @@ class Asset(Base):
     specifications = Column(JSON)
     notes = Column(String(1000))
     tech_notes = Column(String(2000))  # Longer length for detailed technical notes
+    image_url = Column(String(500), nullable=True)  # Product image URL
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     assigned_to_id = Column(Integer, ForeignKey('users.id'))

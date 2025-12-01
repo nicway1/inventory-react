@@ -1,0 +1,50 @@
+{% set data = widget_data.get('shipments', {}) %}
+<div style="overflow-x: auto;">
+    <table style="width: 100%; font-size: 0.8125rem; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--sf-gray-200);">
+                <th style="padding: 0.5rem; text-align: left; font-weight: 600; color: var(--sf-gray-600); font-size: 0.75rem; text-transform: uppercase;">Ticket</th>
+                <th style="padding: 0.5rem; text-align: left; font-weight: 600; color: var(--sf-gray-600); font-size: 0.75rem; text-transform: uppercase;">Customer</th>
+                <th style="padding: 0.5rem; text-align: left; font-weight: 600; color: var(--sf-gray-600); font-size: 0.75rem; text-transform: uppercase;">Outbound</th>
+                <th style="padding: 0.5rem; text-align: left; font-weight: 600; color: var(--sf-gray-600); font-size: 0.75rem; text-transform: uppercase;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in data.get('tickets', [])[:10] %}
+            <tr style="border-bottom: 1px solid var(--sf-gray-100);" onclick="window.location.href='{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}'" style="cursor: pointer;">
+                <td style="padding: 0.625rem 0.5rem;">
+                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" style="color: var(--sf-blue); text-decoration: none; font-weight: 500;">{{ ticket.display_id }}</a>
+                </td>
+                <td style="padding: 0.625rem 0.5rem; color: var(--sf-gray-800);">{{ ticket.customer_name or 'N/A' }}</td>
+                <td style="padding: 0.625rem 0.5rem;">
+                    {% if ticket.shipping_tracking %}
+                    <span style="font-family: monospace; font-size: 0.75rem; color: var(--sf-blue);">{{ ticket.shipping_tracking[:20] }}...</span>
+                    {% else %}
+                    <span style="color: var(--sf-gray-400);">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.625rem 0.5rem;">
+                    <span style="display: inline-block; padding: 0.125rem 0.5rem; border-radius: 1rem; font-size: 0.6875rem; font-weight: 600;
+                        {% if ticket.shipping_status and 'delivered' in ticket.shipping_status.lower() %}
+                            background: #d4edda; color: #155724;
+                        {% elif ticket.shipping_status and 'transit' in ticket.shipping_status.lower() %}
+                            background: #cce5ff; color: #004085;
+                        {% else %}
+                            background: var(--sf-gray-200); color: var(--sf-gray-700);
+                        {% endif %}
+                    ">{{ ticket.shipping_status or 'Pending' }}</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="padding: 1.5rem; text-align: center; color: var(--sf-gray-500);">No shipments found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if data.get('tickets', [])|length > 10 %}
+<div style="text-align: center; padding-top: 0.75rem; border-top: 1px solid var(--sf-gray-200); margin-top: 0.5rem;">
+    <a href="{{ url_for('tickets.list_tickets') }}" style="font-size: 0.8125rem; color: var(--sf-blue); text-decoration: none;">View all shipments <i class="fas fa-arrow-right"></i></a>
+</div>
+{% endif %}

@@ -1,0 +1,11 @@
+{% set data = widget_data.get('asset_status', {}) %}
+<div style="height: 180px;">
+    <canvas id="assetStatusChart"></canvas>
+</div>
+<script>
+    // Store data for initialization
+    window.assetStatusData = {
+        labels: {{ data.get('labels', []) | tojson }},
+        values: {{ data.get('values', []) | tojson }}
+    };
+</script>

@@ -1,295 +1,1433 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    /* Salesforce-style colors */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-gray-100: #f3f3f3;
+        --sf-gray-200: #e5e5e5;
+        --sf-gray-300: #c9c9c9;
+        --sf-gray-600: #706e6b;
+        --sf-gray-800: #3e3e3c;
+    }
+
+    /* Main layout */
+    .sf-reports-page {
+        background: var(--sf-gray-100);
+        min-height: 100vh;
+    }
+
+    /* Header bar */
+    .sf-reports-header {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-reports-title-section {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sf-reports-breadcrumb {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-reports-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-reports-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-left: 0.5rem;
+    }
+
+    .sf-reports-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-search-box {
+        display: flex;
+        align-items: center;
+        background: white;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        width: 220px;
+    }
+
+    .sf-search-box input {
+        border: none;
+        outline: none;
+        font-size: 0.8125rem;
+        width: 100%;
+        margin-left: 0.5rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .sf-btn-neutral {
+        background: white;
+        border-color: var(--sf-gray-300);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-btn-neutral:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-btn-brand {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-btn-brand:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    /* Main content area */
+    .sf-reports-content {
+        display: flex;
+        height: calc(100vh - 60px);
+    }
+
+    /* Sidebar */
+    .sf-reports-sidebar {
+        width: 200px;
+        background: white;
+        border-right: 1px solid var(--sf-gray-200);
+        padding: 1rem 0;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+
+    .sf-sidebar-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-sidebar-title {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--sf-gray-600);
+        padding: 0 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-sidebar-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        text-decoration: none;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+    }
+
+    .sf-sidebar-item:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-sidebar-item.active {
+        background: #e8f4ff;
+        color: var(--sf-blue);
+        border-left-color: var(--sf-blue);
+        font-weight: 600;
+    }
+
+    .sf-sidebar-item svg {
+        margin-right: 0.5rem;
+        opacity: 0.7;
+    }
+
+    /* Main table area */
+    .sf-reports-main {
+        flex: 1;
+        padding: 1rem;
+        overflow-y: auto;
+        background: var(--sf-gray-100);
+    }
+
+    .sf-reports-table-container {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        overflow: hidden;
+    }
+
+    .sf-reports-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-reports-table th {
+        background: var(--sf-gray-100);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sf-reports-table th:hover {
+        background: var(--sf-gray-200);
+    }
+
+    .sf-reports-table th .sort-icon {
+        margin-left: 0.25rem;
+        opacity: 0.5;
+    }
+
+    .sf-reports-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-reports-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .sf-report-link {
+        color: var(--sf-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .sf-report-link:hover {
+        text-decoration: underline;
+    }
+
+    .sf-report-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        margin-right: 0.75rem;
+    }
+
+    .sf-report-icon.blue { background: #e8f4ff; color: var(--sf-blue); }
+    .sf-report-icon.green { background: #d4edda; color: #28a745; }
+    .sf-report-icon.purple { background: #f3e8ff; color: #9333ea; }
+    .sf-report-icon.orange { background: #fff3cd; color: #fd7e14; }
+
+    .sf-report-name-cell {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Empty state */
+    .sf-empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-empty-state svg {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Badge */
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        border-radius: 1rem;
+        text-transform: uppercase;
+    }
+
+    .sf-badge-blue { background: #e8f4ff; color: var(--sf-blue); }
+    .sf-badge-green { background: #d4edda; color: #28a745; }
+    .sf-badge-purple { background: #f3e8ff; color: #9333ea; }
+
+    /* Dropdown menu */
+    .sf-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .sf-dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        min-width: 160px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 0.25rem;
+        z-index: 100;
+        border: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-dropdown:hover .sf-dropdown-content {
+        display: block;
+    }
+
+    .sf-dropdown-item {
+        display: block;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .sf-dropdown-item:hover {
+        background: var(--sf-gray-100);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .sf-reports-sidebar {
+            display: none;
+        }
+        .sf-search-box {
+            width: 150px;
+        }
+    }
+
+    /* Create Report Modal */
+    .sf-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sf-modal-overlay.active {
+        display: flex;
+    }
+
+    .sf-modal {
+        background: white;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .sf-modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-modal-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        color: var(--sf-gray-600);
+        border-radius: 0.25rem;
+    }
+
+    .sf-modal-close:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-modal-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        min-height: 400px;
+    }
+
+    /* Modal Sidebar */
+    .sf-modal-sidebar {
+        width: 200px;
+        background: var(--sf-gray-100);
+        border-right: 1px solid var(--sf-gray-200);
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+
+    .sf-modal-sidebar-title {
+        padding: 1rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-modal-sidebar-item {
+        display: block;
+        padding: 0.625rem 1rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        text-decoration: none;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+    }
+
+    .sf-modal-sidebar-item:hover {
+        background: white;
+    }
+
+    .sf-modal-sidebar-item.active {
+        background: white;
+        color: var(--sf-blue);
+        border-left-color: var(--sf-blue);
+        font-weight: 600;
+    }
+
+    /* Modal Main Content */
+    .sf-modal-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .sf-modal-main-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-modal-main-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-modal-search {
+        display: flex;
+        align-items: center;
+        background: white;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .sf-modal-search input {
+        border: none;
+        outline: none;
+        font-size: 0.875rem;
+        width: 100%;
+        margin-left: 0.5rem;
+    }
+
+    .sf-modal-main-subtitle {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        padding: 0.75rem 1rem;
+        background: var(--sf-gray-100);
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-report-types-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .sf-report-types-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-report-types-table th {
+        background: var(--sf-gray-100);
+        padding: 0.5rem 1rem;
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        position: sticky;
+        top: 0;
+    }
+
+    .sf-report-types-table td {
+        padding: 0.625rem 1rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+        cursor: pointer;
+    }
+
+    .sf-report-types-table tr:hover td {
+        background: #e8f4ff;
+    }
+
+    .sf-report-types-table tr.selected td {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-report-type-name {
+        color: var(--sf-blue);
+        font-weight: 500;
+    }
+
+    .sf-report-types-table tr.selected .sf-report-type-name {
+        color: white;
+    }
+
+    /* Modal Details Panel */
+    .sf-modal-details {
+        width: 250px;
+        background: white;
+        border-left: 1px solid var(--sf-gray-200);
+        padding: 1rem;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+
+    .sf-modal-details-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .sf-modal-details-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+    }
+
+    .sf-selected-report-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--sf-blue);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-selected-report-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-selected-report-type {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        margin-bottom: 1rem;
+    }
+
+    .sf-report-name-input {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .sf-report-name-input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    .sf-start-report-btn {
+        width: 100%;
+        padding: 0.625rem 1rem;
+        background: var(--sf-blue);
+        color: white;
+        border: none;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 1rem;
+    }
+
+    .sf-start-report-btn:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    .sf-start-report-btn:disabled {
+        background: var(--sf-gray-300);
+        cursor: not-allowed;
+    }
+
+    .sf-details-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--sf-gray-200);
+        margin-bottom: 1rem;
+    }
+
+    .sf-details-tab {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .sf-details-tab.active {
+        color: var(--sf-blue);
+        border-bottom-color: var(--sf-blue);
+    }
+
+    .sf-details-info {
+        font-size: 0.8125rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-details-info-label {
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .sf-details-info-value {
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-objects-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .sf-object-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--sf-blue);
+    }
+
+    .sf-object-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .sf-object-dot.purple { background: #9333ea; }
+    .sf-object-dot.blue { background: var(--sf-blue); }
+    .sf-object-dot.green { background: #28a745; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="sf-reports-page">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow mb-6 p-6">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="w-8 h-8 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    <div class="sf-reports-header">
+        <div class="sf-reports-title-section">
+            <span class="sf-reports-breadcrumb">Reports</span>
+            <span class="sf-reports-title">
+                My Reports & Dashboards
+                <span class="sf-reports-count" id="reportCount">(0 items)</span>
+            </span>
+        </div>
+        <div class="sf-reports-actions">
+            <div class="sf-search-box">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
                 </svg>
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-                    <p class="text-gray-600">Gain insights into your data with comprehensive reports</p>
-                </div>
+                <input type="text" placeholder="Search all reports..." id="searchReports" onkeyup="filterReports()">
             </div>
-            <div class="text-sm text-gray-500">
-                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <a href="{{ url_for('reports.new_dashboard') }}" class="sf-btn sf-btn-neutral">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
                 </svg>
-                Last updated: {{ current_time }}
-            </div>
-        </div>
-    </div>
-
-    <!-- Report Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Case Reports Card -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 bg-blue-100 rounded-lg">
-                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h2 class="text-xl font-semibold text-gray-900">Case Reports</h2>
-                            <p class="text-gray-600">Analyze ticket trends and performance</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                            Live Data
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Ticket status distribution</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Priority breakdown analysis</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Resolution time metrics</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Time series trends</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Customer insights</span>
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <a href="{{ url_for('reports.case_reports') }}" 
-                       class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        View Case Reports
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Asset Reports Card -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 bg-green-100 rounded-lg">
-                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h2 class="text-xl font-semibold text-gray-900">Asset Reports</h2>
-                            <p class="text-gray-600">Track asset inventory and utilization</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                            Real-time
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Asset status overview</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Type and model distribution</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Geographic distribution</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Age and lifecycle analysis</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Utilization metrics</span>
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <a href="{{ url_for('reports.asset_reports') }}" 
-                       class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        View Asset Reports
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Advanced Case Report Builder Card -->
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 border-2 border-purple-200">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 bg-purple-100 rounded-lg">
-                            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h2 class="text-xl font-semibold text-gray-900">Advanced Report Builder</h2>
-                            <p class="text-gray-600">Create custom reports with flexible filters</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-                            ⭐ New
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Dynamic filtering by category, status, priority</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Interactive chart types (pie, bar, line)</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Flexible date range selection</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Export to CSV, Excel, and PDF</span>
-                    </div>
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="ml-2 text-gray-600">Save and share report configurations</span>
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <a href="{{ url_for('reports.case_reports_builder') }}"
-                       class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a1 1 0 01-1-1V9a1 1 0 011-1h1a2 2 0 100-4H4a1 1 0 01-1-1V5a1 1 0 011-1h3a1 1 0 001-1V2a2 2 0 114 0z" />
-                        </svg>
-                        Build Custom Reports
-                    </a>
+                New Dashboard
+            </a>
+            <button class="sf-btn sf-btn-brand" onclick="openCreateReportModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                New Report
+            </button>
+            <div class="sf-dropdown">
+                <button class="sf-btn sf-btn-neutral">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                    </svg>
+                </button>
+                <div class="sf-dropdown-content">
+                    <a class="sf-dropdown-item" href="{{ url_for('reports.case_reports') }}">Case Reports</a>
+                    <a class="sf-dropdown-item" href="{{ url_for('reports.asset_reports') }}">Asset Reports</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Report Activity -->
-    <div class="mt-8 bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Report Activity</h3>
-        <div class="space-y-4">
-            <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                <div class="flex items-center">
-                    <div class="p-2 bg-blue-50 rounded">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-900">Weekly Case Report Generated</p>
-                        <p class="text-sm text-gray-500">Generated by system</p>
-                    </div>
-                </div>
-                <span class="text-sm text-gray-500">2 hours ago</span>
+    <!-- Main content -->
+    <div class="sf-reports-content">
+        <!-- Sidebar -->
+        <div class="sf-reports-sidebar">
+            <div class="sf-sidebar-section">
+                <div class="sf-sidebar-title">Filter By Type</div>
+                <a href="#" class="sf-sidebar-item active" onclick="filterByType('all', this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    All Items
+                </a>
+                <a href="#" class="sf-sidebar-item" onclick="filterByType('dashboard', this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                    Dashboards Only
+                </a>
+                <a href="#" class="sf-sidebar-item" onclick="filterByType('report', this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    Reports Only
+                </a>
             </div>
-            <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                <div class="flex items-center">
-                    <div class="p-2 bg-green-50 rounded">
-                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-900">Asset Utilization Report Viewed</p>
-                        <p class="text-sm text-gray-500">Viewed by Admin</p>
-                    </div>
-                </div>
-                <span class="text-sm text-gray-500">Yesterday</span>
+
+            <div class="sf-sidebar-section">
+                <div class="sf-sidebar-title">Quick Actions</div>
+                <a href="{{ url_for('reports.new_dashboard') }}" class="sf-sidebar-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    New Dashboard
+                </a>
+                <a href="#" class="sf-sidebar-item" onclick="openCreateReportModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    New Report
+                </a>
             </div>
-            <div class="flex items-center justify-between py-3">
-                <div class="flex items-center">
-                    <div class="p-2 bg-indigo-50 rounded">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+
+            <div class="sf-sidebar-section">
+                <div class="sf-sidebar-title">Report Templates</div>
+                <a href="{{ url_for('reports.case_reports_builder') }}" class="sf-sidebar-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a1 1 0 01-1-1V9a1 1 0 011-1h1a2 2 0 100-4H4a1 1 0 01-1-1V5a1 1 0 011-1h3a1 1 0 001-1V2"/>
+                    </svg>
+                    Case Report Builder
+                </a>
+                <a href="{{ url_for('reports.case_reports') }}" class="sf-sidebar-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    Case Status Reports
+                </a>
+                <a href="{{ url_for('reports.asset_reports') }}" class="sf-sidebar-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    Asset Reports
+                </a>
+            </div>
+        </div>
+
+        <!-- Main table area -->
+        <div class="sf-reports-main">
+            <div class="sf-reports-table-container">
+                <table class="sf-reports-table" id="reportsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">
+                                Name
+                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"/>
+                                </svg>
+                            </th>
+                            <th onclick="sortTable(1)">
+                                Type
+                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"/>
+                                </svg>
+                            </th>
+                            <th onclick="sortTable(2)">
+                                Components
+                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"/>
+                                </svg>
+                            </th>
+                            <th onclick="sortTable(3)">
+                                Last Modified
+                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"/>
+                                </svg>
+                            </th>
+                            <th>
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportsTableBody">
+                        <!-- Dynamic content loaded from localStorage -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Report Modal -->
+<div class="sf-modal-overlay" id="createReportModal" onclick="closeModalOnOverlay(event)">
+    <div class="sf-modal">
+        <div class="sf-modal-header">
+            <span class="sf-modal-title">Create Report</span>
+            <button class="sf-modal-close" onclick="closeCreateReportModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="sf-modal-body">
+            <!-- Category Sidebar -->
+            <div class="sf-modal-sidebar">
+                <div class="sf-modal-sidebar-title">Category</div>
+                <a class="sf-modal-sidebar-item active" onclick="filterReportTypes('all')">All</a>
+                <a class="sf-modal-sidebar-item" onclick="filterReportTypes('cases')">Cases & Tickets</a>
+                <a class="sf-modal-sidebar-item" onclick="filterReportTypes('assets')">Assets</a>
+                <a class="sf-modal-sidebar-item" onclick="filterReportTypes('customers')">Customers</a>
+                <a class="sf-modal-sidebar-item" onclick="filterReportTypes('analytics')">Analytics</a>
+            </div>
+
+            <!-- Report Types List -->
+            <div class="sf-modal-main">
+                <div class="sf-modal-main-header">
+                    <div class="sf-modal-main-title">Select a Report Type</div>
+                    <div class="sf-modal-search">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
                         </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-900">Monthly Report Exported</p>
-                        <p class="text-sm text-gray-500">Exported as PDF</p>
+                        <input type="text" placeholder="Search Report Types..." id="searchReportTypes" onkeyup="searchReportTypes()">
                     </div>
                 </div>
-                <span class="text-sm text-gray-500">3 days ago</span>
+                <div class="sf-modal-main-subtitle">Available Report Types</div>
+                <div class="sf-report-types-list">
+                    <table class="sf-report-types-table">
+                        <thead>
+                            <tr>
+                                <th>Report Type Name</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTypesBody">
+                            <tr data-type="case-standard" data-category="cases" onclick="selectReportType(this, 'case-standard', 'Case Report', 'Standard')">
+                                <td><span class="sf-report-type-name">Case Report</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="case-status" data-category="cases" onclick="selectReportType(this, 'case-status', 'Ticket Status Report', 'Standard')">
+                                <td><span class="sf-report-type-name">Ticket Status Report</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="case-priority" data-category="cases" onclick="selectReportType(this, 'case-priority', 'Priority Analysis', 'Standard')">
+                                <td><span class="sf-report-type-name">Priority Analysis</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="case-resolution" data-category="cases" onclick="selectReportType(this, 'case-resolution', 'Resolution Time Report', 'Standard')">
+                                <td><span class="sf-report-type-name">Resolution Time Report</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="case-user" data-category="cases" onclick="selectReportType(this, 'case-user', 'Tickets by User', 'Standard')">
+                                <td><span class="sf-report-type-name">Tickets by User</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="asset-inventory" data-category="assets" onclick="selectReportType(this, 'asset-inventory', 'Asset Inventory', 'Standard')">
+                                <td><span class="sf-report-type-name">Asset Inventory</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="asset-status" data-category="assets" onclick="selectReportType(this, 'asset-status', 'Asset Status Report', 'Standard')">
+                                <td><span class="sf-report-type-name">Asset Status Report</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="asset-location" data-category="assets" onclick="selectReportType(this, 'asset-location', 'Assets by Location', 'Standard')">
+                                <td><span class="sf-report-type-name">Assets by Location</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="customer-list" data-category="customers" onclick="selectReportType(this, 'customer-list', 'Customer List', 'Standard')">
+                                <td><span class="sf-report-type-name">Customer List</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="customer-tickets" data-category="customers" onclick="selectReportType(this, 'customer-tickets', 'Tickets by Customer', 'Standard')">
+                                <td><span class="sf-report-type-name">Tickets by Customer</span></td>
+                                <td>Standard</td>
+                            </tr>
+                            <tr data-type="trend-analysis" data-category="analytics" onclick="selectReportType(this, 'trend-analysis', 'Trend Analysis', 'Analytics')">
+                                <td><span class="sf-report-type-name">Trend Analysis</span></td>
+                                <td>Analytics</td>
+                            </tr>
+                            <tr data-type="performance-metrics" data-category="analytics" onclick="selectReportType(this, 'performance-metrics', 'Performance Metrics', 'Analytics')">
+                                <td><span class="sf-report-type-name">Performance Metrics</span></td>
+                                <td>Analytics</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Details Panel -->
+            <div class="sf-modal-details">
+                <div class="sf-modal-details-header">
+                    <span class="sf-modal-details-title">Details</span>
+                    <button class="sf-modal-close" style="padding: 0.25rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="reportDetailsContent">
+                    <div class="sf-selected-report-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="sf-selected-report-name" id="selectedReportName">Case Report</div>
+                    <div class="sf-selected-report-type" id="selectedReportCategory">Standard Report Type</div>
+
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--sf-gray-600); display: block; margin-bottom: 0.5rem;">Report Name</label>
+                    <input type="text" class="sf-report-name-input" id="newReportName" placeholder="Enter report name...">
+
+                    <button class="sf-start-report-btn" id="startReportBtn" onclick="startReport()">
+                        Start Report
+                    </button>
+
+                    <div class="sf-details-tabs">
+                        <button class="sf-details-tab active">Details</button>
+                        <button class="sf-details-tab">Fields</button>
+                    </div>
+
+                    <div class="sf-details-info">
+                        <div class="sf-details-info-label">Created By You</div>
+                        <div class="sf-details-info-value">No Reports Yet</div>
+
+                        <div class="sf-details-info-label">Created By Others</div>
+                        <div class="sf-details-info-value">No Reports Yet</div>
+
+                        <div class="sf-details-info-label">Objects Used in Report Type</div>
+                        <div class="sf-objects-list" id="reportObjects">
+                            <div class="sf-object-item">
+                                <span class="sf-object-dot purple"></span>
+                                Tickets
+                            </div>
+                            <div class="sf-object-item">
+                                <span class="sf-object-dot blue"></span>
+                                Customers
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Update current time
-document.addEventListener('DOMContentLoaded', function() {
-    const currentTimeEl = document.querySelector('.text-gray-500');
-    if (currentTimeEl) {
-        const now = new Date();
-        currentTimeEl.innerHTML = `
-            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Last updated: ${now.toLocaleString()}
+// Selected report type
+let selectedReportType = 'case-standard';
+let selectedReportName = 'Case Report';
+
+// Filter reports by search
+function filterReports() {
+    const searchTerm = document.getElementById('searchReports').value.toLowerCase();
+    const rows = document.querySelectorAll('#reportsTableBody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const name = row.querySelector('.sf-report-link')?.textContent.toLowerCase() || '';
+        if (name.includes(searchTerm)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    document.getElementById('reportCount').textContent = `(${visibleCount} items)`;
+}
+
+// Filter by category (sidebar)
+function filterByCategory(category) {
+    // Update active state
+    document.querySelectorAll('.sf-sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    const rows = document.querySelectorAll('#reportsTableBody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        if (category === 'all') {
+            row.style.display = '';
+            visibleCount++;
+        } else if (category === 'recent') {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            const rowCategory = row.dataset.category;
+            if (rowCategory === category) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    });
+
+    document.getElementById('reportCount').textContent = `(${visibleCount} items)`;
+}
+
+// Filter by folder
+function filterByFolder(folder) {
+    // Update active state
+    document.querySelectorAll('.sf-sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    const rows = document.querySelectorAll('#reportsTableBody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        if (folder === 'all') {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            const rowFolder = row.dataset.folder;
+            if (rowFolder === folder) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    });
+
+    document.getElementById('reportCount').textContent = `(${visibleCount} items)`;
+}
+
+// Sort table
+let sortDirection = {};
+function sortTable(columnIndex) {
+    const table = document.getElementById('reportsTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // Toggle direction
+    sortDirection[columnIndex] = !sortDirection[columnIndex];
+    const direction = sortDirection[columnIndex] ? 1 : -1;
+
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        return aValue.localeCompare(bValue) * direction;
+    });
+
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Open Create Report Modal
+function openCreateReportModal() {
+    document.getElementById('createReportModal').classList.add('active');
+    document.getElementById('newReportName').value = '';
+    // Select first row by default
+    const firstRow = document.querySelector('#reportTypesBody tr');
+    if (firstRow) {
+        firstRow.click();
+    }
+}
+
+// Close Create Report Modal
+function closeCreateReportModal() {
+    document.getElementById('createReportModal').classList.remove('active');
+}
+
+// Close modal when clicking overlay
+function closeModalOnOverlay(event) {
+    if (event.target === document.getElementById('createReportModal')) {
+        closeCreateReportModal();
+    }
+}
+
+// Filter report types by category
+function filterReportTypes(category) {
+    // Update sidebar active state
+    document.querySelectorAll('.sf-modal-sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    // Filter rows
+    const rows = document.querySelectorAll('#reportTypesBody tr');
+    rows.forEach(row => {
+        if (category === 'all' || row.dataset.category === category) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Search report types
+function searchReportTypes() {
+    const searchTerm = document.getElementById('searchReportTypes').value.toLowerCase();
+    const rows = document.querySelectorAll('#reportTypesBody tr');
+
+    rows.forEach(row => {
+        const name = row.querySelector('.sf-report-type-name')?.textContent.toLowerCase() || '';
+        row.style.display = name.includes(searchTerm) ? '' : 'none';
+    });
+}
+
+// Select report type
+function selectReportType(row, type, name, category) {
+    // Update selection
+    document.querySelectorAll('#reportTypesBody tr').forEach(r => {
+        r.classList.remove('selected');
+    });
+    row.classList.add('selected');
+
+    selectedReportType = type;
+    selectedReportName = name;
+
+    // Update details panel
+    document.getElementById('selectedReportName').textContent = name;
+    document.getElementById('selectedReportCategory').textContent = category + ' Report Type';
+
+    // Update objects list based on type
+    const objectsList = document.getElementById('reportObjects');
+    if (type.startsWith('case') || type.startsWith('ticket')) {
+        objectsList.innerHTML = `
+            <div class="sf-object-item"><span class="sf-object-dot purple"></span>Tickets</div>
+            <div class="sf-object-item"><span class="sf-object-dot blue"></span>Customers</div>
+            <div class="sf-object-item"><span class="sf-object-dot green"></span>Users</div>
+        `;
+    } else if (type.startsWith('asset')) {
+        objectsList.innerHTML = `
+            <div class="sf-object-item"><span class="sf-object-dot green"></span>Assets</div>
+            <div class="sf-object-item"><span class="sf-object-dot blue"></span>Customers</div>
+            <div class="sf-object-item"><span class="sf-object-dot purple"></span>Locations</div>
+        `;
+    } else if (type.startsWith('customer')) {
+        objectsList.innerHTML = `
+            <div class="sf-object-item"><span class="sf-object-dot blue"></span>Customers</div>
+            <div class="sf-object-item"><span class="sf-object-dot purple"></span>Companies</div>
+            <div class="sf-object-item"><span class="sf-object-dot green"></span>Countries</div>
+        `;
+    } else {
+        objectsList.innerHTML = `
+            <div class="sf-object-item"><span class="sf-object-dot purple"></span>Tickets</div>
+            <div class="sf-object-item"><span class="sf-object-dot blue"></span>Assets</div>
+            <div class="sf-object-item"><span class="sf-object-dot green"></span>Customers</div>
         `;
     }
+
+    // Pre-fill report name
+    document.getElementById('newReportName').value = name;
+}
+
+// Start report - navigate to report builder with parameters
+function startReport() {
+    const reportName = document.getElementById('newReportName').value.trim();
+    if (!reportName) {
+        alert('Please enter a report name');
+        return;
+    }
+
+    // Map report type to groupBy parameter
+    let groupBy = 'status';
+    if (selectedReportType.includes('priority')) groupBy = 'priority';
+    else if (selectedReportType.includes('user')) groupBy = 'assigned_to';
+    else if (selectedReportType.includes('location')) groupBy = 'country';
+    else if (selectedReportType.includes('customer')) groupBy = 'customer';
+
+    // Navigate to report builder with name parameter
+    const url = new URL('{{ url_for("reports.case_reports_builder") }}', window.location.origin);
+    url.searchParams.set('name', reportName);
+    url.searchParams.set('type', selectedReportType);
+    url.searchParams.set('groupBy', groupBy);
+
+    window.location.href = url.toString();
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeCreateReportModal();
+    }
 });
+
+// Load saved reports and dashboards from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    loadSavedItems();
+});
+
+function loadSavedItems() {
+    const tbody = document.getElementById('reportsTableBody');
+    const countEl = document.getElementById('reportCount');
+
+    // Get saved dashboards
+    const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+
+    // Get saved reports (multiple reports stored as array)
+    const savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+
+    // Also check for single savedReport (legacy)
+    const singleReport = localStorage.getItem('savedReport');
+    if (singleReport) {
+        try {
+            const report = JSON.parse(singleReport);
+            if (report.name && !savedReports.find(r => r.name === report.name)) {
+                savedReports.push(report);
+            }
+        } catch(e) {}
+    }
+
+    const totalItems = dashboards.length + savedReports.length;
+    countEl.textContent = `(${totalItems} items)`;
+
+    if (totalItems === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 3rem;">
+                    <div style="color: var(--sf-gray-600);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>
+                        </svg>
+                        <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">No Saved Reports or Dashboards</div>
+                        <div style="font-size: 0.875rem; margin-bottom: 1.5rem;">Create a new report or dashboard to get started</div>
+                        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+                            <a href="{{ url_for('reports.new_dashboard') }}" class="sf-btn sf-btn-neutral">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                                </svg>
+                                New Dashboard
+                            </a>
+                            <button class="sf-btn sf-btn-brand" onclick="openCreateReportModal()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14"/>
+                                </svg>
+                                New Report
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+
+    // Add dashboards
+    dashboards.forEach((dashboard, index) => {
+        const savedDate = dashboard.savedAt ? new Date(dashboard.savedAt).toLocaleDateString() : 'Unknown';
+        const componentCount = dashboard.components ? dashboard.components.length : 0;
+
+        html += `
+            <tr data-type="dashboard" data-index="${index}">
+                <td>
+                    <div class="sf-report-name-cell">
+                        <div class="sf-report-icon" style="background: linear-gradient(135deg, #0176d3, #1b96ff);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                            </svg>
+                        </div>
+                        <a href="{{ url_for('reports.new_dashboard') }}?load=${encodeURIComponent(dashboard.name)}" class="sf-report-link">${escapeHtml(dashboard.name)}</a>
+                    </div>
+                </td>
+                <td><span class="sf-badge" style="background: #e8f4ff; color: #0176d3;">Dashboard</span></td>
+                <td>${componentCount} component${componentCount !== 1 ? 's' : ''}</td>
+                <td>${savedDate}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('reports.new_dashboard') }}?load=${encodeURIComponent(dashboard.name)}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                            View
+                        </a>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #ea001e;" onclick="deleteItem('dashboard', ${index}, '${escapeHtml(dashboard.name)}')">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    // Add saved reports
+    savedReports.forEach((report, index) => {
+        const savedDate = report.savedAt ? new Date(report.savedAt).toLocaleDateString() : 'Unknown';
+
+        html += `
+            <tr data-type="report" data-index="${index}">
+                <td>
+                    <div class="sf-report-name-cell">
+                        <div class="sf-report-icon purple">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14,2 14,8 20,8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </div>
+                        <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(report.name)}" class="sf-report-link">${escapeHtml(report.name)}</a>
+                    </div>
+                </td>
+                <td><span class="sf-badge" style="background: #f3e8ff; color: #9050e9;">Report</span></td>
+                <td>${report.reportType || 'Tabular'}</td>
+                <td>${savedDate}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('reports.case_reports_builder') }}?loadReport=${encodeURIComponent(report.name)}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                            View
+                        </a>
+                        <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #ea001e;" onclick="deleteItem('report', ${index}, '${escapeHtml(report.name)}')">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+function deleteItem(type, index, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+        return;
+    }
+
+    if (type === 'dashboard') {
+        const dashboards = JSON.parse(localStorage.getItem('savedDashboards') || '[]');
+        dashboards.splice(index, 1);
+        localStorage.setItem('savedDashboards', JSON.stringify(dashboards));
+    } else {
+        const reports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+        reports.splice(index, 1);
+        localStorage.setItem('savedReports', JSON.stringify(reports));
+
+        // Also clear single savedReport if it matches
+        const singleReport = localStorage.getItem('savedReport');
+        if (singleReport) {
+            try {
+                const report = JSON.parse(singleReport);
+                if (report.name === name) {
+                    localStorage.removeItem('savedReport');
+                }
+            } catch(e) {}
+        }
+    }
+
+    loadSavedItems();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Override filterReports to work with dynamic content
+function filterReports() {
+    const searchTerm = document.getElementById('searchReports').value.toLowerCase();
+    const rows = document.querySelectorAll('#reportsTableBody tr[data-type]');
+
+    rows.forEach(row => {
+        const name = row.querySelector('.sf-report-link')?.textContent.toLowerCase() || '';
+        const type = row.querySelector('.sf-badge')?.textContent.toLowerCase() || '';
+        row.style.display = (name.includes(searchTerm) || type.includes(searchTerm)) ? '' : 'none';
+    });
+}
+
+// Filter by type (dashboard, report, or all)
+function filterByType(type, element) {
+    // Update active state in sidebar
+    document.querySelectorAll('.sf-sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    if (element) element.classList.add('active');
+
+    // Filter rows
+    const rows = document.querySelectorAll('#reportsTableBody tr[data-type]');
+    rows.forEach(row => {
+        if (type === 'all' || row.dataset.type === type) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update count
+    const visibleRows = document.querySelectorAll('#reportsTableBody tr[data-type]:not([style*="display: none"])');
+    document.getElementById('reportCount').textContent = `(${visibleRows.length} items)`;
+}
 </script>
-{% endblock %} 
+{% endblock %}

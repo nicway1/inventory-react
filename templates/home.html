@@ -166,6 +166,17 @@
 {% endblock %}
 
 {% block content %}
+<!-- New Dashboard Banner - Show for DEVELOPER users or when enabled -->
+{% if user.user_type.value == 'DEVELOPER' %}
+<div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 px-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-center gap-4 text-sm">
+        <span><i class="fas fa-rocket mr-2"></i>Try the new customizable Salesforce-style dashboard!</span>
+        <a href="{{ url_for('dashboard.index') }}" class="bg-white text-blue-600 px-3 py-1 rounded-md font-semibold hover:bg-blue-50 transition">
+            Try New Dashboard
+        </a>
+    </div>
+</div>
+{% endif %}
 <div class="bg-gray-50 min-h-screen">
     <div class="{% if session.get('layout_mode') == 'centered' %}container mx-auto px-4{% else %}w-full px-8{% endif %} py-6">
         <!-- Header Card with Clock -->
@@ -371,6 +382,23 @@
             <p class="text-gray-600 text-sm mb-3">Track parcels via Ship24</p>
             <a href="{{ url_for('parcel_tracking.index') }}" class="action-btn" style="background: #ede9fe; color: #7c3aed;">
                 Track Parcels →
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- View Inventorys Card (Developer Only) -->
+        {% if session.get('user_type') == 'DEVELOPER' %}
+        <div class="stat-card">
+            <div class="icon-box" style="background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9h18M9 21V9"/>
+                </svg>
+            </div>
+            <div class="stat-title">View Inventorys</div>
+            <p class="text-gray-600 text-sm mb-3">Salesforce-style Asset View</p>
+            <a href="{{ url_for('inventory.view_inventory_sf') }}" class="action-btn" style="background: #e8f4ff; color: #0176d3;">
+                Open SF View →
             </a>
         </div>
         {% endif %}

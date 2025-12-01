@@ -27,37 +27,101 @@
     /* Header bar */
     .sf-header {
         background: white;
-        border-bottom: 1px solid var(--sf-gray-200);
+        border: 1px solid var(--sf-gray-200);
         padding: 0.75rem 1.5rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        position: sticky;
-        top: 0;
         z-index: 100;
     }
 
     .sf-header-left {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
-    .sf-breadcrumb {
+    .sf-header-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--sf-blue);
+        border-radius: 0.375rem;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        color: var(--sf-gray-600);
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
     }
 
-    .sf-breadcrumb a {
+    .sf-header-title-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .sf-header-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .sf-header-label a {
         color: var(--sf-blue);
         text-decoration: none;
     }
 
-    .sf-breadcrumb a:hover {
+    .sf-header-label a:hover {
         text-decoration: underline;
+    }
+
+    .sf-header-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-report-name-editable {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--sf-gray-800);
+        border: 1px solid transparent;
+        background: transparent;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        min-width: 200px;
+        max-width: 400px;
+        margin-left: -0.375rem;
+    }
+
+    .sf-report-name-editable:hover {
+        border-color: var(--sf-gray-300);
+        background: white;
+    }
+
+    .sf-report-name-editable:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        background: white;
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    .sf-edit-name-btn {
+        background: none;
+        border: none;
+        padding: 0.25rem;
+        cursor: pointer;
+        color: var(--sf-gray-600);
+        border-radius: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sf-edit-name-btn:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-blue);
     }
 
     .sf-page-title {
@@ -116,7 +180,7 @@
     /* Main content area */
     .sf-content {
         display: flex;
-        height: calc(100vh - 60px);
+        height: calc(100vh - 110px);
     }
 
     /* Filters sidebar */
@@ -172,6 +236,24 @@
         font-size: 0.8125rem;
         font-weight: 600;
         color: var(--sf-gray-800);
+    }
+
+    .sf-filter-actions {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.25rem 1rem 0.5rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-filter-action {
+        font-size: 0.75rem;
+        color: var(--sf-blue);
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .sf-filter-action:hover {
+        text-decoration: underline;
     }
 
     .sf-filter-count {
@@ -571,44 +653,246 @@
         margin-bottom: 1rem;
         opacity: 0.5;
     }
+
+    /* Report Type Bar */
+    .sf-report-type-bar {
+        background: white;
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .sf-report-type-tabs {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .sf-report-type-tab {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--sf-gray-600);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-report-type-tab:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-report-type-tab.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+
+    .sf-report-type-info {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    /* Sidebar Tabs */
+    .sf-sidebar-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--sf-gray-200);
+        background: var(--sf-gray-100);
+    }
+
+    .sf-sidebar-tab {
+        flex: 1;
+        padding: 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .sf-sidebar-tab:hover {
+        color: var(--sf-gray-800);
+    }
+
+    .sf-sidebar-tab.active {
+        color: var(--sf-blue);
+        border-bottom-color: var(--sf-blue);
+        background: white;
+    }
+
+    .sf-sidebar-content {
+        padding: 0;
+    }
+
+    /* Outline Section */
+    .sf-outline-section {
+        border-bottom: 1px solid var(--sf-gray-200);
+        padding: 1rem;
+    }
+
+    .sf-outline-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+
+    .sf-outline-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-btn-icon {
+        padding: 0.25rem;
+        background: transparent;
+        border: none;
+        color: var(--sf-gray-600);
+        cursor: pointer;
+        border-radius: 0.25rem;
+    }
+
+    .sf-btn-icon:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-blue);
+    }
+
+    .sf-column-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sf-column-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+
+    .sf-column-item:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-column-item input {
+        accent-color: var(--sf-blue);
+    }
+
+    /* Grouping */
+    .sf-grouping-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .sf-grouping-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .sf-grouping-label {
+        font-size: 0.75rem;
+        color: var(--sf-gray-600);
+    }
+
+    .sf-grouping-select {
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        background: white;
+    }
+
+    .sf-summary-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    /* Preview actions */
+    .sf-preview-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Group header styles */
+    .sf-group-header td {
+        background: var(--sf-gray-100) !important;
+        font-weight: 600;
+        cursor: pointer;
+        border-left: 3px solid var(--sf-blue);
+    }
+
+    .sf-group-header:hover td {
+        background: var(--sf-gray-200) !important;
+    }
+
+    .sf-subgroup-header td {
+        background: #f8f8f8 !important;
+        font-weight: 500;
+        padding-left: 2rem !important;
+        border-left: 3px solid var(--sf-gray-300);
+    }
+
+    .sf-group-summary td {
+        background: #e8f4ff !important;
+        font-weight: 500;
+        font-size: 0.8125rem;
+        border-left: 3px solid var(--sf-blue);
+    }
+
+    /* Matrix table styles */
+    .sf-table th[style*="background: var(--sf-blue)"] {
+        background: var(--sf-blue) !important;
+        color: white;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="sf-page">
-    <!-- Header -->
-    <div class="sf-header">
-        <div class="sf-header-left">
-            <div class="sf-breadcrumb">
-                <a href="{{ url_for('reports.index') }}">Reports</a>
-                <span>/</span>
-                <span>Advanced Case Reports</span>
-            </div>
+    <!-- Report Type Bar -->
+    <div class="sf-report-type-bar">
+        <div class="sf-report-type-tabs">
+            <button class="sf-report-type-tab active" data-type="tabular" onclick="setReportType('tabular')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+                </svg>
+                Tabular
+            </button>
+            <button class="sf-report-type-tab" data-type="summary" onclick="setReportType('summary')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="5"/><rect x="12" y="9" width="3" height="9"/><rect x="17" y="5" width="3" height="13"/>
+                </svg>
+                Summary
+            </button>
+            <button class="sf-report-type-tab" data-type="matrix" onclick="setReportType('matrix')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+                Matrix
+            </button>
         </div>
-        <div class="sf-header-actions">
-            <button class="sf-btn sf-btn-neutral" onclick="resetFilters()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-                Reset All
-            </button>
-            <button class="sf-btn sf-btn-neutral" onclick="saveReport()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17,21 17,13 7,13 7,21"/>
-                    <polyline points="7,3 7,8 15,8"/>
-                </svg>
-                Save Report
-            </button>
-            <button class="sf-btn sf-btn-success" onclick="exportReport()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7,10 12,15 17,10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Export Report
-            </button>
+        <div class="sf-report-type-info">
+            <span id="reportTypeDescription">Tabular: Simple list of records with selected fields</span>
         </div>
     </div>
 
@@ -616,19 +900,91 @@
     <div class="sf-content">
         <!-- Filters sidebar -->
         <div class="sf-sidebar" id="filterSidebar">
-            <div class="sf-sidebar-header">
-                <span class="sf-sidebar-title">Filters</span>
-                <button class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="applyFilters()">
-                    Apply
-                </button>
+            <!-- Sidebar Tabs -->
+            <div class="sf-sidebar-tabs">
+                <button class="sf-sidebar-tab active" onclick="showSidebarTab('outline')">Outline</button>
+                <button class="sf-sidebar-tab" onclick="showSidebarTab('filters')">Filters</button>
             </div>
 
-            <!-- Date Range -->
-            <div class="sf-date-range">
+            <!-- Outline Tab -->
+            <div class="sf-sidebar-content" id="outlineTab">
+                <!-- Columns Selection -->
+                <div class="sf-outline-section">
+                    <div class="sf-outline-header">
+                        <span class="sf-outline-title">Columns</span>
+                        <button class="sf-btn-icon" onclick="selectAllColumns()" title="Select All">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="sf-column-list" id="columnList">
+                        <label class="sf-column-item"><input type="checkbox" value="case_id" checked> Case ID</label>
+                        <label class="sf-column-item"><input type="checkbox" value="subject" checked> Subject</label>
+                        <label class="sf-column-item"><input type="checkbox" value="status" checked> Status</label>
+                        <label class="sf-column-item"><input type="checkbox" value="priority" checked> Priority</label>
+                        <label class="sf-column-item"><input type="checkbox" value="category" checked> Category</label>
+                        <label class="sf-column-item"><input type="checkbox" value="assigned_to" checked> Assigned To</label>
+                        <label class="sf-column-item"><input type="checkbox" value="created_at" checked> Created Date</label>
+                        <label class="sf-column-item"><input type="checkbox" value="customer"> Customer</label>
+                        <label class="sf-column-item"><input type="checkbox" value="country"> Country</label>
+                    </div>
+                </div>
+
+                <!-- Group Rows (for Summary/Matrix) -->
+                <div class="sf-outline-section" id="groupingSection">
+                    <div class="sf-outline-header">
+                        <span class="sf-outline-title">Group Rows</span>
+                    </div>
+                    <div class="sf-grouping-list">
+                        <div class="sf-grouping-item">
+                            <label class="sf-grouping-label">Group by:</label>
+                            <select id="groupBy" class="sf-grouping-select" onchange="applyFilters()">
+                                <option value="">-- None --</option>
+                                <option value="status" selected>Status</option>
+                                <option value="priority">Priority</option>
+                                <option value="category">Category</option>
+                                <option value="assigned_to">Assigned To</option>
+                                <option value="country">Country</option>
+                                <option value="created_date">Created Date</option>
+                            </select>
+                        </div>
+                        <div class="sf-grouping-item">
+                            <label class="sf-grouping-label">Then by:</label>
+                            <select id="subGroupBy" class="sf-grouping-select" onchange="applyFilters()">
+                                <option value="">-- None --</option>
+                                <option value="status">Status</option>
+                                <option value="priority">Priority</option>
+                                <option value="category">Category</option>
+                                <option value="assigned_to">Assigned To</option>
+                                <option value="country">Country</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Fields -->
+                <div class="sf-outline-section" id="summarySection">
+                    <div class="sf-outline-header">
+                        <span class="sf-outline-title">Summary Fields</span>
+                    </div>
+                    <div class="sf-summary-fields">
+                        <label class="sf-column-item"><input type="checkbox" value="count" checked> Record Count</label>
+                        <label class="sf-column-item"><input type="checkbox" value="resolved_count"> Resolved Count</label>
+                        <label class="sf-column-item"><input type="checkbox" value="open_count"> Open Count</label>
+                        <label class="sf-column-item"><input type="checkbox" value="resolution_rate"> Resolution Rate %</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Tab -->
+            <div class="sf-sidebar-content" id="filtersTab" style="display: none;">
+                <!-- Date Range -->
+                <div class="sf-date-range">
                 <label class="sf-date-label">Date Range</label>
                 <div class="sf-date-inputs">
-                    <input type="date" id="startDate" class="sf-date-input" onchange="updateDatePreset()">
-                    <input type="date" id="endDate" class="sf-date-input" onchange="updateDatePreset()">
+                    <input type="date" id="startDate" class="sf-date-input" onchange="updateDatePreset(); applyFilters()">
+                    <input type="date" id="endDate" class="sf-date-input" onchange="updateDatePreset(); applyFilters()">
                 </div>
                 <div class="sf-date-presets">
                     <button class="sf-date-preset" data-days="7" onclick="setDateRange(7)">7d</button>
@@ -644,6 +1000,10 @@
                     <span class="sf-filter-label">Status</span>
                     <span class="sf-filter-count" id="statusCount">0</span>
                 </div>
+                <div class="sf-filter-actions">
+                    <a class="sf-filter-action" onclick="selectAllFilter('status'); event.stopPropagation();">Select All</a>
+                    <a class="sf-filter-action" onclick="unselectAllFilter('status'); event.stopPropagation();">Unselect All</a>
+                </div>
                 <div class="sf-filter-content" id="statusFilter"></div>
             </div>
 
@@ -652,6 +1012,10 @@
                 <div class="sf-filter-header" onclick="toggleFilter('priority')">
                     <span class="sf-filter-label">Priority</span>
                     <span class="sf-filter-count" id="priorityCount">0</span>
+                </div>
+                <div class="sf-filter-actions">
+                    <a class="sf-filter-action" onclick="selectAllFilter('priority'); event.stopPropagation();">Select All</a>
+                    <a class="sf-filter-action" onclick="unselectAllFilter('priority'); event.stopPropagation();">Unselect All</a>
                 </div>
                 <div class="sf-filter-content" id="priorityFilter"></div>
             </div>
@@ -662,6 +1026,10 @@
                     <span class="sf-filter-label">Category</span>
                     <span class="sf-filter-count" id="categoryCount">0</span>
                 </div>
+                <div class="sf-filter-actions">
+                    <a class="sf-filter-action" onclick="selectAllFilter('category'); event.stopPropagation();">Select All</a>
+                    <a class="sf-filter-action" onclick="unselectAllFilter('category'); event.stopPropagation();">Unselect All</a>
+                </div>
                 <div class="sf-filter-content" id="categoryFilter"></div>
             </div>
 
@@ -670,6 +1038,10 @@
                 <div class="sf-filter-header" onclick="toggleFilter('assignedTo')">
                     <span class="sf-filter-label">Assigned To</span>
                     <span class="sf-filter-count" id="assignedToCount">0</span>
+                </div>
+                <div class="sf-filter-actions">
+                    <a class="sf-filter-action" onclick="selectAllFilter('assignedTo'); event.stopPropagation();">Select All</a>
+                    <a class="sf-filter-action" onclick="unselectAllFilter('assignedTo'); event.stopPropagation();">Unselect All</a>
                 </div>
                 <div class="sf-filter-content" id="assignedToFilter"></div>
             </div>
@@ -680,8 +1052,14 @@
                     <span class="sf-filter-label">Country</span>
                     <span class="sf-filter-count" id="countryCount">0</span>
                 </div>
+                <div class="sf-filter-actions">
+                    <a class="sf-filter-action" onclick="selectAllFilter('country'); event.stopPropagation();">Select All</a>
+                    <a class="sf-filter-action" onclick="unselectAllFilter('country'); event.stopPropagation();">Unselect All</a>
+                </div>
                 <div class="sf-filter-content" id="countryFilter"></div>
             </div>
+            </div>
+            <!-- End Filters Tab -->
         </div>
 
         <!-- Toggle sidebar button -->
@@ -693,6 +1071,70 @@
 
         <!-- Main area -->
         <div class="sf-main">
+            <!-- Header with actions -->
+            <div class="sf-header" style="position: relative; border-radius: 0.5rem; margin-bottom: 1rem; padding: 1.25rem 2rem;">
+                <div class="sf-header-left">
+                    <!-- Report Icon -->
+                    <div class="sf-header-icon" style="width: 44px; height: 44px;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <!-- Title Section -->
+                    <div class="sf-header-title-section">
+                        <div class="sf-header-label" style="font-size: 0.875rem;">
+                            <span>Report:</span>
+                            <a href="{{ url_for('reports.index') }}">Tickets</a>
+                        </div>
+                        <div class="sf-header-title-row">
+                            <input type="text" id="reportNameInput" class="sf-report-name-editable" style="font-size: 1.5rem; min-width: 280px;" value="{{ request.args.get('name', 'Untitled Report') }}" placeholder="Report Name" onblur="updateReportName()">
+                            <button class="sf-edit-name-btn" onclick="editReportName()" title="Edit name">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="sf-header-actions" style="gap: 0.75rem;">
+                    <button class="sf-btn sf-btn-neutral" style="padding: 0.75rem 1.25rem; font-size: 0.9375rem;" onclick="resetFilters()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        Reset All
+                    </button>
+                    <button class="sf-btn sf-btn-neutral" style="padding: 0.75rem 1.25rem; font-size: 0.9375rem;" onclick="loadSavedReport()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4"/>
+                            <polyline points="17,8 12,3 7,8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Load
+                    </button>
+                    <button class="sf-btn sf-btn-neutral" style="padding: 0.75rem 1.25rem; font-size: 0.9375rem;" onclick="saveReport()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                            <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button class="sf-btn sf-btn-success" style="padding: 0.75rem 1.25rem; font-size: 0.9375rem;" onclick="exportReport()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export Report
+                    </button>
+                </div>
+            </div>
+
             <!-- Preview header -->
             <div class="sf-preview-header">
                 <div>
@@ -700,19 +1142,17 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        Data Preview
+                        Report Preview
                     </div>
                     <div class="sf-preview-subtitle" id="ticketCountText">Found 0 tickets with your current filters</div>
                 </div>
-                <div class="sf-groupby">
-                    <span class="sf-groupby-label">Group by:</span>
-                    <select class="sf-groupby-select" id="groupBy" onchange="applyFilters()">
-                        <option value="status">Status</option>
-                        <option value="priority">Priority</option>
-                        <option value="category">Category</option>
-                        <option value="assigned_to">Assigned To</option>
-                        <option value="country">Country</option>
-                    </select>
+                <div class="sf-preview-actions">
+                    <button class="sf-btn sf-btn-neutral" onclick="applyFilters()" style="padding: 0.375rem 0.75rem;" title="Refresh report data">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        Refresh
+                    </button>
                 </div>
             </div>
 
@@ -816,7 +1256,68 @@
 let mainChart = null;
 let reportData = null;
 let currentChartType = 'pie';
+let currentReportType = 'tabular';
 let filterOptions = {};
+
+// Column definitions
+const columnDefs = {
+    case_id: { label: 'Case ID', key: 'case_id' },
+    subject: { label: 'Subject', key: 'subject' },
+    status: { label: 'Status', key: 'status' },
+    priority: { label: 'Priority', key: 'priority' },
+    category: { label: 'Category', key: 'category' },
+    assigned_to: { label: 'Assigned To', key: 'assigned_to' },
+    created_at: { label: 'Created', key: 'created_at' },
+    customer: { label: 'Customer', key: 'customer' },
+    country: { label: 'Country', key: 'country' }
+};
+
+// Report type descriptions
+const reportTypeDescriptions = {
+    tabular: 'Tabular: Simple list of records with selected fields',
+    summary: 'Summary: Records grouped by selected field with subtotals',
+    matrix: 'Matrix: Records grouped by row and column fields'
+};
+
+// Current report name
+let currentReportName = 'Untitled Report';
+
+// Initialize from URL parameters
+function initializeFromUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+
+    // Get report name from URL
+    const name = params.get('name');
+    if (name) {
+        currentReportName = name;
+        document.getElementById('reportNameInput').value = name;
+    }
+
+    // Get groupBy from URL
+    const groupBy = params.get('groupBy');
+    if (groupBy && document.getElementById('groupBy')) {
+        document.getElementById('groupBy').value = groupBy;
+    }
+}
+
+// Edit report name (focus input)
+function editReportName() {
+    const input = document.getElementById('reportNameInput');
+    input.focus();
+    input.select();
+}
+
+// Update report name
+function updateReportName() {
+    const input = document.getElementById('reportNameInput');
+    currentReportName = input.value.trim() || 'Untitled Report';
+    input.value = currentReportName;
+
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('name', currentReportName);
+    window.history.replaceState({}, '', url);
+}
 
 // Color palette
 const colors = [
@@ -828,7 +1329,99 @@ const colors = [
 document.addEventListener('DOMContentLoaded', function() {
     initializeDateRange();
     loadFilters();
+    updateReportTypeUI();
+    initializeFromUrlParams();
+
+    // Check if we should load a specific report from URL
+    checkForReportToLoad();
+
+    // Add event listeners for column checkboxes
+    document.querySelectorAll('#columnList input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (reportData && reportData.tableData) {
+                updateTable(reportData.tableData);
+            }
+        });
+    });
+
+    // Add event listeners for summary field checkboxes
+    document.querySelectorAll('#summarySection input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (reportData && reportData.tableData) {
+                updateTable(reportData.tableData);
+            }
+        });
+    });
 });
+
+// Set report type (Tabular, Summary, Matrix)
+function setReportType(type) {
+    currentReportType = type;
+    updateReportTypeUI();
+
+    // Re-render table with new type
+    if (reportData && reportData.tableData) {
+        updateTable(reportData.tableData);
+    }
+}
+
+// Update UI based on report type
+function updateReportTypeUI() {
+    // Update tab buttons
+    document.querySelectorAll('.sf-report-type-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.type === currentReportType);
+    });
+
+    // Update description
+    document.getElementById('reportTypeDescription').textContent = reportTypeDescriptions[currentReportType];
+
+    // Show/hide grouping section based on report type
+    const groupingSection = document.getElementById('groupingSection');
+    const summarySection = document.getElementById('summarySection');
+
+    if (currentReportType === 'tabular') {
+        // Tabular - hide grouping and summary options
+        groupingSection.style.display = 'none';
+        summarySection.style.display = 'none';
+    } else {
+        // Summary/Matrix - show grouping and summary options
+        groupingSection.style.display = 'block';
+        summarySection.style.display = 'block';
+    }
+}
+
+// Switch sidebar tab (Outline/Filters)
+function showSidebarTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.sf-sidebar-tab').forEach(t => {
+        t.classList.toggle('active', t.textContent.toLowerCase() === tab);
+    });
+
+    // Show/hide tab content
+    document.getElementById('outlineTab').style.display = tab === 'outline' ? 'block' : 'none';
+    document.getElementById('filtersTab').style.display = tab === 'filters' ? 'block' : 'none';
+}
+
+// Select/deselect all columns
+function selectAllColumns() {
+    const checkboxes = document.querySelectorAll('#columnList input[type="checkbox"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+    });
+
+    // Re-render table
+    if (reportData && reportData.tableData) {
+        updateTable(reportData.tableData);
+    }
+}
+
+// Get selected columns
+function getSelectedColumns() {
+    const checkboxes = document.querySelectorAll('#columnList input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
 
 // Set initial date range to last 30 days
 function initializeDateRange() {
@@ -876,6 +1469,9 @@ async function loadFilters() {
             populateFilter('categoryFilter', data.categories, 'category');
             populateFilter('assignedToFilter', data.users, 'assignedTo');
             populateFilter('countryFilter', data.countries, 'country');
+
+            // Auto-apply filters after loading
+            applyFilters();
         }
     } catch (error) {
         console.error('Error loading filters:', error);
@@ -893,7 +1489,7 @@ function populateFilter(containerId, options, filterType) {
 
     container.innerHTML = options.map(opt => `
         <label class="sf-checkbox-item">
-            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" checked>
+            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" checked onchange="applyFilters()">
             <span>${opt.label}</span>
             <span class="count">${opt.count}</span>
         </label>
@@ -904,6 +1500,22 @@ function populateFilter(containerId, options, filterType) {
 function toggleFilter(filterName) {
     const content = document.getElementById(filterName + 'Filter');
     content.classList.toggle('collapsed');
+}
+
+// Select all checkboxes in a filter section
+function selectAllFilter(filterType) {
+    document.querySelectorAll(`input[data-filter="${filterType}"]`).forEach(cb => {
+        cb.checked = true;
+    });
+    applyFilters();
+}
+
+// Unselect all checkboxes in a filter section
+function unselectAllFilter(filterType) {
+    document.querySelectorAll(`input[data-filter="${filterType}"]`).forEach(cb => {
+        cb.checked = false;
+    });
+    applyFilters();
 }
 
 // Toggle sidebar
@@ -1111,12 +1723,19 @@ function setChartType(type) {
 
 // Update data table
 function updateTable(tableData) {
+    const selectedColumns = getSelectedColumns();
+    const groupBy = document.getElementById('groupBy').value;
+    const subGroupBy = document.getElementById('subGroupBy').value;
+
+    // Update table header
+    updateTableHeader(selectedColumns);
+
     const tbody = document.getElementById('tableBody');
 
     if (!tableData || tableData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem; color: var(--sf-gray-600);">
+                <td colspan="${selectedColumns.length}" style="text-align: center; padding: 2rem; color: var(--sf-gray-600);">
                     No tickets found matching your filters
                 </td>
             </tr>
@@ -1124,17 +1743,272 @@ function updateTable(tableData) {
         return;
     }
 
-    tbody.innerHTML = tableData.map(ticket => `
-        <tr>
-            <td><a href="/tickets/${ticket.case_id}" class="sf-table-link">${ticket.case_id}</a></td>
-            <td>${escapeHtml(ticket.subject)}</td>
-            <td><span class="sf-badge ${getStatusBadgeClass(ticket.status)}">${ticket.status}</span></td>
-            <td><span class="sf-badge ${getPriorityBadgeClass(ticket.priority)}">${ticket.priority}</span></td>
-            <td>${escapeHtml(ticket.category)}</td>
-            <td>${ticket.assigned_to || '-'}</td>
-            <td>${formatDate(ticket.created_at)}</td>
-        </tr>
-    `).join('');
+    if (currentReportType === 'tabular') {
+        // Tabular view - simple list
+        renderTabularTable(tableData, selectedColumns);
+    } else if (currentReportType === 'summary') {
+        // Summary view - grouped with subtotals
+        renderSummaryTable(tableData, selectedColumns, groupBy, subGroupBy);
+    } else if (currentReportType === 'matrix') {
+        // Matrix view - cross-tabulation
+        renderMatrixTable(tableData, groupBy, subGroupBy);
+    }
+}
+
+// Update table header based on selected columns
+function updateTableHeader(selectedColumns) {
+    const thead = document.querySelector('.sf-table thead tr');
+    thead.innerHTML = selectedColumns.map(col => {
+        const def = columnDefs[col];
+        return `<th>${def ? def.label : col}</th>`;
+    }).join('');
+}
+
+// Render tabular table (simple list)
+function renderTabularTable(tableData, selectedColumns) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = tableData.map(ticket => {
+        return '<tr>' + selectedColumns.map(col => {
+            return '<td>' + formatCellValue(ticket, col) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+}
+
+// Render summary table (grouped with subtotals)
+function renderSummaryTable(tableData, selectedColumns, groupBy, subGroupBy) {
+    const tbody = document.getElementById('tableBody');
+
+    if (!groupBy) {
+        renderTabularTable(tableData, selectedColumns);
+        return;
+    }
+
+    // Group data
+    const groups = {};
+    tableData.forEach(ticket => {
+        const key = ticket[groupBy] || 'Unknown';
+        if (!groups[key]) {
+            groups[key] = { items: [], subGroups: {} };
+        }
+
+        if (subGroupBy && ticket[subGroupBy]) {
+            const subKey = ticket[subGroupBy];
+            if (!groups[key].subGroups[subKey]) {
+                groups[key].subGroups[subKey] = [];
+            }
+            groups[key].subGroups[subKey].push(ticket);
+        }
+        groups[key].items.push(ticket);
+    });
+
+    // Render grouped data
+    let html = '';
+    Object.keys(groups).sort().forEach(groupName => {
+        const group = groups[groupName];
+
+        // Group header row
+        html += `
+            <tr class="sf-group-header" onclick="toggleGroupRows('${escapeHtml(groupName)}')">
+                <td colspan="${selectedColumns.length}" style="background: var(--sf-gray-100); font-weight: 600; cursor: pointer;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 0.5rem;" class="group-chevron" data-group="${escapeHtml(groupName)}">
+                        <polyline points="6,9 12,15 18,9"/>
+                    </svg>
+                    ${escapeHtml(groupName)} (${group.items.length})
+                </td>
+            </tr>
+        `;
+
+        // Sub-groups if present
+        if (subGroupBy && Object.keys(group.subGroups).length > 0) {
+            Object.keys(group.subGroups).sort().forEach(subGroupName => {
+                const subItems = group.subGroups[subGroupName];
+
+                // Sub-group header
+                html += `
+                    <tr class="sf-subgroup-header group-row-${escapeHtml(groupName).replace(/\s/g, '-')}">
+                        <td colspan="${selectedColumns.length}" style="background: var(--sf-gray-50); padding-left: 2rem; font-weight: 500;">
+                            ${escapeHtml(subGroupName)} (${subItems.length})
+                        </td>
+                    </tr>
+                `;
+
+                // Sub-group items
+                subItems.forEach(ticket => {
+                    html += '<tr class="group-row-' + escapeHtml(groupName).replace(/\s/g, '-') + '">' +
+                        selectedColumns.map(col => '<td style="padding-left: 2rem;">' + formatCellValue(ticket, col) + '</td>').join('') +
+                    '</tr>';
+                });
+            });
+        } else {
+            // Just group items without sub-groups
+            group.items.forEach(ticket => {
+                html += '<tr class="group-row-' + escapeHtml(groupName).replace(/\s/g, '-') + '">' +
+                    selectedColumns.map(col => '<td>' + formatCellValue(ticket, col) + '</td>').join('') +
+                '</tr>';
+            });
+        }
+
+        // Group summary row
+        const summaryFields = getSelectedSummaryFields();
+        if (summaryFields.length > 0) {
+            html += `
+                <tr class="sf-group-summary group-row-${escapeHtml(groupName).replace(/\s/g, '-')}" style="background: var(--sf-blue); background-opacity: 0.05;">
+                    <td colspan="${selectedColumns.length}" style="background: #e8f4ff; font-weight: 500; font-size: 0.8125rem;">
+                        ${formatGroupSummary(group.items, summaryFields)}
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    tbody.innerHTML = html;
+}
+
+// Render matrix table (cross-tabulation)
+function renderMatrixTable(tableData, rowGroupBy, colGroupBy) {
+    const tbody = document.getElementById('tableBody');
+
+    if (!rowGroupBy || !colGroupBy) {
+        // Fall back to summary view
+        renderSummaryTable(tableData, getSelectedColumns(), rowGroupBy, '');
+        return;
+    }
+
+    // Get unique values for rows and columns
+    const rowValues = [...new Set(tableData.map(t => t[rowGroupBy] || 'Unknown'))].sort();
+    const colValues = [...new Set(tableData.map(t => t[colGroupBy] || 'Unknown'))].sort();
+
+    // Count occurrences
+    const matrix = {};
+    const rowTotals = {};
+    const colTotals = {};
+
+    rowValues.forEach(r => {
+        matrix[r] = {};
+        rowTotals[r] = 0;
+        colValues.forEach(c => {
+            matrix[r][c] = 0;
+        });
+    });
+    colValues.forEach(c => colTotals[c] = 0);
+
+    tableData.forEach(ticket => {
+        const row = ticket[rowGroupBy] || 'Unknown';
+        const col = ticket[colGroupBy] || 'Unknown';
+        matrix[row][col]++;
+        rowTotals[row]++;
+        colTotals[col]++;
+    });
+
+    // Update header for matrix
+    const thead = document.querySelector('.sf-table thead tr');
+    thead.innerHTML = `
+        <th>${columnDefs[rowGroupBy]?.label || rowGroupBy}</th>
+        ${colValues.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
+        <th style="background: var(--sf-blue); color: white;">Total</th>
+    `;
+
+    // Render matrix rows
+    let html = '';
+    rowValues.forEach(row => {
+        html += '<tr>';
+        html += `<td style="font-weight: 600;">${escapeHtml(row)}</td>`;
+        colValues.forEach(col => {
+            const count = matrix[row][col];
+            html += `<td style="text-align: center; ${count > 0 ? 'color: var(--sf-blue); font-weight: 500;' : 'color: var(--sf-gray-400);'}">${count}</td>`;
+        });
+        html += `<td style="text-align: center; font-weight: 600; background: #e8f4ff;">${rowTotals[row]}</td>`;
+        html += '</tr>';
+    });
+
+    // Total row
+    html += '<tr style="background: var(--sf-gray-100);">';
+    html += '<td style="font-weight: 700;">Total</td>';
+    colValues.forEach(col => {
+        html += `<td style="text-align: center; font-weight: 600;">${colTotals[col]}</td>`;
+    });
+    html += `<td style="text-align: center; font-weight: 700; background: var(--sf-blue); color: white;">${tableData.length}</td>`;
+    html += '</tr>';
+
+    tbody.innerHTML = html;
+}
+
+// Format cell value based on column type
+function formatCellValue(ticket, col) {
+    const value = ticket[col];
+
+    switch(col) {
+        case 'case_id':
+            return `<a href="/tickets/${value}" class="sf-table-link">${value}</a>`;
+        case 'status':
+            return `<span class="sf-badge ${getStatusBadgeClass(value)}">${value || '-'}</span>`;
+        case 'priority':
+            return `<span class="sf-badge ${getPriorityBadgeClass(value)}">${value || '-'}</span>`;
+        case 'created_at':
+            return formatDate(value);
+        case 'subject':
+        case 'category':
+        case 'customer':
+        case 'country':
+            return escapeHtml(value) || '-';
+        case 'assigned_to':
+            return value || '-';
+        default:
+            return escapeHtml(value) || '-';
+    }
+}
+
+// Get selected summary fields
+function getSelectedSummaryFields() {
+    const checkboxes = document.querySelectorAll('#summarySection input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Format group summary
+function formatGroupSummary(items, summaryFields) {
+    const parts = [];
+
+    summaryFields.forEach(field => {
+        switch(field) {
+            case 'count':
+                parts.push(`Count: ${items.length}`);
+                break;
+            case 'resolved_count':
+                const resolved = items.filter(i => i.status && (i.status.toLowerCase().includes('resolved') || i.status.toLowerCase().includes('closed'))).length;
+                parts.push(`Resolved: ${resolved}`);
+                break;
+            case 'open_count':
+                const open = items.filter(i => i.status && !i.status.toLowerCase().includes('resolved') && !i.status.toLowerCase().includes('closed')).length;
+                parts.push(`Open: ${open}`);
+                break;
+            case 'resolution_rate':
+                const resolvedCount = items.filter(i => i.status && (i.status.toLowerCase().includes('resolved') || i.status.toLowerCase().includes('closed'))).length;
+                const rate = items.length > 0 ? Math.round((resolvedCount / items.length) * 100) : 0;
+                parts.push(`Resolution Rate: ${rate}%`);
+                break;
+        }
+    });
+
+    return parts.join(' | ');
+}
+
+// Toggle group rows visibility
+function toggleGroupRows(groupName) {
+    const className = 'group-row-' + groupName.replace(/\s/g, '-');
+    const rows = document.querySelectorAll('.' + className);
+    const chevron = document.querySelector(`.group-chevron[data-group="${groupName}"]`);
+
+    rows.forEach(row => {
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+    });
+
+    if (chevron) {
+        if (rows[0]?.style.display === 'none') {
+            chevron.innerHTML = '<polyline points="9,6 15,12 9,18"/>';
+        } else {
+            chevron.innerHTML = '<polyline points="6,9 12,15 18,9"/>';
+        }
+    }
 }
 
 // Get status badge class
@@ -1174,9 +2048,15 @@ function escapeHtml(text) {
 
 // Reset filters
 function resetFilters() {
-    // Check all checkboxes
+    // Check all filter checkboxes
     document.querySelectorAll('.sf-filter-content input[type="checkbox"]').forEach(cb => {
         cb.checked = true;
+    });
+
+    // Reset column selection to defaults
+    document.querySelectorAll('#columnList input[type="checkbox"]').forEach(cb => {
+        const defaultCols = ['case_id', 'subject', 'status', 'priority', 'category', 'assigned_to', 'created_at'];
+        cb.checked = defaultCols.includes(cb.value);
     });
 
     // Reset date to last 30 days
@@ -1184,13 +2064,111 @@ function resetFilters() {
 
     // Reset group by
     document.getElementById('groupBy').value = 'status';
+    document.getElementById('subGroupBy').value = '';
+
+    // Reset report type
+    setReportType('tabular');
 }
 
 // Save report
 function saveReport() {
-    const filters = getSelectedFilters();
-    localStorage.setItem('savedReport', JSON.stringify(filters));
-    alert('Report configuration saved!');
+    const config = {
+        name: currentReportName,
+        filters: getSelectedFilters(),
+        reportType: currentReportType,
+        columns: getSelectedColumns(),
+        summaryFields: getSelectedSummaryFields(),
+        subGroupBy: document.getElementById('subGroupBy').value,
+        savedAt: new Date().toISOString()
+    };
+
+    // Save to array of reports
+    let savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+
+    // Check if report with same name exists, update it
+    const existingIndex = savedReports.findIndex(r => r.name === currentReportName);
+    if (existingIndex >= 0) {
+        savedReports[existingIndex] = config;
+    } else {
+        savedReports.push(config);
+    }
+
+    localStorage.setItem('savedReports', JSON.stringify(savedReports));
+
+    // Also save to legacy single report for backwards compatibility
+    localStorage.setItem('savedReport', JSON.stringify(config));
+
+    alert('Report "' + currentReportName + '" saved!');
+}
+
+// Load saved report (call from menu if needed)
+function loadSavedReport(reportName = null) {
+    let config = null;
+
+    if (reportName) {
+        // Load specific report by name
+        const savedReports = JSON.parse(localStorage.getItem('savedReports') || '[]');
+        config = savedReports.find(r => r.name === reportName);
+    }
+
+    if (!config) {
+        // Fall back to legacy single report
+        const saved = localStorage.getItem('savedReport');
+        if (!saved) {
+            if (!reportName) alert('No saved report found');
+            return false;
+        }
+        config = JSON.parse(saved);
+    }
+
+    // Restore report name
+    if (config.name) {
+        currentReportName = config.name;
+        document.getElementById('reportNameInput').value = config.name;
+    }
+
+    // Restore report type
+    if (config.reportType) {
+        setReportType(config.reportType);
+    }
+
+    // Restore columns
+    if (config.columns) {
+        document.querySelectorAll('#columnList input[type="checkbox"]').forEach(cb => {
+            cb.checked = config.columns.includes(cb.value);
+        });
+    }
+
+    // Restore filters
+    if (config.filters) {
+        document.getElementById('startDate').value = config.filters.startDate;
+        document.getElementById('endDate').value = config.filters.endDate;
+        document.getElementById('groupBy').value = config.filters.groupBy;
+    }
+
+    // Restore sub-group
+    if (config.subGroupBy) {
+        document.getElementById('subGroupBy').value = config.subGroupBy;
+    }
+
+    // Restore summary fields
+    if (config.summaryFields) {
+        document.querySelectorAll('#summarySection input[type="checkbox"]').forEach(cb => {
+            cb.checked = config.summaryFields.includes(cb.value);
+        });
+    }
+
+    applyFilters();
+    return true;
+}
+
+// Check URL for loadReport parameter on page load
+function checkForReportToLoad() {
+    const params = new URLSearchParams(window.location.search);
+    const loadReportName = params.get('loadReport');
+    if (loadReportName) {
+        loadSavedReport(loadReportName);
+    }
 }
 
 // Export report
@@ -1200,17 +2178,20 @@ function exportReport() {
         return;
     }
 
-    // Create CSV
-    const headers = ['Case ID', 'Subject', 'Status', 'Priority', 'Category', 'Assigned To', 'Created'];
-    const rows = reportData.tableData.map(t => [
-        t.case_id,
-        `"${(t.subject || '').replace(/"/g, '""')}"`,
-        t.status,
-        t.priority,
-        t.category,
-        t.assigned_to || '',
-        t.created_at
-    ]);
+    // Use selected columns
+    const selectedColumns = getSelectedColumns();
+    const headers = selectedColumns.map(col => columnDefs[col]?.label || col);
+
+    const rows = reportData.tableData.map(t => {
+        return selectedColumns.map(col => {
+            const val = t[col] || '';
+            // Escape quotes and wrap in quotes if contains comma or quote
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+        });
+    });
 
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 

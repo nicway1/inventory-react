@@ -1,0 +1,11 @@
+{% set data = widget_data.get('weekly_tickets', {}) %}
+<div style="height: 180px;">
+    <canvas id="weeklyTicketsChart"></canvas>
+</div>
+<script>
+    // Store data for initialization
+    window.weeklyTicketData = {
+        labels: {{ data.get('labels', []) | tojson }},
+        values: {{ data.get('values', []) | tojson }}
+    };
+</script>
