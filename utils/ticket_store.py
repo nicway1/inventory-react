@@ -201,7 +201,8 @@ class TicketStore:
             query = db_session.query(Ticket)\
                 .options(self.db_manager.joinedload(Ticket.assigned_to))\
                 .options(self.db_manager.joinedload(Ticket.requester))\
-                .options(self.db_manager.joinedload(Ticket.queue))
+                .options(self.db_manager.joinedload(Ticket.queue))\
+                .options(self.db_manager.joinedload(Ticket.customer))
 
             # Super admin and developer can see all tickets
             if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
