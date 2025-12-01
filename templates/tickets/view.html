@@ -6474,12 +6474,9 @@ function unlinkAsset(assetId, ticketId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Remove the row from the table
-                const row = document.querySelector(`tr[data-asset-id="${assetId}"]`);
-                if (row) row.remove();
-                
-                // Show success message
+                // Show success message and reload page
                 showNotification('Asset unlinked successfully', 'success');
+                setTimeout(() => location.reload(), 500);
             } else {
                 showNotification(data.error || 'Failed to unlink asset', 'error');
             }
