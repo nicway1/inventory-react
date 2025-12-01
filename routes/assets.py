@@ -397,10 +397,15 @@ def unlink_asset(asset_id, ticket_id):
         if not asset:
             return jsonify({'success': False, 'error': 'Asset not found'}), 404
         
-        # Check if the asset is linked to the ticket
-        if asset in ticket.assets:
-            # Remove the asset from the ticket's assets
-            ticket.assets.remove(asset)
+        # Check if the asset is linked to the ticket (by ID to avoid session issues)
+        linked_asset_ids = [a.id for a in ticket.assets]
+        if asset.id in linked_asset_ids:
+            # Find the actual asset object from the ticket's assets collection
+            asset_to_remove = next((a for a in ticket.assets if a.id == asset.id), None)
+            if asset_to_remove:
+                ticket.assets.remove(asset_to_remove)
+            else:
+                return jsonify({'success': False, 'error': 'Asset association not found'}), 400
             
             # Add activity for unlinking
             activity = Activity(
