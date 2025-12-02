@@ -453,6 +453,14 @@
                         Manage Testers
                     </a>
                     {% endif %}
+                    <a href="{{ url_for('action_items.index') }}" class="sf-button sf-button-secondary" style="background: #2e844a; color: white; border-color: #2e844a;">
+                        <i class="fas fa-tasks"></i>
+                        Action Items
+                    </a>
+                    <a href="{{ url_for('development.dev_changelog') }}" class="sf-button sf-button-secondary" style="background: #ff6f00; color: white; border-color: #ff6f00;">
+                        <i class="fas fa-newspaper"></i>
+                        Dev Blog
+                    </a>
                     <a href="{{ url_for('development.new_feature') }}" class="sf-button sf-button-primary">
                         <i class="fas fa-plus"></i>
                         New Feature

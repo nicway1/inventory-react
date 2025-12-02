@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-success {
+        background: #2e844a;
+        color: white;
+    }
+
+    .sf-button-success:hover {
+        background: #1f5b32;
+    }
+
+    .sf-button-destructive {
+        background: #ba0517;
+        color: white;
+    }
+
+    .sf-button-destructive:hover {
+        background: #8e0000;
+    }
+
+    /* Meetings Grid */
+    .meetings-container {
+        padding: 1.5rem;
+    }
+
+    .meetings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .meeting-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: all 0.2s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .meeting-card:hover {
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .meeting-card-header {
+        background: linear-gradient(135deg, #1a365d 0%, #2d4a77 100%);
+        color: white;
+        padding: 1rem 1.25rem;
+    }
+
+    .meeting-card-header.active {
+        background: linear-gradient(135deg, #2e844a 0%, #1f5b32 100%);
+    }
+
+    .meeting-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .meeting-card-date {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .meeting-card-body {
+        padding: 1.25rem;
+    }
+
+    .meeting-stats {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .meeting-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .meeting-stat-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+
+    .meeting-stat-icon.total {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .meeting-stat-icon.done {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .meeting-stat-icon.progress {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .meeting-stat-label {
+        color: #706e6b;
+        font-size: 0.75rem;
+    }
+
+    .meeting-stat-value {
+        font-weight: 600;
+        color: #181818;
+    }
+
+    .meeting-card-notes {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e5e5;
+        font-size: 0.85rem;
+        color: #706e6b;
+        line-height: 1.5;
+    }
+
+    .meeting-card-footer {
+        padding: 0.75rem 1.25rem;
+        background: #f8f8f8;
+        border-top: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .active-badge {
+        background: #2e844a;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .meeting-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .meeting-action-btn {
+        padding: 4px 8px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #706e6b;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .meeting-action-btn:hover {
+        background: #e5e5e5;
+        color: #0176d3;
+    }
+
+    .meeting-action-btn.delete:hover {
+        color: #ba0517;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #dddbda;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #181818;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state-text {
+        color: #706e6b;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #181818;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #706e6b;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #181818;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #0176d3;
+        box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.2);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    /* Header Actions */
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">
+                <i class="fas fa-calendar-week mr-2"></i>Weekly Meetings
+            </h1>
+            <div class="header-actions">
+                <button class="sf-button sf-button-success" onclick="openMeetingModal()">
+                    <i class="fas fa-plus"></i> New Meeting
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="meetings-container">
+        {% if meetings %}
+        <div class="meetings-grid">
+            {% for meeting in meetings %}
+            <a href="{{ url_for('action_items.meeting_detail', meeting_id=meeting.id) }}" class="meeting-card">
+                <div class="meeting-card-header {% if meeting.is_active %}active{% endif %}">
+                    <div class="meeting-card-title">{{ meeting.name }}</div>
+                    <div class="meeting-card-date">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ meeting.meeting_date.strftime('%B %d, %Y') if meeting.meeting_date else 'No date' }}
+                    </div>
+                </div>
+                <div class="meeting-card-body">
+                    <div class="meeting-stats">
+                        <div class="meeting-stat">
+                            <div class="meeting-stat-icon total">
+                                <i class="fas fa-tasks"></i>
+                            </div>
+                            <div>
+                                <div class="meeting-stat-label">Total Items</div>
+                                <div class="meeting-stat-value">{{ meeting.action_items|length }}</div>
+                            </div>
+                        </div>
+                        <div class="meeting-stat">
+                            <div class="meeting-stat-icon done">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div>
+                                <div class="meeting-stat-label">Completed</div>
+                                <div class="meeting-stat-value">{{ meeting.action_items|selectattr('status.name', 'equalto', 'DONE')|list|length }}</div>
+                            </div>
+                        </div>
+                        <div class="meeting-stat">
+                            <div class="meeting-stat-icon progress">
+                                <i class="fas fa-spinner"></i>
+                            </div>
+                            <div>
+                                <div class="meeting-stat-label">In Progress</div>
+                                <div class="meeting-stat-value">{{ meeting.action_items|selectattr('status.name', 'equalto', 'IN_PROGRESS')|list|length }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if meeting.notes %}
+                    <div class="meeting-card-notes">
+                        {{ meeting.notes[:150] }}{% if meeting.notes|length > 150 %}...{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="meeting-card-footer">
+                    {% if meeting.is_active %}
+                    <span class="active-badge"><i class="fas fa-star mr-1"></i>Active</span>
+                    {% else %}
+                    <span></span>
+                    {% endif %}
+                    <div class="meeting-actions" onclick="event.preventDefault(); event.stopPropagation();">
+                        <button class="meeting-action-btn" onclick="editMeeting({{ meeting.id }}, '{{ meeting.name }}', '{{ meeting.meeting_date }}', '{{ meeting.notes|default('', true)|e }}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="meeting-action-btn delete" onclick="deleteMeeting({{ meeting.id }}, '{{ meeting.name }}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-calendar-plus"></i>
+            </div>
+            <h2 class="empty-state-title">No Meetings Yet</h2>
+            <p class="empty-state-text">Create your first weekly meeting to start tracking action items.</p>
+            <button class="sf-button sf-button-success" onclick="openMeetingModal()">
+                <i class="fas fa-plus"></i> Create First Meeting
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New/Edit Meeting Modal -->
+<div id="meetingModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #1a365d 0%, #2d4a77 100%); color: white;">
+            <h2 class="modal-title" id="meetingModalTitle"><i class="fas fa-calendar-week mr-2"></i>New Weekly Meeting</h2>
+            <button class="modal-close" onclick="closeMeetingModal()" style="color: white;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="meetingId" value="">
+            <div class="form-group">
+                <label class="form-label">Meeting Name *</label>
+                <input type="text" id="meetingName" class="form-input" placeholder="e.g., Week of Dec 1, 2025">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Meeting Date *</label>
+                <input type="date" id="meetingDate" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes (optional)</label>
+                <textarea id="meetingNotes" class="form-textarea" placeholder="Meeting agenda or notes..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closeMeetingModal()">Cancel</button>
+            <button class="sf-button sf-button-success" onclick="saveMeeting()">
+                <i class="fas fa-save"></i> <span id="meetingSaveBtn">Create Meeting</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const today = new Date().toISOString().split('T')[0];
+
+function openMeetingModal() {
+    document.getElementById('meetingModalTitle').innerHTML = '<i class="fas fa-calendar-week mr-2"></i>New Weekly Meeting';
+    document.getElementById('meetingSaveBtn').textContent = 'Create Meeting';
+    document.getElementById('meetingId').value = '';
+    document.getElementById('meetingName').value = '';
+    document.getElementById('meetingDate').value = today;
+    document.getElementById('meetingNotes').value = '';
+    document.getElementById('meetingModal').style.display = 'flex';
+}
+
+function editMeeting(id, name, date, notes) {
+    document.getElementById('meetingModalTitle').innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Meeting';
+    document.getElementById('meetingSaveBtn').textContent = 'Save Changes';
+    document.getElementById('meetingId').value = id;
+    document.getElementById('meetingName').value = name;
+    document.getElementById('meetingDate').value = date;
+    document.getElementById('meetingNotes').value = notes;
+    document.getElementById('meetingModal').style.display = 'flex';
+}
+
+function closeMeetingModal() {
+    document.getElementById('meetingModal').style.display = 'none';
+}
+
+async function saveMeeting() {
+    const id = document.getElementById('meetingId').value;
+    const name = document.getElementById('meetingName').value.trim();
+    const meetingDate = document.getElementById('meetingDate').value;
+    const notes = document.getElementById('meetingNotes').value.trim();
+
+    if (!name) {
+        alert('Meeting name is required');
+        return;
+    }
+
+    if (!meetingDate) {
+        alert('Meeting date is required');
+        return;
+    }
+
+    try {
+        const url = id
+            ? `/action-items/api/meetings/${id}`
+            : '/action-items/api/meetings/create';
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                name: name,
+                meeting_date: meetingDate,
+                notes: notes
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            closeMeetingModal();
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function deleteMeeting(id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all action items in this meeting.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/action-items/api/meetings/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMeetingModal();
+    }
+});
+
+// Close modal on outside click
+document.getElementById('meetingModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMeetingModal();
+    }
+});
+</script>
+{% endblock %}

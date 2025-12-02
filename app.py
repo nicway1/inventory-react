@@ -45,6 +45,7 @@ from utils.email_sender import mail
 import os
 from routes.main import main_bp
 from routes.development import development_bp
+from routes.action_items import action_items_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
@@ -211,6 +212,7 @@ def create_app():
     app.register_blueprint(debug_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(development_bp, url_prefix='/development')
+    app.register_blueprint(action_items_bp)  # Weekly Meeting Action Items
     # Register category blueprints
     app.register_blueprint(asset_checkout_claw_bp) # Prefix is defined in the blueprint file
     app.register_blueprint(asset_return_claw_bp)   # Prefix is defined in the blueprint file

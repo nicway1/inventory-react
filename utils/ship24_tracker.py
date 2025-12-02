@@ -1,6 +1,7 @@
 """
-Ship24 Parcel Tracking Utility using Playwright
-Scrapes tracking information from ship24.com
+Ship24 Parcel Tracking Utility
+Scrapes tracking information from ship24.com using Playwright when available,
+falls back to providing tracking links when Playwright is not installed.
 """
 
 import asyncio
@@ -10,6 +11,14 @@ import logging
 import re
 
 logger = logging.getLogger(__name__)
+
+# Check if Playwright is available
+PLAYWRIGHT_AVAILABLE = False
+try:
+    from playwright.async_api import async_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    logger.warning("Playwright not available - tracking will use fallback mode with tracking links")
 
 
 class Ship24Tracker:
@@ -118,6 +127,25 @@ class Ship24Tracker:
             if result:
                 result['tracking_links'] = self._get_all_tracking_links(tracking_number)
                 return result
+
+        # If Playwright is not available, skip directly to fallback
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.info(f"Playwright not available, returning tracking links for {tracking_number}")
+            detected_carrier = carrier or self._detect_carrier(tracking_number) or 'Unknown'
+            return {
+                'success': True,
+                'tracking_number': tracking_number,
+                'carrier': detected_carrier,
+                'status': 'Check Links Below',
+                'events': [],
+                'current_location': detected_carrier if detected_carrier != 'Unknown' else 'Unknown',
+                'estimated_delivery': None,
+                'last_updated': datetime.utcnow().isoformat(),
+                'tracking_url': tracking_url,
+                'tracking_links': self._get_all_tracking_links(tracking_number),
+                'message': 'Automatic tracking unavailable. Use the tracking links below to check status manually.',
+                'source': 'fallback'
+            }
 
         try:
             from playwright.async_api import async_playwright

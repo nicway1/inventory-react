@@ -281,7 +281,10 @@ class TabSystem {
                         </svg>`,
             report: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                     </svg>`
+                     </svg>`,
+            dev: `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                  </svg>`
         };
         return icons[iconType] || icons.ticket;
     }
@@ -726,9 +729,24 @@ class TabSystem {
             return 'home';
         }
 
-        // Tickets list
+        // Development console
+        if (path === '/development/dashboard' || path === '/development/dashboard/') {
+            return 'dev-console';
+        }
+
+        // Action items / meetings (part of dev console, no separate tab)
+        if (path.match(/^\/action-items/)) {
+            return 'dev-console';
+        }
+
+        // Other development pages (features, bugs, etc.) - part of dev console
+        if (path.match(/^\/development/)) {
+            return 'dev-console';
+        }
+
+        // Tickets list - use ticket-home
         if (path === '/tickets/' || path === '/tickets') {
-            return 'tickets';
+            return 'ticket-home';
         }
 
         // Individual ticket
@@ -778,12 +796,12 @@ class TabSystem {
             if (currentPage === 'home') {
                 return;
             }
-            // Tickets list
-            else if (currentPage === 'tickets') {
-                this.addTab('tickets', 'Tickets', '/tickets/', 'ticket');
+            // Tickets list - ticket-home tab
+            else if (currentPage === 'ticket-home') {
+                this.addTab('ticket-home', 'Tickets', '/tickets/', 'ticket');
             }
             // Ticket pages
-            else if (currentPage.startsWith('ticket-')) {
+            else if (currentPage.startsWith('ticket-') && currentPage !== 'ticket-home') {
                 const ticketId = currentPage.replace('ticket-', '');
                 this.addTab(currentPage, title || `Case ${ticketId}`, path, 'ticket');
             }
@@ -804,6 +822,10 @@ class TabSystem {
             // Reports
             else if (currentPage === 'reports') {
                 this.addTab('reports', 'Reports', '/reports/', 'report');
+            }
+            // Dev Console
+            else if (currentPage === 'dev-console') {
+                this.addTab('dev-console', 'Dev Console', '/development/dashboard', 'dev');
             }
         }
     }

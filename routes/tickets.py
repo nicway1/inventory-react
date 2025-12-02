@@ -115,20 +115,14 @@ TRACKINGMORE_API_KEY = "7yyp17vj-t0bh-jtg0-xjf0-v9m3335cjbtc"
 def list_tickets():
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
-    user_type = session['user_type']
 
     # Get date filter parameters
     from datetime import datetime
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
 
-    # Only allow access to tickets based on user type
-    if user.user_type == UserType.CLIENT:
-        # For CLIENT users, only show tickets related to their company
-        tickets = ticket_store.get_user_tickets(user_id, user_type)
-    else:
-        # For other users, show all tickets according to their permissions
-        tickets = ticket_store.get_user_tickets(user_id, user_type)
+    # Get tickets based on user type (use enum, not session string value)
+    tickets = ticket_store.get_user_tickets(user_id, user.user_type)
 
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
@@ -249,18 +243,17 @@ def list_tickets_sf():
     """List tickets with Salesforce-style UI"""
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
-    user_type = session['user_type']
 
     # Get date filter parameters
     from datetime import datetime
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
 
-    # Only allow access to tickets based on user type
-    if user.user_type == UserType.CLIENT:
-        tickets = ticket_store.get_user_tickets(user_id, user_type)
-    else:
-        tickets = ticket_store.get_user_tickets(user_id, user_type)
+    # Get tickets based on user type (use enum, not session string value)
+    logging.info(f"DEBUG SF - user_id: {user_id}, user.user_type: {user.user_type}, type: {type(user.user_type)}")
+    logging.info(f"DEBUG SF - is_super_admin: {user.is_super_admin}, is_developer: {user.is_developer}")
+    tickets = ticket_store.get_user_tickets(user_id, user.user_type)
+    logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets")
 
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
@@ -287,6 +280,7 @@ def list_tickets_sf():
 
     # Filter tickets based on queue access permissions
     if not user.is_super_admin and not user.is_developer:
+        logging.info(f"DEBUG SF - applying queue filter (not admin/developer)")
         filtered_tickets = []
         for ticket in tickets:
             if ticket.queue_id and user.can_access_queue(ticket.queue_id):
@@ -294,6 +288,11 @@ def list_tickets_sf():
             elif not ticket.queue_id:
                 pass  # Exclude unassigned tickets for non-admin users
         tickets = filtered_tickets
+        logging.info(f"DEBUG SF - after queue filter: {len(tickets)} tickets")
+    else:
+        logging.info(f"DEBUG SF - skipping queue filter (admin/developer)")
+
+    logging.info(f"DEBUG SF - final ticket count: {len(tickets)}")
 
     # Get queues for the filter dropdown
     from models.queue import Queue
@@ -2864,9 +2863,9 @@ def update_ticket(ticket_id):
             flash('Ticket not found')
             return redirect(url_for('tickets.list_tickets'))
 
-        # --- PERMISSION CHECK --- 
-        # Allow only Super Admin or the user who created the ticket to edit
-        if not (current_user.is_super_admin or current_user.id == ticket.requester_id):
+        # --- PERMISSION CHECK ---
+        # Allow Super Admin, ticket creator, or assigned owner to edit
+        if not (current_user.is_super_admin or current_user.id == ticket.requester_id or current_user.id == ticket.assigned_to_id):
             flash('You do not have permission to update this ticket.', 'error')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         # --- END PERMISSION CHECK ---

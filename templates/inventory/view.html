@@ -664,11 +664,10 @@
                 Tech Assets
             </button>
             {% if not is_client %}
-            <button type="button"
-                    class="px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:z-10 bg-white text-gray-700 hover:bg-gray-50"
-                    data-view-switch="accessoriesTable">
+            <a href="{{ url_for('inventory.view_accessories') }}"
+               class="px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:z-10 bg-white text-gray-700 hover:bg-gray-50 no-underline">
                 Accessories
-            </button>
+            </a>
             {% endif %}
         </div>
     </div>
@@ -2517,15 +2516,9 @@ document.addEventListener('DOMContentLoaded', function() {
         activateView('techAssetsTable');
     });
 
-    // Only set up accessories and maintenance card event listeners if not a client
+    // Only set up maintenance card event listener if not a client
+    // Note: accessoriesCard now navigates to /accessories page directly via href
     if (!isClient) {
-        if (accessoriesCard) {
-            accessoriesCard.addEventListener('click', function(e) {
-                e.preventDefault();
-                activateView('accessoriesTable');
-            });
-        }
-        
         if (maintenanceCard) {
             maintenanceCard.addEventListener('click', function(e) {
                 e.preventDefault();

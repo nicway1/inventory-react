@@ -40,12 +40,72 @@
 
         <!-- Changelog Entries -->
         <div class="space-y-8">
-            
-            <!-- Version 8.2.1.2 -->
+
+            <!-- Version 8.2.2 -->
             <div class="border-l-4 border-green-500 pl-6">
                 <div class="flex items-center mb-3">
-                    <h2 class="text-xl font-semibold text-gray-900">v8.2.1.2</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">v8.2.2</h2>
                     <span class="ml-3 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Latest</span>
+                    <span class="ml-2 text-sm text-gray-500">Released: 2024-12-01</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="font-medium text-green-700">✨ New Features</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>👥 <strong>@Mention Visibility Control:</strong> Country Admins/Supervisors can now control which users and groups each user can see in @mention suggestions</li>
+                            <li>📊 <strong>Salesforce-style Ticket List:</strong> New ticket list view with charts, sidebar filtering, and modern SF design</li>
+                            <li>📝 <strong>Bulk Edit Manager:</strong> Bulk edit Name, Asset Tag, and Serial Number for SF inventory page</li>
+                            <li>🎨 <strong>Custom Ticket Statuses:</strong> Create and manage custom ticket statuses with color coding</li>
+                            <li>🔄 <strong>CLOSED_DUPLICATED Status:</strong> New status with auto-return functionality for duplicate tickets</li>
+                            <li>📥 <strong>Import from Retool:</strong> Direct import functionality from Retool with accessory support</li>
+                            <li>📦 <strong>1stbase Bulk Import:</strong> Bulk import functionality for returns processing</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-blue-700">🔧 Improvements</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>📊 <strong>Advanced Case Reports:</strong> Redesigned with Salesforce-style UI and more chart types</li>
+                            <li>🔄 <strong>Internal Transfer Form:</strong> Redesigned with offboarding/onboarding workflow separation</li>
+                            <li>🔍 <strong>Select2 Dropdowns:</strong> Searchable dropdowns for customer and country fields</li>
+                            <li>🌍 <strong>World Countries:</strong> Complete list of world countries added to customer forms</li>
+                            <li>👁️ <strong>SUPERVISOR Permissions:</strong> Company permission filtering for SUPERVISOR users</li>
+                            <li>✅ <strong>Select All Countries:</strong> Button to select all countries with auto-select for SUPERVISOR</li>
+                            <li>📦 <strong>Accessory Auto-Status:</strong> Accessory status auto-updates when quantity changes</li>
+                            <li>🔍 <strong>CSV Import:</strong> Duplicate detection in preview and improved error messages</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-red-700">🐛 Bug Fixes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Fixed asset unlink with direct SQL to bypass ORM caching issues</li>
+                            <li>Fixed DetachedInstanceError on Salesforce-style ticket list</li>
+                            <li>Fixed custom status display showing 'None' in ticket view</li>
+                            <li>Fixed JSON serialization errors for priorities enum and CustomTicketStatus</li>
+                            <li>Fixed customer address preservation in bulk import preview</li>
+                            <li>Fixed Internal Transfer ticket creation validation</li>
+                            <li>Fixed erase status update error - store old value before updating</li>
+                            <li>Fixed incorrect route name in development dashboard</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-orange-700">🗄️ Database Changes</h3>
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li>Added user_mention_permissions table for @mention visibility control</li>
+                            <li>Added mention_filter_enabled column to users table</li>
+                            <li>Added custom_status column to tickets table</li>
+                            <li>Added custom_ticket_statuses table for custom status management</li>
+                            <li>Added image_url column to assets and accessories tables</li>
+                            <li>Added preferences column to users table</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Version 8.2.1.2 -->
+            <div class="border-l-4 border-blue-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-900">v8.2.1.2</h2>
+                    <span class="ml-3 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Previous</span>
                     <span class="ml-2 text-sm text-gray-500">Released: {{ version_info.build_date }}</span>
                 </div>
                 <div class="space-y-3">

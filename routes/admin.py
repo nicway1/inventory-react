@@ -474,6 +474,8 @@ def edit_user(user_id):
     from models.queue import Queue
     from models.company_queue_permission import CompanyQueuePermission
     from models.user_company_permission import UserCompanyPermission
+    from models.user_mention_permission import UserMentionPermission
+    from models.group import Group
 
     logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
     db_session = db_manager.get_session()
@@ -514,6 +516,20 @@ def edit_user(user_id):
             queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
             existing_queues = [str(perm.queue_id) for perm in queue_permissions]
 
+    # Get all users and groups for mention control panel
+    all_users = db_session.query(User).order_by(User.username).all()
+    all_groups = db_session.query(Group).filter(Group.is_active == True).order_by(Group.name).all()
+
+    # Get existing mention permissions
+    allowed_mention_users = []
+    allowed_mention_groups = []
+    mention_permissions = db_session.query(UserMentionPermission).filter_by(user_id=user.id).all()
+    for perm in mention_permissions:
+        if perm.target_type == 'user':
+            allowed_mention_users.append(perm.target_id)
+        elif perm.target_type == 'group':
+            allowed_mention_groups.append(perm.target_id)
+
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -524,6 +540,9 @@ def edit_user(user_id):
         parent_company_ids = request.form.getlist('parent_company_ids')  # Multiple parent companies
         child_company_ids = request.form.getlist('child_company_ids')
         queue_ids = request.form.getlist('queue_ids')
+        mention_filter_enabled = request.form.get('mention_filter_enabled') == '1'
+        mention_user_ids = request.form.getlist('mention_user_ids')
+        mention_group_ids = request.form.getlist('mention_group_ids')
 
         logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, parent_company_ids={parent_company_ids}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
@@ -641,11 +660,36 @@ def edit_user(user_id):
                                 can_create=True
                             )
                             db_session.add(permission)
+
+                # Update mention permissions
+                user.mention_filter_enabled = mention_filter_enabled
+                # Delete existing mention permissions
+                db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
+                # Add new mention permissions if filtering is enabled
+                if mention_filter_enabled:
+                    for uid in mention_user_ids:
+                        mention_perm = UserMentionPermission(
+                            user_id=user.id,
+                            target_type='user',
+                            target_id=int(uid)
+                        )
+                        db_session.add(mention_perm)
+                    for gid in mention_group_ids:
+                        mention_perm = UserMentionPermission(
+                            user_id=user.id,
+                            target_type='group',
+                            target_id=int(gid)
+                        )
+                        db_session.add(mention_perm)
+                logger.info(f"DEBUG: Updated mention permissions for user {user.id}: filter_enabled={mention_filter_enabled}, users={len(mention_user_ids)}, groups={len(mention_group_ids)}")
             else:
                 # Clean up permissions if changing from COUNTRY_ADMIN/SUPERVISOR to another type
                 from models.user_country_permission import UserCountryPermission
                 db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
+                # Also clean up mention permissions
+                user.mention_filter_enabled = False
+                db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
 
             db_session.commit()
             flash('User updated successfully', 'success')
@@ -665,7 +709,10 @@ def edit_user(user_id):
                          parent_companies=parent_companies_data, queues=queues_data,
                          existing_child_companies=existing_child_companies,
                          existing_queues=existing_queues, available_countries=available_countries,
-                         existing_countries=existing_countries)
+                         existing_countries=existing_countries,
+                         all_users=all_users, all_groups=all_groups,
+                         allowed_mention_users=allowed_mention_users,
+                         allowed_mention_groups=allowed_mention_groups)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
@@ -4868,18 +4915,41 @@ def delete_group():
 def get_mention_suggestions():
     """Get users and groups for @mention autocomplete"""
     query = request.args.get('q', '').lower().strip()
-    
+
     db_session = db_manager.get_session()
     try:
         from models.group import Group
-        
+        from models.user_mention_permission import UserMentionPermission
+
         suggestions = []
-        
+
+        # Check if current user has mention filtering enabled
+        current_user_obj = db_session.query(User).get(current_user.id)
+        mention_filter_enabled = current_user_obj.mention_filter_enabled if current_user_obj else False
+
+        # Get allowed user/group IDs if filtering is enabled
+        allowed_user_ids = None
+        allowed_group_ids = None
+        if mention_filter_enabled:
+            mention_perms = db_session.query(UserMentionPermission).filter_by(user_id=current_user.id).all()
+            allowed_user_ids = [p.target_id for p in mention_perms if p.target_type == 'user']
+            allowed_group_ids = [p.target_id for p in mention_perms if p.target_type == 'group']
+
         # Get users (limit to 10 for performance)
-        users = db_session.query(User).filter(
+        user_query = db_session.query(User).filter(
             User.username.ilike(f'%{query}%')
-        ).limit(10).all()
-        
+        )
+
+        # Apply filter if enabled
+        if mention_filter_enabled and allowed_user_ids is not None:
+            if allowed_user_ids:
+                user_query = user_query.filter(User.id.in_(allowed_user_ids))
+            else:
+                # No users allowed, return empty list for users
+                user_query = user_query.filter(User.id == -1)  # No match
+
+        users = user_query.limit(10).all()
+
         for user in users:
             suggestions.append({
                 'type': 'user',
@@ -4889,13 +4959,23 @@ def get_mention_suggestions():
                 'email': user.email,
                 'avatar': user.username[0].upper() if user.username else 'U'
             })
-        
+
         # Get active groups (limit to 10 for performance)
-        groups = db_session.query(Group).filter(
+        group_query = db_session.query(Group).filter(
             Group.name.ilike(f'%{query}%'),
             Group.is_active == True
-        ).limit(10).all()
-        
+        )
+
+        # Apply filter if enabled
+        if mention_filter_enabled and allowed_group_ids is not None:
+            if allowed_group_ids:
+                group_query = group_query.filter(Group.id.in_(allowed_group_ids))
+            else:
+                # No groups allowed, return empty list for groups
+                group_query = group_query.filter(Group.id == -1)  # No match
+
+        groups = group_query.limit(10).all()
+
         for group in groups:
             suggestions.append({
                 'type': 'group',
@@ -4906,7 +4986,7 @@ def get_mention_suggestions():
                 'member_count': group.member_count,
                 'avatar': 'G'  # Group icon
             })
-        
+
         # Sort by relevance (exact matches first, then partial matches)
         def sort_key(item):
             name = item['name'].lower()
@@ -4916,11 +4996,11 @@ def get_mention_suggestions():
                 return (1, name)  # Starts with query
             else:
                 return (2, name)  # Contains query
-        
+
         suggestions.sort(key=sort_key)
-        
+
         return jsonify({'suggestions': suggestions[:20]})  # Limit to 20 total suggestions
-        
+
     except Exception as e:
         logger.error(f"Error getting mention suggestions: {e}")
         return jsonify({'error': str(e)}), 500

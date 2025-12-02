@@ -45,6 +45,7 @@ class Permission(Base):
     can_delete_tickets = Column(Boolean, default=False)
     can_delete_own_tickets = Column(Boolean, default=False)
     can_create_tickets = Column(Boolean, default=True)
+    can_export_tickets = Column(Boolean, default=False)
     
     # Report Permissions
     can_view_reports = Column(Boolean, default=True)
@@ -126,6 +127,7 @@ class Permission(Base):
                 'can_delete_tickets': True,
                 'can_delete_own_tickets': True,
                 'can_create_tickets': True,
+                'can_export_tickets': True,
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
@@ -182,6 +184,7 @@ class Permission(Base):
                 'can_delete_tickets': False,
                 'can_delete_own_tickets': True,
                 'can_create_tickets': True,
+                'can_export_tickets': False,
                 'can_view_reports': True,
                 'can_generate_reports': True,
                 'can_import_data': True,
@@ -237,6 +240,7 @@ class Permission(Base):
                 'can_delete_tickets': False,
                 'can_delete_own_tickets': False,
                 'can_create_tickets': True,
+                'can_export_tickets': False,
                 'can_view_reports': False,
                 'can_generate_reports': False,
                 'can_import_data': False,
@@ -292,6 +296,7 @@ class Permission(Base):
                 'can_delete_tickets': False,
                 'can_delete_own_tickets': True,
                 'can_create_tickets': True,
+                'can_export_tickets': False,
                 'can_view_reports': True,
                 'can_generate_reports': False,
                 'can_import_data': False,

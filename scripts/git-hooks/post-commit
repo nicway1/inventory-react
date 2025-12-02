@@ -1,0 +1,27 @@
+#!/bin/bash
+# Post-commit hook to sync git commits to dev blog
+#
+# Install this hook:
+#   cp scripts/git-hooks/post-commit .git/hooks/post-commit
+#   chmod +x .git/hooks/post-commit
+
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Check if running in the inventory project
+if [ -f "$REPO_ROOT/app.py" ]; then
+    echo "Syncing commit to dev blog..."
+
+    # Activate virtual environment if it exists
+    if [ -f "$REPO_ROOT/venv/bin/activate" ]; then
+        source "$REPO_ROOT/venv/bin/activate"
+    fi
+
+    # Run the sync script for just the last commit
+    python "$REPO_ROOT/scripts/sync_git_changelog.py" --count 1 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo "Dev blog updated."
+    fi
+fi

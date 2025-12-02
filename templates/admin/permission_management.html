@@ -159,6 +159,10 @@
                                 <input type="checkbox" name="can_create_tickets" value="true" {% if permission.can_create_tickets %}checked{% endif %} class="rounded text-blue-600">
                                 <span class="ml-2 text-sm">Create Tickets</span>
                             </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="can_export_tickets" value="true" {% if permission.can_export_tickets %}checked{% endif %} class="rounded text-blue-600">
+                                <span class="ml-2 text-sm">Export Tickets</span>
+                            </label>
                         </div>
 
                         <!-- Knowledge Base Permissions -->

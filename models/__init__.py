@@ -17,6 +17,7 @@ from models.ticket_attachment import TicketAttachment
 from models.intake_ticket import IntakeTicket
 from models.user_company_permission import UserCompanyPermission
 from models.user_country_permission import UserCountryPermission
+from models.user_mention_permission import UserMentionPermission
 from models.company_queue_permission import CompanyQueuePermission
 from models.company_customer_permission import CompanyCustomerPermission
 from models.tracking_history import TrackingHistory
@@ -44,6 +45,9 @@ from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.ticket_issue import TicketIssue
 from models.custom_ticket_status import CustomTicketStatus
 from models.developer_schedule import DeveloperSchedule
+from models.weekly_meeting import WeeklyMeeting
+from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority, ActionItemComment
+from models.dev_blog_entry import DevBlogEntry
 
 __all__ = [
     "Base",
@@ -71,6 +75,7 @@ __all__ = [
     "IntakeTicket",
     "UserCompanyPermission",
     "UserCountryPermission",
+    "UserMentionPermission",
     "CompanyQueuePermission",
     "CompanyCustomerPermission",
     "TrackingHistory",
@@ -110,5 +115,11 @@ __all__ = [
     "ChangelogEntryType",
     "TicketIssue",
     "CustomTicketStatus",
-    "DeveloperSchedule"
+    "DeveloperSchedule",
+    "WeeklyMeeting",
+    "ActionItem",
+    "ActionItemStatus",
+    "ActionItemPriority",
+    "ActionItemComment",
+    "DevBlogEntry"
 ]

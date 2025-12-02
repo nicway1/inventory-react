@@ -172,6 +172,115 @@
                     <p class="text-sm text-gray-500 mt-1">Select which queues this Country Admin can access</p>
                 </div>
 
+                <!-- @Mention Control Panel (for Country Admin and Supervisor) -->
+                <div id="mentionControlPanel" style="display: none;">
+                    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-700">@Mention Visibility Control</h3>
+                                <p class="text-xs text-gray-500">Control which users and groups this user can see in @mention suggestions</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox"
+                                       id="mention_filter_enabled"
+                                       name="mention_filter_enabled"
+                                       value="1"
+                                       {% if user.mention_filter_enabled %}checked{% endif %}
+                                       class="sr-only peer"
+                                       onchange="toggleMentionFilters()">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                <span class="ml-2 text-sm font-medium text-gray-700">Filter Enabled</span>
+                            </label>
+                        </div>
+
+                        <div id="mentionFiltersContainer" style="display: {% if user.mention_filter_enabled %}block{% else %}none{% endif %};">
+                            <!-- Allowed Users -->
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Allowed Users in @Mention</label>
+                                    <div class="flex gap-2">
+                                        <button type="button"
+                                                onclick="selectAllMentionUsers()"
+                                                class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                            Select All
+                                        </button>
+                                        <button type="button"
+                                                onclick="deselectAllMentionUsers()"
+                                                class="text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors">
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
+                                    {% for mention_user in all_users %}
+                                    {% if mention_user.id != user.id %}
+                                    <div class="flex items-center mb-2 hover:bg-gray-50 p-1 rounded">
+                                        <input type="checkbox"
+                                               id="mention_user_{{ mention_user.id }}"
+                                               name="mention_user_ids"
+                                               value="{{ mention_user.id }}"
+                                               {% if mention_user.id in allowed_mention_users %}checked{% endif %}
+                                               class="mention-user-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                        <label for="mention_user_{{ mention_user.id }}" class="ml-2 text-sm text-gray-700 flex items-center">
+                                            <span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs mr-2">{{ mention_user.username[0]|upper }}</span>
+                                            {{ mention_user.username }}
+                                            <span class="text-gray-400 ml-2">({{ mention_user.email }})</span>
+                                        </label>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Select users this person can @mention in comments</p>
+                            </div>
+
+                            <!-- Allowed Groups -->
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Allowed Groups in @Mention</label>
+                                    <div class="flex gap-2">
+                                        <button type="button"
+                                                onclick="selectAllMentionGroups()"
+                                                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                            Select All
+                                        </button>
+                                        <button type="button"
+                                                onclick="deselectAllMentionGroups()"
+                                                class="text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors">
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
+                                    {% if all_groups %}
+                                    {% for group in all_groups %}
+                                    <div class="flex items-center mb-2 hover:bg-gray-50 p-1 rounded">
+                                        <input type="checkbox"
+                                               id="mention_group_{{ group.id }}"
+                                               name="mention_group_ids"
+                                               value="{{ group.id }}"
+                                               {% if group.id in allowed_mention_groups %}checked{% endif %}
+                                               class="mention-group-checkbox h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                                        <label for="mention_group_{{ group.id }}" class="ml-2 text-sm text-gray-700 flex items-center">
+                                            <span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mr-2">G</span>
+                                            @{{ group.name }}
+                                            <span class="text-gray-400 ml-2">({{ group.member_count }} members)</span>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-sm text-gray-500">No groups available</p>
+                                    {% endif %}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Select groups this person can @mention in comments</p>
+                            </div>
+                        </div>
+
+                        <div id="mentionFilterDisabledMessage" style="display: {% if user.mention_filter_enabled %}none{% else %}block{% endif %};">
+                            <p class="text-sm text-gray-500 italic">When disabled, this user can see all users and groups in @mention suggestions.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" 
@@ -197,6 +306,7 @@
         const childCompanySelect = document.getElementById('childCompanySelect');
         const childCompanyList = document.getElementById('childCompanyList');
         const queueSelect = document.getElementById('queueSelect');
+        const mentionControlPanel = document.getElementById('mentionControlPanel');
 
         let isInitialLoad = true;
         let previousUserType = userTypeSelect.value;
@@ -209,6 +319,7 @@
                 countrySelection.style.display = 'block';
                 countryAdminCompanySelect.style.display = 'block';
                 queueSelect.style.display = 'block';
+                mentionControlPanel.style.display = 'block';
 
                 // Auto-select all countries when switching TO SUPERVISOR
                 if (selectedType === 'SUPERVISOR') {
@@ -233,6 +344,7 @@
                 countryAdminCompanySelect.style.display = 'none';
                 childCompanySelect.style.display = 'none';
                 queueSelect.style.display = 'none';
+                mentionControlPanel.style.display = 'none';
                 previousUserType = selectedType;
             }
 
@@ -323,6 +435,53 @@
         const countryCheckboxes = document.querySelectorAll('.country-checkbox');
         countryCheckboxes.forEach(function(checkbox) {
             checkbox.checked = true;
+        });
+    }
+
+    // Toggle mention filter visibility
+    function toggleMentionFilters() {
+        const checkbox = document.getElementById('mention_filter_enabled');
+        const container = document.getElementById('mentionFiltersContainer');
+        const disabledMessage = document.getElementById('mentionFilterDisabledMessage');
+
+        if (checkbox.checked) {
+            container.style.display = 'block';
+            disabledMessage.style.display = 'none';
+        } else {
+            container.style.display = 'none';
+            disabledMessage.style.display = 'block';
+        }
+    }
+
+    // Select all mention users
+    function selectAllMentionUsers() {
+        const checkboxes = document.querySelectorAll('.mention-user-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    }
+
+    // Deselect all mention users
+    function deselectAllMentionUsers() {
+        const checkboxes = document.querySelectorAll('.mention-user-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+        });
+    }
+
+    // Select all mention groups
+    function selectAllMentionGroups() {
+        const checkboxes = document.querySelectorAll('.mention-group-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    }
+
+    // Deselect all mention groups
+    function deselectAllMentionGroups() {
+        const checkboxes = document.querySelectorAll('.mention-group-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
         });
     }
 

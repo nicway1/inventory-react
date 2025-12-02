@@ -7,18 +7,18 @@ import os
 from datetime import datetime
 
 # Version Information
-VERSION_MAJOR = 0
-VERSION_MINOR = 9
+VERSION_MAJOR = 8
+VERSION_MINOR = 2
 VERSION_PATCH = 2
-VERSION_BUILD = 1
+VERSION_BUILD = 0
 
 # Build the version string
 VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
 VERSION_FULL = f"{VERSION}.{VERSION_BUILD}"
 
 # Build information
-BUILD_DATE = "2025-11-25"
-BUILD_TIME = "10:00:00"
+BUILD_DATE = "2024-12-01"
+BUILD_TIME = "12:00:00"
 
 # Git information (if available)
 def get_git_info():

@@ -858,6 +858,111 @@ def api_bulk_update_assets():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@inventory_bp.route('/api/sf/bulk-update-individual', methods=['POST'])
+@login_required
+def api_bulk_update_individual():
+    """Bulk update multiple assets with individual changes per asset"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        assets_data = data.get('assets', [])
+
+        if not assets_data:
+            return jsonify({'success': False, 'error': 'No assets provided'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            updated_count = 0
+            errors = []
+
+            for asset_data in assets_data:
+                asset_id = asset_data.get('id')
+                changes = asset_data.get('changes', {})
+
+                if not asset_id:
+                    continue
+
+                if not changes:
+                    continue
+
+                asset = db_session.query(Asset).get(asset_id)
+                if not asset:
+                    errors.append(f"Asset {asset_id} not found")
+                    continue
+
+                # Apply individual changes for this asset
+                if 'name' in changes:
+                    asset.name = changes['name']
+
+                if 'asset_tag' in changes:
+                    asset.asset_tag = changes['asset_tag']
+
+                if 'serial_number' in changes:
+                    asset.serial_number = changes['serial_number']
+
+                if 'status' in changes:
+                    try:
+                        asset.status = AssetStatus(changes['status'])
+                    except ValueError:
+                        # If status value doesn't match enum, skip
+                        errors.append(f"Invalid status for asset {asset_id}: {changes['status']}")
+
+                if 'country' in changes:
+                    asset.country = changes['country']
+
+                if 'company' in changes:
+                    # Find company by name
+                    company = db_session.query(Company).filter(
+                        Company.name == changes['company']
+                    ).first()
+                    if company:
+                        asset.company_id = company.id
+                    else:
+                        errors.append(f"Company not found for asset {asset_id}: {changes['company']}")
+
+                if 'asset_type' in changes:
+                    asset.asset_type = changes['asset_type']
+
+                asset.updated_at = datetime.now()
+                updated_count += 1
+
+            db_session.commit()
+
+            result = {
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'Successfully updated {updated_count} assets'
+            }
+
+            if errors:
+                result['warnings'] = errors
+
+            return jsonify(result)
+
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f"Individual bulk update error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Individual bulk update API error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @inventory_bp.route('/api/asset/<int:asset_id>/image', methods=['POST'])
 @login_required
 def api_update_asset_image(asset_id):
@@ -2846,7 +2951,12 @@ def add_asset():
         # GET request - render the form
         # Check if intake_ticket_id is passed in query params for GET request
         ticket_id_from_query = request.args.get('ticket_id')
-        
+
+        # Query out-of-stock accessories
+        out_of_stock_accessories = db_session.query(Accessory).filter(
+            Accessory.available_quantity <= 0
+        ).order_by(Accessory.name).all()
+
         return render_template('inventory/add_asset.html',
                                 statuses=AssetStatus,
                                 models=unique_models,
@@ -2859,7 +2969,8 @@ def add_asset():
                                 diags=unique_diags,
                                 asset_types=unique_asset_types,
                                 user=user,
-                                intake_ticket_id=ticket_id_from_query) # Pass ticket_id if available
+                                intake_ticket_id=ticket_id_from_query,
+                                out_of_stock_accessories=out_of_stock_accessories)
 
     except Exception as e:
         # ... existing error handling ...

@@ -8,6 +8,7 @@ from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority, Bu
 from models.release import Release, ReleaseStatus, ReleaseType
 from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.user import User
+from models.dev_blog_entry import DevBlogEntry
 from models.enums import UserType
 from sqlalchemy.orm import joinedload
 from sqlalchemy import desc, asc, func, or_
@@ -271,6 +272,104 @@ def dashboard():
 
     finally:
         db_session.close()
+
+
+@development_bp.route('/changelog')
+@login_required
+@permission_required('can_access_development')
+def dev_changelog():
+    """Development changelog / blog showing releases and updates"""
+    db_session = SessionLocal()
+    try:
+        # Get all releases ordered by release date (most recent first)
+        releases = db_session.query(Release)\
+            .options(joinedload(Release.features))\
+            .options(joinedload(Release.fixed_bugs))\
+            .options(joinedload(Release.changelog_entries))\
+            .options(joinedload(Release.release_manager))\
+            .order_by(desc(Release.release_date.nullsfirst()), desc(Release.created_at))\
+            .all()
+
+        # Separate released and upcoming
+        released = [r for r in releases if r.status == ReleaseStatus.RELEASED]
+        upcoming = [r for r in releases if r.status != ReleaseStatus.RELEASED and r.status != ReleaseStatus.CANCELLED]
+
+        # Get recent dev blog entries (git commits)
+        dev_blog_entries = db_session.query(DevBlogEntry)\
+            .filter(DevBlogEntry.is_visible == True)\
+            .order_by(desc(DevBlogEntry.commit_date))\
+            .limit(100)\
+            .all()
+
+        return render_template('development/dev_changelog.html',
+                             released=released,
+                             upcoming=upcoming,
+                             dev_blog_entries=dev_blog_entries,
+                             version_info=get_full_version_info())
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/changelog/sync', methods=['POST'])
+@login_required
+@permission_required('can_access_development')
+def sync_changelog():
+    """Manually sync git commits to dev blog"""
+    import subprocess
+    import os
+
+    try:
+        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'sync_git_changelog.py')
+        result = subprocess.run(
+            ['python', script_path, '--count', '50'],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': result.stdout.strip()})
+        else:
+            return jsonify({'success': False, 'error': result.stderr.strip()})
+    except Exception as e:
+        logger.error(f"Error syncing changelog: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@development_bp.route('/changelog/api/entries')
+@login_required
+@permission_required('can_access_development')
+def api_dev_blog_entries():
+    """API endpoint to get dev blog entries"""
+    db_session = SessionLocal()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        commit_type = request.args.get('type', None)
+
+        query = db_session.query(DevBlogEntry)\
+            .filter(DevBlogEntry.is_visible == True)
+
+        if commit_type:
+            query = query.filter(DevBlogEntry.commit_type == commit_type)
+
+        total = query.count()
+        entries = query.order_by(desc(DevBlogEntry.commit_date))\
+            .offset((page - 1) * per_page)\
+            .limit(per_page)\
+            .all()
+
+        return jsonify({
+            'success': True,
+            'entries': [e.to_dict() for e in entries],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page
+        })
+    finally:
+        db_session.close()
+
 
 # Feature Routes
 @development_bp.route('/features')

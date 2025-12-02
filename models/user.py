@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, func, JSON
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, func, JSON, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum as PyEnum
@@ -22,6 +22,7 @@ class User(Base, UserMixin):
     role = Column(String(50), nullable=True, default='user')
     theme_preference = Column(String(20), default='light')  # 'light' or 'dark'
     preferences = Column(JSON, nullable=True)  # Store user preferences like chart settings
+    mention_filter_enabled = Column(Boolean, default=False)  # If True, user can only see allowed mentions
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
@@ -44,6 +45,7 @@ class User(Base, UserMixin):
     created_groups = relationship("Group", back_populates="created_by")
     group_memberships = relationship("GroupMembership", foreign_keys="GroupMembership.user_id", back_populates="user")
     created_api_keys = relationship("APIKey", back_populates="created_by")
+    mention_permissions = relationship("UserMentionPermission", back_populates="user", cascade="all, delete-orphan")
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 

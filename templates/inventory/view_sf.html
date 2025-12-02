@@ -729,6 +729,39 @@
     .sf-table tr.selected {
         background-color: rgba(1, 118, 211, 0.08) !important;
     }
+
+    /* Bulk Edit Table Styles */
+    #bulkEditTable input,
+    #bulkEditTable select {
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        font-size: 0.8125rem;
+        background: white;
+    }
+
+    #bulkEditTable input:focus,
+    #bulkEditTable select:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.15);
+    }
+
+    #bulkEditTable input.changed,
+    #bulkEditTable select.changed {
+        background-color: #fffde7;
+        border-color: #ffc107;
+    }
+
+    #bulkEditTable td {
+        padding: 0.5rem;
+        vertical-align: middle;
+    }
+
+    #bulkEditTable tr:hover {
+        background-color: var(--sf-gray-100);
+    }
 </style>
 {% endblock %}
 
@@ -1023,81 +1056,39 @@
 
 <!-- Bulk Edit Modal -->
 <div id="bulkEditModal" class="sf-modal-overlay" style="display: none;">
-    <div class="sf-modal">
+    <div class="sf-modal" style="max-width: 95%; width: 1400px;">
         <div class="sf-modal-header">
             <span class="sf-modal-title">Bulk Edit <span id="bulkEditCount">0</span> Items</span>
             <button class="sf-modal-close" onclick="closeBulkEditModal()">&times;</button>
         </div>
-        <div class="sf-modal-body">
+        <div class="sf-modal-body" style="max-height: 70vh; overflow-y: auto;">
             <p style="color: var(--sf-gray-600); font-size: 0.875rem; margin-bottom: 1rem;">
-                Only fields you modify will be updated. Leave fields empty to keep existing values.
+                Edit individual items below. Changes are highlighted in yellow. Click "Save All Changes" to apply.
             </p>
 
-            <div class="sf-form-group">
-                <label class="sf-form-label">Name</label>
-                <input type="text" id="bulkName" class="sf-form-input" placeholder="Leave empty for no change">
-                <p class="sf-form-help">Warning: This will set the same name for all selected items</p>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Asset Tag</label>
-                <input type="text" id="bulkAssetTag" class="sf-form-input" placeholder="Leave empty for no change">
-                <p class="sf-form-help">Warning: This will set the same asset tag for all selected items</p>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Serial Number</label>
-                <input type="text" id="bulkSerialNumber" class="sf-form-input" placeholder="Leave empty for no change">
-                <p class="sf-form-help">Warning: This will set the same serial number for all selected items</p>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Status</label>
-                <select id="bulkStatus" class="sf-form-select">
-                    <option value="">-- No Change --</option>
-                    <option value="Available">Available</option>
-                    <option value="Assigned">Assigned</option>
-                    <option value="In Use">In Use</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Ready for Deployment">Ready for Deployment</option>
-                    <option value="In Transit">In Transit</option>
-                    <option value="Repair">Repair</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Lost">Lost</option>
-                    <option value="Retired">Retired</option>
-                    <option value="Disposed">Disposed</option>
-                </select>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Country</label>
-                <select id="bulkCountry" class="sf-form-select">
-                    <option value="">-- No Change --</option>
-                </select>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Company</label>
-                <select id="bulkCompany" class="sf-form-select">
-                    <option value="">-- No Change --</option>
-                </select>
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Category/Asset Type</label>
-                <input type="text" id="bulkCategory" class="sf-form-input" placeholder="Leave empty for no change">
-            </div>
-
-            <div class="sf-form-group">
-                <label class="sf-form-label">Notes (will be appended)</label>
-                <textarea id="bulkNotes" class="sf-form-input" rows="3" placeholder="Enter notes to append to all selected items..."></textarea>
-                <p class="sf-form-help">Notes will be appended to existing notes, not replaced.</p>
+            <div style="overflow-x: auto;">
+                <table class="sf-table" id="bulkEditTable" style="font-size: 0.8125rem;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 120px;">Asset Tag</th>
+                            <th style="min-width: 150px;">Name</th>
+                            <th style="min-width: 120px;">Serial Number</th>
+                            <th style="min-width: 120px;">Status</th>
+                            <th style="min-width: 100px;">Country</th>
+                            <th style="min-width: 120px;">Company</th>
+                            <th style="min-width: 100px;">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulkEditTableBody">
+                        <!-- Items will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
         <div class="sf-modal-footer">
             <button class="sf-btn sf-btn-neutral" onclick="closeBulkEditModal()">Cancel</button>
             <button class="sf-btn sf-btn-brand" onclick="applyBulkEdit()">
-                <i class="fas fa-check"></i> Apply Changes
+                <i class="fas fa-check"></i> Save All Changes
             </button>
         </div>
     </div>
@@ -2152,36 +2143,118 @@ function clearSelection() {
     updateBulkActionsBar();
 }
 
+// Store original values for change detection
+let originalBulkEditData = {};
+
 // Open bulk edit modal
 function openBulkEditModal() {
     document.getElementById('bulkEditCount').textContent = selectedItems.size;
     document.getElementById('bulkEditModal').style.display = 'flex';
 
-    // Populate country dropdown from filter options
-    const countrySelect = document.getElementById('bulkCountry');
-    countrySelect.innerHTML = '<option value="">-- No Change --</option>';
+    // Build status options HTML
+    const statusOptions = `
+        <option value="Available">Available</option>
+        <option value="Assigned">Assigned</option>
+        <option value="In Use">In Use</option>
+        <option value="Pending">Pending</option>
+        <option value="Ready for Deployment">Ready for Deployment</option>
+        <option value="In Transit">In Transit</option>
+        <option value="Repair">Repair</option>
+        <option value="Damaged">Damaged</option>
+        <option value="Lost">Lost</option>
+        <option value="Retired">Retired</option>
+        <option value="Disposed">Disposed</option>
+    `;
+
+    // Build country options
+    let countryOptions = '';
     if (filterOptions.countries) {
         filterOptions.countries.forEach(c => {
-            countrySelect.innerHTML += `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`;
+            countryOptions += `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`;
         });
     }
 
-    // Populate company dropdown from filter options
-    const companySelect = document.getElementById('bulkCompany');
-    companySelect.innerHTML = '<option value="">-- No Change --</option>';
+    // Build company options
+    let companyOptions = '';
     if (filterOptions.companies) {
         filterOptions.companies.forEach(c => {
-            companySelect.innerHTML += `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`;
+            companyOptions += `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`;
         });
     }
 
-    // Reset form fields
-    document.getElementById('bulkName').value = '';
-    document.getElementById('bulkAssetTag').value = '';
-    document.getElementById('bulkSerialNumber').value = '';
-    document.getElementById('bulkStatus').value = '';
-    document.getElementById('bulkCategory').value = '';
-    document.getElementById('bulkNotes').value = '';
+    // Get selected items data
+    const selectedAssets = assetData.filter(a => selectedItems.has(a.id));
+    originalBulkEditData = {};
+
+    const tbody = document.getElementById('bulkEditTableBody');
+    tbody.innerHTML = selectedAssets.map(asset => {
+        // Store original values
+        originalBulkEditData[asset.id] = {
+            asset_tag: asset.asset_tag || '',
+            name: asset.name || '',
+            serial_number: asset.serial_number || '',
+            status: asset.status || '',
+            country: asset.country || '',
+            company: asset.company || '',
+            category: asset.category || ''
+        };
+
+        return `
+            <tr data-asset-id="${asset.id}">
+                <td>
+                    <input type="text" class="bulk-edit-field" data-field="asset_tag" data-id="${asset.id}"
+                           value="${escapeHtml(asset.asset_tag || '')}"
+                           onchange="markFieldChanged(this)">
+                </td>
+                <td>
+                    <input type="text" class="bulk-edit-field" data-field="name" data-id="${asset.id}"
+                           value="${escapeHtml(asset.name || '')}"
+                           onchange="markFieldChanged(this)">
+                </td>
+                <td>
+                    <input type="text" class="bulk-edit-field" data-field="serial_number" data-id="${asset.id}"
+                           value="${escapeHtml(asset.serial_number || '')}"
+                           onchange="markFieldChanged(this)">
+                </td>
+                <td>
+                    <select class="bulk-edit-field" data-field="status" data-id="${asset.id}" onchange="markFieldChanged(this)">
+                        ${statusOptions.replace(`value="${escapeHtml(asset.status)}"`, `value="${escapeHtml(asset.status)}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <select class="bulk-edit-field" data-field="country" data-id="${asset.id}" onchange="markFieldChanged(this)">
+                        <option value="">--</option>
+                        ${countryOptions.replace(`value="${escapeHtml(asset.country)}"`, `value="${escapeHtml(asset.country)}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <select class="bulk-edit-field" data-field="company" data-id="${asset.id}" onchange="markFieldChanged(this)">
+                        <option value="">--</option>
+                        ${companyOptions.replace(`value="${escapeHtml(asset.company)}"`, `value="${escapeHtml(asset.company)}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="bulk-edit-field" data-field="category" data-id="${asset.id}"
+                           value="${escapeHtml(asset.category || '')}"
+                           onchange="markFieldChanged(this)">
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Mark field as changed
+function markFieldChanged(input) {
+    const id = parseInt(input.dataset.id);
+    const field = input.dataset.field;
+    const originalValue = originalBulkEditData[id][field] || '';
+    const currentValue = input.value || '';
+
+    if (currentValue !== originalValue) {
+        input.classList.add('changed');
+    } else {
+        input.classList.remove('changed');
+    }
 }
 
 // Close bulk edit modal
@@ -2191,43 +2264,43 @@ function closeBulkEditModal() {
 
 // Apply bulk edit
 async function applyBulkEdit() {
-    const name = document.getElementById('bulkName').value.trim();
-    const assetTag = document.getElementById('bulkAssetTag').value.trim();
-    const serialNumber = document.getElementById('bulkSerialNumber').value.trim();
-    const status = document.getElementById('bulkStatus').value;
-    const country = document.getElementById('bulkCountry').value;
-    const company = document.getElementById('bulkCompany').value;
-    const category = document.getElementById('bulkCategory').value.trim();
-    const notes = document.getElementById('bulkNotes').value.trim();
+    // Collect all changes
+    const updates = [];
+    const fields = document.querySelectorAll('.bulk-edit-field');
 
-    // Check if any changes were made
-    if (!name && !assetTag && !serialNumber && !status && !country && !company && !category && !notes) {
-        alert('Please select at least one field to update.');
+    // Group by asset ID
+    const assetChanges = {};
+    fields.forEach(field => {
+        const id = parseInt(field.dataset.id);
+        const fieldName = field.dataset.field;
+        const currentValue = field.value || '';
+        const originalValue = originalBulkEditData[id][fieldName] || '';
+
+        if (currentValue !== originalValue) {
+            if (!assetChanges[id]) {
+                assetChanges[id] = { id: id, changes: {} };
+            }
+            // Map field names to backend expected names
+            const backendField = fieldName === 'category' ? 'asset_type' : fieldName;
+            assetChanges[id].changes[backendField] = currentValue;
+        }
+    });
+
+    const changedAssets = Object.values(assetChanges);
+
+    if (changedAssets.length === 0) {
+        alert('No changes detected.');
         return;
     }
 
-    const payload = {
-        asset_ids: Array.from(selectedItems),
-        changes: {}
-    };
-
-    if (name) payload.changes.name = name;
-    if (assetTag) payload.changes.asset_tag = assetTag;
-    if (serialNumber) payload.changes.serial_number = serialNumber;
-    if (status) payload.changes.status = status;
-    if (country) payload.changes.country = country;
-    if (company) payload.changes.company = company;
-    if (category) payload.changes.asset_type = category;
-    if (notes) payload.changes.notes = notes;
-
     try {
-        const response = await fetch('/inventory/api/sf/bulk-update', {
+        const response = await fetch('/inventory/api/sf/bulk-update-individual', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ assets: changedAssets })
         });
 
         const data = await response.json();

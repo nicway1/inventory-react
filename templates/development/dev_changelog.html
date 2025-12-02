@@ -1,0 +1,970 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #ff6f00;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    /* Content Area */
+    .changelog-content {
+        padding: 0 1.5rem 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Current Version Banner */
+    .current-version-banner {
+        background: linear-gradient(135deg, #1a365d 0%, #2d4a77 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .version-info h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .version-info p {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .version-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .version-badge .label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        opacity: 0.8;
+    }
+
+    .version-badge .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* Section Headers */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #dddbda;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .section-header .count-badge {
+        background: #0176d3;
+        color: white;
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Release Cards */
+    .release-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .release-card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .release-card-header.released {
+        border-left: 4px solid #2e844a;
+    }
+
+    .release-card-header.upcoming {
+        border-left: 4px solid #ff6f00;
+    }
+
+    .release-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .release-version {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #080707;
+    }
+
+    .release-name {
+        font-size: 1rem;
+        color: #706e6b;
+        font-weight: 400;
+    }
+
+    .release-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .release-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-released {
+        background: #e8f5e9;
+        color: #2e844a;
+    }
+
+    .badge-planning {
+        background: #e3f2fd;
+        color: #0176d3;
+    }
+
+    .badge-development {
+        background: #fff3e0;
+        color: #ff6f00;
+    }
+
+    .badge-testing {
+        background: #f3e5f5;
+        color: #9c27b0;
+    }
+
+    .badge-ready {
+        background: #e8f5e9;
+        color: #2e844a;
+    }
+
+    .badge-major {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .badge-minor {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .badge-patch {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .badge-hotfix {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
+    .release-meta {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: #706e6b;
+    }
+
+    .release-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .release-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Change Groups */
+    .change-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .change-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .change-group-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .change-group-header.features {
+        color: #2e844a;
+    }
+
+    .change-group-header.bugs {
+        color: #c62828;
+    }
+
+    .change-group-header.improvements {
+        color: #0176d3;
+    }
+
+    .change-group-header.breaking {
+        color: #ff6f00;
+    }
+
+    .change-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .change-list li {
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+        font-size: 0.9rem;
+        color: #3e3e3c;
+        border-bottom: 1px solid #f3f3f3;
+    }
+
+    .change-list li:last-child {
+        border-bottom: none;
+    }
+
+    .change-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.85rem;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #dddbda;
+    }
+
+    .change-list li.feature::before {
+        background: #2e844a;
+    }
+
+    .change-list li.bug::before {
+        background: #c62828;
+    }
+
+    .change-list li.improvement::before {
+        background: #0176d3;
+    }
+
+    .change-id {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #706e6b;
+        margin-left: 0.5rem;
+    }
+
+    /* Release Notes */
+    .release-notes {
+        background: #f8f8f8;
+        padding: 1rem 1.25rem;
+        border-radius: 6px;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #3e3e3c;
+        line-height: 1.6;
+    }
+
+    .release-notes-label {
+        font-weight: 600;
+        color: #080707;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #dddbda;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #080707;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state-text {
+        color: #706e6b;
+    }
+
+    /* Progress Bar */
+    .release-progress {
+        margin-top: 1rem;
+    }
+
+    .progress-bar-container {
+        background: #e5e5e5;
+        border-radius: 4px;
+        height: 8px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #0176d3, #2e844a);
+        transition: width 0.3s;
+    }
+
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-top: 0.5rem;
+    }
+
+    /* Git Commits Timeline */
+    .commit-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .commit-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dddbda;
+    }
+
+    .commit-item {
+        position: relative;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .commit-item::before {
+        content: '';
+        position: absolute;
+        left: -1.75rem;
+        top: 1.25rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #dddbda;
+    }
+
+    .commit-item.feat::before { background: #2e844a; box-shadow: 0 0 0 2px #2e844a; }
+    .commit-item.fix::before { background: #c62828; box-shadow: 0 0 0 2px #c62828; }
+    .commit-item.refactor::before { background: #0176d3; box-shadow: 0 0 0 2px #0176d3; }
+    .commit-item.docs::before { background: #6f42c1; box-shadow: 0 0 0 2px #6f42c1; }
+    .commit-item.chore::before { background: #6c757d; box-shadow: 0 0 0 2px #6c757d; }
+
+    .commit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+
+    .commit-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .commit-title {
+        font-weight: 600;
+        color: #080707;
+        font-size: 0.95rem;
+        flex: 1;
+    }
+
+    .commit-scope {
+        color: #706e6b;
+        font-weight: 400;
+    }
+
+    .commit-meta {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: #706e6b;
+    }
+
+    .commit-hash {
+        font-family: monospace;
+        color: #0176d3;
+    }
+
+    .commit-description {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #3e3e3c;
+        white-space: pre-wrap;
+    }
+
+    .date-separator {
+        display: flex;
+        align-items: center;
+        margin: 1.5rem 0 1rem;
+        gap: 1rem;
+    }
+
+    .date-separator::before,
+    .date-separator::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #dddbda;
+    }
+
+    .date-separator span {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #706e6b;
+        text-transform: uppercase;
+    }
+
+    /* Tab Navigation */
+    .changelog-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1.5rem;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .changelog-tab {
+        padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #706e6b;
+        background: white;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .changelog-tab:hover {
+        background: #f3f3f3;
+        color: #0176d3;
+    }
+
+    .changelog-tab.active {
+        color: #0176d3;
+        background: #e3f2fd;
+        border-bottom: 3px solid #0176d3;
+    }
+
+    .tab-count {
+        background: #dddbda;
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+    }
+
+    .changelog-tab.active .tab-count {
+        background: #0176d3;
+        color: white;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary" title="Back to Dev Console">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="sf-page-title">
+                    <i class="fas fa-newspaper" style="color: #ff6f00;"></i>
+                    Dev Blog / Changelog
+                </h1>
+            </div>
+            <div>
+                <button class="sf-button sf-button-primary" onclick="syncGitCommits()" id="syncBtn">
+                    <i class="fas fa-sync"></i> Sync Git Commits
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="changelog-content">
+        <!-- Tab Navigation -->
+        <div class="changelog-tabs">
+            <button class="changelog-tab active" onclick="switchTab('commits')">
+                <i class="fas fa-code-commit"></i> Git Commits
+                <span class="tab-count">{{ dev_blog_entries|length if dev_blog_entries else 0 }}</span>
+            </button>
+            <button class="changelog-tab" onclick="switchTab('releases')">
+                <i class="fas fa-rocket"></i> Releases
+                <span class="tab-count">{{ (upcoming|length if upcoming else 0) + (released|length if released else 0) }}</span>
+            </button>
+        </div>
+
+        <!-- Git Commits Tab -->
+        <div id="commits-tab" class="tab-content active">
+            {% if dev_blog_entries %}
+            <div class="commit-timeline">
+                {% set current_date = namespace(value=None) %}
+                {% for entry in dev_blog_entries %}
+                    {% set entry_date = entry.commit_date.strftime('%B %d, %Y') %}
+                    {% if current_date.value != entry_date %}
+                        {% if current_date.value is not none %}
+                        </div>
+                        {% endif %}
+                        <div class="date-separator">
+                            <span>{{ entry_date }}</span>
+                        </div>
+                        {% set current_date.value = entry_date %}
+                    {% endif %}
+                    <div class="commit-item {{ entry.commit_type or '' }}">
+                        <div class="commit-header">
+                            <div style="flex: 1;">
+                                <span class="commit-type-badge" style="background: {{ entry.type_color }}20; color: {{ entry.type_color }};">
+                                    <i class="fas {{ entry.type_icon }}"></i>
+                                    {{ entry.display_type }}
+                                </span>
+                                {% if entry.scope %}
+                                <span class="commit-scope">({{ entry.scope }})</span>
+                                {% endif %}
+                            </div>
+                            <span class="commit-hash">{{ entry.commit_short }}</span>
+                        </div>
+                        <div class="commit-title">{{ entry.title }}</div>
+                        <div class="commit-meta">
+                            <span><i class="fas fa-user"></i> {{ entry.author_name }}</span>
+                            <span><i class="fas fa-clock"></i> {{ entry.commit_date.strftime('%H:%M') }}</span>
+                            {% if entry.branch %}
+                            <span><i class="fas fa-code-branch"></i> {{ entry.branch }}</span>
+                            {% endif %}
+                        </div>
+                        {% if entry.description %}
+                        <div class="commit-description">{{ entry.description }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-code-commit"></i>
+                </div>
+                <div class="empty-state-title">No Git Commits Synced</div>
+                <div class="empty-state-text">Click "Sync Git Commits" to import recent commits from the repository.</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Releases Tab -->
+        <div id="releases-tab" class="tab-content">
+        <!-- Current Version Banner -->
+        <div class="current-version-banner">
+            <div class="version-info">
+                <h2>{{ version_info.name }}</h2>
+                <p>{{ version_info.codename }} - Built {{ version_info.build_date }}</p>
+            </div>
+            <div class="version-badge">
+                <div class="label">Current Version</div>
+                <div class="value">{{ version_info.version }}</div>
+            </div>
+        </div>
+
+        <!-- Upcoming Releases -->
+        {% if upcoming %}
+        <div class="section-header">
+            <i class="fas fa-rocket" style="color: #ff6f00;"></i>
+            <h2>Upcoming Releases</h2>
+            <span class="count-badge" style="background: #ff6f00;">{{ upcoming|length }}</span>
+        </div>
+
+        {% for release in upcoming %}
+        <div class="release-card">
+            <div class="release-card-header upcoming">
+                <div>
+                    <div class="release-title">
+                        <span class="release-version">v{{ release.version }}</span>
+                        {% if release.name %}
+                        <span class="release-name">- {{ release.name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="release-meta">
+                        {% if release.planned_date %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            Planned: {{ release.planned_date.strftime('%B %d, %Y') }}
+                        </span>
+                        {% endif %}
+                        {% if release.days_until_release is not none %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-clock"></i>
+                            {{ release.days_until_release }} days remaining
+                        </span>
+                        {% endif %}
+                        {% if release.release_manager %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-user"></i>
+                            {{ release.release_manager.username }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="release-badges">
+                    <span class="release-badge badge-{{ release.status.value|lower|replace(' ', '-') }}">
+                        {{ release.status.value }}
+                    </span>
+                    <span class="release-badge badge-{{ release.release_type.value|lower }}">
+                        {{ release.release_type.value }}
+                    </span>
+                </div>
+            </div>
+            <div class="release-card-body">
+                {% if release.description %}
+                <p style="color: #3e3e3c; margin-bottom: 1rem;">{{ release.description }}</p>
+                {% endif %}
+
+                <!-- Progress -->
+                <div class="release-progress">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: {{ release.completion_percentage }}%;"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>{{ release.completion_percentage }}% Complete</span>
+                        <span>{{ release.features|length }} features, {{ release.fixed_bugs|length }} bug fixes</span>
+                    </div>
+                </div>
+
+                {% if release.features %}
+                <div class="change-group" style="margin-top: 1.5rem;">
+                    <div class="change-group-header features">
+                        <i class="fas fa-star"></i> Planned Features ({{ release.features|length }})
+                    </div>
+                    <ul class="change-list">
+                        {% for feature in release.features[:5] %}
+                        <li class="feature">
+                            {{ feature.title }}
+                            <span class="change-id">{{ feature.display_id }}</span>
+                        </li>
+                        {% endfor %}
+                        {% if release.features|length > 5 %}
+                        <li style="color: #706e6b; font-style: italic;">
+                            ... and {{ release.features|length - 5 }} more
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if release.fixed_bugs %}
+                <div class="change-group">
+                    <div class="change-group-header bugs">
+                        <i class="fas fa-bug"></i> Bug Fixes Planned ({{ release.fixed_bugs|length }})
+                    </div>
+                    <ul class="change-list">
+                        {% for bug in release.fixed_bugs[:5] %}
+                        <li class="bug">
+                            {{ bug.title }}
+                            <span class="change-id">{{ bug.display_id }}</span>
+                        </li>
+                        {% endfor %}
+                        {% if release.fixed_bugs|length > 5 %}
+                        <li style="color: #706e6b; font-style: italic;">
+                            ... and {{ release.fixed_bugs|length - 5 }} more
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Released Versions -->
+        <div class="section-header" style="margin-top: 2rem;">
+            <i class="fas fa-check-circle" style="color: #2e844a;"></i>
+            <h2>Released Versions</h2>
+            <span class="count-badge" style="background: #2e844a;">{{ released|length }}</span>
+        </div>
+
+        {% if released %}
+        {% for release in released %}
+        <div class="release-card">
+            <div class="release-card-header released">
+                <div>
+                    <div class="release-title">
+                        <span class="release-version">v{{ release.version }}</span>
+                        {% if release.name %}
+                        <span class="release-name">- {{ release.name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="release-meta">
+                        {% if release.release_date %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-calendar-check"></i>
+                            Released: {{ release.release_date.strftime('%B %d, %Y') }}
+                        </span>
+                        {% endif %}
+                        {% if release.release_manager %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-user"></i>
+                            {{ release.release_manager.username }}
+                        </span>
+                        {% endif %}
+                        <span class="release-meta-item">
+                            <i class="fas fa-code-branch"></i>
+                            {{ release.features|length }} features, {{ release.fixed_bugs|length }} bug fixes
+                        </span>
+                    </div>
+                </div>
+                <div class="release-badges">
+                    <span class="release-badge badge-released">
+                        <i class="fas fa-check"></i> Released
+                    </span>
+                    <span class="release-badge badge-{{ release.release_type.value|lower }}">
+                        {{ release.release_type.value }}
+                    </span>
+                </div>
+            </div>
+            <div class="release-card-body">
+                {% if release.description %}
+                <p style="color: #3e3e3c; margin-bottom: 1rem;">{{ release.description }}</p>
+                {% endif %}
+
+                {% if release.features %}
+                <div class="change-group">
+                    <div class="change-group-header features">
+                        <i class="fas fa-star"></i> New Features ({{ release.features|length }})
+                    </div>
+                    <ul class="change-list">
+                        {% for feature in release.features %}
+                        <li class="feature">
+                            {{ feature.title }}
+                            <span class="change-id">{{ feature.display_id }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if release.fixed_bugs %}
+                <div class="change-group">
+                    <div class="change-group-header bugs">
+                        <i class="fas fa-bug"></i> Bug Fixes ({{ release.fixed_bugs|length }})
+                    </div>
+                    <ul class="change-list">
+                        {% for bug in release.fixed_bugs %}
+                        <li class="bug">
+                            {{ bug.title }}
+                            <span class="change-id">{{ bug.display_id }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if release.breaking_changes %}
+                <div class="change-group">
+                    <div class="change-group-header breaking">
+                        <i class="fas fa-exclamation-triangle"></i> Breaking Changes
+                    </div>
+                    <div class="release-notes">
+                        {{ release.breaking_changes }}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if release.release_notes %}
+                <div class="release-notes">
+                    <span class="release-notes-label"><i class="fas fa-sticky-note"></i> Release Notes</span>
+                    {{ release.release_notes }}
+                </div>
+                {% endif %}
+
+                {% if release.upgrade_instructions %}
+                <div class="release-notes" style="background: #fff3e0; margin-top: 0.75rem;">
+                    <span class="release-notes-label" style="color: #e65100;"><i class="fas fa-arrow-up"></i> Upgrade Instructions</span>
+                    {{ release.upgrade_instructions }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-history"></i>
+            </div>
+            <div class="empty-state-title">No Released Versions Yet</div>
+            <div class="empty-state-text">Released versions will appear here once they are deployed.</div>
+        </div>
+        {% endif %}
+        </div><!-- End releases-tab -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.changelog-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.closest('.changelog-tab').classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(tabName + '-tab').classList.add('active');
+}
+
+async function syncGitCommits() {
+    const btn = document.getElementById('syncBtn');
+    const originalText = btn.innerHTML;
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/development/changelog/sync', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Success: ' + result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while syncing');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

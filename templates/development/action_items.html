@@ -1,0 +1,2006 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-success {
+        background: #2e844a;
+        color: white;
+    }
+
+    .sf-button-success:hover {
+        background: #1f5b32;
+    }
+
+    .sf-button-destructive {
+        background: #ba0517;
+        color: white;
+    }
+
+    .sf-button-destructive:hover {
+        background: #8e0000;
+    }
+
+    /* Kanban Board */
+    .kanban-container {
+        display: flex;
+        gap: 1rem;
+        padding: 0 1.5rem 1.5rem;
+        overflow-x: auto;
+        min-height: calc(100vh - 200px);
+    }
+
+    .kanban-column {
+        flex: 1;
+        min-width: 300px;
+        max-width: 350px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .kanban-column-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .kanban-column-header.not-started {
+        background: linear-gradient(135deg, #f3f3f3 0%, #e5e5e5 100%);
+        border-left: 4px solid #706e6b;
+    }
+
+    .kanban-column-header.in-progress {
+        background: linear-gradient(135deg, #e0f3ff 0%, #c9e8ff 100%);
+        border-left: 4px solid #0176d3;
+    }
+
+    .kanban-column-header.blocked {
+        background: linear-gradient(135deg, #ffeef0 0%, #ffd6db 100%);
+        border-left: 4px solid #ba0517;
+    }
+
+    .kanban-column-header.pending-testing {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        border-left: 4px solid #9c27b0;
+    }
+
+    .kanban-column-header.done {
+        background: linear-gradient(135deg, #e6f9ed 0%, #c8f0d8 100%);
+        border-left: 4px solid #2e844a;
+    }
+
+    .kanban-column-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #181818;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .kanban-count {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .kanban-items {
+        flex: 1;
+        padding: 0.75rem;
+        overflow-y: auto;
+        min-height: 200px;
+    }
+
+    .kanban-items.drag-over {
+        background: rgba(1, 118, 211, 0.1);
+    }
+
+    /* Kanban Card */
+    .kanban-card {
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        cursor: grab;
+        transition: all 0.2s;
+        border-left: 4px solid #706e6b;
+    }
+
+    .kanban-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .kanban-card.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+    }
+
+    .kanban-card.priority-low {
+        border-left-color: #706e6b;
+    }
+
+    .kanban-card.priority-medium {
+        border-left-color: #fe9339;
+    }
+
+    .kanban-card.priority-high {
+        border-left-color: #ff5d2d;
+    }
+
+    .kanban-card.priority-urgent {
+        border-left-color: #ba0517;
+    }
+
+    .kanban-card-title {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #181818;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .kanban-card-title:hover {
+        color: #0176d3;
+    }
+
+    .kanban-card-description {
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .kanban-card-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.7rem;
+        color: #706e6b;
+    }
+
+    .kanban-card-priority {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .priority-badge-low {
+        background: #e5e5e5;
+        color: #706e6b;
+    }
+
+    .priority-badge-medium {
+        background: #fff4e5;
+        color: #9d5800;
+    }
+
+    .priority-badge-high {
+        background: #ffe5dc;
+        color: #c23934;
+    }
+
+    .priority-badge-urgent {
+        background: #ffd6db;
+        color: #ba0517;
+    }
+
+    .kanban-card-actions {
+        display: flex;
+        gap: 0.25rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .kanban-card:hover .kanban-card-actions {
+        opacity: 1;
+    }
+
+    .kanban-card-btn {
+        padding: 2px 6px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #706e6b;
+        border-radius: 4px;
+    }
+
+    .kanban-card-btn:hover {
+        background: #f3f3f3;
+        color: #0176d3;
+    }
+
+    .kanban-card-btn.delete:hover {
+        color: #ba0517;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #181818;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #706e6b;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e5e5;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #181818;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #0176d3;
+        box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.2);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .paste-textarea {
+        min-height: 200px;
+        font-family: monospace;
+        font-size: 0.8rem;
+        line-height: 1.6;
+    }
+
+    .paste-help {
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-top: 0.5rem;
+    }
+
+    /* Header Actions */
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+        display: flex;
+        gap: 1.5rem;
+        padding: 0.75rem 1.5rem;
+        background: white;
+        border-bottom: 1px solid #e5e5e5;
+        font-size: 0.85rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stat-label {
+        color: #706e6b;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: #181818;
+    }
+
+    /* Assignee avatar */
+    .assignee-avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #0176d3;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        font-weight: 600;
+    }
+
+    /* Tester avatar */
+    .tester-avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #9c27b0;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        font-weight: 600;
+    }
+
+    /* Item number badge */
+    .item-number {
+        background: #181818;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-right: 6px;
+    }
+
+    /* Tester badge */
+    .tester-badge {
+        background: #f3e5f5;
+        color: #7b1fa2;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .tester-badge i {
+        font-size: 0.6rem;
+    }
+
+    /* Comment badge */
+    .comment-badge {
+        background: #e3f2fd;
+        color: #1565c0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+    }
+
+    .comment-badge:hover {
+        background: #bbdefb;
+    }
+
+    .comment-badge i {
+        font-size: 0.6rem;
+    }
+
+    /* Due date styling */
+    .due-date {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .due-date.overdue {
+        color: #ba0517;
+    }
+
+    .due-date.due-soon {
+        color: #fe9339;
+    }
+
+    /* Detail Modal - larger size */
+    .detail-modal .modal-content {
+        max-width: 800px;
+        max-height: 90vh;
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .detail-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #181818;
+        flex: 1;
+    }
+
+    .detail-item-number {
+        background: #181818;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .detail-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-section-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #706e6b;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-description {
+        background: #f8f8f8;
+        border-radius: 6px;
+        padding: 1rem;
+        color: #181818;
+        white-space: pre-wrap;
+        line-height: 1.6;
+    }
+
+    .detail-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .detail-meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .detail-meta-label {
+        font-size: 0.75rem;
+        color: #706e6b;
+        text-transform: uppercase;
+    }
+
+    .detail-meta-value {
+        font-size: 0.9rem;
+        color: #181818;
+        font-weight: 500;
+    }
+
+    /* Priority selector in detail view */
+    .priority-selector {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .priority-btn {
+        padding: 0.4rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .priority-btn.low {
+        background: #e5e5e5;
+        color: #706e6b;
+    }
+
+    .priority-btn.medium {
+        background: #fff4e5;
+        color: #9d5800;
+    }
+
+    .priority-btn.high {
+        background: #ffe5dc;
+        color: #c23934;
+    }
+
+    .priority-btn.urgent {
+        background: #ffd6db;
+        color: #ba0517;
+    }
+
+    .priority-btn.selected {
+        border-color: #0176d3;
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.3);
+    }
+
+    /* Comments section */
+    .comments-section {
+        border-top: 1px solid #e5e5e5;
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+
+    .comments-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+    }
+
+    .comment-item {
+        padding: 0.75rem;
+        background: #f8f8f8;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .comment-author {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #181818;
+    }
+
+    .comment-date {
+        font-size: 0.75rem;
+        color: #706e6b;
+    }
+
+    .comment-content {
+        font-size: 0.875rem;
+        color: #181818;
+        line-height: 1.5;
+        white-space: pre-wrap;
+    }
+
+    .comment-delete {
+        background: none;
+        border: none;
+        color: #ba0517;
+        cursor: pointer;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .comment-delete:hover {
+        background: #ffeef0;
+    }
+
+    .comment-input-area {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .comment-input-area textarea {
+        flex: 1;
+        min-height: 60px;
+        resize: vertical;
+    }
+
+    .no-comments {
+        text-align: center;
+        padding: 1.5rem;
+        color: #706e6b;
+        font-style: italic;
+    }
+
+    /* Meeting Selector */
+    .meeting-selector-bar {
+        background: linear-gradient(135deg, #1a365d 0%, #2d4a77 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .meeting-selector-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .meeting-selector {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+
+    .meeting-tab {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .meeting-tab:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .meeting-tab.active {
+        background: white;
+        color: #1a365d;
+        font-weight: 600;
+        border-color: white;
+    }
+
+    .meeting-tab .item-count {
+        background: rgba(0,0,0,0.2);
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+
+    .meeting-tab.active .item-count {
+        background: #1a365d;
+        color: white;
+    }
+
+    .new-meeting-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        background: #2e844a;
+        border: none;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .new-meeting-btn:hover {
+        background: #1f5b32;
+    }
+
+    .no-meeting-message {
+        padding: 2rem;
+        text-align: center;
+        color: #706e6b;
+        font-style: italic;
+        background: white;
+        border-radius: 8px;
+        margin: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Macros - must be defined before use -->
+{% macro render_card(item) %}
+<div class="kanban-card priority-{{ item.priority.name|lower if item.priority else 'medium' }}"
+     draggable="true"
+     ondragstart="drag(event)"
+     data-id="{{ item.id }}"
+     data-item-number="{{ item.item_number or '' }}">
+    <div class="kanban-card-title" onclick="event.stopPropagation(); openDetailModal({{ item.id }})" onmousedown="event.stopPropagation()" style="cursor: pointer;">
+        {% if item.item_number %}<span class="item-number">#{{ item.item_number }}</span>{% endif %}{{ item.title }}
+    </div>
+    {% if item.description %}
+    <div class="kanban-card-description">{{ item.description }}</div>
+    {% endif %}
+    <div class="kanban-card-meta">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span class="kanban-card-priority priority-badge-{{ item.priority.name|lower if item.priority else 'medium' }}">
+                {{ item.priority.value if item.priority else 'Medium' }}
+            </span>
+            {% if item.assigned_to %}
+            <span class="assignee-avatar" title="Assigned: {{ item.assigned_to.username }}">
+                {{ item.assigned_to.username[0]|upper }}
+            </span>
+            {% endif %}
+            {% if item.tester %}
+            <span class="tester-badge" title="Tester: {{ item.tester.username }}">
+                <i class="fas fa-vial"></i> {{ item.tester.username }}
+            </span>
+            {% endif %}
+            {% if item.comments|length > 0 %}
+            <span class="comment-badge" onclick="event.stopPropagation(); openDetailModal({{ item.id }})" title="{{ item.comments|length }} comment(s)">
+                <i class="fas fa-comments"></i> {{ item.comments|length }}
+            </span>
+            {% endif %}
+            {% if item.due_date %}
+            <span class="due-date {% if item.due_date < today %}overdue{% elif (item.due_date - today).days <= 2 %}due-soon{% endif %}" title="Due: {{ item.due_date }}">
+                <i class="fas fa-calendar-alt"></i> {{ item.due_date.strftime('%b %d') }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="kanban-card-actions">
+            <button class="kanban-card-btn" onclick="editItem({{ item.id }})" title="Edit">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="kanban-card-btn delete" onclick="deleteItem({{ item.id }})" title="Delete">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+<div class="sf-container">
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <a href="{{ url_for('action_items.index') }}" class="sf-button sf-button-secondary" title="Back to Meetings">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="sf-page-title">
+                    <i class="fas fa-tasks mr-2"></i>{{ active_meeting.name if active_meeting else 'Action Items' }}
+                </h1>
+            </div>
+            <div class="header-actions">
+                <button class="sf-button sf-button-secondary" onclick="openPasteModal()">
+                    <i class="fas fa-clipboard"></i> Paste Items
+                </button>
+                <button class="sf-button sf-button-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i> Add Item
+                </button>
+                <button class="sf-button sf-button-secondary" onclick="openTesterModal()" style="background: #9c27b0; color: white; border-color: #9c27b0;">
+                    <i class="fas fa-user-check"></i> Assign Tester
+                </button>
+                <button class="sf-button sf-button-secondary" onclick="renumberItems()" title="Renumber items sequentially">
+                    <i class="fas fa-sort-numeric-down"></i> Renumber
+                </button>
+                <button class="sf-button sf-button-destructive" onclick="clearDoneItems()" title="Clear all completed items">
+                    <i class="fas fa-trash"></i> Clear Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meeting Selector Bar -->
+    <div class="meeting-selector-bar">
+        <span class="meeting-selector-label">
+            <i class="fas fa-calendar-week"></i> Meeting:
+        </span>
+        <div class="meeting-selector">
+            {% if meetings %}
+                {% for meeting in meetings %}
+                <a href="{{ url_for('action_items.meeting_detail', meeting_id=meeting.id) }}"
+                   class="meeting-tab {% if active_meeting and active_meeting.id == meeting.id %}active{% endif %}">
+                    {{ meeting.name }}
+                    <span class="item-count">{{ meeting.action_items|length }}</span>
+                </a>
+                {% endfor %}
+            {% else %}
+                <span style="opacity: 0.7; font-style: italic;">No meetings yet. Create one to get started!</span>
+            {% endif %}
+        </div>
+        <button class="new-meeting-btn" onclick="openMeetingModal()">
+            <i class="fas fa-plus"></i> New Meeting
+        </button>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Total:</span>
+            <span class="stat-value" id="totalCount">{{ columns['NOT_STARTED']|length + columns['IN_PROGRESS']|length + columns['PENDING_TESTING']|length + columns['BLOCKED']|length + columns['DONE']|length }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Not Started:</span>
+            <span class="stat-value" id="notStartedCount">{{ columns['NOT_STARTED']|length }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">In Progress:</span>
+            <span class="stat-value" id="inProgressCount">{{ columns['IN_PROGRESS']|length }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Pending Testing:</span>
+            <span class="stat-value" id="pendingTestingCount">{{ columns['PENDING_TESTING']|length }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Blocked:</span>
+            <span class="stat-value" id="blockedCount">{{ columns['BLOCKED']|length }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Done:</span>
+            <span class="stat-value" id="doneCount">{{ columns['DONE']|length }}</span>
+        </div>
+    </div>
+
+    <div class="kanban-container">
+        <!-- Not Started Column -->
+        <div class="kanban-column" data-status="Not Started">
+            <div class="kanban-column-header not-started">
+                <span class="kanban-column-title">
+                    <i class="fas fa-inbox"></i> Not Started
+                    <span class="kanban-count">{{ columns['NOT_STARTED']|length }}</span>
+                </span>
+            </div>
+            <div class="kanban-items" data-status="Not Started" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">
+                {% for item in columns['NOT_STARTED'] %}
+                {{ render_card(item) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="kanban-column" data-status="In Progress">
+            <div class="kanban-column-header in-progress">
+                <span class="kanban-column-title">
+                    <i class="fas fa-spinner"></i> In Progress
+                    <span class="kanban-count">{{ columns['IN_PROGRESS']|length }}</span>
+                </span>
+            </div>
+            <div class="kanban-items" data-status="In Progress" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">
+                {% for item in columns['IN_PROGRESS'] %}
+                {{ render_card(item) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Pending Testing Column -->
+        <div class="kanban-column" data-status="Pending Testing">
+            <div class="kanban-column-header pending-testing">
+                <span class="kanban-column-title">
+                    <i class="fas fa-vial"></i> Pending Testing
+                    <span class="kanban-count">{{ columns['PENDING_TESTING']|length }}</span>
+                </span>
+            </div>
+            <div class="kanban-items" data-status="Pending Testing" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">
+                {% for item in columns['PENDING_TESTING'] %}
+                {{ render_card(item) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Blocked Column -->
+        <div class="kanban-column" data-status="Blocked">
+            <div class="kanban-column-header blocked">
+                <span class="kanban-column-title">
+                    <i class="fas fa-hand-paper"></i> Blocked
+                    <span class="kanban-count">{{ columns['BLOCKED']|length }}</span>
+                </span>
+            </div>
+            <div class="kanban-items" data-status="Blocked" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">
+                {% for item in columns['BLOCKED'] %}
+                {{ render_card(item) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Done Column -->
+        <div class="kanban-column" data-status="Done">
+            <div class="kanban-column-header done">
+                <span class="kanban-column-title">
+                    <i class="fas fa-check-circle"></i> Done
+                    <span class="kanban-count">{{ columns['DONE']|length }}</span>
+                </span>
+            </div>
+            <div class="kanban-items" data-status="Done" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">
+                {% for item in columns['DONE'] %}
+                {{ render_card(item) }}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="itemModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">Add Action Item</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="itemId">
+            <div class="form-group">
+                <label class="form-label">Title *</label>
+                <input type="text" id="itemTitle" class="form-input" placeholder="Enter action item title">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description / Notes</label>
+                <textarea id="itemDescription" class="form-textarea" placeholder="Additional details or notes"></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <select id="itemPriority" class="form-select">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                        <option value="Urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned To</label>
+                    <select id="itemAssignee" class="form-select">
+                        <option value="">Unassigned</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Tester</label>
+                    <select id="itemTester" class="form-select">
+                        <option value="">No tester</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Due Date</label>
+                    <input type="date" id="itemDueDate" class="form-input">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Meeting Date</label>
+                <input type="date" id="itemMeetingDate" class="form-input">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closeModal()">Cancel</button>
+            <button class="sf-button sf-button-primary" onclick="saveItem()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Paste Modal -->
+<div id="pasteModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Paste Action Items</h2>
+            <button class="modal-close" onclick="closePasteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Meeting Date</label>
+                <input type="date" id="pasteMeetingDate" class="form-input" value="{{ today }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Paste your action items (one per line)</label>
+                <textarea id="pasteText" class="form-textarea paste-textarea" placeholder="Fix login bug
+Add export feature
+Update documentation - then notify team
+Review security settings"></textarea>
+                <p class="paste-help">
+                    <strong>Tip:</strong> Each line becomes a separate action item. Text after " - " or " -- " becomes the description/notes.
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closePasteModal()">Cancel</button>
+            <button class="sf-button sf-button-success" onclick="bulkCreateItems()">
+                <i class="fas fa-clipboard-check"></i> Import Items
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Tester Modal -->
+<div id="testerModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); color: white;">
+            <h2 class="modal-title"><i class="fas fa-user-check mr-2"></i>Assign Tester</h2>
+            <button class="modal-close" onclick="closeTesterModal()" style="color: white;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Item Numbers (comma separated)</label>
+                <input type="text" id="testerItemNumbers" class="form-input" placeholder="e.g., 1, 3, 5 or 1-5">
+                <p class="paste-help">Enter item numbers like "1, 3, 5" or range "1-5" to assign tester to multiple items</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Select Tester</label>
+                <select id="testerSelect" class="form-select">
+                    <option value="">Select a tester...</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closeTesterModal()">Cancel</button>
+            <button class="sf-button sf-button-primary" onclick="assignTester()" style="background: #9c27b0; border-color: #9c27b0;">
+                <i class="fas fa-user-check"></i> Assign Tester
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="modal-overlay detail-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="detail-header" style="flex: 1;">
+                <span class="detail-item-number" id="detailItemNumber">#1</span>
+                <h2 class="detail-title" id="detailTitle">Loading...</h2>
+            </div>
+            <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Priority Section -->
+            <div class="detail-section">
+                <div class="detail-section-title">Priority</div>
+                <div class="priority-selector" id="prioritySelector">
+                    <button class="priority-btn low" onclick="updatePriority('Low')">Low</button>
+                    <button class="priority-btn medium" onclick="updatePriority('Medium')">Medium</button>
+                    <button class="priority-btn high" onclick="updatePriority('High')">High</button>
+                    <button class="priority-btn urgent" onclick="updatePriority('Urgent')">Urgent</button>
+                </div>
+            </div>
+
+            <!-- Description Section -->
+            <div class="detail-section" id="descriptionSection">
+                <div class="detail-section-title">Description</div>
+                <div class="detail-description" id="detailDescription">No description</div>
+            </div>
+
+            <!-- Meta Information -->
+            <div class="detail-section">
+                <div class="detail-meta">
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Status</span>
+                        <span class="detail-meta-value" id="detailStatus">-</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Assigned To</span>
+                        <span class="detail-meta-value" id="detailAssignee">-</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Tester</span>
+                        <span class="detail-meta-value" id="detailTester">-</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Due Date</span>
+                        <span class="detail-meta-value" id="detailDueDate">-</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Meeting Date</span>
+                        <span class="detail-meta-value" id="detailMeetingDate">-</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Created</span>
+                        <span class="detail-meta-value" id="detailCreated">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="comments-section">
+                <div class="detail-section-title"><i class="fas fa-comments mr-1"></i> Discussion</div>
+                <div class="comments-list" id="commentsList">
+                    <div class="no-comments">No comments yet. Start the discussion!</div>
+                </div>
+                <div class="comment-input-area">
+                    <textarea id="newCommentText" class="form-textarea" placeholder="Add a comment..." style="min-height: 60px;"></textarea>
+                    <button class="sf-button sf-button-primary" onclick="addComment()" style="align-self: flex-end;">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closeDetailModal()">Close</button>
+            <button class="sf-button sf-button-primary" onclick="editFromDetail()">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- New Meeting Modal -->
+<div id="meetingModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #1a365d 0%, #2d4a77 100%); color: white;">
+            <h2 class="modal-title"><i class="fas fa-calendar-week mr-2"></i>New Weekly Meeting</h2>
+            <button class="modal-close" onclick="closeMeetingModal()" style="color: white;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Meeting Name *</label>
+                <input type="text" id="meetingName" class="form-input" placeholder="e.g., Week of Dec 1, 2025">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Meeting Date *</label>
+                <input type="date" id="meetingDate" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes (optional)</label>
+                <textarea id="meetingNotes" class="form-textarea" placeholder="Meeting agenda or notes..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="sf-button sf-button-secondary" onclick="closeMeetingModal()">Cancel</button>
+            <button class="sf-button sf-button-success" onclick="createMeeting()">
+                <i class="fas fa-plus"></i> Create Meeting
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const today = new Date().toISOString().split('T')[0];
+
+// Set default meeting date to today
+document.getElementById('pasteMeetingDate').value = today;
+
+// Drag and Drop
+function allowDrop(e) {
+    e.preventDefault();
+}
+
+function dragEnter(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+}
+
+function dragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function drag(e) {
+    // Don't start drag if clicking on title or buttons
+    if (e.target.closest('.kanban-card-title') || e.target.closest('.kanban-card-btn') || e.target.closest('button')) {
+        e.preventDefault();
+        return;
+    }
+    const card = e.target.closest('.kanban-card');
+    if (card) {
+        card.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+    }
+}
+
+function drop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+
+    const itemId = e.dataTransfer.getData('text/plain');
+    const newStatus = e.currentTarget.dataset.status;
+    const card = document.querySelector(`.kanban-card[data-id="${itemId}"]`);
+
+    if (card) {
+        card.classList.remove('dragging');
+        e.currentTarget.appendChild(card);
+        moveItem(itemId, newStatus);
+    }
+}
+
+async function moveItem(itemId, newStatus) {
+    try {
+        const response = await fetch('/action-items/api/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                item_id: parseInt(itemId),
+                status: newStatus
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            updateCounts();
+        } else {
+            alert('Error moving item: ' + data.error);
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        location.reload();
+    }
+}
+
+function updateCounts() {
+    const columns = document.querySelectorAll('.kanban-items');
+    let total = 0;
+
+    columns.forEach(col => {
+        const status = col.dataset.status;
+        const count = col.querySelectorAll('.kanban-card').length;
+        total += count;
+
+        // Update column header count
+        const header = col.parentElement.querySelector('.kanban-count');
+        if (header) header.textContent = count;
+
+        // Update stats bar
+        const statusMap = {
+            'Not Started': 'notStartedCount',
+            'In Progress': 'inProgressCount',
+            'Pending Testing': 'pendingTestingCount',
+            'Blocked': 'blockedCount',
+            'Done': 'doneCount'
+        };
+
+        const statId = statusMap[status];
+        if (statId) {
+            document.getElementById(statId).textContent = count;
+        }
+    });
+
+    document.getElementById('totalCount').textContent = total;
+}
+
+// Modal functions
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add Action Item';
+    document.getElementById('itemId').value = '';
+    document.getElementById('itemTitle').value = '';
+    document.getElementById('itemDescription').value = '';
+    document.getElementById('itemPriority').value = 'Medium';
+    document.getElementById('itemAssignee').value = '';
+    document.getElementById('itemTester').value = '';
+    document.getElementById('itemDueDate').value = '';
+    document.getElementById('itemMeetingDate').value = today;
+    document.getElementById('itemModal').style.display = 'flex';
+}
+
+function openTesterModal() {
+    document.getElementById('testerItemNumbers').value = '';
+    document.getElementById('testerSelect').value = '';
+    document.getElementById('testerModal').style.display = 'flex';
+}
+
+function closeTesterModal() {
+    document.getElementById('testerModal').style.display = 'none';
+}
+
+function openPasteModal() {
+    document.getElementById('pasteText').value = '';
+    document.getElementById('pasteMeetingDate').value = today;
+    document.getElementById('pasteModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('itemModal').style.display = 'none';
+}
+
+function closePasteModal() {
+    document.getElementById('pasteModal').style.display = 'none';
+}
+
+async function saveItem() {
+    const itemId = document.getElementById('itemId').value;
+    const title = document.getElementById('itemTitle').value.trim();
+
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+
+    const data = {
+        title: title,
+        description: document.getElementById('itemDescription').value.trim(),
+        priority: document.getElementById('itemPriority').value,
+        assigned_to_id: document.getElementById('itemAssignee').value || null,
+        tester_id: document.getElementById('itemTester').value || null,
+        due_date: document.getElementById('itemDueDate').value || null,
+        meeting_id: activeMeetingId,
+        meeting_date: document.getElementById('itemMeetingDate').value || null
+    };
+
+    try {
+        const url = itemId
+            ? `/action-items/api/update/${itemId}`
+            : '/action-items/api/create';
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function bulkCreateItems() {
+    const text = document.getElementById('pasteText').value.trim();
+    const meetingDate = document.getElementById('pasteMeetingDate').value;
+
+    if (!text) {
+        alert('Please paste some action items');
+        return;
+    }
+
+    try {
+        const response = await fetch('/action-items/api/bulk-create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                text: text,
+                meeting_id: activeMeetingId,
+                meeting_date: meetingDate
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            closePasteModal();
+            alert(`Successfully imported ${result.count} action items`);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+function editItem(itemId) {
+    // For now, just open the card for editing
+    // In a full implementation, fetch the item data and populate the modal
+    const card = document.querySelector(`.kanban-card[data-id="${itemId}"]`);
+    if (card) {
+        document.getElementById('modalTitle').textContent = 'Edit Action Item';
+        document.getElementById('itemId').value = itemId;
+
+        // Get title, removing the item number badge
+        let titleText = card.querySelector('.kanban-card-title').textContent;
+        // Remove item number prefix like "#1"
+        titleText = titleText.replace(/^#\d+\s*/, '').trim();
+        document.getElementById('itemTitle').value = titleText;
+
+        const desc = card.querySelector('.kanban-card-description');
+        document.getElementById('itemDescription').value = desc ? desc.textContent : '';
+
+        // Get priority from class
+        const priorityMatch = card.className.match(/priority-(\w+)/);
+        if (priorityMatch) {
+            const priority = priorityMatch[1].charAt(0).toUpperCase() + priorityMatch[1].slice(1);
+            document.getElementById('itemPriority').value = priority;
+        }
+
+        // Reset tester (would need API call to get current value)
+        document.getElementById('itemTester').value = '';
+
+        document.getElementById('itemModal').style.display = 'flex';
+    }
+}
+
+async function deleteItem(itemId) {
+    if (!confirm('Are you sure you want to delete this action item?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/action-items/api/delete/${itemId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            const card = document.querySelector(`.kanban-card[data-id="${itemId}"]`);
+            if (card) card.remove();
+            updateCounts();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function clearDoneItems() {
+    const doneCount = document.querySelectorAll('.kanban-column[data-status="Done"] .kanban-card').length;
+
+    if (doneCount === 0) {
+        alert('No completed items to clear');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete all ${doneCount} completed items?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/action-items/api/clear-done', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                meeting_id: activeMeetingId
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+// Parse item number input (supports "1, 3, 5" or "1-5" format)
+function parseItemNumbers(input) {
+    const numbers = [];
+    const parts = input.split(',').map(p => p.trim()).filter(p => p);
+
+    for (const part of parts) {
+        if (part.includes('-')) {
+            // Range like "1-5"
+            const [start, end] = part.split('-').map(n => parseInt(n.trim()));
+            if (!isNaN(start) && !isNaN(end)) {
+                for (let i = start; i <= end; i++) {
+                    numbers.push(i);
+                }
+            }
+        } else {
+            // Single number
+            const num = parseInt(part);
+            if (!isNaN(num)) {
+                numbers.push(num);
+            }
+        }
+    }
+
+    return [...new Set(numbers)]; // Remove duplicates
+}
+
+async function assignTester() {
+    const input = document.getElementById('testerItemNumbers').value.trim();
+    const testerId = document.getElementById('testerSelect').value;
+
+    if (!input) {
+        alert('Please enter item numbers');
+        return;
+    }
+
+    if (!testerId) {
+        alert('Please select a tester');
+        return;
+    }
+
+    const itemNumbers = parseItemNumbers(input);
+    if (itemNumbers.length === 0) {
+        alert('No valid item numbers found');
+        return;
+    }
+
+    try {
+        const response = await fetch('/action-items/api/assign-tester', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                item_numbers: itemNumbers,
+                tester_id: parseInt(testerId),
+                meeting_id: activeMeetingId
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            closeTesterModal();
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function renumberItems() {
+    if (!confirm('This will renumber all items (except Done) sequentially starting from 1. Continue?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/action-items/api/renumber', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                meeting_id: activeMeetingId
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+// Detail Modal Functions
+let currentDetailItemId = null;
+let currentDetailItem = null;
+
+async function openDetailModal(itemId) {
+    currentDetailItemId = itemId;
+    document.getElementById('detailModal').style.display = 'flex';
+
+    // Show loading state
+    document.getElementById('detailTitle').textContent = 'Loading...';
+    document.getElementById('detailDescription').textContent = '';
+    document.getElementById('commentsList').innerHTML = '<div class="no-comments">Loading comments...</div>';
+
+    try {
+        const response = await fetch(`/action-items/api/item/${itemId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            currentDetailItem = data.item;
+            renderDetailModal(data.item);
+        } else {
+            alert('Error loading item: ' + data.error);
+            closeDetailModal();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+        closeDetailModal();
+    }
+}
+
+function renderDetailModal(item) {
+    // Item number and title
+    document.getElementById('detailItemNumber').textContent = item.item_number ? `#${item.item_number}` : '#-';
+    document.getElementById('detailItemNumber').style.display = item.item_number ? 'inline' : 'none';
+    document.getElementById('detailTitle').textContent = item.title;
+
+    // Description
+    const descSection = document.getElementById('descriptionSection');
+    if (item.description) {
+        document.getElementById('detailDescription').textContent = item.description;
+        descSection.style.display = 'block';
+    } else {
+        descSection.style.display = 'none';
+    }
+
+    // Priority buttons
+    const prioritySelector = document.getElementById('prioritySelector');
+    prioritySelector.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.textContent === item.priority) {
+            btn.classList.add('selected');
+        }
+    });
+
+    // Meta information
+    document.getElementById('detailStatus').textContent = item.status || '-';
+    document.getElementById('detailAssignee').textContent = item.assigned_to_name || 'Unassigned';
+    document.getElementById('detailTester').textContent = item.tester_name || 'No tester';
+    document.getElementById('detailDueDate').textContent = item.due_date ? formatDate(item.due_date) : '-';
+    document.getElementById('detailMeetingDate').textContent = item.meeting_date ? formatDate(item.meeting_date) : '-';
+    document.getElementById('detailCreated').textContent = item.created_at ? formatDateTime(item.created_at) : '-';
+
+    // Comments
+    renderComments(item.comments || []);
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+           ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderComments(comments) {
+    const container = document.getElementById('commentsList');
+
+    if (!comments || comments.length === 0) {
+        container.innerHTML = '<div class="no-comments">No comments yet. Start the discussion!</div>';
+        return;
+    }
+
+    container.innerHTML = comments.map(comment => `
+        <div class="comment-item" data-comment-id="${comment.id}">
+            <div class="comment-header">
+                <div>
+                    <span class="comment-author">${comment.username || 'Unknown'}</span>
+                    <span class="comment-date">${formatDateTime(comment.created_at)}</span>
+                </div>
+                <button class="comment-delete" onclick="deleteComment(${comment.id})" title="Delete comment">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="comment-content">${escapeHtml(comment.content)}</div>
+        </div>
+    `).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').style.display = 'none';
+    currentDetailItemId = null;
+    currentDetailItem = null;
+}
+
+async function updatePriority(priority) {
+    if (!currentDetailItemId) return;
+
+    try {
+        const response = await fetch(`/action-items/api/update/${currentDetailItemId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ priority: priority })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            // Update UI
+            const prioritySelector = document.getElementById('prioritySelector');
+            prioritySelector.querySelectorAll('.priority-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent === priority) {
+                    btn.classList.add('selected');
+                }
+            });
+
+            // Update the card in the kanban board
+            const card = document.querySelector(`.kanban-card[data-id="${currentDetailItemId}"]`);
+            if (card) {
+                card.className = card.className.replace(/priority-\w+/, `priority-${priority.toLowerCase()}`);
+                const badge = card.querySelector('.kanban-card-priority');
+                if (badge) {
+                    badge.className = `kanban-card-priority priority-badge-${priority.toLowerCase()}`;
+                    badge.textContent = priority;
+                }
+            }
+        } else {
+            alert('Error updating priority: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function addComment() {
+    if (!currentDetailItemId) return;
+
+    const textarea = document.getElementById('newCommentText');
+    const content = textarea.value.trim();
+
+    if (!content) {
+        alert('Please enter a comment');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/action-items/api/item/${currentDetailItemId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ content: content })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            textarea.value = '';
+
+            // Add comment to list
+            const container = document.getElementById('commentsList');
+            const noComments = container.querySelector('.no-comments');
+            if (noComments) noComments.remove();
+
+            const commentHtml = `
+                <div class="comment-item" data-comment-id="${result.comment.id}">
+                    <div class="comment-header">
+                        <div>
+                            <span class="comment-author">${result.comment.username || 'Unknown'}</span>
+                            <span class="comment-date">${formatDateTime(result.comment.created_at)}</span>
+                        </div>
+                        <button class="comment-delete" onclick="deleteComment(${result.comment.id})" title="Delete comment">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="comment-content">${escapeHtml(result.comment.content)}</div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', commentHtml);
+            container.scrollTop = container.scrollHeight;
+        } else {
+            alert('Error adding comment: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+
+    try {
+        const response = await fetch(`/action-items/api/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            const commentEl = document.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+            if (commentEl) commentEl.remove();
+
+            // Check if any comments left
+            const container = document.getElementById('commentsList');
+            if (!container.querySelector('.comment-item')) {
+                container.innerHTML = '<div class="no-comments">No comments yet. Start the discussion!</div>';
+            }
+        } else {
+            alert('Error deleting comment: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+function editFromDetail() {
+    if (!currentDetailItemId) return;
+    closeDetailModal();
+    editItem(currentDetailItemId);
+}
+
+// Close modals on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal();
+        closePasteModal();
+        closeTesterModal();
+        closeDetailModal();
+        closeMeetingModal();
+    }
+});
+
+// Close modals on outside click
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+});
+
+// ==================== MEETING FUNCTIONS ====================
+
+const activeMeetingId = {{ active_meeting.id if active_meeting else 'null' }};
+
+function openMeetingModal() {
+    document.getElementById('meetingName').value = '';
+    document.getElementById('meetingDate').value = today;
+    document.getElementById('meetingNotes').value = '';
+    document.getElementById('meetingModal').style.display = 'flex';
+}
+
+function closeMeetingModal() {
+    document.getElementById('meetingModal').style.display = 'none';
+}
+
+async function createMeeting() {
+    const name = document.getElementById('meetingName').value.trim();
+    const meetingDate = document.getElementById('meetingDate').value;
+    const notes = document.getElementById('meetingNotes').value.trim();
+
+    if (!name) {
+        alert('Meeting name is required');
+        return;
+    }
+
+    if (!meetingDate) {
+        alert('Meeting date is required');
+        return;
+    }
+
+    try {
+        const response = await fetch('/action-items/api/meetings/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                name: name,
+                meeting_date: meetingDate,
+                notes: notes
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            closeMeetingModal();
+            // Redirect to the new meeting
+            window.location.href = `/action-items/meeting/${result.meeting.id}`;
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+</script>
+{% endblock %}
