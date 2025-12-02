@@ -377,6 +377,8 @@ def export_tickets_csv():
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.queue),
             joinedload(Ticket.assets),
+            joinedload(Ticket.accessories),
+            joinedload(Ticket.accessory),
             joinedload(Ticket.tracking_histories),
             joinedload(Ticket.comments).joinedload(Comment.user)
         )
@@ -515,8 +517,8 @@ def export_tickets_csv():
             'Package Number',
             'Package Tracking Number',
             'Item Type',
-            'Package Items',
-            'Assets',
+            'Item Name',
+            'Legacy Assets',
             'Return Shipping Tracking',
             'Outbound Shipping Tracking',
             'Queue',
@@ -807,48 +809,147 @@ def export_tickets_csv():
                     except Exception as e:
                         logger.warning(f"Error loading package items: {e}")
             else:
-                # Original single-row format for tickets without packages
+                # For tickets without packages, export each asset and accessory as a separate row
                 # For Asset Return (claw), get both return and outbound tracking
                 return_shipping = getattr(ticket, 'return_tracking', '') or ''
                 outbound_shipping = getattr(ticket, 'shipping_tracking', '') or ''
 
-                row = [
-                    ticket.id,
-                    getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
-                    getattr(ticket, 'firstbaseorderid', '') or '',
-                    ticket.subject or '',
-                    ticket.description or '',
-                    ticket.status.value if ticket.status else '',
-                    ticket.priority.value if ticket.priority else '',
-                    ticket.get_category_display_name() if ticket.category else '',
-                    assigned_to,
-                    customer_name,
-                    customer_email,
-                    customer_phone,
-                    customer_company,
-                    customer_parent_company,
-                    customer_address,
-                    customer_timezone,
-                    customer_department,
-                    customer_country,
-                    ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
-                    ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
-                    '',  # Package number
-                    '',  # Package tracking number
-                    '',  # Item type (not applicable for non-package tickets)
-                    '',  # Package items
-                    assets_str,
-                    return_shipping,
-                    outbound_shipping,
-                    queue_name,
-                    latest_status,
-                    latest_carrier,
-                    latest_update,
-                    full_history,
-                    comments_count,
-                    comments_text
-                ]
-                writer.writerow(row)
+                # Collect all items (assets and accessories) for this ticket
+                ticket_items = []
+
+                # Add assets
+                try:
+                    if ticket.assets:
+                        for asset in ticket.assets:
+                            asset_name = asset.name or 'Asset'
+                            asset_tag = asset.asset_tag or 'N/A'
+                            asset_sn = asset.serial_num or 'N/A'
+                            item_description = f"{asset_name} Tag: {asset_tag} SN: {asset_sn}"
+                            ticket_items.append({
+                                'type': 'Tech Asset',
+                                'description': item_description,
+                                'quantity': 1
+                            })
+                except Exception as e:
+                    logger.warning(f"Error accessing assets for ticket {ticket.id}: {e}")
+
+                # Add accessories from TicketAccessory relationship
+                try:
+                    if ticket.accessories:
+                        for ticket_accessory in ticket.accessories:
+                            accessory_name = ticket_accessory.accessory_name or 'Unknown Accessory'
+                            qty = ticket_accessory.quantity or 1
+                            ticket_items.append({
+                                'type': 'Accessory',
+                                'description': accessory_name,
+                                'quantity': qty
+                            })
+                except Exception as e:
+                    logger.warning(f"Error accessing ticket accessories for ticket {ticket.id}: {e}")
+
+                # Add single accessory if set (accessory_id field)
+                try:
+                    if ticket.accessory_id and ticket.accessory:
+                        accessory = ticket.accessory
+                        accessory_name = accessory.name or 'Accessory'
+                        accessory_qty = getattr(ticket, 'accessory_quantity', 1) or 1
+                        # Don't add if already added from ticket.accessories
+                        already_added = any(
+                            item['description'] == accessory_name and item['type'] == 'Accessory'
+                            for item in ticket_items
+                        )
+                        if not already_added:
+                            ticket_items.append({
+                                'type': 'Accessory',
+                                'description': accessory_name,
+                                'quantity': accessory_qty
+                            })
+                except Exception as e:
+                    logger.warning(f"Error accessing single accessory for ticket {ticket.id}: {e}")
+
+                # If ticket has items, create one row per item
+                if ticket_items:
+                    for item in ticket_items:
+                        item_description = item['description']
+                        if item['quantity'] > 1:
+                            item_description = f"{item['description']} (x{item['quantity']})"
+
+                        row = [
+                            ticket.id,
+                            getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                            getattr(ticket, 'firstbaseorderid', '') or '',
+                            ticket.subject or '',
+                            ticket.description or '',
+                            ticket.status.value if ticket.status else '',
+                            ticket.priority.value if ticket.priority else '',
+                            ticket.get_category_display_name() if ticket.category else '',
+                            assigned_to,
+                            customer_name,
+                            customer_email,
+                            customer_phone,
+                            customer_company,
+                            customer_parent_company,
+                            customer_address,
+                            customer_timezone,
+                            customer_department,
+                            customer_country,
+                            ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                            ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                            '',  # Package number
+                            '',  # Package tracking number
+                            item['type'],  # Item type (Tech Asset or Accessory)
+                            item_description,  # Item description with quantity
+                            '',  # Assets column (item is in Package Items column)
+                            return_shipping,
+                            outbound_shipping,
+                            queue_name,
+                            latest_status,
+                            latest_carrier,
+                            latest_update,
+                            full_history,
+                            comments_count,
+                            comments_text
+                        ]
+                        writer.writerow(row)
+                else:
+                    # Ticket has no items, create single row
+                    row = [
+                        ticket.id,
+                        getattr(ticket, 'display_id', ticket.id) if hasattr(ticket, 'display_id') else ticket.id,
+                        getattr(ticket, 'firstbaseorderid', '') or '',
+                        ticket.subject or '',
+                        ticket.description or '',
+                        ticket.status.value if ticket.status else '',
+                        ticket.priority.value if ticket.priority else '',
+                        ticket.get_category_display_name() if ticket.category else '',
+                        assigned_to,
+                        customer_name,
+                        customer_email,
+                        customer_phone,
+                        customer_company,
+                        customer_parent_company,
+                        customer_address,
+                        customer_timezone,
+                        customer_department,
+                        customer_country,
+                        ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '',
+                        ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '',
+                        '',  # Package number
+                        '',  # Package tracking number
+                        '',  # Item type
+                        '',  # Package items
+                        '',  # Assets
+                        return_shipping,
+                        outbound_shipping,
+                        queue_name,
+                        latest_status,
+                        latest_carrier,
+                        latest_update,
+                        full_history,
+                        comments_count,
+                        comments_text
+                    ]
+                    writer.writerow(row)
 
         # Create response with CSV file
         output.seek(0)

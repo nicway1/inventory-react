@@ -235,10 +235,21 @@ def view_inventory():
 
         # Get unique values for filters from filtered assets only
         company_names_raw = tech_assets_query.with_entities(Asset.customer).distinct().all()
-        company_names = sorted(list(set([c[0] for c in company_names_raw if c[0]])))
+        # Check if there are assets with no company (empty or null)
+        has_unknown_company = any(not c[0] or (c[0] and c[0].strip() == '') for c in company_names_raw)
+        company_names = sorted(list(set([c[0] for c in company_names_raw if c[0] and c[0].strip()])))
 
         # Build company list with grouped display names for the filter dropdown
         companies = []
+
+        # Add "Unknown" option first if there are assets without companies
+        if has_unknown_company:
+            companies.append({
+                'value': '',
+                'label': 'Unknown',
+                'is_parent': False
+            })
+
         for company_name in company_names:
             company_obj = db_session.query(Company).filter(Company.name == company_name).first()
             if company_obj:
@@ -427,7 +438,16 @@ def api_sf_filters():
             company_grouping = {}  # Maps company name to parent company name
 
             for company_name, count in company_counts:
-                if not company_name:
+                # Handle empty/null company names as "Unknown"
+                if not company_name or company_name.strip() == '':
+                    companies.append({
+                        'value': '',  # Empty value to match assets with no company
+                        'label': 'Unknown',
+                        'count': count,
+                        'parent_company': None,
+                        'is_parent': False,
+                        'child_companies': []
+                    })
                     continue
 
                 # Look up company to get grouping info
@@ -1468,19 +1488,29 @@ def filter_inventory():
             except (AttributeError, TypeError):
                 pass
         
-        if 'customer' in data and data['customer'] or 'company' in data and data['company']:
+        if 'customer' in data or 'company' in data:
             company_value = data.get('customer') or data.get('company')
-            # Check if this company is a parent company - if so, include all child companies
-            company_obj = db_session.query(Company).filter(Company.name == company_value).first()
-            if company_obj and (company_obj.is_parent_company or company_obj.child_companies.count() > 0):
-                # This is a parent company - include assets from all child companies
-                child_company_names = [c.name for c in company_obj.child_companies.all()]
-                all_company_names = [company_value] + child_company_names
-                query = query.filter(Asset.customer.in_(all_company_names))
-                logger.info(f"Company grouping: filtering by parent '{company_value}' + children: {child_company_names}")
-            else:
-                # Regular company or no grouping - filter by exact match
-                query = query.filter(Asset.customer == company_value)
+            # Handle empty string to filter for assets with no company ("Unknown")
+            if company_value == '' or company_value == '__unknown__':
+                # Filter for assets with empty/null company
+                query = query.filter(or_(
+                    Asset.customer.is_(None),
+                    Asset.customer == '',
+                    func.trim(Asset.customer) == ''
+                ))
+                logger.info("Filtering for assets with no company (Unknown)")
+            elif company_value:
+                # Check if this company is a parent company - if so, include all child companies
+                company_obj = db_session.query(Company).filter(Company.name == company_value).first()
+                if company_obj and (company_obj.is_parent_company or company_obj.child_companies.count() > 0):
+                    # This is a parent company - include assets from all child companies
+                    child_company_names = [c.name for c in company_obj.child_companies.all()]
+                    all_company_names = [company_value] + child_company_names
+                    query = query.filter(Asset.customer.in_(all_company_names))
+                    logger.info(f"Company grouping: filtering by parent '{company_value}' + children: {child_company_names}")
+                else:
+                    # Regular company or no grouping - filter by exact match
+                    query = query.filter(Asset.customer == company_value)
         
         if 'model' in data and data['model']:
             query = query.filter(Asset.model == data['model'])
@@ -3840,7 +3870,15 @@ def export_inventory(item_type):
 
             company_filter = request.args.get('company')
             if company_filter and company_filter != 'all':
-                query = query.filter(Asset.customer == company_filter)
+                if company_filter == '__unknown__' or company_filter == '':
+                    # Filter for assets with empty/null company
+                    query = query.filter(or_(
+                        Asset.customer.is_(None),
+                        Asset.customer == '',
+                        func.trim(Asset.customer) == ''
+                    ))
+                else:
+                    query = query.filter(Asset.customer == company_filter)
 
             country_filter = request.args.get('country')
             if country_filter and country_filter != 'all':

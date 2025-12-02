@@ -1471,8 +1471,14 @@ document.addEventListener('DOMContentLoaded', function() {
             let method = 'GET';
             let body = null;
 
-            // Check if there are any non-empty filters
-            const hasActiveFilters = Object.keys(filters).some(key => filters[key] && filters[key] !== '');
+            // Check if there are any active filters (empty string for company = "Unknown" filter is valid)
+            const hasActiveFilters = Object.keys(filters).some(key => {
+                if (key === 'company' && filters[key] === '') {
+                    // Empty string for company means "Unknown" filter is selected
+                    return document.getElementById('companyFilter').selectedIndex > 0;
+                }
+                return filters[key] && filters[key] !== '';
+            });
 
             if (hasActiveFilters) {
                 url = '/inventory/filter';
@@ -2052,8 +2058,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (statusFilter && statusFilter.value) {
                 params.append('status', statusFilter.value);
             }
-            if (companyFilter && companyFilter.value) {
-                params.append('company', companyFilter.value);
+            if (companyFilter && (companyFilter.value || companyFilter.selectedIndex > 0)) {
+                // Empty string means "Unknown" filter, use special marker
+                params.append('company', companyFilter.value || '__unknown__');
             }
             if (modelFilter && modelFilter.value) {
                 params.append('model', modelFilter.value);
