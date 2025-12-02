@@ -5,9 +5,126 @@ Provides AI-like help for users navigating the application
 
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
+from database import SessionLocal
+from models.ticket import Ticket, TicketStatus, TicketPriority
+from models.custom_ticket_status import CustomTicketStatus
+from models.user import User
 import re
 
 chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/chatbot')
+
+
+# Action patterns for natural language commands
+ACTION_PATTERNS = {
+    "update_ticket_status": [
+        r"(?:update|change|set|mark)\s+ticket\s+#?(\d+)\s+(?:to|as|status)\s+(.+)",
+        r"ticket\s+#?(\d+)\s+(?:to|as|status)\s+(.+)",
+        r"(?:resolve|close)\s+ticket\s+#?(\d+)",
+        r"mark\s+ticket\s+#?(\d+)\s+(?:as\s+)?(.+)",
+    ],
+    "update_ticket_priority": [
+        r"(?:set|change|update)\s+ticket\s+#?(\d+)\s+priority\s+(?:to\s+)?(.+)",
+        r"ticket\s+#?(\d+)\s+priority\s+(?:to\s+)?(.+)",
+    ],
+    "assign_ticket": [
+        r"assign\s+ticket\s+#?(\d+)\s+to\s+(.+)",
+        r"(?:give|transfer)\s+ticket\s+#?(\d+)\s+to\s+(.+)",
+    ],
+}
+
+# Status aliases for natural language
+STATUS_ALIASES = {
+    "resolved": "RESOLVED",
+    "resolve": "RESOLVED",
+    "done": "RESOLVED",
+    "complete": "RESOLVED",
+    "completed": "RESOLVED",
+    "closed": "RESOLVED",
+    "close": "RESOLVED",
+    "new": "NEW",
+    "open": "NEW",
+    "in progress": "IN_PROGRESS",
+    "in-progress": "IN_PROGRESS",
+    "inprogress": "IN_PROGRESS",
+    "working": "IN_PROGRESS",
+    "processing": "PROCESSING",
+    "on hold": "ON_HOLD",
+    "on-hold": "ON_HOLD",
+    "onhold": "ON_HOLD",
+    "hold": "ON_HOLD",
+    "pending": "ON_HOLD",
+    "delivered": "RESOLVED_DELIVERED",
+}
+
+PRIORITY_ALIASES = {
+    "low": "LOW",
+    "medium": "MEDIUM",
+    "med": "MEDIUM",
+    "normal": "MEDIUM",
+    "high": "HIGH",
+    "critical": "CRITICAL",
+    "urgent": "CRITICAL",
+}
+
+
+def parse_action(query):
+    """Parse a query to detect if it's an action command"""
+    query_lower = query.lower().strip()
+
+    # Check for ticket status update
+    for pattern in ACTION_PATTERNS["update_ticket_status"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            groups = match.groups()
+            ticket_id = groups[0]
+
+            # Handle "resolve ticket 890" pattern (no status in regex)
+            if len(groups) == 1:
+                status = "RESOLVED"
+            else:
+                status_text = groups[1].strip() if groups[1] else "resolved"
+                status = STATUS_ALIASES.get(status_text.lower(), status_text.upper())
+
+            return {
+                "type": "action",
+                "action": "update_ticket_status",
+                "ticket_id": int(ticket_id),
+                "new_status": status,
+                "original_query": query
+            }
+
+    # Check for ticket priority update
+    for pattern in ACTION_PATTERNS["update_ticket_priority"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            ticket_id = match.group(1)
+            priority_text = match.group(2).strip()
+            priority = PRIORITY_ALIASES.get(priority_text.lower(), priority_text.upper())
+
+            return {
+                "type": "action",
+                "action": "update_ticket_priority",
+                "ticket_id": int(ticket_id),
+                "new_priority": priority,
+                "original_query": query
+            }
+
+    # Check for ticket assignment
+    for pattern in ACTION_PATTERNS["assign_ticket"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            ticket_id = match.group(1)
+            assignee = match.group(2).strip()
+
+            return {
+                "type": "action",
+                "action": "assign_ticket",
+                "ticket_id": int(ticket_id),
+                "assignee": assignee,
+                "original_query": query
+            }
+
+    return None
 
 # Knowledge base with questions and answers
 KNOWLEDGE_BASE = [
@@ -364,7 +481,100 @@ def ask():
             "error": "Please enter a question"
         })
 
-    # Find matching answer
+    # First, check if this is an action command
+    action = parse_action(query)
+    if action:
+        # Validate the action and return confirmation prompt
+        db_session = SessionLocal()
+        try:
+            if action["action"] == "update_ticket_status":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": f"Ticket #{action['ticket_id']} not found."
+                    })
+
+                # Check for custom status
+                custom_status = db_session.query(CustomTicketStatus).filter_by(
+                    internal_name=action["new_status"],
+                    is_active=True
+                ).first()
+
+                status_display = action["new_status"]
+                if custom_status:
+                    status_display = custom_status.display_name
+
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_status": ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                    "new_status": action["new_status"],
+                    "answer": f"Do you want to update **Ticket #{action['ticket_id']}** status to **{status_display}**?\n\nTicket: {ticket.subject}\nCurrent Status: {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}"
+                })
+
+            elif action["action"] == "update_ticket_priority":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": f"Ticket #{action['ticket_id']} not found."
+                    })
+
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_priority": ticket.priority.value if ticket.priority else "None",
+                    "new_priority": action["new_priority"],
+                    "answer": f"Do you want to change **Ticket #{action['ticket_id']}** priority to **{action['new_priority']}**?\n\nTicket: {ticket.subject}\nCurrent Priority: {ticket.priority.value if ticket.priority else 'None'}"
+                })
+
+            elif action["action"] == "assign_ticket":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": f"Ticket #{action['ticket_id']} not found."
+                    })
+
+                # Find user by name
+                assignee_name = action["assignee"]
+                user = db_session.query(User).filter(
+                    User.name.ilike(f"%{assignee_name}%")
+                ).first()
+
+                if not user:
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": f"User '{assignee_name}' not found. Please check the name and try again."
+                    })
+
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_assignee": ticket.assigned_to.name if ticket.assigned_to else "Unassigned",
+                    "new_assignee_id": user.id,
+                    "new_assignee": user.name,
+                    "answer": f"Do you want to assign **Ticket #{action['ticket_id']}** to **{user.name}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.name if ticket.assigned_to else 'Unassigned'}"
+                })
+
+        finally:
+            db_session.close()
+
+    # Find matching answer from knowledge base
     result = find_best_match(query)
 
     if result:
@@ -392,6 +602,99 @@ def ask():
         "answer": random.choice(FALLBACK_RESPONSES),
         "suggestions": get_suggested_questions(5)
     })
+
+
+@chatbot_bp.route('/execute', methods=['POST'])
+@login_required
+def execute_action():
+    """Execute a confirmed action"""
+    data = request.get_json()
+    action = data.get('action')
+    ticket_id = data.get('ticket_id')
+
+    if not action or not ticket_id:
+        return jsonify({"success": False, "error": "Missing action or ticket_id"})
+
+    db_session = SessionLocal()
+    try:
+        ticket = db_session.query(Ticket).filter_by(id=ticket_id).first()
+        if not ticket:
+            return jsonify({"success": False, "error": f"Ticket #{ticket_id} not found"})
+
+        # Check permissions
+        user_permissions = current_user.get_permissions(db_session)
+        if not user_permissions or not user_permissions.can_edit_tickets:
+            return jsonify({"success": False, "error": "You don't have permission to edit tickets"})
+
+        if action == "update_ticket_status":
+            new_status = data.get('new_status')
+            if not new_status:
+                return jsonify({"success": False, "error": "Missing new_status"})
+
+            # Check if it's a system status or custom status
+            try:
+                ticket.status = TicketStatus(new_status)
+            except ValueError:
+                # Try custom status
+                custom_status = db_session.query(CustomTicketStatus).filter_by(
+                    internal_name=new_status,
+                    is_active=True
+                ).first()
+                if custom_status:
+                    ticket.custom_status_id = custom_status.id
+                    ticket.status = TicketStatus.PROCESSING  # Set base status
+                else:
+                    return jsonify({"success": False, "error": f"Invalid status: {new_status}"})
+
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} status updated to {new_status}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        elif action == "update_ticket_priority":
+            new_priority = data.get('new_priority')
+            if not new_priority:
+                return jsonify({"success": False, "error": "Missing new_priority"})
+
+            try:
+                ticket.priority = TicketPriority(new_priority)
+            except ValueError:
+                return jsonify({"success": False, "error": f"Invalid priority: {new_priority}"})
+
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} priority updated to {new_priority}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        elif action == "assign_ticket":
+            new_assignee_id = data.get('new_assignee_id')
+            if not new_assignee_id:
+                return jsonify({"success": False, "error": "Missing assignee"})
+
+            user = db_session.query(User).filter_by(id=new_assignee_id).first()
+            if not user:
+                return jsonify({"success": False, "error": "User not found"})
+
+            ticket.assigned_to_id = user.id
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} assigned to {user.name}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        else:
+            return jsonify({"success": False, "error": f"Unknown action: {action}"})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        db_session.close()
 
 
 @chatbot_bp.route('/suggestions', methods=['GET'])

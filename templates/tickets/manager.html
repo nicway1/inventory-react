@@ -685,6 +685,7 @@
                             <th>Subject</th>
                             <th>Status</th>
                             <th>Queue</th>
+                            <th>Owner</th>
                             <th>Assigned To</th>
                             <th>Created</th>
                         </tr>
@@ -724,6 +725,9 @@
                                 {% else %}
                                 <span class="sf-badge sf-badge-red">No Queue</span>
                                 {% endif %}
+                            </td>
+                            <td>
+                                {{ ticket.owner.username if ticket.owner else '-' }}
                             </td>
                             <td>
                                 {{ ticket.assigned_to.username if ticket.assigned_to else '-' }}

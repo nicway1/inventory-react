@@ -297,6 +297,74 @@
     cursor: not-allowed;
 }
 
+/* Action Confirmation Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.action-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn-confirm {
+    background: #2e844a;
+    color: white;
+}
+
+.action-btn-confirm:hover {
+    background: #236b3a;
+}
+
+.action-btn-cancel {
+    background: #f0f0f0;
+    color: #555;
+}
+
+.action-btn-cancel:hover {
+    background: #e0e0e0;
+}
+
+.action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Success/Error messages */
+.action-result {
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.action-result.success {
+    background: #e8f5e9;
+    color: #2e844a;
+    border: 1px solid #a5d6a7;
+}
+
+.action-result.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+
+.action-result a {
+    color: inherit;
+    font-weight: 600;
+}
+
 /* Notification Badge */
 .chatbot-badge {
     position: absolute;
@@ -386,7 +454,7 @@ function toggleChatbot() {
 
 function initializeChatbot() {
     // Add welcome message
-    addBotMessage("Hello! I'm the Help Assistant. I can help you with:\n\n• **Tickets** - Creating, editing, tracking\n• **Inventory** - Assets, accessories, audits\n• **Admin** - Users, permissions, settings\n• **Custom Statuses** - Adding ticket statuses\n• **Reports** - Analytics and exports\n\nWhat would you like help with?");
+    addBotMessage("Hello! I'm the Help Assistant. I can help you with:\n\n• **Tickets** - Creating, editing, tracking\n• **Inventory** - Assets, accessories, audits\n• **Admin** - Users, permissions, settings\n• **Quick Actions** - Update tickets by typing commands\n\n**Try commands like:**\n• \"Update ticket 890 to resolved\"\n• \"Set ticket 123 priority to high\"\n• \"Assign ticket 456 to John\"\n\nWhat would you like help with?");
 
     // Load suggestions
     loadSuggestions();
@@ -506,11 +574,18 @@ async function sendChatMessage() {
         removeTypingIndicator();
 
         if (result.success) {
-            addBotMessage(
-                result.answer,
-                result.url || null,
-                result.suggestions || null
-            );
+            if (result.type === 'action_confirm') {
+                // Show action confirmation with buttons
+                addActionConfirmMessage(result);
+            } else if (result.type === 'error') {
+                addBotMessage(result.answer);
+            } else {
+                addBotMessage(
+                    result.answer,
+                    result.url || null,
+                    result.suggestions || null
+                );
+            }
         } else {
             addBotMessage("Sorry, I encountered an error. Please try again.");
         }
@@ -518,6 +593,91 @@ async function sendChatMessage() {
         removeTypingIndicator();
         addBotMessage("Sorry, I couldn't connect to the server. Please try again.");
     }
+}
+
+function addActionConfirmMessage(result) {
+    const container = document.getElementById('chatMessages');
+    const actionId = 'action_' + Date.now();
+
+    let formattedText = formatMessage(result.answer);
+
+    let html = `<div class="chat-message bot" id="${actionId}">
+        <div class="message-bubble">
+            <div class="message-content">${formattedText}</div>
+            <div class="action-buttons" id="${actionId}_buttons">
+                <button class="action-btn action-btn-confirm" onclick="executeAction('${actionId}', ${JSON.stringify(result).replace(/'/g, "\\'")})" id="${actionId}_confirm">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+                <button class="action-btn action-btn-cancel" onclick="cancelAction('${actionId}')" id="${actionId}_cancel">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>`;
+
+    container.innerHTML += html;
+    container.scrollTop = container.scrollHeight;
+}
+
+async function executeAction(actionId, actionData) {
+    const confirmBtn = document.getElementById(actionId + '_confirm');
+    const cancelBtn = document.getElementById(actionId + '_cancel');
+    const buttonsDiv = document.getElementById(actionId + '_buttons');
+
+    // Disable buttons and show loading
+    confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    try {
+        const response = await fetch('/chatbot/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': chatbotCSRFToken
+            },
+            body: JSON.stringify({
+                action: actionData.action,
+                ticket_id: actionData.ticket_id,
+                new_status: actionData.new_status,
+                new_priority: actionData.new_priority,
+                new_assignee_id: actionData.new_assignee_id
+            })
+        });
+
+        const result = await response.json();
+
+        // Replace buttons with result message
+        if (result.success) {
+            buttonsDiv.innerHTML = `
+                <div class="action-result success">
+                    <i class="fas fa-check-circle"></i> ${result.message}
+                    ${result.ticket_url ? `<br><a href="${result.ticket_url}" target="_blank">View Ticket</a>` : ''}
+                </div>
+            `;
+        } else {
+            buttonsDiv.innerHTML = `
+                <div class="action-result error">
+                    <i class="fas fa-exclamation-circle"></i> ${result.error}
+                </div>
+            `;
+        }
+    } catch (error) {
+        buttonsDiv.innerHTML = `
+            <div class="action-result error">
+                <i class="fas fa-exclamation-circle"></i> Failed to execute action. Please try again.
+            </div>
+        `;
+    }
+}
+
+function cancelAction(actionId) {
+    const buttonsDiv = document.getElementById(actionId + '_buttons');
+    buttonsDiv.innerHTML = `
+        <div class="action-result" style="background: #f5f5f5; color: #666; border: 1px solid #ddd;">
+            <i class="fas fa-ban"></i> Action cancelled
+        </div>
+    `;
 }
 
 async function loadSuggestions() {
