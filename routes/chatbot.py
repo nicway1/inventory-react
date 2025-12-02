@@ -49,6 +49,55 @@ KNOWLEDGE_BASE = [
         "url": "/parcel-tracking",
         "permission": None
     },
+    {
+        "keywords": ["mass update", "bulk update", "update multiple", "bulk ticket", "mass ticket", "batch update", "update many tickets"],
+        "question": "How do I mass update tickets?",
+        "answer": "To bulk update tickets:\n\n1. Go to **Tickets → Ticket Manager** (`/tickets/manager`)\n2. Use filters to find the tickets you want to update\n3. Select multiple tickets using checkboxes\n4. Use the **Bulk Actions** dropdown to:\n   • Change status\n   • Change priority\n   • Assign to user\n   • Delete tickets\n5. Confirm the action\n\nYou can also use the SF-style ticket list at `/tickets/sf` for more options.",
+        "url": "/tickets/manager",
+        "permission": "can_edit_tickets"
+    },
+    {
+        "keywords": ["ticket manager", "manage tickets", "ticket management"],
+        "question": "Where is the ticket manager?",
+        "answer": "The Ticket Manager is at **Tickets → Manager** (`/tickets/manager`). It provides:\n\n• Advanced filtering and sorting\n• Bulk selection and actions\n• Quick status updates\n• Export capabilities\n\nYou can also use the SF-style view at `/tickets/sf` for a different layout.",
+        "url": "/tickets/manager",
+        "permission": "can_view_tickets"
+    },
+    {
+        "keywords": ["export ticket", "download ticket", "ticket csv", "ticket excel"],
+        "question": "How do I export tickets?",
+        "answer": "To export tickets:\n\n1. Go to **Tickets** list or **Ticket Manager**\n2. Apply any filters you want\n3. Click the **Export** button\n4. Choose format (CSV or Excel)\n5. Download the file\n\nRequires `can_export_tickets` permission.",
+        "url": "/tickets",
+        "permission": "can_export_tickets"
+    },
+    {
+        "keywords": ["assign ticket", "reassign", "transfer ticket", "change owner", "ticket assignment"],
+        "question": "How do I assign or transfer a ticket?",
+        "answer": "To assign/transfer a ticket:\n\n1. Open the ticket\n2. Click **Edit** or find the **Assigned To** field\n3. Select a new user from the dropdown\n4. Save changes\n\nFor bulk assignment, use the Ticket Manager (`/tickets/manager`) and select multiple tickets.",
+        "url": "/tickets",
+        "permission": "can_edit_tickets"
+    },
+    {
+        "keywords": ["delete ticket", "remove ticket", "cancel ticket"],
+        "question": "How do I delete a ticket?",
+        "answer": "To delete a ticket:\n\n1. Open the ticket\n2. Click the **Delete** button (usually in the actions menu)\n3. Confirm deletion\n\nNote: Deleted tickets cannot be recovered. You may need `can_delete_tickets` permission.\n\nAlternatively, you can change the status to 'Cancelled' to keep a record.",
+        "url": "/tickets",
+        "permission": "can_delete_tickets"
+    },
+    {
+        "keywords": ["comment", "add comment", "ticket comment", "note", "add note"],
+        "question": "How do I add a comment to a ticket?",
+        "answer": "To add a comment:\n\n1. Open the ticket\n2. Scroll to the **Comments** section\n3. Type your comment in the text box\n4. Click **Add Comment**\n\nComments are visible to all users who can view the ticket. Use @mentions to notify specific users.",
+        "url": "/tickets",
+        "permission": "can_view_tickets"
+    },
+    {
+        "keywords": ["attachment", "upload file", "add file", "ticket file", "attach"],
+        "question": "How do I attach files to a ticket?",
+        "answer": "To attach files:\n\n1. Open the ticket\n2. Look for the **Attachments** section or **Upload** button\n3. Click to select files or drag and drop\n4. Files will be uploaded automatically\n\nSupported file types include images, PDFs, and documents.",
+        "url": "/tickets",
+        "permission": "can_edit_tickets"
+    },
 
     # Inventory
     {
