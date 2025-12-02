@@ -287,7 +287,7 @@ def dev_changelog():
             .options(joinedload(Release.fixed_bugs))\
             .options(joinedload(Release.changelog_entries))\
             .options(joinedload(Release.release_manager))\
-            .order_by(desc(Release.release_date.nullsfirst()), desc(Release.created_at))\
+            .order_by(desc(Release.release_date), desc(Release.created_at))\
             .all()
 
         # Separate released and upcoming
