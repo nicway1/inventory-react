@@ -498,7 +498,7 @@ def ask():
 
                 # Check for custom status
                 custom_status = db_session.query(CustomTicketStatus).filter_by(
-                    internal_name=action["new_status"],
+                    name=action["new_status"],
                     is_active=True
                 ).first()
 
@@ -637,7 +637,7 @@ def execute_action():
             except ValueError:
                 # Try custom status
                 custom_status = db_session.query(CustomTicketStatus).filter_by(
-                    internal_name=new_status,
+                    name=new_status,
                     is_active=True
                 ).first()
                 if custom_status:
