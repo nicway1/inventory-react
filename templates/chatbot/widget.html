@@ -436,6 +436,7 @@
 <script>
 const chatbotCSRFToken = '{{ csrf_token() }}';
 let chatbotInitialized = false;
+const pendingActions = {}; // Store pending action data by ID
 
 function toggleChatbot() {
     const container = document.getElementById('chatbot');
@@ -599,13 +600,16 @@ function addActionConfirmMessage(result) {
     const container = document.getElementById('chatMessages');
     const actionId = 'action_' + Date.now();
 
+    // Store action data in global object
+    pendingActions[actionId] = result;
+
     let formattedText = formatMessage(result.answer);
 
     let html = `<div class="chat-message bot" id="${actionId}">
         <div class="message-bubble">
             <div class="message-content">${formattedText}</div>
             <div class="action-buttons" id="${actionId}_buttons">
-                <button class="action-btn action-btn-confirm" onclick="executeAction('${actionId}', ${JSON.stringify(result).replace(/'/g, "\\'")})" id="${actionId}_confirm">
+                <button class="action-btn action-btn-confirm" onclick="executeAction('${actionId}')" id="${actionId}_confirm">
                     <i class="fas fa-check"></i> Confirm
                 </button>
                 <button class="action-btn action-btn-cancel" onclick="cancelAction('${actionId}')" id="${actionId}_cancel">
@@ -619,7 +623,13 @@ function addActionConfirmMessage(result) {
     container.scrollTop = container.scrollHeight;
 }
 
-async function executeAction(actionId, actionData) {
+async function executeAction(actionId) {
+    const actionData = pendingActions[actionId];
+    if (!actionData) {
+        console.error('Action data not found for:', actionId);
+        return;
+    }
+
     const confirmBtn = document.getElementById(actionId + '_confirm');
     const cancelBtn = document.getElementById(actionId + '_cancel');
     const buttonsDiv = document.getElementById(actionId + '_buttons');
