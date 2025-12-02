@@ -215,6 +215,34 @@ KNOWLEDGE_BASE = [
         "url": "/dashboard",
         "permission": None
     },
+    {
+        "keywords": ["new dashboard", "switch dashboard", "change dashboard", "modern dashboard", "widget dashboard"],
+        "question": "How do I switch to the new dashboard?",
+        "answer": "To switch to the new widget-based dashboard:\n\n1. Go to the homepage (`/`)\n2. Look for the **Switch to New Dashboard** button (or gear icon)\n3. Click it to enable the new dashboard\n\nOr go directly to `/dashboard` to access the new dashboard.\n\nThe new dashboard features:\n• Customizable widgets\n• Drag and drop layout\n• Save your preferred layout",
+        "url": "/dashboard",
+        "permission": None
+    },
+    {
+        "keywords": ["old dashboard", "classic dashboard", "original dashboard", "switch back", "legacy dashboard"],
+        "question": "How do I switch back to the classic dashboard?",
+        "answer": "To switch back to the classic dashboard:\n\n1. On the new dashboard, look for a **Classic View** or **Switch Back** option\n2. Or go directly to `/` (home) for the classic view\n\nAdmins can set the default dashboard for all users in **Admin → System Config**.",
+        "url": "/",
+        "permission": None
+    },
+    {
+        "keywords": ["default dashboard", "set dashboard", "dashboard preference", "homepage setting"],
+        "question": "How do I set the default dashboard for users?",
+        "answer": "To set the default dashboard (Admin only):\n\n1. Go to **Admin → System Configuration** (`/admin/system-config`)\n2. Find **Default Homepage** setting\n3. Choose between:\n   • **New Dashboard** - Widget-based customizable view\n   • **Classic Dashboard** - Original homepage view\n4. Save changes\n\nThis sets the default for all users. Individual users can still switch views.",
+        "url": "/admin/system-config",
+        "permission": "SUPER_ADMIN"
+    },
+    {
+        "keywords": ["dashboard widgets", "add widget", "remove widget", "available widgets"],
+        "question": "What widgets are available on the dashboard?",
+        "answer": "Available dashboard widgets include:\n\n• **Ticket Statistics** - Overview of tickets by status\n• **Asset Summary** - Inventory counts and status\n• **Recent Activity** - Latest system activity\n• **Queue Overview** - Tickets by queue\n• **Quick Actions** - Shortcuts to common tasks\n• **Charts** - Visual data representations\n\nTo add widgets, click the **+** or **Add Widget** button on your dashboard.",
+        "url": "/dashboard",
+        "permission": None
+    },
 
     # Development
     {
