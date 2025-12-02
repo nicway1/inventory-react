@@ -136,7 +136,7 @@
 
     {# Customers - SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN #}
     {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
-    <a href="{{ url_for('inventory.list_customer_users') }}" class="launchpad-item">
+    <a href="/inventory/customer-users" class="launchpad-item">
         <div class="launchpad-icon lp-cyan">
             <i class="fas fa-users"></i>
         </div>

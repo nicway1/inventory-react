@@ -61,6 +61,7 @@ from routes.knowledge import knowledge_bp
 from routes.feedback import feedback_bp
 from routes.parcel_tracking import parcel_tracking_bp
 from routes.dashboard import dashboard_bp
+from routes.chatbot import chatbot_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -220,6 +221,7 @@ def create_app():
     app.register_blueprint(feedback_bp)
     app.register_blueprint(parcel_tracking_bp)  # Prefix is defined in the blueprint file
     app.register_blueprint(dashboard_bp)  # New customizable dashboard
+    app.register_blueprint(chatbot_bp)  # Help assistant chatbot
 
     @app.context_processor
     def utility_processor():

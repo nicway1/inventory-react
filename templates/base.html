@@ -1415,7 +1415,12 @@
         };
     </script>
     {% endif %}
-    
+
+    <!-- Help Assistant Chatbot -->
+    {% if current_user.is_authenticated %}
+    {% include 'chatbot/widget.html' %}
+    {% endif %}
+
     {% block scripts %}{% endblock %}
 </body>
 </html> 
