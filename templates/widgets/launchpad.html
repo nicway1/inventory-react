@@ -134,8 +134,8 @@
     </a>
     {% endif %}
 
-    {# Customers - SUPER_ADMIN, DEVELOPER, COUNTRY_ADMIN #}
-    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN'] %}
+    {# Customers - SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN #}
+    {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
     <a href="{{ url_for('inventory.list_customer_users') }}" class="launchpad-item">
         <div class="launchpad-icon lp-cyan">
             <i class="fas fa-users"></i>
@@ -217,6 +217,16 @@
             <i class="fas fa-history"></i>
         </div>
         <span class="launchpad-label">Activity</span>
+    </a>
+    {% endif %}
+
+    {# Parcel Tracking - DEVELOPER only #}
+    {% if session.get('user_type') == 'DEVELOPER' %}
+    <a href="{{ url_for('parcel_tracking.index') }}" class="launchpad-item">
+        <div class="launchpad-icon lp-purple">
+            <i class="fas fa-box"></i>
+        </div>
+        <span class="launchpad-label">Tracking</span>
     </a>
     {% endif %}
 

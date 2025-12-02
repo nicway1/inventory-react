@@ -841,8 +841,8 @@
                     </a>
                     <div class="sf-dropdown-divider"></div>
                     <div class="sf-dropdown-divider-label">Export</div>
-                    <a href="#" onclick="exportTickets(); return false;" class="sf-dropdown-item">
-                        <i class="fas fa-download"></i> Export to CSV
+                    <a href="{{ url_for('tickets.list_tickets') }}?showExportWizard=true" class="sf-dropdown-item">
+                        <i class="fas fa-download"></i> Ticket Export Wizard
                     </a>
                 </div>
             </div>

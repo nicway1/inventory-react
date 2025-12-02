@@ -1749,8 +1749,12 @@
         filteredItems = Array.from(table.querySelectorAll('tbody tr'));
         updatePagination();
         showPage(1);
-        
 
+        // Check if we should show the export wizard (from URL parameter)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('showExportWizard') === 'true') {
+            showExportWizard();
+        }
     });
     
     function filterTickets(tabFilter) {
