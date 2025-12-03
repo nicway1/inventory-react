@@ -1416,8 +1416,8 @@
     </script>
     {% endif %}
 
-    <!-- Help Assistant Chatbot -->
-    {% if current_user.is_authenticated %}
+    <!-- Help Assistant Chatbot (Developer only for now) -->
+    {% if current_user.is_authenticated and current_user.user_type.value == 'DEVELOPER' %}
     {% include 'chatbot/widget.html' %}
     {% endif %}
 
