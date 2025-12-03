@@ -3151,3 +3151,212 @@ def get_all_schedule_events():
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+# ============================================
+# Developer Work Plan Routes
+# ============================================
+
+@development_bp.route('/work-plan')
+@login_required
+@permission_required('can_access_development')
+def work_plan():
+    """Display the developer work plan page"""
+    from models.developer_work_plan import DeveloperWorkPlan
+    from datetime import date, timedelta
+
+    db_session = SessionLocal()
+    try:
+        # Get the current week's Monday
+        today = date.today()
+        week_start = DeveloperWorkPlan.get_week_start(today)
+
+        # Get the work plan for current week
+        current_plan = db_session.query(DeveloperWorkPlan).filter(
+            DeveloperWorkPlan.user_id == current_user.id,
+            DeveloperWorkPlan.week_start == week_start
+        ).first()
+
+        # Get next week's plan too
+        next_week_start = week_start + timedelta(days=7)
+        next_plan = db_session.query(DeveloperWorkPlan).filter(
+            DeveloperWorkPlan.user_id == current_user.id,
+            DeveloperWorkPlan.week_start == next_week_start
+        ).first()
+
+        # Get week dates for display
+        week_dates = DeveloperWorkPlan.get_week_dates(week_start)
+        next_week_dates = DeveloperWorkPlan.get_week_dates(next_week_start)
+
+        return render_template('development/work_plan.html',
+                               current_plan=current_plan,
+                               next_plan=next_plan,
+                               week_start=week_start,
+                               next_week_start=next_week_start,
+                               week_dates=week_dates,
+                               next_week_dates=next_week_dates,
+                               today=today)
+
+    except Exception as e:
+        logger.error(f"Error loading work plan: {str(e)}")
+        flash('Error loading work plan', 'error')
+        return redirect(url_for('development.dashboard'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/work-plan/save', methods=['POST'])
+@login_required
+@permission_required('can_access_development')
+def save_work_plan():
+    """Save or update a work plan"""
+    from models.developer_work_plan import DeveloperWorkPlan
+    from datetime import datetime
+
+    db_session = SessionLocal()
+    try:
+        data = request.get_json()
+        week_start_str = data.get('week_start')
+
+        if not week_start_str:
+            return jsonify({'error': 'Week start date is required'}), 400
+
+        week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+
+        # Find existing plan or create new one
+        plan = db_session.query(DeveloperWorkPlan).filter(
+            DeveloperWorkPlan.user_id == current_user.id,
+            DeveloperWorkPlan.week_start == week_start
+        ).first()
+
+        if not plan:
+            plan = DeveloperWorkPlan(
+                user_id=current_user.id,
+                week_start=week_start
+            )
+            db_session.add(plan)
+
+        # Update fields
+        plan.plan_summary = data.get('plan_summary', '')
+        plan.monday_plan = data.get('monday_plan', '')
+        plan.tuesday_plan = data.get('tuesday_plan', '')
+        plan.wednesday_plan = data.get('wednesday_plan', '')
+        plan.thursday_plan = data.get('thursday_plan', '')
+        plan.friday_plan = data.get('friday_plan', '')
+        plan.blockers = data.get('blockers', '')
+        plan.notes = data.get('notes', '')
+        plan.updated_at = datetime.utcnow()
+
+        # Handle submission
+        if data.get('submit'):
+            plan.status = 'submitted'
+            plan.submitted_at = datetime.utcnow()
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Work plan saved successfully',
+            'plan': plan.to_dict()
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error saving work plan: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/work-plan/admin')
+@login_required
+@permission_required('can_access_development')
+def admin_work_plan():
+    """Display all developers' work plans - Super Admin only"""
+    from models.developer_work_plan import DeveloperWorkPlan
+    from datetime import date, timedelta
+
+    # Check if user is super admin
+    if current_user.user_type != UserType.SUPER_ADMIN:
+        flash('Access denied. Super Admin only.', 'error')
+        return redirect(url_for('development.dashboard'))
+
+    db_session = SessionLocal()
+    try:
+        # Get the current week's Monday
+        today = date.today()
+        week_start = DeveloperWorkPlan.get_week_start(today)
+
+        # Get week offset from query params (for navigation)
+        week_offset = request.args.get('week', 0, type=int)
+        selected_week_start = week_start + timedelta(weeks=week_offset)
+
+        # Get all developers
+        developers = db_session.query(User).filter(
+            User.user_type == UserType.DEVELOPER
+        ).order_by(User.username).all()
+
+        # Get all work plans for the selected week
+        work_plans = db_session.query(DeveloperWorkPlan).options(
+            joinedload(DeveloperWorkPlan.user)
+        ).filter(
+            DeveloperWorkPlan.week_start == selected_week_start
+        ).all()
+
+        # Create a dict for easy lookup
+        plans_by_user = {plan.user_id: plan for plan in work_plans}
+
+        # Get week dates for display
+        week_dates = DeveloperWorkPlan.get_week_dates(selected_week_start)
+
+        return render_template('development/admin_work_plan.html',
+                               developers=developers,
+                               plans_by_user=plans_by_user,
+                               week_start=selected_week_start,
+                               week_dates=week_dates,
+                               week_offset=week_offset,
+                               today=today)
+
+    except Exception as e:
+        logger.error(f"Error loading admin work plan: {str(e)}")
+        flash('Error loading work plans', 'error')
+        return redirect(url_for('development.dashboard'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/work-plan/get/<int:user_id>')
+@login_required
+@permission_required('can_access_development')
+def get_work_plan(user_id):
+    """Get a specific user's work plan (API endpoint)"""
+    from models.developer_work_plan import DeveloperWorkPlan
+    from datetime import datetime
+
+    # Only super admin can view other users' plans
+    if current_user.user_type != UserType.SUPER_ADMIN and current_user.id != user_id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    db_session = SessionLocal()
+    try:
+        week_start_str = request.args.get('week_start')
+        if not week_start_str:
+            week_start = DeveloperWorkPlan.get_week_start()
+        else:
+            week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+
+        plan = db_session.query(DeveloperWorkPlan).filter(
+            DeveloperWorkPlan.user_id == user_id,
+            DeveloperWorkPlan.week_start == week_start
+        ).first()
+
+        if plan:
+            return jsonify({'success': True, 'plan': plan.to_dict()})
+        else:
+            return jsonify({'success': True, 'plan': None})
+
+    except Exception as e:
+        logger.error(f"Error getting work plan: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()

@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    .sf-button-success {
+        background: #2e844a;
+        color: white;
+    }
+
+    .sf-button-success:hover {
+        background: #236e3b;
+    }
+
+    /* Content Card */
+    .sf-card {
+        background: white;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #080707;
+        margin: 0;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Form styles */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #3e3e3c;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #0176d3;
+        box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.1);
+    }
+
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    /* Week Tabs */
+    .week-tabs {
+        display: flex;
+        border-bottom: 2px solid #dddbda;
+        margin-bottom: 1.5rem;
+    }
+
+    .week-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        font-size: 0.875rem;
+        color: #706e6b;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        font-weight: 500;
+    }
+
+    .week-tab:hover {
+        background: #f3f3f3;
+        color: #0176d3;
+    }
+
+    .week-tab.active {
+        color: #0176d3;
+        border-bottom: 3px solid #0176d3;
+        margin-bottom: -2px;
+    }
+
+    /* Day Cards */
+    .day-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .day-card {
+        background: #f9f9f9;
+        border: 1px solid #e5e5e5;
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .day-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    .day-name {
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .day-date {
+        font-size: 0.75rem;
+        color: #706e6b;
+    }
+
+    .day-card.today {
+        border-color: #0176d3;
+        background: #f0f7ff;
+    }
+
+    .day-card.today .day-name {
+        color: #0176d3;
+    }
+
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-draft {
+        background: #f3f3f3;
+        color: #706e6b;
+    }
+
+    .status-submitted {
+        background: #e8f5e9;
+        color: #2e844a;
+    }
+
+    /* Blocker Alert */
+    .blocker-section {
+        background: #fff3e0;
+        border: 1px solid #ffb74d;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .blocker-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+        color: #e65100;
+    }
+
+    /* Instructions */
+    .instructions {
+        background: #e8f4fd;
+        border: 1px solid #b3d7f2;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .instructions h6 {
+        margin: 0 0 0.5rem 0;
+        color: #0176d3;
+        font-weight: 600;
+    }
+
+    .instructions ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        font-size: 0.875rem;
+    }
+
+    .instructions li {
+        margin-bottom: 0.25rem;
+    }
+
+    /* Auto-save indicator */
+    .save-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: #706e6b;
+    }
+
+    .save-indicator.saving {
+        color: #ff9800;
+    }
+
+    .save-indicator.saved {
+        color: #2e844a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">
+                <i class="fas fa-clipboard-list" style="color: #0176d3; margin-right: 0.5rem;"></i>
+                My Work Plan
+            </h1>
+            <div class="quick-actions">
+                <span id="saveIndicator" class="save-indicator">
+                    <i class="fas fa-check-circle"></i> All changes saved
+                </span>
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Console
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Instructions -->
+        <div class="sf-card">
+            <div class="sf-card-body">
+                <div class="instructions">
+                    <h6><i class="fas fa-info-circle"></i> How to Use Work Plans</h6>
+                    <ul>
+                        <li><strong>Weekly Summary:</strong> Describe your high-level goals for the week</li>
+                        <li><strong>Daily Plans:</strong> Break down what you'll work on each day</li>
+                        <li><strong>Blockers:</strong> Note any issues that might slow you down</li>
+                        <li><strong>Auto-Save:</strong> Your changes are saved automatically as you type</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Week Tabs -->
+        <div class="week-tabs">
+            <button class="week-tab active" onclick="switchWeek('current')">
+                <i class="fas fa-calendar-week"></i>
+                This Week ({{ week_start.strftime('%b %d') }} - {{ week_dates.friday.strftime('%b %d') }})
+            </button>
+            <button class="week-tab" onclick="switchWeek('next')">
+                <i class="fas fa-calendar-alt"></i>
+                Next Week ({{ next_week_start.strftime('%b %d') }} - {{ next_week_dates.friday.strftime('%b %d') }})
+            </button>
+        </div>
+
+        <!-- Current Week Plan -->
+        <div id="currentWeekForm" class="week-form">
+            <input type="hidden" id="current_week_start" value="{{ week_start.isoformat() }}">
+
+            <!-- Summary Card -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-bullseye"></i> Weekly Summary
+                    </h3>
+                    <span class="status-badge {{ 'status-submitted' if current_plan and current_plan.status == 'submitted' else 'status-draft' }}">
+                        {{ current_plan.status if current_plan else 'Draft' }}
+                    </span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">What are your main goals for this week?</label>
+                        <textarea id="current_plan_summary" class="form-control" rows="4"
+                                  placeholder="e.g., Complete user authentication feature, fix critical bugs, code review for team members..."
+                                  data-week="current">{{ current_plan.plan_summary if current_plan else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Plans -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-list-check"></i> Daily Breakdown
+                    </h3>
+                </div>
+                <div class="sf-card-body">
+                    <div class="day-cards">
+                        {% for day_name, day_date in [('monday', week_dates.monday), ('tuesday', week_dates.tuesday), ('wednesday', week_dates.wednesday), ('thursday', week_dates.thursday), ('friday', week_dates.friday)] %}
+                        <div class="day-card {% if day_date == today %}today{% endif %}">
+                            <div class="day-card-header">
+                                <span class="day-name">
+                                    {% if day_date == today %}<i class="fas fa-star" style="color: #0176d3;"></i> {% endif %}
+                                    {{ day_name.capitalize() }}
+                                </span>
+                                <span class="day-date">{{ day_date.strftime('%b %d') }}</span>
+                            </div>
+                            <textarea id="current_{{ day_name }}_plan" class="form-control" rows="3"
+                                      placeholder="What will you work on?" data-week="current"
+                                      >{{ current_plan[day_name + '_plan'] if current_plan and current_plan[day_name + '_plan'] else '' }}</textarea>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blockers Section -->
+            <div class="blocker-section">
+                <div class="blocker-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Blockers & Concerns
+                </div>
+                <textarea id="current_blockers" class="form-control" rows="2"
+                          placeholder="Any blockers or concerns that might slow you down?" data-week="current"
+                          >{{ current_plan.blockers if current_plan else '' }}</textarea>
+            </div>
+
+            <!-- Additional Notes -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-sticky-note"></i> Additional Notes
+                    </h3>
+                </div>
+                <div class="sf-card-body">
+                    <textarea id="current_notes" class="form-control" rows="3"
+                              placeholder="Any other notes or comments..." data-week="current"
+                              >{{ current_plan.notes if current_plan else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Week Plan (Hidden by default) -->
+        <div id="nextWeekForm" class="week-form" style="display: none;">
+            <input type="hidden" id="next_week_start" value="{{ next_week_start.isoformat() }}">
+
+            <!-- Summary Card -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-bullseye"></i> Weekly Summary
+                    </h3>
+                    <span class="status-badge {{ 'status-submitted' if next_plan and next_plan.status == 'submitted' else 'status-draft' }}">
+                        {{ next_plan.status if next_plan else 'Draft' }}
+                    </span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">What are your main goals for next week?</label>
+                        <textarea id="next_plan_summary" class="form-control" rows="4"
+                                  placeholder="e.g., Complete user authentication feature, fix critical bugs, code review for team members..."
+                                  data-week="next">{{ next_plan.plan_summary if next_plan else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Plans -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-list-check"></i> Daily Breakdown
+                    </h3>
+                </div>
+                <div class="sf-card-body">
+                    <div class="day-cards">
+                        {% for day_name, day_date in [('monday', next_week_dates.monday), ('tuesday', next_week_dates.tuesday), ('wednesday', next_week_dates.wednesday), ('thursday', next_week_dates.thursday), ('friday', next_week_dates.friday)] %}
+                        <div class="day-card">
+                            <div class="day-card-header">
+                                <span class="day-name">{{ day_name.capitalize() }}</span>
+                                <span class="day-date">{{ day_date.strftime('%b %d') }}</span>
+                            </div>
+                            <textarea id="next_{{ day_name }}_plan" class="form-control" rows="3"
+                                      placeholder="What will you work on?" data-week="next"
+                                      >{{ next_plan[day_name + '_plan'] if next_plan and next_plan[day_name + '_plan'] else '' }}</textarea>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blockers Section -->
+            <div class="blocker-section">
+                <div class="blocker-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Blockers & Concerns
+                </div>
+                <textarea id="next_blockers" class="form-control" rows="2"
+                          placeholder="Any anticipated blockers or concerns?" data-week="next"
+                          >{{ next_plan.blockers if next_plan else '' }}</textarea>
+            </div>
+
+            <!-- Additional Notes -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <h3 class="sf-card-title">
+                        <i class="fas fa-sticky-note"></i> Additional Notes
+                    </h3>
+                </div>
+                <div class="sf-card-body">
+                    <textarea id="next_notes" class="form-control" rows="3"
+                              placeholder="Any other notes or comments..." data-week="next"
+                              >{{ next_plan.notes if next_plan else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const csrfToken = '{{ csrf_token() }}';
+    let saveTimeout = null;
+    let currentWeek = 'current';
+
+    // Switch between week tabs
+    function switchWeek(week) {
+        currentWeek = week;
+
+        // Update tab styling
+        document.querySelectorAll('.week-tab').forEach((tab, index) => {
+            tab.classList.toggle('active', (index === 0 && week === 'current') || (index === 1 && week === 'next'));
+        });
+
+        // Show/hide forms
+        document.getElementById('currentWeekForm').style.display = week === 'current' ? 'block' : 'none';
+        document.getElementById('nextWeekForm').style.display = week === 'next' ? 'block' : 'none';
+    }
+
+    // Auto-save on text change with debounce
+    function setupAutoSave() {
+        document.querySelectorAll('textarea').forEach(textarea => {
+            textarea.addEventListener('input', function() {
+                clearTimeout(saveTimeout);
+                showSaveStatus('saving');
+
+                saveTimeout = setTimeout(() => {
+                    savePlan(this.dataset.week);
+                }, 1000); // Save 1 second after user stops typing
+            });
+        });
+    }
+
+    // Show save status
+    function showSaveStatus(status) {
+        const indicator = document.getElementById('saveIndicator');
+        if (status === 'saving') {
+            indicator.className = 'save-indicator saving';
+            indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        } else if (status === 'saved') {
+            indicator.className = 'save-indicator saved';
+            indicator.innerHTML = '<i class="fas fa-check-circle"></i> All changes saved';
+        } else if (status === 'error') {
+            indicator.className = 'save-indicator';
+            indicator.style.color = '#ba0517';
+            indicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error saving';
+        }
+    }
+
+    // Save the work plan
+    async function savePlan(week) {
+        const prefix = week;
+        const weekStart = document.getElementById(`${prefix}_week_start`).value;
+
+        const data = {
+            week_start: weekStart,
+            plan_summary: document.getElementById(`${prefix}_plan_summary`).value,
+            monday_plan: document.getElementById(`${prefix}_monday_plan`).value,
+            tuesday_plan: document.getElementById(`${prefix}_tuesday_plan`).value,
+            wednesday_plan: document.getElementById(`${prefix}_wednesday_plan`).value,
+            thursday_plan: document.getElementById(`${prefix}_thursday_plan`).value,
+            friday_plan: document.getElementById(`${prefix}_friday_plan`).value,
+            blockers: document.getElementById(`${prefix}_blockers`).value,
+            notes: document.getElementById(`${prefix}_notes`).value
+        };
+
+        try {
+            const response = await fetch('{{ url_for("development.save_work_plan") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showSaveStatus('saved');
+            } else {
+                console.error('Error saving:', result.error);
+                showSaveStatus('error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showSaveStatus('error');
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        setupAutoSave();
+    });
+</script>
+{% endblock %}

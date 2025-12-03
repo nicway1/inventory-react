@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #6f42c1;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    /* Content Card */
+    .sf-card {
+        background: white;
+        border-radius: 0.25rem;
+        border: 1px solid #dddbda;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #080707;
+        margin: 0;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Admin badge */
+    .admin-badge {
+        background: #6f42c1;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    /* Week Navigation */
+    .week-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .week-nav-btn {
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #dddbda;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .week-nav-btn:hover {
+        background: #f3f3f3;
+        border-color: #0176d3;
+    }
+
+    .week-display {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    /* Developer Cards */
+    .developer-cards {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .developer-card {
+        background: white;
+        border: 1px solid #dddbda;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .developer-header {
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, #f3f3f3, #e5e5e5);
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .developer-name {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #080707;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .developer-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #0176d3;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-draft {
+        background: #f3f3f3;
+        color: #706e6b;
+    }
+
+    .status-submitted {
+        background: #e8f5e9;
+        color: #2e844a;
+    }
+
+    .status-none {
+        background: #ffebee;
+        color: #ba0517;
+    }
+
+    /* Plan Content */
+    .plan-content {
+        padding: 1.5rem;
+    }
+
+    .plan-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .plan-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .plan-section-title {
+        font-weight: 600;
+        color: #3e3e3c;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .plan-section-content {
+        background: #f9f9f9;
+        padding: 0.75rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        color: #080707;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+
+    .plan-section-content.empty {
+        color: #999;
+        font-style: italic;
+    }
+
+    /* Daily Plans Grid */
+    .daily-plans {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.75rem;
+    }
+
+    .daily-plan {
+        background: #f9f9f9;
+        border-radius: 0.25rem;
+        padding: 0.75rem;
+        border: 1px solid #e5e5e5;
+    }
+
+    .daily-plan-header {
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+    }
+
+    .daily-plan-content {
+        font-size: 0.8125rem;
+        color: #080707;
+        white-space: pre-wrap;
+        line-height: 1.4;
+        max-height: 100px;
+        overflow-y: auto;
+    }
+
+    .daily-plan-content.empty {
+        color: #999;
+        font-style: italic;
+    }
+
+    .daily-plan.today {
+        background: #f0f7ff;
+        border-color: #0176d3;
+    }
+
+    .daily-plan.today .daily-plan-header {
+        color: #0176d3;
+    }
+
+    /* Blockers Alert */
+    .blockers-alert {
+        background: #fff3e0;
+        border: 1px solid #ffb74d;
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .blockers-title {
+        font-weight: 600;
+        color: #e65100;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    /* No Plan State */
+    .no-plan {
+        padding: 2rem;
+        text-align: center;
+        color: #706e6b;
+    }
+
+    .no-plan-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.5;
+    }
+
+    /* Responsive daily plans */
+    @media (max-width: 992px) {
+        .daily-plans {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .daily-plans {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .daily-plans {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Header -->
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">
+                <i class="fas fa-clipboard-list" style="color: #6f42c1; margin-right: 0.5rem;"></i>
+                Developer Work Plans
+                <span class="admin-badge">Super Admin</span>
+            </h1>
+            <div class="quick-actions">
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Console
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Week Navigation -->
+        <div class="week-nav">
+            <a href="?week={{ week_offset - 1 }}" class="week-nav-btn">
+                <i class="fas fa-chevron-left"></i> Previous Week
+            </a>
+            <span class="week-display">
+                <i class="fas fa-calendar-week" style="color: #6f42c1;"></i>
+                {{ week_start.strftime('%B %d') }} - {{ week_dates.friday.strftime('%B %d, %Y') }}
+                {% if week_offset == 0 %}<span style="color: #0176d3; font-size: 0.75rem;">(Current Week)</span>{% endif %}
+            </span>
+            <a href="?week={{ week_offset + 1 }}" class="week-nav-btn">
+                Next Week <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+
+        <!-- Developer Cards -->
+        <div class="developer-cards">
+            {% for developer in developers %}
+            {% set plan = plans_by_user.get(developer.id) %}
+            <div class="developer-card">
+                <div class="developer-header">
+                    <div class="developer-name">
+                        <span class="developer-avatar">{{ developer.username[0].upper() }}</span>
+                        {{ developer.username }}
+                    </div>
+                    {% if plan %}
+                        <span class="status-badge {{ 'status-submitted' if plan.status == 'submitted' else 'status-draft' }}">
+                            {{ plan.status }}
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-none">No Plan</span>
+                    {% endif %}
+                </div>
+
+                {% if plan %}
+                <div class="plan-content">
+                    <!-- Weekly Summary -->
+                    <div class="plan-section">
+                        <div class="plan-section-title">
+                            <i class="fas fa-bullseye" style="color: #0176d3;"></i>
+                            Weekly Goals
+                        </div>
+                        <div class="plan-section-content {{ 'empty' if not plan.plan_summary else '' }}">
+                            {{ plan.plan_summary or 'No summary provided' }}
+                        </div>
+                    </div>
+
+                    <!-- Blockers (if any) -->
+                    {% if plan.blockers %}
+                    <div class="blockers-alert">
+                        <div class="blockers-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Blockers / Concerns
+                        </div>
+                        <div>{{ plan.blockers }}</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Daily Breakdown -->
+                    <div class="plan-section">
+                        <div class="plan-section-title">
+                            <i class="fas fa-list-check" style="color: #2e844a;"></i>
+                            Daily Plans
+                        </div>
+                        <div class="daily-plans">
+                            <div class="daily-plan {% if week_dates.monday == today %}today{% endif %}">
+                                <div class="daily-plan-header">
+                                    {% if week_dates.monday == today %}<i class="fas fa-star"></i> {% endif %}
+                                    Monday ({{ week_dates.monday.strftime('%m/%d') }})
+                                </div>
+                                <div class="daily-plan-content {{ 'empty' if not plan.monday_plan else '' }}">
+                                    {{ plan.monday_plan or '-' }}
+                                </div>
+                            </div>
+                            <div class="daily-plan {% if week_dates.tuesday == today %}today{% endif %}">
+                                <div class="daily-plan-header">
+                                    {% if week_dates.tuesday == today %}<i class="fas fa-star"></i> {% endif %}
+                                    Tuesday ({{ week_dates.tuesday.strftime('%m/%d') }})
+                                </div>
+                                <div class="daily-plan-content {{ 'empty' if not plan.tuesday_plan else '' }}">
+                                    {{ plan.tuesday_plan or '-' }}
+                                </div>
+                            </div>
+                            <div class="daily-plan {% if week_dates.wednesday == today %}today{% endif %}">
+                                <div class="daily-plan-header">
+                                    {% if week_dates.wednesday == today %}<i class="fas fa-star"></i> {% endif %}
+                                    Wednesday ({{ week_dates.wednesday.strftime('%m/%d') }})
+                                </div>
+                                <div class="daily-plan-content {{ 'empty' if not plan.wednesday_plan else '' }}">
+                                    {{ plan.wednesday_plan or '-' }}
+                                </div>
+                            </div>
+                            <div class="daily-plan {% if week_dates.thursday == today %}today{% endif %}">
+                                <div class="daily-plan-header">
+                                    {% if week_dates.thursday == today %}<i class="fas fa-star"></i> {% endif %}
+                                    Thursday ({{ week_dates.thursday.strftime('%m/%d') }})
+                                </div>
+                                <div class="daily-plan-content {{ 'empty' if not plan.thursday_plan else '' }}">
+                                    {{ plan.thursday_plan or '-' }}
+                                </div>
+                            </div>
+                            <div class="daily-plan {% if week_dates.friday == today %}today{% endif %}">
+                                <div class="daily-plan-header">
+                                    {% if week_dates.friday == today %}<i class="fas fa-star"></i> {% endif %}
+                                    Friday ({{ week_dates.friday.strftime('%m/%d') }})
+                                </div>
+                                <div class="daily-plan-content {{ 'empty' if not plan.friday_plan else '' }}">
+                                    {{ plan.friday_plan or '-' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes (if any) -->
+                    {% if plan.notes %}
+                    <div class="plan-section">
+                        <div class="plan-section-title">
+                            <i class="fas fa-sticky-note" style="color: #706e6b;"></i>
+                            Additional Notes
+                        </div>
+                        <div class="plan-section-content">
+                            {{ plan.notes }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Last Updated -->
+                    <div style="font-size: 0.75rem; color: #706e6b; margin-top: 1rem; text-align: right;">
+                        {% if plan.submitted_at %}
+                            Submitted: {{ plan.submitted_at.strftime('%b %d, %Y at %I:%M %p') }}
+                        {% elif plan.updated_at %}
+                            Last updated: {{ plan.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            Created: {{ plan.created_at.strftime('%b %d, %Y at %I:%M %p') if plan.created_at else 'Unknown' }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-plan">
+                    <div class="no-plan-icon">
+                        <i class="fas fa-clipboard"></i>
+                    </div>
+                    <div>{{ developer.username }} hasn't submitted a work plan for this week.</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {% if not developers %}
+            <div class="sf-card">
+                <div class="sf-card-body">
+                    <div class="no-plan">
+                        <div class="no-plan-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>No developers found.</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

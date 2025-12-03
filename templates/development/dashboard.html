@@ -440,11 +440,19 @@
                         <i class="fas fa-calendar-alt"></i>
                         My Schedule
                     </a>
+                    <a href="{{ url_for('development.work_plan') }}" class="sf-button sf-button-secondary" style="background: #17a2b8; color: white; border-color: #17a2b8;">
+                        <i class="fas fa-clipboard-list"></i>
+                        My Work Plan
+                    </a>
                     {% endif %}
                     {% if current_user.user_type.value == 'SUPER_ADMIN' %}
                     <a href="{{ url_for('development.admin_schedule') }}" class="sf-button sf-button-secondary" style="background: #6f42c1; color: white; border-color: #6f42c1;">
                         <i class="fas fa-users"></i>
                         Developer Schedule
+                    </a>
+                    <a href="{{ url_for('development.admin_work_plan') }}" class="sf-button sf-button-secondary" style="background: #17a2b8; color: white; border-color: #17a2b8;">
+                        <i class="fas fa-clipboard-list"></i>
+                        Work Plans
                     </a>
                     {% endif %}
                     {% if current_user.user_type.value == 'DEVELOPER' %}

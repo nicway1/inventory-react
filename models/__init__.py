@@ -45,6 +45,7 @@ from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.ticket_issue import TicketIssue
 from models.custom_ticket_status import CustomTicketStatus
 from models.developer_schedule import DeveloperSchedule
+from models.developer_work_plan import DeveloperWorkPlan
 from models.weekly_meeting import WeeklyMeeting
 from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority, ActionItemComment
 from models.dev_blog_entry import DevBlogEntry
@@ -116,6 +117,7 @@ __all__ = [
     "TicketIssue",
     "CustomTicketStatus",
     "DeveloperSchedule",
+    "DeveloperWorkPlan",
     "WeeklyMeeting",
     "ActionItem",
     "ActionItemStatus",
