@@ -492,7 +492,933 @@ def get_dashboard():
             
         finally:
             db_session.close()
-            
+
     except Exception as e:
         logger.error(f"Get dashboard error: {str(e)}")
         return jsonify({'error': 'Failed to get dashboard data'}), 500
+
+
+# MARK: - Development Console Endpoints
+
+@json_api_bp.route('/dev/dashboard', methods=['GET'])
+@require_jwt_auth
+def get_dev_dashboard():
+    """
+    Get development dashboard data
+
+    GET /mobile/dev/dashboard
+    Returns: stats, recent features, bugs, releases, schedules
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus
+    from models.bug_report import BugReport, BugStatus, BugSeverity
+    from models.release import Release, ReleaseStatus
+    from models.developer_schedule import DeveloperSchedule
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import desc, asc
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        # Check permission
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get summary statistics
+            stats = {
+                'features': {
+                    'total': db_session.query(FeatureRequest).count(),
+                    'active': db_session.query(FeatureRequest).filter(
+                        FeatureRequest.status.in_([
+                            FeatureStatus.IN_PLANNING,
+                            FeatureStatus.IN_DEVELOPMENT,
+                            FeatureStatus.IN_TESTING
+                        ])
+                    ).count(),
+                    'completed': db_session.query(FeatureRequest).filter(
+                        FeatureRequest.status == FeatureStatus.COMPLETED
+                    ).count(),
+                    'pending_approval': db_session.query(FeatureRequest).filter(
+                        FeatureRequest.status == FeatureStatus.PENDING_APPROVAL
+                    ).count()
+                },
+                'bugs': {
+                    'total': db_session.query(BugReport).count(),
+                    'open': db_session.query(BugReport).filter(
+                        BugReport.status.in_([
+                            BugStatus.OPEN,
+                            BugStatus.IN_PROGRESS,
+                            BugStatus.TESTING,
+                            BugStatus.REOPENED
+                        ])
+                    ).count(),
+                    'critical': db_session.query(BugReport).filter(
+                        BugReport.severity == BugSeverity.CRITICAL,
+                        BugReport.status.in_([BugStatus.OPEN, BugStatus.IN_PROGRESS])
+                    ).count()
+                },
+                'releases': {
+                    'total': db_session.query(Release).count(),
+                    'active': db_session.query(Release).filter(
+                        Release.status.in_([
+                            ReleaseStatus.PLANNING,
+                            ReleaseStatus.IN_DEVELOPMENT,
+                            ReleaseStatus.TESTING
+                        ])
+                    ).count(),
+                    'released': db_session.query(Release).filter(
+                        Release.status == ReleaseStatus.RELEASED
+                    ).count()
+                }
+            }
+
+            # Get recent active features
+            recent_features = db_session.query(FeatureRequest)\
+                .options(joinedload(FeatureRequest.requester))\
+                .options(joinedload(FeatureRequest.assignee))\
+                .filter(FeatureRequest.status.in_([
+                    FeatureStatus.IN_PLANNING,
+                    FeatureStatus.IN_DEVELOPMENT,
+                    FeatureStatus.IN_TESTING,
+                    FeatureStatus.PENDING_APPROVAL
+                ]))\
+                .order_by(desc(FeatureRequest.updated_at))\
+                .limit(10).all()
+
+            features_data = [{
+                'id': f.id,
+                'display_id': f.display_id,
+                'title': f.title,
+                'status': f.status.value if f.status else None,
+                'priority': f.priority.value if f.priority else None,
+                'requester': f.requester.username if f.requester else None,
+                'assignee': f.assignee.username if f.assignee else None,
+                'updated_at': f.updated_at.isoformat() + 'Z' if f.updated_at else None
+            } for f in recent_features]
+
+            # Get recent open bugs
+            recent_bugs = db_session.query(BugReport)\
+                .options(joinedload(BugReport.reporter))\
+                .options(joinedload(BugReport.assignee))\
+                .filter(BugReport.status.in_([BugStatus.OPEN, BugStatus.IN_PROGRESS, BugStatus.REOPENED]))\
+                .order_by(desc(BugReport.updated_at))\
+                .limit(10).all()
+
+            bugs_data = [{
+                'id': b.id,
+                'display_id': b.display_id,
+                'title': b.title,
+                'status': b.status.value if b.status else None,
+                'severity': b.severity.value if b.severity else None,
+                'priority': b.priority.value if b.priority else None,
+                'reporter': b.reporter.username if b.reporter else None,
+                'assignee': b.assignee.username if b.assignee else None,
+                'updated_at': b.updated_at.isoformat() + 'Z' if b.updated_at else None
+            } for b in recent_bugs]
+
+            # Get active releases
+            active_releases = db_session.query(Release)\
+                .filter(Release.status.in_([
+                    ReleaseStatus.PLANNING,
+                    ReleaseStatus.IN_DEVELOPMENT,
+                    ReleaseStatus.TESTING,
+                    ReleaseStatus.READY
+                ]))\
+                .order_by(asc(Release.planned_date))\
+                .limit(5).all()
+
+            releases_data = [{
+                'id': r.id,
+                'version': r.version,
+                'name': r.name,
+                'status': r.status.value if r.status else None,
+                'release_type': r.release_type.value if r.release_type else None,
+                'planned_date': r.planned_date.isoformat() if r.planned_date else None,
+                'release_date': r.release_date.isoformat() if r.release_date else None
+            } for r in active_releases]
+
+            # Get this week's schedule
+            today = date.today()
+            monday = today - timedelta(days=today.weekday())
+            friday = monday + timedelta(days=4)
+
+            week_schedules = db_session.query(DeveloperSchedule)\
+                .options(joinedload(DeveloperSchedule.user))\
+                .filter(DeveloperSchedule.work_date >= monday)\
+                .filter(DeveloperSchedule.work_date <= friday)\
+                .order_by(DeveloperSchedule.work_date)\
+                .all()
+
+            schedule_data = [{
+                'id': s.id,
+                'user_id': s.user_id,
+                'username': s.user.username if s.user else None,
+                'work_date': s.work_date.isoformat() if s.work_date else None,
+                'is_working': s.is_working,
+                'work_location': s.work_location,
+                'note': s.note
+            } for s in week_schedules]
+
+            return jsonify({
+                'stats': stats,
+                'recent_features': features_data,
+                'recent_bugs': bugs_data,
+                'active_releases': releases_data,
+                'week_schedule': schedule_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get dev dashboard error: {str(e)}")
+        return jsonify({'error': 'Failed to get development dashboard'}), 500
+
+
+@json_api_bp.route('/dev/features', methods=['GET'])
+@require_jwt_auth
+def get_features():
+    """
+    Get all feature requests with optional filtering
+
+    GET /mobile/dev/features
+    Query params: status, priority, page, per_page
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus, FeaturePriority
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import desc
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        status_filter = request.args.get('status')
+        priority_filter = request.args.get('priority')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(FeatureRequest)\
+                .options(joinedload(FeatureRequest.requester))\
+                .options(joinedload(FeatureRequest.assignee))\
+                .options(joinedload(FeatureRequest.approver))
+
+            # Apply filters
+            if status_filter:
+                try:
+                    status_enum = FeatureStatus(status_filter)
+                    query = query.filter(FeatureRequest.status == status_enum)
+                except ValueError:
+                    pass
+
+            if priority_filter:
+                try:
+                    priority_enum = FeaturePriority(priority_filter)
+                    query = query.filter(FeatureRequest.priority == priority_enum)
+                except ValueError:
+                    pass
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            features = query.order_by(desc(FeatureRequest.updated_at))\
+                .offset((page - 1) * per_page)\
+                .limit(per_page)\
+                .all()
+
+            features_data = [{
+                'id': f.id,
+                'display_id': f.display_id,
+                'title': f.title,
+                'description': f.description,
+                'status': f.status.value if f.status else None,
+                'priority': f.priority.value if f.priority else None,
+                'component': f.component,
+                'requester': {
+                    'id': f.requester.id,
+                    'username': f.requester.username
+                } if f.requester else None,
+                'assignee': {
+                    'id': f.assignee.id,
+                    'username': f.assignee.username
+                } if f.assignee else None,
+                'approver': {
+                    'id': f.approver.id,
+                    'username': f.approver.username
+                } if f.approver else None,
+                'estimated_effort': f.estimated_effort,
+                'business_value': f.business_value,
+                'created_at': f.created_at.isoformat() + 'Z' if f.created_at else None,
+                'updated_at': f.updated_at.isoformat() + 'Z' if f.updated_at else None
+            } for f in features]
+
+            return jsonify({
+                'features': features_data,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total + per_page - 1) // per_page
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get features error: {str(e)}")
+        return jsonify({'error': 'Failed to get features'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>', methods=['GET'])
+@require_jwt_auth
+def get_feature_detail(feature_id):
+    """
+    Get single feature request detail
+
+    GET /mobile/dev/features/<id>
+    """
+    from models.feature_request import FeatureRequest, FeatureComment
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest)\
+                .options(joinedload(FeatureRequest.requester))\
+                .options(joinedload(FeatureRequest.assignee))\
+                .options(joinedload(FeatureRequest.approver))\
+                .options(joinedload(FeatureRequest.comments).joinedload(FeatureComment.user))\
+                .filter(FeatureRequest.id == feature_id)\
+                .first()
+
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            comments_data = [{
+                'id': c.id,
+                'content': c.content,
+                'user': {
+                    'id': c.user.id,
+                    'username': c.user.username
+                } if c.user else None,
+                'created_at': c.created_at.isoformat() + 'Z' if c.created_at else None
+            } for c in (feature.comments or [])]
+
+            return jsonify({
+                'id': feature.id,
+                'display_id': feature.display_id,
+                'title': feature.title,
+                'description': feature.description,
+                'status': feature.status.value if feature.status else None,
+                'priority': feature.priority.value if feature.priority else None,
+                'component': feature.component,
+                'requester': {
+                    'id': feature.requester.id,
+                    'username': feature.requester.username,
+                    'email': feature.requester.email
+                } if feature.requester else None,
+                'assignee': {
+                    'id': feature.assignee.id,
+                    'username': feature.assignee.username
+                } if feature.assignee else None,
+                'approver': {
+                    'id': feature.approver.id,
+                    'username': feature.approver.username
+                } if feature.approver else None,
+                'estimated_effort': feature.estimated_effort,
+                'business_value': feature.business_value,
+                'acceptance_criteria': feature.acceptance_criteria,
+                'technical_notes': feature.technical_notes,
+                'approval_requested_at': feature.approval_requested_at.isoformat() + 'Z' if feature.approval_requested_at else None,
+                'approved_at': feature.approved_at.isoformat() + 'Z' if feature.approved_at else None,
+                'completed_at': feature.completed_at.isoformat() + 'Z' if feature.completed_at else None,
+                'created_at': feature.created_at.isoformat() + 'Z' if feature.created_at else None,
+                'updated_at': feature.updated_at.isoformat() + 'Z' if feature.updated_at else None,
+                'comments': comments_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get feature detail error: {str(e)}")
+        return jsonify({'error': 'Failed to get feature'}), 500
+
+
+@json_api_bp.route('/dev/bugs', methods=['GET'])
+@require_jwt_auth
+def get_bugs():
+    """
+    Get all bug reports with optional filtering
+
+    GET /mobile/dev/bugs
+    Query params: status, severity, priority, page, per_page
+    """
+    from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import desc
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        status_filter = request.args.get('status')
+        severity_filter = request.args.get('severity')
+        priority_filter = request.args.get('priority')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(BugReport)\
+                .options(joinedload(BugReport.reporter))\
+                .options(joinedload(BugReport.assignee))
+
+            # Apply filters
+            if status_filter:
+                try:
+                    status_enum = BugStatus(status_filter)
+                    query = query.filter(BugReport.status == status_enum)
+                except ValueError:
+                    pass
+
+            if severity_filter:
+                try:
+                    severity_enum = BugSeverity(severity_filter)
+                    query = query.filter(BugReport.severity == severity_enum)
+                except ValueError:
+                    pass
+
+            if priority_filter:
+                try:
+                    priority_enum = BugPriority(priority_filter)
+                    query = query.filter(BugReport.priority == priority_enum)
+                except ValueError:
+                    pass
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            bugs = query.order_by(desc(BugReport.updated_at))\
+                .offset((page - 1) * per_page)\
+                .limit(per_page)\
+                .all()
+
+            bugs_data = [{
+                'id': b.id,
+                'display_id': b.display_id,
+                'title': b.title,
+                'description': b.description,
+                'status': b.status.value if b.status else None,
+                'severity': b.severity.value if b.severity else None,
+                'priority': b.priority.value if b.priority else None,
+                'component': b.component,
+                'steps_to_reproduce': b.steps_to_reproduce,
+                'reporter': {
+                    'id': b.reporter.id,
+                    'username': b.reporter.username
+                } if b.reporter else None,
+                'assignee': {
+                    'id': b.assignee.id,
+                    'username': b.assignee.username
+                } if b.assignee else None,
+                'created_at': b.created_at.isoformat() + 'Z' if b.created_at else None,
+                'updated_at': b.updated_at.isoformat() + 'Z' if b.updated_at else None
+            } for b in bugs]
+
+            return jsonify({
+                'bugs': bugs_data,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total + per_page - 1) // per_page
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get bugs error: {str(e)}")
+        return jsonify({'error': 'Failed to get bugs'}), 500
+
+
+@json_api_bp.route('/dev/bugs/<int:bug_id>', methods=['GET'])
+@require_jwt_auth
+def get_bug_detail(bug_id):
+    """
+    Get single bug report detail
+
+    GET /mobile/dev/bugs/<id>
+    """
+    from models.bug_report import BugReport, BugComment
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            bug = db_session.query(BugReport)\
+                .options(joinedload(BugReport.reporter))\
+                .options(joinedload(BugReport.assignee))\
+                .options(joinedload(BugReport.comments).joinedload(BugComment.user))\
+                .filter(BugReport.id == bug_id)\
+                .first()
+
+            if not bug:
+                return jsonify({'error': 'Bug not found'}), 404
+
+            comments_data = [{
+                'id': c.id,
+                'content': c.content,
+                'user': {
+                    'id': c.user.id,
+                    'username': c.user.username
+                } if c.user else None,
+                'created_at': c.created_at.isoformat() + 'Z' if c.created_at else None
+            } for c in (bug.comments or [])]
+
+            return jsonify({
+                'id': bug.id,
+                'display_id': bug.display_id,
+                'title': bug.title,
+                'description': bug.description,
+                'status': bug.status.value if bug.status else None,
+                'severity': bug.severity.value if bug.severity else None,
+                'priority': bug.priority.value if bug.priority else None,
+                'component': bug.component,
+                'steps_to_reproduce': bug.steps_to_reproduce,
+                'expected_behavior': bug.expected_behavior,
+                'actual_behavior': bug.actual_behavior,
+                'environment': bug.environment,
+                'reporter': {
+                    'id': bug.reporter.id,
+                    'username': bug.reporter.username,
+                    'email': bug.reporter.email
+                } if bug.reporter else None,
+                'assignee': {
+                    'id': bug.assignee.id,
+                    'username': bug.assignee.username
+                } if bug.assignee else None,
+                'resolution': bug.resolution,
+                'resolved_at': bug.resolved_at.isoformat() + 'Z' if bug.resolved_at else None,
+                'created_at': bug.created_at.isoformat() + 'Z' if bug.created_at else None,
+                'updated_at': bug.updated_at.isoformat() + 'Z' if bug.updated_at else None,
+                'comments': comments_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get bug detail error: {str(e)}")
+        return jsonify({'error': 'Failed to get bug'}), 500
+
+
+@json_api_bp.route('/dev/releases', methods=['GET'])
+@require_jwt_auth
+def get_releases():
+    """
+    Get all releases with optional filtering
+
+    GET /mobile/dev/releases
+    Query params: status, page, per_page
+    """
+    from models.release import Release, ReleaseStatus
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import desc
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_releases:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        status_filter = request.args.get('status')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(Release)\
+                .options(joinedload(Release.release_manager))
+
+            # Apply filters
+            if status_filter:
+                try:
+                    status_enum = ReleaseStatus(status_filter)
+                    query = query.filter(Release.status == status_enum)
+                except ValueError:
+                    pass
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            releases = query.order_by(desc(Release.release_date), desc(Release.created_at))\
+                .offset((page - 1) * per_page)\
+                .limit(per_page)\
+                .all()
+
+            releases_data = [{
+                'id': r.id,
+                'version': r.version,
+                'name': r.name,
+                'description': r.description,
+                'status': r.status.value if r.status else None,
+                'release_type': r.release_type.value if r.release_type else None,
+                'planned_date': r.planned_date.isoformat() if r.planned_date else None,
+                'release_date': r.release_date.isoformat() if r.release_date else None,
+                'release_manager': {
+                    'id': r.release_manager.id,
+                    'username': r.release_manager.username
+                } if r.release_manager else None,
+                'created_at': r.created_at.isoformat() + 'Z' if r.created_at else None
+            } for r in releases]
+
+            return jsonify({
+                'releases': releases_data,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total + per_page - 1) // per_page
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get releases error: {str(e)}")
+        return jsonify({'error': 'Failed to get releases'}), 500
+
+
+@json_api_bp.route('/dev/releases/<int:release_id>', methods=['GET'])
+@require_jwt_auth
+def get_release_detail(release_id):
+    """
+    Get single release detail with features and bugs
+
+    GET /mobile/dev/releases/<id>
+    """
+    from models.release import Release
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_releases:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            release = db_session.query(Release)\
+                .options(joinedload(Release.release_manager))\
+                .options(joinedload(Release.features))\
+                .options(joinedload(Release.fixed_bugs))\
+                .options(joinedload(Release.changelog_entries))\
+                .filter(Release.id == release_id)\
+                .first()
+
+            if not release:
+                return jsonify({'error': 'Release not found'}), 404
+
+            features_data = [{
+                'id': f.id,
+                'display_id': f.display_id,
+                'title': f.title,
+                'status': f.status.value if f.status else None
+            } for f in (release.features or [])]
+
+            bugs_data = [{
+                'id': b.id,
+                'display_id': b.display_id,
+                'title': b.title,
+                'severity': b.severity.value if b.severity else None
+            } for b in (release.fixed_bugs or [])]
+
+            changelog_data = [{
+                'id': c.id,
+                'title': c.title,
+                'description': c.description,
+                'entry_type': c.entry_type.value if c.entry_type else None
+            } for c in (release.changelog_entries or [])]
+
+            return jsonify({
+                'id': release.id,
+                'version': release.version,
+                'name': release.name,
+                'description': release.description,
+                'status': release.status.value if release.status else None,
+                'release_type': release.release_type.value if release.release_type else None,
+                'planned_date': release.planned_date.isoformat() if release.planned_date else None,
+                'release_date': release.release_date.isoformat() if release.release_date else None,
+                'release_notes': release.release_notes,
+                'release_manager': {
+                    'id': release.release_manager.id,
+                    'username': release.release_manager.username
+                } if release.release_manager else None,
+                'features': features_data,
+                'fixed_bugs': bugs_data,
+                'changelog_entries': changelog_data,
+                'created_at': release.created_at.isoformat() + 'Z' if release.created_at else None,
+                'updated_at': release.updated_at.isoformat() + 'Z' if release.updated_at else None
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get release detail error: {str(e)}")
+        return jsonify({'error': 'Failed to get release'}), 500
+
+
+@json_api_bp.route('/dev/changelog', methods=['GET'])
+@require_jwt_auth
+def get_dev_changelog():
+    """
+    Get development changelog / git commits
+
+    GET /mobile/dev/changelog
+    Query params: page, per_page, type
+    """
+    from models.dev_blog_entry import DevBlogEntry
+    from sqlalchemy import desc
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        commit_type = request.args.get('type')
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(DevBlogEntry)\
+                .filter(DevBlogEntry.is_visible == True)
+
+            # Apply type filter
+            if commit_type:
+                query = query.filter(DevBlogEntry.commit_type == commit_type)
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            entries = query.order_by(desc(DevBlogEntry.commit_date))\
+                .offset((page - 1) * per_page)\
+                .limit(per_page)\
+                .all()
+
+            entries_data = [{
+                'id': e.id,
+                'commit_hash': e.commit_hash,
+                'commit_type': e.commit_type,
+                'title': e.title,
+                'description': e.description,
+                'author': e.author,
+                'commit_date': e.commit_date.isoformat() + 'Z' if e.commit_date else None,
+                'files_changed': e.files_changed
+            } for e in entries]
+
+            return jsonify({
+                'entries': entries_data,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total + per_page - 1) // per_page
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get dev changelog error: {str(e)}")
+        return jsonify({'error': 'Failed to get changelog'}), 500
+
+
+@json_api_bp.route('/dev/schedule', methods=['GET'])
+@require_jwt_auth
+def get_dev_schedule():
+    """
+    Get developer schedule for a date range
+
+    GET /mobile/dev/schedule
+    Query params: start_date, end_date (YYYY-MM-DD format)
+    """
+    from models.developer_schedule import DeveloperSchedule
+    from sqlalchemy.orm import joinedload
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        # Default to current week if not specified
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                start_date = monday
+        else:
+            start_date = monday
+
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                end_date = friday
+        else:
+            end_date = friday
+
+        db_session = db_manager.get_session()
+        try:
+            schedules = db_session.query(DeveloperSchedule)\
+                .options(joinedload(DeveloperSchedule.user))\
+                .filter(DeveloperSchedule.work_date >= start_date)\
+                .filter(DeveloperSchedule.work_date <= end_date)\
+                .order_by(DeveloperSchedule.work_date, DeveloperSchedule.user_id)\
+                .all()
+
+            # Organize by user
+            schedule_by_user = {}
+            for s in schedules:
+                user_id = str(s.user_id)
+                if user_id not in schedule_by_user:
+                    schedule_by_user[user_id] = {
+                        'user_id': s.user_id,
+                        'username': s.user.username if s.user else None,
+                        'days': []
+                    }
+                schedule_by_user[user_id]['days'].append({
+                    'date': s.work_date.isoformat() if s.work_date else None,
+                    'is_working': s.is_working,
+                    'work_location': s.work_location,
+                    'note': s.note
+                })
+
+            return jsonify({
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'schedules': list(schedule_by_user.values())
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get dev schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to get schedule'}), 500
+
+
+@json_api_bp.route('/dev/schedule', methods=['POST'])
+@require_jwt_auth
+def update_dev_schedule():
+    """
+    Update developer schedule entry
+
+    POST /mobile/dev/schedule
+    Body: {
+        "work_date": "2024-01-15",
+        "is_working": true,
+        "work_location": "Office",
+        "note": "Working on feature X"
+    }
+    """
+    from models.developer_schedule import DeveloperSchedule
+    from datetime import date
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        work_date_str = data.get('work_date')
+        if not work_date_str:
+            return jsonify({'error': 'work_date is required'}), 400
+
+        try:
+            work_date = datetime.strptime(work_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Find existing schedule or create new
+            schedule = db_session.query(DeveloperSchedule)\
+                .filter(DeveloperSchedule.user_id == user.id)\
+                .filter(DeveloperSchedule.work_date == work_date)\
+                .first()
+
+            if not schedule:
+                schedule = DeveloperSchedule(
+                    user_id=user.id,
+                    work_date=work_date
+                )
+                db_session.add(schedule)
+
+            # Update fields
+            if 'is_working' in data:
+                schedule.is_working = data['is_working']
+            if 'work_location' in data:
+                schedule.work_location = data['work_location']
+            if 'note' in data:
+                schedule.note = data['note']
+
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'schedule': {
+                    'id': schedule.id,
+                    'user_id': schedule.user_id,
+                    'work_date': schedule.work_date.isoformat() if schedule.work_date else None,
+                    'is_working': schedule.is_working,
+                    'work_location': schedule.work_location,
+                    'note': schedule.note
+                }
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update dev schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to update schedule'}), 500

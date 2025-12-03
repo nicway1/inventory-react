@@ -622,7 +622,7 @@ def execute_action():
             return jsonify({"success": False, "error": f"Ticket #{ticket_id} not found"})
 
         # Check permissions
-        user_permissions = current_user.get_permissions(db_session)
+        user_permissions = current_user.permissions
         if not user_permissions or not user_permissions.can_edit_tickets:
             return jsonify({"success": False, "error": "You don't have permission to edit tickets"})
 
@@ -632,9 +632,21 @@ def execute_action():
                 return jsonify({"success": False, "error": "Missing new_status"})
 
             # Check if it's a system status or custom status
-            try:
-                ticket.status = TicketStatus(new_status)
-            except ValueError:
+            status_set = False
+
+            # First try by enum name (e.g., "RESOLVED")
+            if hasattr(TicketStatus, new_status):
+                ticket.status = getattr(TicketStatus, new_status)
+                status_set = True
+            else:
+                # Try by enum value (e.g., "Resolved")
+                try:
+                    ticket.status = TicketStatus(new_status)
+                    status_set = True
+                except ValueError:
+                    pass
+
+            if not status_set:
                 # Try custom status
                 custom_status = db_session.query(CustomTicketStatus).filter_by(
                     name=new_status,
@@ -643,8 +655,10 @@ def execute_action():
                 if custom_status:
                     ticket.custom_status_id = custom_status.id
                     ticket.status = TicketStatus.PROCESSING  # Set base status
-                else:
-                    return jsonify({"success": False, "error": f"Invalid status: {new_status}"})
+                    status_set = True
+
+            if not status_set:
+                return jsonify({"success": False, "error": f"Invalid status: {new_status}"})
 
             db_session.commit()
             return jsonify({
@@ -658,10 +672,15 @@ def execute_action():
             if not new_priority:
                 return jsonify({"success": False, "error": "Missing new_priority"})
 
-            try:
-                ticket.priority = TicketPriority(new_priority)
-            except ValueError:
-                return jsonify({"success": False, "error": f"Invalid priority: {new_priority}"})
+            # First try by enum name (e.g., "HIGH")
+            if hasattr(TicketPriority, new_priority):
+                ticket.priority = getattr(TicketPriority, new_priority)
+            else:
+                # Try by enum value (e.g., "High")
+                try:
+                    ticket.priority = TicketPriority(new_priority)
+                except ValueError:
+                    return jsonify({"success": False, "error": f"Invalid priority: {new_priority}"})
 
             db_session.commit()
             return jsonify({
