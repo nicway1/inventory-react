@@ -1422,3 +1422,340 @@ def update_dev_schedule():
     except Exception as e:
         logger.error(f"Update dev schedule error: {str(e)}")
         return jsonify({'error': 'Failed to update schedule'}), 500
+
+
+# MARK: - Developer Work Plan Endpoints
+
+@json_api_bp.route('/dev/work-plans', methods=['GET'])
+@require_jwt_auth
+def get_work_plans():
+    """
+    Get work plans - own plans or all developers' plans (super admin)
+
+    GET /mobile/dev/work-plans?week_start=2024-01-15
+    Query params:
+        - week_start: Start of week (Monday) in YYYY-MM-DD format (optional, defaults to current week)
+        - all: Set to 'true' to get all developers' plans (super admin only)
+
+    Returns: List of work plans
+    """
+    from models.developer_work_plan import DeveloperWorkPlan
+    from models.user import UserType
+    from sqlalchemy.orm import joinedload
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get week start from query param or default to current week
+            week_start_str = request.args.get('week_start')
+            if week_start_str:
+                try:
+                    week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+            else:
+                # Default to current week's Monday
+                today = date.today()
+                week_start = today - timedelta(days=today.weekday())
+
+            # Check if requesting all plans (super admin only)
+            get_all = request.args.get('all', '').lower() == 'true'
+
+            if get_all:
+                # Only super admin can view all plans
+                if user.user_type != UserType.SUPER_ADMIN:
+                    return jsonify({'error': 'Permission denied - Super Admin only'}), 403
+
+                # Get all developers' work plans for the week
+                plans = db_session.query(DeveloperWorkPlan)\
+                    .options(joinedload(DeveloperWorkPlan.user))\
+                    .filter(DeveloperWorkPlan.week_start == week_start)\
+                    .all()
+
+                plans_data = [{
+                    'id': p.id,
+                    'user_id': p.user_id,
+                    'username': p.user.username if p.user else None,
+                    'week_start': p.week_start.isoformat() if p.week_start else None,
+                    'plan_summary': p.plan_summary,
+                    'monday_plan': p.monday_plan,
+                    'tuesday_plan': p.tuesday_plan,
+                    'wednesday_plan': p.wednesday_plan,
+                    'thursday_plan': p.thursday_plan,
+                    'friday_plan': p.friday_plan,
+                    'blockers': p.blockers,
+                    'notes': p.notes,
+                    'status': p.status,
+                    'created_at': p.created_at.isoformat() + 'Z' if p.created_at else None,
+                    'updated_at': p.updated_at.isoformat() + 'Z' if p.updated_at else None,
+                    'submitted_at': p.submitted_at.isoformat() + 'Z' if p.submitted_at else None
+                } for p in plans]
+
+                # Get all developers to show who hasn't submitted
+                developers = db_session.query(User)\
+                    .filter(User.user_type == UserType.DEVELOPER)\
+                    .all()
+
+                developers_data = [{
+                    'id': d.id,
+                    'username': d.username,
+                    'has_plan': any(p['user_id'] == d.id for p in plans_data)
+                } for d in developers]
+
+                return jsonify({
+                    'week_start': week_start.isoformat(),
+                    'plans': plans_data,
+                    'developers': developers_data
+                }), 200
+            else:
+                # Get current user's work plan
+                plan = db_session.query(DeveloperWorkPlan)\
+                    .filter(DeveloperWorkPlan.user_id == user.id)\
+                    .filter(DeveloperWorkPlan.week_start == week_start)\
+                    .first()
+
+                if plan:
+                    plan_data = {
+                        'id': plan.id,
+                        'user_id': plan.user_id,
+                        'week_start': plan.week_start.isoformat() if plan.week_start else None,
+                        'plan_summary': plan.plan_summary,
+                        'monday_plan': plan.monday_plan,
+                        'tuesday_plan': plan.tuesday_plan,
+                        'wednesday_plan': plan.wednesday_plan,
+                        'thursday_plan': plan.thursday_plan,
+                        'friday_plan': plan.friday_plan,
+                        'blockers': plan.blockers,
+                        'notes': plan.notes,
+                        'status': plan.status,
+                        'created_at': plan.created_at.isoformat() + 'Z' if plan.created_at else None,
+                        'updated_at': plan.updated_at.isoformat() + 'Z' if plan.updated_at else None,
+                        'submitted_at': plan.submitted_at.isoformat() + 'Z' if plan.submitted_at else None
+                    }
+                else:
+                    plan_data = None
+
+                return jsonify({
+                    'week_start': week_start.isoformat(),
+                    'plan': plan_data
+                }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get work plans error: {str(e)}")
+        return jsonify({'error': 'Failed to get work plans'}), 500
+
+
+@json_api_bp.route('/dev/work-plans/<int:user_id>', methods=['GET'])
+@require_jwt_auth
+def get_user_work_plan(user_id):
+    """
+    Get specific user's work plan (super admin or own plan)
+
+    GET /mobile/dev/work-plans/<user_id>?week_start=2024-01-15
+    Query params:
+        - week_start: Start of week (Monday) in YYYY-MM-DD format (optional)
+
+    Returns: User's work plan for the specified week
+    """
+    from models.developer_work_plan import DeveloperWorkPlan
+    from models.user import UserType
+    from sqlalchemy.orm import joinedload
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Only super admin can view other users' plans
+        if user.id != user_id and user.user_type != UserType.SUPER_ADMIN:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            # Get week start from query param or default to current week
+            week_start_str = request.args.get('week_start')
+            if week_start_str:
+                try:
+                    week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+            else:
+                # Default to current week's Monday
+                today = date.today()
+                week_start = today - timedelta(days=today.weekday())
+
+            # Get the target user
+            target_user = db_session.query(User).get(user_id)
+            if not target_user:
+                return jsonify({'error': 'User not found'}), 404
+
+            # Get work plan
+            plan = db_session.query(DeveloperWorkPlan)\
+                .filter(DeveloperWorkPlan.user_id == user_id)\
+                .filter(DeveloperWorkPlan.week_start == week_start)\
+                .first()
+
+            if plan:
+                plan_data = {
+                    'id': plan.id,
+                    'user_id': plan.user_id,
+                    'username': target_user.username,
+                    'week_start': plan.week_start.isoformat() if plan.week_start else None,
+                    'plan_summary': plan.plan_summary,
+                    'monday_plan': plan.monday_plan,
+                    'tuesday_plan': plan.tuesday_plan,
+                    'wednesday_plan': plan.wednesday_plan,
+                    'thursday_plan': plan.thursday_plan,
+                    'friday_plan': plan.friday_plan,
+                    'blockers': plan.blockers,
+                    'notes': plan.notes,
+                    'status': plan.status,
+                    'created_at': plan.created_at.isoformat() + 'Z' if plan.created_at else None,
+                    'updated_at': plan.updated_at.isoformat() + 'Z' if plan.updated_at else None,
+                    'submitted_at': plan.submitted_at.isoformat() + 'Z' if plan.submitted_at else None
+                }
+            else:
+                plan_data = None
+
+            return jsonify({
+                'user_id': user_id,
+                'username': target_user.username,
+                'week_start': week_start.isoformat(),
+                'plan': plan_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get user work plan error: {str(e)}")
+        return jsonify({'error': 'Failed to get work plan'}), 500
+
+
+@json_api_bp.route('/dev/work-plans', methods=['POST'])
+@require_jwt_auth
+def save_work_plan():
+    """
+    Create or update work plan
+
+    POST /mobile/dev/work-plans
+    Body: {
+        "week_start": "2024-01-15",
+        "plan_summary": "This week I will focus on...",
+        "monday_plan": "Feature development",
+        "tuesday_plan": "Code review",
+        "wednesday_plan": "Bug fixes",
+        "thursday_plan": "Testing",
+        "friday_plan": "Documentation",
+        "blockers": "Waiting on API spec",
+        "notes": "May need help from backend team",
+        "submit": false
+    }
+
+    Returns: Saved work plan
+    """
+    from models.developer_work_plan import DeveloperWorkPlan
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        # Get week start from body or default to current week
+        week_start_str = data.get('week_start')
+        if week_start_str:
+            try:
+                week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+        else:
+            # Default to current week's Monday
+            today = date.today()
+            week_start = today - timedelta(days=today.weekday())
+
+        db_session = db_manager.get_session()
+        try:
+            # Find existing plan or create new one
+            plan = db_session.query(DeveloperWorkPlan)\
+                .filter(DeveloperWorkPlan.user_id == user.id)\
+                .filter(DeveloperWorkPlan.week_start == week_start)\
+                .first()
+
+            if not plan:
+                plan = DeveloperWorkPlan(
+                    user_id=user.id,
+                    week_start=week_start
+                )
+                db_session.add(plan)
+
+            # Update fields
+            if 'plan_summary' in data:
+                plan.plan_summary = data['plan_summary']
+            if 'monday_plan' in data:
+                plan.monday_plan = data['monday_plan']
+            if 'tuesday_plan' in data:
+                plan.tuesday_plan = data['tuesday_plan']
+            if 'wednesday_plan' in data:
+                plan.wednesday_plan = data['wednesday_plan']
+            if 'thursday_plan' in data:
+                plan.thursday_plan = data['thursday_plan']
+            if 'friday_plan' in data:
+                plan.friday_plan = data['friday_plan']
+            if 'blockers' in data:
+                plan.blockers = data['blockers']
+            if 'notes' in data:
+                plan.notes = data['notes']
+
+            plan.updated_at = datetime.utcnow()
+
+            # Handle submission
+            if data.get('submit'):
+                plan.status = 'submitted'
+                plan.submitted_at = datetime.utcnow()
+
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'plan': {
+                    'id': plan.id,
+                    'user_id': plan.user_id,
+                    'week_start': plan.week_start.isoformat() if plan.week_start else None,
+                    'plan_summary': plan.plan_summary,
+                    'monday_plan': plan.monday_plan,
+                    'tuesday_plan': plan.tuesday_plan,
+                    'wednesday_plan': plan.wednesday_plan,
+                    'thursday_plan': plan.thursday_plan,
+                    'friday_plan': plan.friday_plan,
+                    'blockers': plan.blockers,
+                    'notes': plan.notes,
+                    'status': plan.status,
+                    'created_at': plan.created_at.isoformat() + 'Z' if plan.created_at else None,
+                    'updated_at': plan.updated_at.isoformat() + 'Z' if plan.updated_at else None,
+                    'submitted_at': plan.submitted_at.isoformat() + 'Z' if plan.submitted_at else None
+                }
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Save work plan error: {str(e)}")
+        return jsonify({'error': 'Failed to save work plan'}), 500
