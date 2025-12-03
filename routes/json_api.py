@@ -1424,6 +1424,426 @@ def update_dev_schedule():
         return jsonify({'error': 'Failed to update schedule'}), 500
 
 
+@json_api_bp.route('/dev/schedule/me', methods=['GET'])
+@require_jwt_auth
+def get_my_schedule():
+    """
+    Get only current user's schedule for a date range
+
+    GET /mobile/dev/schedule/me
+    Query params:
+        - start_date: YYYY-MM-DD (optional, defaults to Monday of current week)
+        - end_date: YYYY-MM-DD (optional, defaults to Friday of current week)
+
+    Returns: Current user's schedule entries
+    """
+    from models.developer_schedule import DeveloperSchedule
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        # Default to current week if not specified
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid start_date format. Use YYYY-MM-DD'}), 400
+        else:
+            start_date = monday
+
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid end_date format. Use YYYY-MM-DD'}), 400
+        else:
+            end_date = friday
+
+        db_session = db_manager.get_session()
+        try:
+            schedules = db_session.query(DeveloperSchedule)\
+                .filter(DeveloperSchedule.user_id == user.id)\
+                .filter(DeveloperSchedule.work_date >= start_date)\
+                .filter(DeveloperSchedule.work_date <= end_date)\
+                .order_by(DeveloperSchedule.work_date)\
+                .all()
+
+            schedule_data = [{
+                'id': s.id,
+                'work_date': s.work_date.isoformat() if s.work_date else None,
+                'is_working': s.is_working,
+                'work_location': s.work_location,
+                'note': s.note
+            } for s in schedules]
+
+            return jsonify({
+                'user_id': user.id,
+                'username': user.username,
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'schedules': schedule_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get my schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to get schedule'}), 500
+
+
+@json_api_bp.route('/dev/schedule/bulk', methods=['POST'])
+@require_jwt_auth
+def bulk_update_schedule():
+    """
+    Bulk update schedule - mark multiple days at once
+
+    POST /mobile/dev/schedule/bulk
+    Body: {
+        "dates": ["2024-01-15", "2024-01-16", "2024-01-17"],
+        "is_working": true,
+        "work_location": "WFO",
+        "note": "Optional note"
+    }
+
+    Returns: Number of created/updated entries
+    """
+    from models.developer_schedule import DeveloperSchedule
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        dates = data.get('dates', [])
+        if not dates:
+            return jsonify({'error': 'No dates provided'}), 400
+
+        is_working = data.get('is_working', True)
+        work_location = data.get('work_location', 'WFO')
+        note = data.get('note', '')
+
+        db_session = db_manager.get_session()
+        try:
+            created = 0
+            updated = 0
+
+            for date_str in dates:
+                try:
+                    work_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    continue  # Skip invalid dates
+
+                existing = db_session.query(DeveloperSchedule)\
+                    .filter(DeveloperSchedule.user_id == user.id)\
+                    .filter(DeveloperSchedule.work_date == work_date)\
+                    .first()
+
+                if existing:
+                    existing.is_working = is_working
+                    existing.work_location = work_location
+                    existing.note = note
+                    existing.updated_at = datetime.utcnow()
+                    updated += 1
+                else:
+                    new_schedule = DeveloperSchedule(
+                        user_id=user.id,
+                        work_date=work_date,
+                        is_working=is_working,
+                        work_location=work_location,
+                        note=note
+                    )
+                    db_session.add(new_schedule)
+                    created += 1
+
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'created': created,
+                'updated': updated,
+                'total': created + updated
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Bulk update schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to update schedule'}), 500
+
+
+@json_api_bp.route('/dev/schedule/week', methods=['POST'])
+@require_jwt_auth
+def mark_week_schedule():
+    """
+    Quick action: Mark entire week (Mon-Fri) with same status
+
+    POST /mobile/dev/schedule/week
+    Body: {
+        "week_start": "2024-01-15",  // Monday of the week (optional, defaults to current week)
+        "is_working": true,
+        "work_location": "WFO",  // "WFO", "WFH", or any string
+        "note": "Optional note"
+    }
+
+    Returns: Updated schedule for the week
+    """
+    from models.developer_schedule import DeveloperSchedule
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        # Get week start or default to current week's Monday
+        week_start_str = data.get('week_start')
+        if week_start_str:
+            try:
+                monday = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid week_start format. Use YYYY-MM-DD'}), 400
+        else:
+            today = date.today()
+            monday = today - timedelta(days=today.weekday())
+
+        is_working = data.get('is_working', True)
+        work_location = data.get('work_location', 'WFO')
+        note = data.get('note', '')
+
+        # Generate weekday dates (Mon-Fri)
+        weekdays = [monday + timedelta(days=i) for i in range(5)]
+
+        db_session = db_manager.get_session()
+        try:
+            created = 0
+            updated = 0
+            schedules = []
+
+            for work_date in weekdays:
+                existing = db_session.query(DeveloperSchedule)\
+                    .filter(DeveloperSchedule.user_id == user.id)\
+                    .filter(DeveloperSchedule.work_date == work_date)\
+                    .first()
+
+                if existing:
+                    existing.is_working = is_working
+                    existing.work_location = work_location
+                    existing.note = note
+                    existing.updated_at = datetime.utcnow()
+                    updated += 1
+                    schedules.append(existing)
+                else:
+                    new_schedule = DeveloperSchedule(
+                        user_id=user.id,
+                        work_date=work_date,
+                        is_working=is_working,
+                        work_location=work_location,
+                        note=note
+                    )
+                    db_session.add(new_schedule)
+                    created += 1
+                    schedules.append(new_schedule)
+
+            db_session.commit()
+
+            schedule_data = [{
+                'id': s.id,
+                'work_date': s.work_date.isoformat() if s.work_date else None,
+                'is_working': s.is_working,
+                'work_location': s.work_location,
+                'note': s.note
+            } for s in schedules]
+
+            return jsonify({
+                'success': True,
+                'created': created,
+                'updated': updated,
+                'week_start': monday.isoformat(),
+                'schedules': schedule_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Mark week schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to update schedule'}), 500
+
+
+@json_api_bp.route('/dev/schedule/<int:user_id>', methods=['GET'])
+@require_jwt_auth
+def get_user_schedule(user_id):
+    """
+    Get specific user's schedule (super admin or own schedule)
+
+    GET /mobile/dev/schedule/<user_id>
+    Query params:
+        - start_date: YYYY-MM-DD (optional)
+        - end_date: YYYY-MM-DD (optional)
+
+    Returns: User's schedule entries
+    """
+    from models.developer_schedule import DeveloperSchedule
+    from models.user import UserType
+    from datetime import date, timedelta
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Only super admin can view other users' schedules
+        if user.id != user_id and user.user_type != UserType.SUPER_ADMIN:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Get query params
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        # Default to current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid start_date format'}), 400
+        else:
+            start_date = monday
+
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid end_date format'}), 400
+        else:
+            end_date = friday
+
+        db_session = db_manager.get_session()
+        try:
+            # Get target user info
+            target_user = db_session.query(User).get(user_id)
+            if not target_user:
+                return jsonify({'error': 'User not found'}), 404
+
+            schedules = db_session.query(DeveloperSchedule)\
+                .filter(DeveloperSchedule.user_id == user_id)\
+                .filter(DeveloperSchedule.work_date >= start_date)\
+                .filter(DeveloperSchedule.work_date <= end_date)\
+                .order_by(DeveloperSchedule.work_date)\
+                .all()
+
+            schedule_data = [{
+                'id': s.id,
+                'work_date': s.work_date.isoformat() if s.work_date else None,
+                'is_working': s.is_working,
+                'work_location': s.work_location,
+                'note': s.note
+            } for s in schedules]
+
+            return jsonify({
+                'user_id': user_id,
+                'username': target_user.username,
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'schedules': schedule_data
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get user schedule error: {str(e)}")
+        return jsonify({'error': 'Failed to get schedule'}), 500
+
+
+@json_api_bp.route('/dev/schedule/delete', methods=['POST'])
+@require_jwt_auth
+def delete_schedule_entry():
+    """
+    Delete a schedule entry
+
+    POST /mobile/dev/schedule/delete
+    Body: {
+        "work_date": "2024-01-15"
+    }
+
+    Returns: Success status
+    """
+    from models.developer_schedule import DeveloperSchedule
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        work_date_str = data.get('work_date')
+        if not work_date_str:
+            return jsonify({'error': 'work_date is required'}), 400
+
+        try:
+            work_date = datetime.strptime(work_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            schedule = db_session.query(DeveloperSchedule)\
+                .filter(DeveloperSchedule.user_id == user.id)\
+                .filter(DeveloperSchedule.work_date == work_date)\
+                .first()
+
+            if not schedule:
+                return jsonify({'error': 'Schedule entry not found'}), 404
+
+            db_session.delete(schedule)
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Schedule entry for {work_date_str} deleted'
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Delete schedule entry error: {str(e)}")
+        return jsonify({'error': 'Failed to delete schedule entry'}), 500
+
+
 # MARK: - Developer Work Plan Endpoints
 
 @json_api_bp.route('/dev/work-plans', methods=['GET'])
