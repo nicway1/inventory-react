@@ -2370,7 +2370,7 @@ async function applyBulkEdit() {
             alert(`Successfully updated ${data.updated_count} items.`);
 
             // Reload data
-            loadData();
+            loadAssets();
         } else {
             alert('Error: ' + (data.error || 'Failed to update items'));
         }

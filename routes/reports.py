@@ -44,8 +44,10 @@ def case_reports():
         
         # Apply permission filters
         if current_user.user_type.value == 'COUNTRY_ADMIN':
-            # Country admins see tickets from their country
-            query = query.join(CustomerUser).filter(CustomerUser.country == current_user.country)
+            # Country admins see tickets from their assigned countries
+            assigned_countries = current_user.assigned_countries
+            if assigned_countries:
+                query = query.join(CustomerUser).filter(CustomerUser.country.in_(assigned_countries))
         elif current_user.user_type.value == 'CLIENT':
             # Clients see only their tickets
             query = query.filter(Ticket.requester_id == current_user.id)
@@ -160,8 +162,10 @@ def asset_reports():
         
         # Apply permission filters
         if current_user.user_type.value == 'COUNTRY_ADMIN':
-            # Country admins see assets from their country
-            query = query.filter(Asset.country == current_user.country)
+            # Country admins see assets from their assigned countries
+            assigned_countries = current_user.assigned_countries
+            if assigned_countries:
+                query = query.filter(Asset.country.in_(assigned_countries))
         elif current_user.user_type.value == 'CLIENT':
             # Clients see only assets assigned to them
             query = query.filter(Asset.customer_id == current_user.id)
@@ -332,7 +336,9 @@ def assets_by_model(model_name):
             
             # Apply permission filters first
             if current_user.user_type.value == 'COUNTRY_ADMIN':
-                all_assets = all_assets.filter(Asset.country == current_user.country)
+                assigned_countries = current_user.assigned_countries
+                if assigned_countries:
+                    all_assets = all_assets.filter(Asset.country.in_(assigned_countries))
             elif current_user.user_type.value == 'CLIENT':
                 all_assets = all_assets.filter(Asset.customer_id == current_user.id)
             
@@ -364,12 +370,14 @@ def assets_by_model(model_name):
             
             # Apply permission filters
             if current_user.user_type.value == 'COUNTRY_ADMIN':
-                # Country admins see assets from their country
-                query = query.filter(Asset.country == current_user.country)
+                # Country admins see assets from their assigned countries
+                assigned_countries = current_user.assigned_countries
+                if assigned_countries:
+                    query = query.filter(Asset.country.in_(assigned_countries))
             elif current_user.user_type.value == 'CLIENT':
                 # Clients see only assets assigned to them
                 query = query.filter(Asset.customer_id == current_user.id)
-            
+
             assets = query.all()
         
         # Group assets by status for display
@@ -402,7 +410,9 @@ def debug_unknown_models():
 
         # Apply permission filters
         if current_user.user_type.value == 'COUNTRY_ADMIN':
-            query = query.filter(Asset.country == current_user.country)
+            assigned_countries = current_user.assigned_countries
+            if assigned_countries:
+                query = query.filter(Asset.country.in_(assigned_countries))
         elif current_user.user_type.value == 'CLIENT':
             query = query.filter(Asset.customer_id == current_user.id)
 
@@ -475,9 +485,10 @@ def get_available_filters():
             if hasattr(current_user, 'user_type') and current_user.user_type:
                 if current_user.user_type.value == 'COUNTRY_ADMIN':
                     # Only join CustomerUser if we need country filtering
-                    query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
-                    if hasattr(current_user, 'country') and current_user.country:
-                        query = query.filter(CustomerUser.country == current_user.country)
+                    assigned_countries = current_user.assigned_countries
+                    if assigned_countries:
+                        query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                        query = query.filter(CustomerUser.country.in_(assigned_countries))
                 elif current_user.user_type.value == 'CLIENT':
                     query = query.filter(Ticket.requester_id == current_user.id)
         except Exception as e:
@@ -562,9 +573,10 @@ def get_case_data():
             try:
                 if hasattr(current_user, 'user_type') and current_user.user_type:
                     if current_user.user_type.value == 'COUNTRY_ADMIN':
-                        query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
-                        if hasattr(current_user, 'country') and current_user.country:
-                            query = query.filter(CustomerUser.country == current_user.country)
+                        assigned_countries = current_user.assigned_countries
+                        if assigned_countries:
+                            query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                            query = query.filter(CustomerUser.country.in_(assigned_countries))
                     elif current_user.user_type.value == 'CLIENT':
                         query = query.filter(Ticket.requester_id == current_user.id)
             except Exception as e:
@@ -754,9 +766,10 @@ def get_dashboard_data():
                 try:
                     if hasattr(current_user, 'user_type') and current_user.user_type:
                         if current_user.user_type.value == 'COUNTRY_ADMIN':
-                            query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
-                            if hasattr(current_user, 'country') and current_user.country:
-                                query = query.filter(CustomerUser.country == current_user.country)
+                            assigned_countries = current_user.assigned_countries
+                            if assigned_countries:
+                                query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                                query = query.filter(CustomerUser.country.in_(assigned_countries))
                         elif current_user.user_type.value == 'CLIENT':
                             query = query.filter(Ticket.requester_id == current_user.id)
                 except Exception as e:
@@ -853,9 +866,10 @@ def get_report_data():
             try:
                 if hasattr(current_user, 'user_type') and current_user.user_type:
                     if current_user.user_type.value == 'COUNTRY_ADMIN':
-                        query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
-                        if hasattr(current_user, 'country') and current_user.country:
-                            query = query.filter(CustomerUser.country == current_user.country)
+                        assigned_countries = current_user.assigned_countries
+                        if assigned_countries:
+                            query = query.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+                            query = query.filter(CustomerUser.country.in_(assigned_countries))
                     elif current_user.user_type.value == 'CLIENT':
                         query = query.filter(Ticket.requester_id == current_user.id)
             except Exception as e:

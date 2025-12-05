@@ -388,10 +388,12 @@ def export_tickets_csv():
             # For CLIENT users, only show tickets related to their company
             query = query.filter(Ticket.requester_id == user_id)
         elif user.user_type == UserType.COUNTRY_ADMIN:
-            # Country admins see tickets from their country
-            query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
-                CustomerUser.country == user.country
-            )
+            # Country admins see tickets from their assigned countries
+            assigned_countries = user.assigned_countries
+            if assigned_countries:
+                query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
+                    CustomerUser.country.in_(assigned_countries)
+                )
 
         # Apply export mode filters
         if export_mode == 'selected' and ticket_ids:
@@ -1018,10 +1020,12 @@ def export_single_ticket_csv(ticket_id):
             # For CLIENT users, only show tickets they requested
             query = query.filter(Ticket.requester_id == user_id)
         elif user.user_type == UserType.COUNTRY_ADMIN:
-            # Country admins see tickets from their country
-            query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
-                CustomerUser.country == user.country
-            )
+            # Country admins see tickets from their assigned countries
+            assigned_countries = user.assigned_countries
+            if assigned_countries:
+                query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
+                    CustomerUser.country.in_(assigned_countries)
+                )
 
         ticket = query.first()
 
@@ -2595,6 +2599,14 @@ def view_ticket(ticket_id):
         # Get comments from database using comment_store
         comments = comment_store.get_ticket_comments(ticket_id)
         logger.info(f"[DEBUG] Found {len(comments)} comments for ticket {ticket_id}")
+
+        # Query out-of-stock accessories for Asset Intake tickets
+        out_of_stock_accessories = []
+        if ticket.category and ticket.category.name == 'ASSET_INTAKE':
+            from models.accessory import Accessory
+            out_of_stock_accessories = db_session.query(Accessory).filter(
+                Accessory.available_quantity <= 0
+            ).order_by(Accessory.name).all()
         
         # Get packages for Asset Checkout (claw) tickets
         packages = []
@@ -2643,7 +2655,8 @@ def view_ticket(ticket_id):
             asset_modal_types=asset_modal_types,
             model_product_map=model_product_map,
             model_type_map=model_type_map,
-            custom_statuses=custom_statuses_list
+            custom_statuses=custom_statuses_list,
+            out_of_stock_accessories=out_of_stock_accessories
         )
         
     except Exception as e:

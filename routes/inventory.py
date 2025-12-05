@@ -487,10 +487,11 @@ def api_sf_filters():
                 for c in country_counts if c[0]
             ]
 
-            # Get location counts
+            # Get location counts (using proper join since Asset.location is a relationship)
             location_counts = db_session.query(
-                Asset.location, func.count(Asset.id)
-            ).group_by(Asset.location).all()
+                Location.name, func.count(Asset.id)
+            ).outerjoin(Asset, Asset.location_id == Location.id
+            ).group_by(Location.name).all()
 
             locations = [
                 {'value': l[0] or 'Unknown', 'label': l[0] or 'Unknown', 'count': l[1]}
