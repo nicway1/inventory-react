@@ -241,7 +241,7 @@ def list_tickets():
         custom_statuses = db_session.query(CustomTicketStatus).filter(
             CustomTicketStatus.is_active == True
         ).order_by(CustomTicketStatus.sort_order).all()
-        custom_statuses_list = [{'name': s.name, 'color': s.color, 'icon': s.icon} for s in custom_statuses]
+        custom_statuses_list = [{'name': s.name, 'color': s.color} for s in custom_statuses]
     except:
         custom_statuses_list = []
     finally:
@@ -363,7 +363,7 @@ def list_tickets_sf():
         custom_statuses = db_session.query(CustomTicketStatus).filter(
             CustomTicketStatus.is_active == True
         ).order_by(CustomTicketStatus.sort_order).all()
-        custom_statuses_list = [{'name': s.name, 'color': s.color, 'icon': s.icon} for s in custom_statuses]
+        custom_statuses_list = [{'name': s.name, 'color': s.color} for s in custom_statuses]
     except:
         custom_statuses_list = []
     finally:
