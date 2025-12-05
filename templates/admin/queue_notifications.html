@@ -92,18 +92,7 @@
             </div>
 
             <div class="p-6">
-                {% set has_notifications = false %}
-                {% for user in users %}
-                    {% for queue in queues %}
-                        {% set key = user.id ~ '_' ~ queue.id %}
-                        {% set notification = notification_map.get(key) %}
-                        {% if notification %}
-                            {% set has_notifications = true %}
-                        {% endif %}
-                    {% endfor %}
-                {% endfor %}
-
-                {% if has_notifications %}
+                {% if notification_map %}
                     <!-- Table Header for Desktop -->
                     <div class="hidden lg:block">
                         <div class="grid grid-cols-12 gap-4 py-3 px-4 bg-gray-50 rounded-lg mb-4 text-sm font-medium text-gray-700 uppercase tracking-wider">
@@ -153,7 +142,7 @@
                                                     </div>
                                                     <div class="min-w-0 flex-1">
                                                         <div class="text-sm font-medium text-gray-900 truncate">{{ user.username }}</div>
-                                                        <div class="text-xs text-gray-500">{{ user.user_type.value if user.user_type else 'USER' }}</div>
+                                                        <div class="text-xs text-gray-500">{{ user.user_type_value }}</div>
                                                     </div>
                                                 </div>
                                             </div>

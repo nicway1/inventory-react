@@ -1126,23 +1126,46 @@ def manage_queue_notifications():
     from models.queue_notification import QueueNotification
     from models.queue import Queue
     from models.user import User
-    
+
     db_session = db_manager.get_session()
     try:
         # Get all users, queues, and existing notifications
         users = db_session.query(User).order_by(User.username).all()
         queues = db_session.query(Queue).order_by(Queue.name).all()
         notifications = db_session.query(QueueNotification).all()
-        
-        # Create a mapping for easier template access
+
+        # Create a mapping for easier template access - convert to dict to avoid detached session issues
         notification_map = {}
         for notification in notifications:
             key = f"{notification.user_id}_{notification.queue_id}"
-            notification_map[key] = notification
-        
+            # Store as dict to avoid detached session issues
+            notification_map[key] = {
+                'id': notification.id,
+                'user_id': notification.user_id,
+                'queue_id': notification.queue_id,
+                'notify_on_create': notification.notify_on_create,
+                'notify_on_move': notification.notify_on_move,
+                'is_active': notification.is_active,
+                'created_at': notification.created_at
+            }
+
+        # Convert users and queues to avoid detached session issues
+        users_list = [{
+            'id': u.id,
+            'username': u.username,
+            'email': u.email,
+            'user_type_value': u.user_type.value if u.user_type else 'USER'
+        } for u in users]
+
+        queues_list = [{
+            'id': q.id,
+            'name': q.name,
+            'description': q.description
+        } for q in queues]
+
         return render_template('admin/queue_notifications.html',
-                              users=users,
-                              queues=queues,
+                              users=users_list,
+                              queues=queues_list,
                               notification_map=notification_map)
     except Exception as e:
         flash(f'Error loading queue notifications: {str(e)}', 'error')
