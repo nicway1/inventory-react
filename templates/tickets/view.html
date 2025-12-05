@@ -1814,11 +1814,11 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
                         </div>
 
-                        <!-- Reported Issue Section -->
+                        <!-- Issue Reporting Section -->
                         <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="text-sm font-semibold text-gray-800">Report an Issue</h4>
-                                <button id="toggleReportedIssueBtn" onclick="toggleReportedIssueForm()"
+                                <button id="toggleReturnIssueForm" onclick="toggleReturnIssueReportForm()"
                                         class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md flex items-center gap-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
@@ -1827,36 +1827,58 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </button>
                             </div>
 
-                            <!-- Display existing issue or "No issues reported" -->
-                            <div id="reportedIssueDisplay">
-                                {% if ticket.damage_description %}
-                                <p class="text-sm text-red-600">{{ ticket.damage_description }}</p>
-                                {% else %}
-                                <p class="text-sm text-gray-500 italic">No issues reported</p>
-                                {% endif %}
+                            <!-- Issue Report Form (Hidden by default) -->
+                            <div id="returnIssueReportForm" style="display: none;" class="mt-3">
+                                <form onsubmit="submitReturnIssueReport(event, {{ ticket.id }})">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
+                                            <select id="returnIssueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                                <option value="">-- Select Issue Type --</option>
+                                                <option value="Device Damage">Device Damage</option>
+                                                <option value="Missing Items">Missing Items/Accessories</option>
+                                                <option value="Wrong Device">Wrong Device Returned</option>
+                                                <option value="Tracking Issue">Tracking Issue</option>
+                                                <option value="Address Issue">Address Issue</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                            <textarea id="returnIssueDescription" required rows="3"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                    placeholder="Describe the issue in detail..."></textarea>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Notify Users</label>
+                                            <select id="returnNotifyUsers" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" size="5">
+                                                {% for user_id, user_info in users_dict.items() %}
+                                                    {% if user_id != session.get('user_id') %}
+                                                    <option value="{{ user_id }}">{{ user_info.username }} ({{ user_info.user_type }})</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple users</p>
+                                        </div>
+
+                                        <div class="flex gap-2">
+                                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                                Submit Issue
+                                            </button>
+                                            <button type="button" onclick="toggleReturnIssueReportForm()"
+                                                    class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
 
-                            <!-- Report Issue Form (Hidden by default) -->
-                            <div id="reportedIssueForm" style="display: none;" class="mt-3">
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">Issue Description</label>
-                                        <textarea id="reported_issue_input"
-                                                  rows="3"
-                                                  placeholder="Describe any issues or problems with the device..."
-                                                  class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500">{{ ticket.damage_description or '' }}</textarea>
-                                    </div>
-                                    <div class="flex justify-end gap-2">
-                                        <button type="button" onclick="toggleReportedIssueForm()"
-                                                class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300">
-                                            Cancel
-                                        </button>
-                                        <button type="button" onclick="saveReportedIssue({{ ticket.id }})"
-                                                class="px-3 py-1.5 text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
-                                            Save Issue
-                                        </button>
-                                    </div>
-                                </div>
+                            <!-- Issues Display Section -->
+                            <div id="returnIssuesDisplay" class="mt-4">
+                                <p class="text-sm text-gray-500 italic">No issues reported</p>
                             </div>
                         </div>
 
@@ -10356,54 +10378,96 @@ function toggleIssueReportForm() {
     }
 }
 
-// Toggle Reported Issue form for Asset Return tickets
-function toggleReportedIssueForm() {
-    const form = document.getElementById('reportedIssueForm');
-    const display = document.getElementById('reportedIssueDisplay');
+// Toggle Return Issue Report form for Asset Return tickets
+function toggleReturnIssueReportForm() {
+    const form = document.getElementById('returnIssueReportForm');
     if (form.style.display === 'none') {
         form.style.display = 'block';
-        display.style.display = 'none';
     } else {
         form.style.display = 'none';
-        display.style.display = 'block';
+        // Reset form
+        document.getElementById('returnIssueType').value = '';
+        document.getElementById('returnIssueDescription').value = '';
+        document.getElementById('returnNotifyUsers').selectedIndex = -1;
     }
 }
 
-// Save Reported Issue for Asset Return tickets
-async function saveReportedIssue(ticketId) {
-    const textarea = document.getElementById('reported_issue_input');
-    const damageDescription = textarea.value.trim();
+// Submit Return Issue Report for Asset Return tickets
+async function submitReturnIssueReport(event, ticketId) {
+    event.preventDefault();
+
+    const issueType = document.getElementById('returnIssueType').value;
+    const description = document.getElementById('returnIssueDescription').value;
+    const notifySelect = document.getElementById('returnNotifyUsers');
+    const notifiedUserIds = Array.from(notifySelect.selectedOptions).map(opt => opt.value);
+
+    if (!issueType || !description) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
     try {
-        const response = await fetch(`/tickets/${ticketId}/update`, {
+        const response = await fetch(`/tickets/${ticketId}/issues`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: new URLSearchParams({
-                'damage_description': damageDescription
+            body: JSON.stringify({
+                issue_type: issueType,
+                description: description,
+                notified_user_ids: notifiedUserIds
             })
         });
 
-        if (response.ok) {
-            showToast('Reported issue saved successfully', 'success');
-            // Update the display text
-            const displayDiv = document.getElementById('reportedIssueDisplay');
-            if (damageDescription) {
-                displayDiv.innerHTML = `<p class="text-sm text-red-600">${damageDescription}</p>`;
-            } else {
-                displayDiv.innerHTML = `<p class="text-sm text-gray-500 italic">No issues reported</p>`;
-            }
-            // Hide the form and show display
-            toggleReportedIssueForm();
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Issue reported successfully', 'success');
+            toggleReturnIssueReportForm();
+            loadReturnTicketIssues(ticketId);
         } else {
-            showToast('Error saving reported issue', 'error');
+            showToast('Error: ' + data.error, 'error');
         }
     } catch (error) {
-        console.error('Error saving reported issue:', error);
-        showToast('Error saving reported issue', 'error');
+        console.error('Error submitting return issue:', error);
+        showToast('Error submitting issue report', 'error');
+    }
+}
+
+// Load Return Ticket Issues
+async function loadReturnTicketIssues(ticketId) {
+    try {
+        const response = await fetch(`/tickets/${ticketId}/issues`);
+        const data = await response.json();
+
+        const displayDiv = document.getElementById('returnIssuesDisplay');
+        if (data.issues && data.issues.length > 0) {
+            let html = '<div class="space-y-2">';
+            data.issues.forEach(issue => {
+                const statusClass = issue.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                html += `
+                    <div class="p-3 bg-white border border-gray-200 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-900">${issue.issue_type}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                                ${issue.status}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600">${issue.description}</p>
+                        <p class="text-xs text-gray-400 mt-1">Reported by ${issue.reported_by} on ${issue.created_at}</p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            displayDiv.innerHTML = html;
+        } else {
+            displayDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No issues reported</p>';
+        }
+    } catch (error) {
+        console.error('Error loading return ticket issues:', error);
     }
 }
 
