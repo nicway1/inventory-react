@@ -9459,6 +9459,30 @@ def test_notification():
 
 
 # ============================================================================
+# CUSTOM ISSUE TYPES ROUTES
+# ============================================================================
+
+@tickets_bp.route('/issue-types', methods=['GET'])
+@login_required
+def get_custom_issue_types():
+    """Get all custom issue types"""
+    from models.custom_issue_type import CustomIssueType
+
+    db_session = db_manager.get_session()
+    try:
+        custom_types = db_session.query(CustomIssueType).filter_by(is_active=True).order_by(CustomIssueType.usage_count.desc()).all()
+        return jsonify({
+            'success': True,
+            'custom_types': [t.to_dict() for t in custom_types]
+        })
+    except Exception as e:
+        logger.error(f"Error getting custom issue types: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+# ============================================================================
 # TICKET ISSUE MANAGEMENT ROUTES
 # ============================================================================
 
@@ -9495,27 +9519,45 @@ def create_ticket_issue(ticket_id):
     """Create a new issue for a ticket"""
     from models.ticket_issue import TicketIssue
     from models.notification import Notification
-    
+    from models.custom_issue_type import CustomIssueType
+
+    # Predefined issue types that shouldn't be saved as custom
+    PREDEFINED_TYPES = [
+        'Wrong Accessories', 'Wrong Address', 'Missing Items', 'Damaged Items',
+        'Tracking Issue', 'Device Damage', 'Wrong Device', 'Address Issue', 'Other'
+    ]
+
     db_session = db_manager.get_session()
     try:
         # Check if ticket exists
         ticket = db_session.query(Ticket).get(ticket_id)
         if not ticket:
             return jsonify({'success': False, 'error': 'Ticket not found'}), 404
-        
+
         # Check if user is the ticket owner or has permission
         if ticket.requester_id != session.get('user_id') and session.get('user_type') not in ['SUPER_ADMIN', 'ADMIN']:
             return jsonify({'success': False, 'error': 'Permission denied'}), 403
-        
+
         # Get data from request
         data = request.get_json()
         issue_type = data.get('issue_type')
         description = data.get('description')
         notified_user_ids = data.get('notified_user_ids', [])  # List of user IDs to notify
-        
+
         if not issue_type or not description:
             return jsonify({'success': False, 'error': 'Issue type and description are required'}), 400
-        
+
+        # Save custom issue type if it's not predefined
+        if issue_type not in PREDEFINED_TYPES:
+            existing_custom = db_session.query(CustomIssueType).filter_by(name=issue_type).first()
+            if existing_custom:
+                # Increment usage count
+                existing_custom.usage_count += 1
+            else:
+                # Create new custom issue type
+                new_custom_type = CustomIssueType(name=issue_type)
+                db_session.add(new_custom_type)
+
         # Create new issue
         new_issue = TicketIssue(
             ticket_id=ticket_id,

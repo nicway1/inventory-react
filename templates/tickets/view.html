@@ -10368,11 +10368,44 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateDaysOpenCounter, 3600000);
     // Load issues on page load
     loadTicketIssues({{ ticket.id }});
+    // Load custom issue types to populate dropdown
+    loadCustomIssueTypes();
 });
 
 // ============================================================================
 // ISSUE REPORTING FUNCTIONS
 // ============================================================================
+
+// Load custom issue types and add to dropdown
+async function loadCustomIssueTypes() {
+    try {
+        const response = await fetch('/tickets/issue-types');
+        const data = await response.json();
+
+        if (data.success && data.custom_types && data.custom_types.length > 0) {
+            const selectElements = document.querySelectorAll('#issueType');
+            selectElements.forEach(select => {
+                // Find the "Other" option
+                const otherOption = select.querySelector('option[value="Other"]');
+                if (otherOption) {
+                    // Add custom types before "Other"
+                    data.custom_types.forEach(customType => {
+                        // Check if option already exists
+                        const existing = select.querySelector(`option[value="${customType.name}"]`);
+                        if (!existing) {
+                            const option = document.createElement('option');
+                            option.value = customType.name;
+                            option.textContent = customType.name;
+                            select.insertBefore(option, otherOption);
+                        }
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading custom issue types:', error);
+    }
+}
 
 // Toggle issue report form
 function toggleIssueReportForm() {
