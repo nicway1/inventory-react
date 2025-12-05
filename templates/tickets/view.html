@@ -1492,15 +1492,20 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <div class="space-y-3">
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
-                                            <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                            <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" onchange="toggleCustomIssueType(this)">
                                                 <option value="">-- Select Issue Type --</option>
                                                 <option value="Wrong Accessories">Wrong Accessories Assigned</option>
                                                 <option value="Wrong Address">Wrong Shipping Address</option>
                                                 <option value="Missing Items">Missing Items</option>
                                                 <option value="Damaged Items">Damaged Items</option>
                                                 <option value="Tracking Issue">Tracking Issue</option>
-                                                <option value="Other">Other</option>
+                                                <option value="Other">Other (Custom)</option>
                                             </select>
+                                        </div>
+
+                                        <div id="customIssueTypeContainer" style="display: none;">
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Custom Issue Type</label>
+                                            <input type="text" id="customIssueType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Enter custom issue type...">
                                         </div>
 
                                         <div>
@@ -1833,15 +1838,20 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <div class="space-y-3">
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
-                                            <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                            <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" onchange="toggleCustomIssueType(this)">
                                                 <option value="">-- Select Issue Type --</option>
                                                 <option value="Device Damage">Device Damage</option>
                                                 <option value="Missing Items">Missing Items/Accessories</option>
                                                 <option value="Wrong Device">Wrong Device Returned</option>
                                                 <option value="Tracking Issue">Tracking Issue</option>
                                                 <option value="Address Issue">Address Issue</option>
-                                                <option value="Other">Other</option>
+                                                <option value="Other">Other (Custom)</option>
                                             </select>
+                                        </div>
+
+                                        <div id="customIssueTypeContainer" style="display: none;">
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Custom Issue Type</label>
+                                            <input type="text" id="customIssueType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Enter custom issue type...">
                                         </div>
 
                                         <div>
@@ -10375,6 +10385,26 @@ function toggleIssueReportForm() {
         document.getElementById('issueType').value = '';
         document.getElementById('issueDescription').value = '';
         document.getElementById('notifyUsers').selectedIndex = -1;
+        // Reset custom issue type
+        const customContainer = document.getElementById('customIssueTypeContainer');
+        const customInput = document.getElementById('customIssueType');
+        if (customContainer) customContainer.style.display = 'none';
+        if (customInput) customInput.value = '';
+    }
+}
+
+// Toggle custom issue type input visibility
+function toggleCustomIssueType(selectElement) {
+    const customContainer = document.getElementById('customIssueTypeContainer');
+    const customInput = document.getElementById('customIssueType');
+
+    if (selectElement.value === 'Other') {
+        customContainer.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customContainer.style.display = 'none';
+        customInput.required = false;
+        customInput.value = '';
     }
 }
 
@@ -10382,10 +10412,20 @@ function toggleIssueReportForm() {
 async function submitIssueReport(event, ticketId) {
     event.preventDefault();
 
-    const issueType = document.getElementById('issueType').value;
+    let issueType = document.getElementById('issueType').value;
     const description = document.getElementById('issueDescription').value;
     const notifySelect = document.getElementById('notifyUsers');
     const notifiedUserIds = Array.from(notifySelect.selectedOptions).map(opt => opt.value);
+
+    // Use custom issue type if "Other" is selected
+    if (issueType === 'Other') {
+        const customIssueType = document.getElementById('customIssueType').value.trim();
+        if (!customIssueType) {
+            alert('Please enter a custom issue type');
+            return;
+        }
+        issueType = customIssueType;
+    }
 
     if (!issueType || !description) {
         alert('Please fill in all required fields');
