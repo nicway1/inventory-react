@@ -500,6 +500,7 @@ def edit_user(user_id):
     available_countries = sorted([c[0] for c in asset_countries if c[0]])
 
     # Get existing permissions for COUNTRY_ADMIN and SUPERVISOR users
+    existing_parent_companies = []
     existing_child_companies = []
     existing_queues = []
     existing_countries = []
@@ -507,9 +508,18 @@ def edit_user(user_id):
         # Get assigned countries
         existing_countries = user.assigned_countries
 
-        # Get child company permissions
+        # Get all company permissions for this user
         company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
-        existing_child_companies = [str(perm.company_id) for perm in company_permissions]
+        permission_company_ids = [perm.company_id for perm in company_permissions]
+
+        # Separate into parent and child companies
+        for perm in company_permissions:
+            company = db_session.query(Company).get(perm.company_id)
+            if company:
+                if company.is_parent_company:
+                    existing_parent_companies.append(str(perm.company_id))
+                else:
+                    existing_child_companies.append(str(perm.company_id))
 
         # Get queue permissions via company
         if user.company_id:
@@ -572,6 +582,7 @@ def edit_user(user_id):
                 queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                 return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                      parent_companies=parent_companies_data, queues=queues_data,
+                                     existing_parent_companies=existing_parent_companies,
                                      existing_child_companies=existing_child_companies,
                                      existing_queues=existing_queues, available_countries=available_countries,
                                      existing_countries=existing_countries)
@@ -589,6 +600,7 @@ def edit_user(user_id):
                     queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                          parent_companies=parent_companies_data, queues=queues_data,
+                                         existing_parent_companies=existing_parent_companies,
                                          existing_child_companies=existing_child_companies,
                                          existing_queues=existing_queues, available_countries=available_countries,
                                          existing_countries=existing_countries)
@@ -707,6 +719,7 @@ def edit_user(user_id):
     queues_data = [{'id': q.id, 'name': q.name} for q in queues]
     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                          parent_companies=parent_companies_data, queues=queues_data,
+                         existing_parent_companies=existing_parent_companies,
                          existing_child_companies=existing_child_companies,
                          existing_queues=existing_queues, available_countries=available_countries,
                          existing_countries=existing_countries,

@@ -129,7 +129,7 @@
 
                 <!-- Parent Companies (for Country Admin - Multiple Selection) -->
                 <div id="countryAdminCompanySelect" style="display: none;">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Parent Companies</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Parent Companies (Customer Access)</label>
                     <input type="text"
                            id="parent_company_search"
                            placeholder="Search parent companies..."
@@ -143,14 +143,14 @@
                                    name="parent_company_ids"
                                    value="{{ company.id }}"
                                    data-child-companies='{{ company.child_companies | tojson }}'
-                                   {% if user.company_id == company.id %}checked{% endif %}
+                                   {% if company.id|string in existing_parent_companies %}checked{% endif %}
                                    class="parent-company-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                    onchange="updateChildCompanies()">
                             <label for="parent_{{ company.id }}" class="ml-2 text-sm text-gray-700 font-medium">{{ company.name }}</label>
                         </div>
                         {% endfor %}
                     </div>
-                    <p class="text-sm text-gray-500 mt-1">Select parent companies to view their child companies</p>
+                    <p class="text-sm text-gray-500 mt-1">Select parent companies to control which customers and assets this user can access</p>
                 </div>
 
                 <!-- Child Companies (for Country Admin) -->
