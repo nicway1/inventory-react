@@ -1818,7 +1818,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                         <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="text-sm font-semibold text-gray-800">Report an Issue</h4>
-                                <button id="toggleReturnIssueForm" onclick="toggleReturnIssueReportForm()"
+                                <button id="toggleIssueBtn" onclick="toggleIssueReportForm()"
                                         class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md flex items-center gap-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
@@ -1828,12 +1828,12 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Issue Report Form (Hidden by default) -->
-                            <div id="returnIssueReportForm" style="display: none;" class="mt-3">
-                                <form onsubmit="submitReturnIssueReport(event, {{ ticket.id }})">
+                            <div id="issueReportForm" style="display: none;" class="mt-3">
+                                <form onsubmit="submitIssueReport(event, {{ ticket.id }})">
                                     <div class="space-y-3">
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
-                                            <select id="returnIssueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                            <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
                                                 <option value="">-- Select Issue Type --</option>
                                                 <option value="Device Damage">Device Damage</option>
                                                 <option value="Missing Items">Missing Items/Accessories</option>
@@ -1846,14 +1846,14 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                                            <textarea id="returnIssueDescription" required rows="3"
+                                            <textarea id="issueDescription" required rows="3"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                                     placeholder="Describe the issue in detail..."></textarea>
                                         </div>
 
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Notify Users</label>
-                                            <select id="returnNotifyUsers" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" size="5">
+                                            <select id="notifyUsers" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" size="5">
                                                 {% for user_id, user_info in users_dict.items() %}
                                                     {% if user_id != session.get('user_id') %}
                                                     <option value="{{ user_id }}">{{ user_info.username }} ({{ user_info.user_type }})</option>
@@ -1867,7 +1867,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">
                                                 Submit Issue
                                             </button>
-                                            <button type="button" onclick="toggleReturnIssueReportForm()"
+                                            <button type="button" onclick="toggleIssueReportForm()"
                                                     class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium">
                                                 Cancel
                                             </button>
@@ -1877,8 +1877,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Issues Display Section -->
-                            <div id="returnIssuesDisplay" class="mt-4">
-                                <p class="text-sm text-gray-500 italic">No issues reported</p>
+                            <div id="issuesDisplay" class="mt-4">
+                                <p class="text-xs text-gray-500 italic">No issues reported</p>
                             </div>
                         </div>
 
@@ -10358,10 +10358,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateDaysOpenCounter, 3600000);
     // Load issues on page load
     loadTicketIssues({{ ticket.id }});
-    // Load return ticket issues if this is an Asset Return ticket
-    if (document.getElementById('returnIssuesDisplay')) {
-        loadReturnTicketIssues({{ ticket.id }});
-    }
 });
 
 // ============================================================================
@@ -10379,168 +10375,6 @@ function toggleIssueReportForm() {
         document.getElementById('issueType').value = '';
         document.getElementById('issueDescription').value = '';
         document.getElementById('notifyUsers').selectedIndex = -1;
-    }
-}
-
-// Toggle Return Issue Report form for Asset Return tickets
-function toggleReturnIssueReportForm() {
-    const form = document.getElementById('returnIssueReportForm');
-    if (form.style.display === 'none') {
-        form.style.display = 'block';
-    } else {
-        form.style.display = 'none';
-        // Reset form
-        document.getElementById('returnIssueType').value = '';
-        document.getElementById('returnIssueDescription').value = '';
-        document.getElementById('returnNotifyUsers').selectedIndex = -1;
-    }
-}
-
-// Submit Return Issue Report for Asset Return tickets
-async function submitReturnIssueReport(event, ticketId) {
-    event.preventDefault();
-
-    const issueType = document.getElementById('returnIssueType').value;
-    const description = document.getElementById('returnIssueDescription').value;
-    const notifySelect = document.getElementById('returnNotifyUsers');
-    const notifiedUserIds = Array.from(notifySelect.selectedOptions).map(opt => opt.value);
-
-    if (!issueType || !description) {
-        alert('Please fill in all required fields');
-        return;
-    }
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    try {
-        const response = await fetch(`/tickets/${ticketId}/issues`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                issue_type: issueType,
-                description: description,
-                notified_user_ids: notifiedUserIds
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showToast('Issue reported successfully', 'success');
-            toggleReturnIssueReportForm();
-            loadReturnTicketIssues(ticketId);
-        } else {
-            showToast('Error: ' + data.error, 'error');
-        }
-    } catch (error) {
-        console.error('Error submitting return issue:', error);
-        showToast('Error submitting issue report', 'error');
-    }
-}
-
-// Load Return Ticket Issues
-async function loadReturnTicketIssues(ticketId) {
-    try {
-        const response = await fetch(`/tickets/${ticketId}/issues`);
-        const data = await response.json();
-
-        const displayDiv = document.getElementById('returnIssuesDisplay');
-        if (data.success && data.issues && data.issues.length > 0) {
-            displayDiv.innerHTML = data.issues.map(issue => `
-                <div class="border border-gray-300 rounded-lg p-3 mb-3 ${issue.is_resolved ? 'bg-green-50' : 'bg-red-50'}">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${issue.is_resolved ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}">
-                                    ${issue.issue_type}
-                                </span>
-                            </div>
-                            <div class="bg-gray-50 rounded p-2 mb-2 space-y-1">
-                                <div class="flex items-start">
-                                    <span class="text-xs font-semibold text-gray-700 w-24">Reported by:</span>
-                                    <span class="text-xs text-gray-600">${issue.reported_by_name}</span>
-                                </div>
-                                <div class="flex items-start">
-                                    <span class="text-xs font-semibold text-gray-700 w-24">Date Reported:</span>
-                                    <span class="text-xs text-gray-600 font-medium">${formatDate(issue.reported_at)}</span>
-                                </div>
-                            </div>
-                            <p class="text-sm text-gray-700 mb-2"><strong>Description:</strong> ${issue.description}</p>
-
-                            ${issue.is_resolved ? `
-                                <div class="mt-2 pt-2 border-t border-green-300">
-                                    <div class="flex items-center gap-1 mb-2">
-                                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <span class="text-xs font-semibold text-green-800">Issue Resolved</span>
-                                    </div>
-                                    <div class="bg-white bg-opacity-50 rounded p-2 space-y-1">
-                                        <div class="flex items-start">
-                                            <span class="text-xs font-semibold text-gray-700 w-24">Resolved by:</span>
-                                            <span class="text-xs text-gray-600">${issue.resolved_by_name || 'N/A'}</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <span class="text-xs font-semibold text-gray-700 w-24">Date Resolved:</span>
-                                            <span class="text-xs text-gray-600 font-medium">${formatDate(issue.resolved_at)}</span>
-                                        </div>
-                                        ${issue.resolution_notes ? `
-                                        <div class="flex items-start">
-                                            <span class="text-xs font-semibold text-gray-700 w-24">Resolution:</span>
-                                            <span class="text-xs text-gray-600">${issue.resolution_notes}</span>
-                                        </div>` : ''}
-                                    </div>
-                                </div>
-                            ` : `
-                                <button onclick="resolveReturnIssue(${ticketId}, ${issue.id})"
-                                        class="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
-                                    Mark as Resolved
-                                </button>
-                            `}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            displayDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No issues reported</p>';
-        }
-    } catch (error) {
-        console.error('Error loading return ticket issues:', error);
-    }
-}
-
-// Resolve Return Issue
-async function resolveReturnIssue(ticketId, issueId) {
-    const resolutionNotes = prompt('Enter resolution notes (optional):');
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    try {
-        const response = await fetch(`/tickets/${ticketId}/issues/${issueId}/resolve`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                resolution_notes: resolutionNotes || ''
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showToast('Issue resolved successfully', 'success');
-            loadReturnTicketIssues(ticketId);
-        } else {
-            showToast('Error: ' + data.error, 'error');
-        }
-    } catch (error) {
-        console.error('Error resolving issue:', error);
-        showToast('Error resolving issue', 'error');
     }
 }
 
