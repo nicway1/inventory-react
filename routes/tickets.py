@@ -9632,6 +9632,97 @@ def resolve_ticket_issue(ticket_id, issue_id):
     finally:
         db_session.close()
 
+
+@tickets_bp.route('/<int:ticket_id>/issues/<int:issue_id>/reopen', methods=['POST'])
+@login_required
+def reopen_ticket_issue(ticket_id, issue_id):
+    """Reopen a resolved issue on a ticket"""
+    from models.ticket_issue import TicketIssue
+    from models.notification import Notification
+
+    db_session = db_manager.get_session()
+    try:
+        # Get the issue
+        issue = db_session.query(TicketIssue).filter_by(id=issue_id, ticket_id=ticket_id).first()
+        if not issue:
+            return jsonify({'success': False, 'error': 'Issue not found'}), 404
+
+        # Check if issue is already open
+        if not issue.is_resolved:
+            return jsonify({'success': False, 'error': 'Issue is already open'}), 400
+
+        # Get the ticket
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        # Check permission - allow admins, ticket owner, or assigned user
+        current_user_id = session.get('user_id')
+        current_user_type = session.get('user_type')
+        is_admin = current_user_type in ['SUPER_ADMIN', 'ADMIN']
+        is_ticket_owner = ticket.requester_id == current_user_id
+        is_assigned = ticket.assigned_to_id == current_user_id
+        is_issue_reporter = issue.reported_by_id == current_user_id
+
+        if not (is_admin or is_ticket_owner or is_assigned or is_issue_reporter):
+            return jsonify({'success': False, 'error': 'Permission denied. Only admins, ticket owner, assigned user, or issue reporter can reopen issues.'}), 403
+
+        # Update issue - reopen it
+        issue.is_resolved = False
+        issue.resolution_notes = None
+        issue.resolved_by_id = None
+        issue.resolved_at = None
+
+        db_session.commit()
+
+        # Notify relevant users about the reopened issue
+        reopener = db_session.query(User).get(session.get('user_id'))
+
+        # Notify the ticket owner if they didn't reopen it
+        if ticket.requester_id != current_user_id:
+            notification = Notification(
+                user_id=ticket.requester_id,
+                type='issue_reopened',
+                title=f'Issue Reopened on Ticket #{ticket.display_id}',
+                message=f'{reopener.username} reopened issue: {issue.issue_type}',
+                reference_type='ticket',
+                reference_id=ticket_id,
+                is_read=False,
+                created_at=datetime.datetime.utcnow()
+            )
+            db_session.add(notification)
+
+        # Notify assigned user if they didn't reopen it and ticket is assigned
+        if ticket.assigned_to_id and ticket.assigned_to_id != current_user_id:
+            notification = Notification(
+                user_id=ticket.assigned_to_id,
+                type='issue_reopened',
+                title=f'Issue Reopened on Ticket #{ticket.display_id}',
+                message=f'{reopener.username} reopened issue: {issue.issue_type}',
+                reference_type='ticket',
+                reference_id=ticket_id,
+                is_read=False,
+                created_at=datetime.datetime.utcnow()
+            )
+            db_session.add(notification)
+
+        db_session.commit()
+
+        logger.info(f"Issue {issue_id} reopened by user {session.get('user_id')}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Issue reopened successfully',
+            'issue': issue.to_dict()
+        })
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error reopening ticket issue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 @tickets_bp.route('/manager')
 @login_required
 def ticket_manager():
