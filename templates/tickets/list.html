@@ -2774,6 +2774,9 @@
                             <option value="Waiting">Waiting</option>
                             <option value="Resolved">Resolved</option>
                             <option value="Closed">Closed</option>
+                            {% for status in custom_statuses %}
+                            <option value="{{ status.name }}">{{ status.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
