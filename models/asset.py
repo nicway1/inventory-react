@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, JSON, Float, Boolean, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 import enum
 from models.base import Base
@@ -112,4 +112,11 @@ class Asset(Base):
             action=action,
             changes=serialized_changes,
             notes=notes
-        ) 
+        )
+
+    @validates('customer')
+    def validate_customer(self, key, customer):
+        """Automatically convert customer name to uppercase and strip whitespace"""
+        if customer:
+            return customer.strip().upper()
+        return customer 
