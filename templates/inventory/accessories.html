@@ -34,6 +34,16 @@
             
             {% if user.is_admin %}
             <div class="flex items-center space-x-2">
+                <button onclick="selectAllAccessories()"
+                        class="bg-gray-500 text-white px-3 py-1.5 text-sm rounded hover:bg-gray-600 transition-colors duration-200 flex items-center">
+                    <i class="fas fa-check-double mr-1.5"></i>
+                    Select All
+                </button>
+                <button onclick="deselectAllAccessories()"
+                        class="bg-gray-400 text-white px-3 py-1.5 text-sm rounded hover:bg-gray-500 transition-colors duration-200 flex items-center">
+                    <i class="fas fa-times mr-1.5"></i>
+                    Deselect
+                </button>
                 <select id="bulkCompanySelect" class="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                     <option value="">Assign Company...</option>
                     {% for company in companies %}
@@ -700,6 +710,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('companyFilter').value = '';
         document.getElementById('manufacturerFilter').value = '';
         applyFilters();
+    };
+
+    // Select all visible accessories
+    window.selectAllAccessories = function() {
+        const checkboxes = document.querySelectorAll('.accessory-checkbox');
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            if (row && row.style.display !== 'none') {
+                cb.checked = true;
+            }
+        });
+        document.getElementById('selectAll').checked = true;
+        updateSelectedIds();
+    };
+
+    // Deselect all accessories
+    window.deselectAllAccessories = function() {
+        const checkboxes = document.querySelectorAll('.accessory-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        updateSelectedIds();
     };
 
     // Bulk assign company function
