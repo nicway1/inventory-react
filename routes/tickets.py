@@ -3028,7 +3028,13 @@ def update_ticket(ticket_id):
         if return_description is not None:  # Allow empty string to clear field
             ticket.return_description = return_description.strip() if return_description else None
             logger.info("DEBUG - Updated return_description")
-        
+
+        # Update damage_description (Reported Issue) for Asset Return tickets
+        damage_description = request.form.get('damage_description')
+        if damage_description is not None:  # Allow empty string to clear field
+            ticket.damage_description = damage_description.strip() if damage_description else None
+            logger.info("DEBUG - Updated damage_description")
+
         # Update notes
         notes = request.form.get('notes')
         if notes is not None:  # Allow empty string to clear field
@@ -9660,12 +9666,20 @@ def ticket_manager():
         # Count tickets without queue
         no_queue_count = db_session.query(Ticket).filter(Ticket.queue_id.is_(None)).count()
 
+        # Get custom ticket statuses
+        from models.custom_ticket_status import CustomTicketStatus
+        custom_statuses = db_session.query(CustomTicketStatus).filter(
+            CustomTicketStatus.is_active == True
+        ).order_by(CustomTicketStatus.sort_order).all()
+        custom_statuses_list = [{'name': s.name, 'color': s.color} for s in custom_statuses]
+
         return render_template('tickets/manager.html',
                              tickets=tickets,
                              queues=queues,
                              users=users,
                              queue_count_dict=queue_count_dict,
                              no_queue_count=no_queue_count,
+                             custom_statuses=custom_statuses_list,
                              user=user)
     finally:
         db_session.close()
