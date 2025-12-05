@@ -223,13 +223,13 @@ def load_widget_data(user, layout):
                 ])
             )
 
-            if user.user_type == UserType.COUNTRY_ADMIN:
-                if user.assigned_countries:
-                    shipment_query = shipment_query.filter(
-                        Ticket.country.in_(user.assigned_countries)
-                    )
-
-            shipments = shipment_query.order_by(Ticket.created_at.desc()).limit(20).all()
+            # Filter by queue access for non-admin users
+            if not user.is_super_admin and not user.is_developer:
+                # Get all shipments first, then filter by queue access
+                all_shipments = shipment_query.order_by(Ticket.created_at.desc()).all()
+                shipments = [t for t in all_shipments if t.queue_id and user.can_access_queue(t.queue_id)][:20]
+            else:
+                shipments = shipment_query.order_by(Ticket.created_at.desc()).limit(20).all()
             widget_data['shipments'] = {
                 'tickets': [
                     {
