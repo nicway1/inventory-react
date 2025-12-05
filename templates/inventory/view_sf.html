@@ -1492,6 +1492,12 @@ function applyFilters() {
     const filters = getSelectedFilters();
     const search = document.getElementById('searchInput').value.toLowerCase();
 
+    // Check if we're on the accessories tab
+    if (currentTab === 'accessories') {
+        applyAccessoryFilters(search, filters);
+        return;
+    }
+
     filteredData = assetData.filter(asset => {
         // Check search
         if (search) {
@@ -1551,6 +1557,54 @@ function applyFilters() {
     updateTable();
 
     document.getElementById('assetCountText').textContent = `Found ${filteredData.length} assets with current filters`;
+}
+
+// Apply filters for accessories tab
+function applyAccessoryFilters(search, filters) {
+    filteredData = accessoryData.filter(accessory => {
+        // Check search - search in name, category, and manufacturer
+        if (search) {
+            const searchFields = [
+                accessory.name,
+                accessory.category,
+                accessory.manufacturer,
+                accessory.model_no,
+                accessory.notes,
+                accessory.country
+            ].map(f => (f || '').toLowerCase());
+
+            if (!searchFields.some(f => f.includes(search))) {
+                return false;
+            }
+        }
+
+        // Check category filter (for accessories)
+        if (filters.categories.length > 0 && !filters.categories.includes(accessory.category)) {
+            return false;
+        }
+
+        // Check country filter (for accessories)
+        if (filters.countries.length > 0 && !filters.countries.includes(accessory.country)) {
+            return false;
+        }
+
+        // Check status filter (for accessories)
+        if (filters.statuses.length > 0 && !filters.statuses.includes(accessory.status)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    // Reset to first page
+    currentPage = 1;
+
+    // Update UI
+    updateAccessorySummary();
+    updateChart();
+    updateAccessoryTable();
+
+    document.getElementById('assetCountText').textContent = `Found ${filteredData.length} accessories with current filters`;
 }
 
 // Get selected filter values
@@ -1977,6 +2031,13 @@ async function switchTab(tab) {
     // Update table headers for the selected tab
     updateTableHeaders(tab);
 
+    // Update search placeholder based on tab
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.placeholder = tab === 'tech' ? 'Search assets...' : 'Search accessories by name, category, manufacturer...';
+        searchInput.value = ''; // Clear search when switching tabs
+    }
+
     if (tab === 'tech') {
         techTab.style.color = 'var(--sf-blue)';
         techTab.style.borderBottomColor = 'var(--sf-blue)';
@@ -2157,6 +2218,8 @@ function toggleSelectAll(checkbox) {
 // Update select all checkbox state
 function updateSelectAllCheckbox() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (!selectAllCheckbox) return; // Guard against null element
+
     const pageCheckboxes = document.querySelectorAll('.row-checkbox');
     if (pageCheckboxes.length === 0) {
         selectAllCheckbox.checked = false;

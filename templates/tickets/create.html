@@ -2448,7 +2448,16 @@ function submitAssetReturnForm() {
         notesInput.value = $('#return_notes').val();
         form.appendChild(notesInput);
     }
-    
+
+    // Add damage_description (Reported Issue) if provided
+    if ($('#return_damage_description').val()) {
+        const damageInput = document.createElement('input');
+        damageInput.type = 'hidden';
+        damageInput.name = 'damage_description';
+        damageInput.value = $('#return_damage_description').val();
+        form.appendChild(damageInput);
+    }
+
     // Add subject
     const subjectInput = document.createElement('input');
     subjectInput.type = 'hidden';
