@@ -2352,6 +2352,14 @@ async function applyBulkEdit() {
             body: JSON.stringify({ assets: changedAssets })
         });
 
+        // Check if response is ok before parsing JSON
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server error response:', response.status, errorText);
+            alert(`Server error (${response.status}): ${errorText.substring(0, 200)}`);
+            return;
+        }
+
         const data = await response.json();
 
         if (data.success) {
@@ -2368,7 +2376,7 @@ async function applyBulkEdit() {
         }
     } catch (error) {
         console.error('Bulk update error:', error);
-        alert('An error occurred while updating items.');
+        alert('Error: ' + (error.message || 'An error occurred while updating items.'));
     }
 }
 </script>

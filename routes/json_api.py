@@ -2179,3 +2179,1284 @@ def save_work_plan():
     except Exception as e:
         logger.error(f"Save work plan error: {str(e)}")
         return jsonify({'error': 'Failed to save work plan'}), 500
+
+
+# MARK: - Feature Management Endpoints
+
+@json_api_bp.route('/dev/features', methods=['POST'])
+@require_jwt_auth
+def create_feature():
+    """
+    Create a new feature request
+
+    POST /mobile/dev/features
+    Body: {
+        "title": "Feature title",
+        "description": "Feature description",
+        "priority": "High",
+        "component": "Backend",
+        "estimated_effort": "Medium",
+        "business_value": "High",
+        "acceptance_criteria": "...",
+        "technical_notes": "..."
+    }
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus, FeaturePriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_create_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        title = data.get('title', '').strip()
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            feature = FeatureRequest(
+                title=title,
+                description=data.get('description', '').strip() or None,
+                status=FeatureStatus.PENDING_APPROVAL,
+                priority=FeaturePriority(data.get('priority', 'Medium')) if data.get('priority') else FeaturePriority.MEDIUM,
+                component=data.get('component'),
+                estimated_effort=data.get('estimated_effort'),
+                business_value=data.get('business_value'),
+                acceptance_criteria=data.get('acceptance_criteria'),
+                technical_notes=data.get('technical_notes'),
+                requester_id=user.id
+            )
+
+            db_session.add(feature)
+            db_session.commit()
+            db_session.refresh(feature)
+
+            return jsonify({
+                'success': True,
+                'feature': {
+                    'id': feature.id,
+                    'display_id': feature.display_id,
+                    'title': feature.title,
+                    'status': feature.status.value if feature.status else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Create feature error: {str(e)}")
+        return jsonify({'error': 'Failed to create feature'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>', methods=['PUT'])
+@require_jwt_auth
+def update_feature(feature_id):
+    """
+    Update a feature request
+
+    PUT /mobile/dev/features/<id>
+    """
+    from models.feature_request import FeatureRequest, FeaturePriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            if 'title' in data:
+                feature.title = data['title'].strip()
+            if 'description' in data:
+                feature.description = data['description'].strip() or None
+            if 'priority' in data:
+                feature.priority = FeaturePriority(data['priority'])
+            if 'component' in data:
+                feature.component = data['component']
+            if 'estimated_effort' in data:
+                feature.estimated_effort = data['estimated_effort']
+            if 'business_value' in data:
+                feature.business_value = data['business_value']
+            if 'acceptance_criteria' in data:
+                feature.acceptance_criteria = data['acceptance_criteria']
+            if 'technical_notes' in data:
+                feature.technical_notes = data['technical_notes']
+            if 'assignee_id' in data:
+                feature.assignee_id = data['assignee_id'] or None
+
+            feature.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Feature updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update feature error: {str(e)}")
+        return jsonify({'error': 'Failed to update feature'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>/status', methods=['POST'])
+@require_jwt_auth
+def update_feature_status(feature_id):
+    """
+    Update feature status
+
+    POST /mobile/dev/features/<id>/status
+    Body: { "status": "In Development" }
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({'error': 'Status is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            try:
+                feature.status = FeatureStatus(data['status'])
+            except ValueError:
+                return jsonify({'error': 'Invalid status value'}), 400
+
+            if feature.status == FeatureStatus.COMPLETED:
+                feature.completed_at = datetime.utcnow()
+
+            feature.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Status updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update feature status error: {str(e)}")
+        return jsonify({'error': 'Failed to update status'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>/comment', methods=['POST'])
+@require_jwt_auth
+def add_feature_comment(feature_id):
+    """
+    Add comment to feature
+
+    POST /mobile/dev/features/<id>/comment
+    Body: { "content": "Comment text" }
+    """
+    from models.feature_request import FeatureRequest, FeatureComment
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        content = data.get('content', '').strip() if data else ''
+        if not content:
+            return jsonify({'error': 'Comment content is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            comment = FeatureComment(
+                feature_id=feature_id,
+                user_id=user.id,
+                content=content
+            )
+            db_session.add(comment)
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'comment': {
+                    'id': comment.id,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Add feature comment error: {str(e)}")
+        return jsonify({'error': 'Failed to add comment'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>/approve', methods=['POST'])
+@require_jwt_auth
+def approve_feature(feature_id):
+    """
+    Approve a feature request
+
+    POST /mobile/dev/features/<id>/approve
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_approve_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            feature.status = FeatureStatus.IN_PLANNING
+            feature.approver_id = user.id
+            feature.approved_at = datetime.utcnow()
+            feature.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Feature approved'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Approve feature error: {str(e)}")
+        return jsonify({'error': 'Failed to approve feature'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>/reject', methods=['POST'])
+@require_jwt_auth
+def reject_feature(feature_id):
+    """
+    Reject a feature request
+
+    POST /mobile/dev/features/<id>/reject
+    Body: { "reason": "Rejection reason" }
+    """
+    from models.feature_request import FeatureRequest, FeatureStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_approve_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json() or {}
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            feature.status = FeatureStatus.REJECTED
+            feature.approver_id = user.id
+            feature.rejection_reason = data.get('reason')
+            feature.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Feature rejected'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Reject feature error: {str(e)}")
+        return jsonify({'error': 'Failed to reject feature'}), 500
+
+
+@json_api_bp.route('/dev/features/<int:feature_id>', methods=['DELETE'])
+@require_jwt_auth
+def delete_feature(feature_id):
+    """
+    Delete a feature request
+
+    DELETE /mobile/dev/features/<id>
+    """
+    from models.feature_request import FeatureRequest
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_delete_features:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            feature = db_session.query(FeatureRequest).get(feature_id)
+            if not feature:
+                return jsonify({'error': 'Feature not found'}), 404
+
+            db_session.delete(feature)
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Feature deleted'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Delete feature error: {str(e)}")
+        return jsonify({'error': 'Failed to delete feature'}), 500
+
+
+# MARK: - Bug Management Endpoints
+
+@json_api_bp.route('/dev/bugs', methods=['POST'])
+@require_jwt_auth
+def create_bug():
+    """
+    Create a new bug report
+
+    POST /mobile/dev/bugs
+    Body: {
+        "title": "Bug title",
+        "description": "Bug description",
+        "severity": "Critical",
+        "priority": "High",
+        "component": "Backend",
+        "steps_to_reproduce": "...",
+        "expected_behavior": "...",
+        "actual_behavior": "...",
+        "environment": "..."
+    }
+    """
+    from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_create_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        title = data.get('title', '').strip()
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            bug = BugReport(
+                title=title,
+                description=data.get('description', '').strip() or None,
+                status=BugStatus.OPEN,
+                severity=BugSeverity(data.get('severity', 'Medium')) if data.get('severity') else BugSeverity.MEDIUM,
+                priority=BugPriority(data.get('priority', 'Medium')) if data.get('priority') else BugPriority.MEDIUM,
+                component=data.get('component'),
+                steps_to_reproduce=data.get('steps_to_reproduce'),
+                expected_behavior=data.get('expected_behavior'),
+                actual_behavior=data.get('actual_behavior'),
+                environment=data.get('environment'),
+                reporter_id=user.id
+            )
+
+            db_session.add(bug)
+            db_session.commit()
+            db_session.refresh(bug)
+
+            return jsonify({
+                'success': True,
+                'bug': {
+                    'id': bug.id,
+                    'display_id': bug.display_id,
+                    'title': bug.title,
+                    'status': bug.status.value if bug.status else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Create bug error: {str(e)}")
+        return jsonify({'error': 'Failed to create bug'}), 500
+
+
+@json_api_bp.route('/dev/bugs/<int:bug_id>', methods=['PUT'])
+@require_jwt_auth
+def update_bug(bug_id):
+    """
+    Update a bug report
+
+    PUT /mobile/dev/bugs/<id>
+    """
+    from models.bug_report import BugReport, BugSeverity, BugPriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            bug = db_session.query(BugReport).get(bug_id)
+            if not bug:
+                return jsonify({'error': 'Bug not found'}), 404
+
+            if 'title' in data:
+                bug.title = data['title'].strip()
+            if 'description' in data:
+                bug.description = data['description'].strip() or None
+            if 'severity' in data:
+                bug.severity = BugSeverity(data['severity'])
+            if 'priority' in data:
+                bug.priority = BugPriority(data['priority'])
+            if 'component' in data:
+                bug.component = data['component']
+            if 'steps_to_reproduce' in data:
+                bug.steps_to_reproduce = data['steps_to_reproduce']
+            if 'expected_behavior' in data:
+                bug.expected_behavior = data['expected_behavior']
+            if 'actual_behavior' in data:
+                bug.actual_behavior = data['actual_behavior']
+            if 'environment' in data:
+                bug.environment = data['environment']
+            if 'assignee_id' in data:
+                bug.assignee_id = data['assignee_id'] or None
+            if 'resolution' in data:
+                bug.resolution = data['resolution']
+
+            bug.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Bug updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update bug error: {str(e)}")
+        return jsonify({'error': 'Failed to update bug'}), 500
+
+
+@json_api_bp.route('/dev/bugs/<int:bug_id>/status', methods=['POST'])
+@require_jwt_auth
+def update_bug_status(bug_id):
+    """
+    Update bug status
+
+    POST /mobile/dev/bugs/<id>/status
+    Body: { "status": "In Progress", "resolution": "Optional resolution text" }
+    """
+    from models.bug_report import BugReport, BugStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({'error': 'Status is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            bug = db_session.query(BugReport).get(bug_id)
+            if not bug:
+                return jsonify({'error': 'Bug not found'}), 404
+
+            try:
+                bug.status = BugStatus(data['status'])
+            except ValueError:
+                return jsonify({'error': 'Invalid status value'}), 400
+
+            if bug.status in [BugStatus.RESOLVED, BugStatus.CLOSED]:
+                bug.resolved_at = datetime.utcnow()
+                if 'resolution' in data:
+                    bug.resolution = data['resolution']
+
+            bug.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Status updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update bug status error: {str(e)}")
+        return jsonify({'error': 'Failed to update status'}), 500
+
+
+@json_api_bp.route('/dev/bugs/<int:bug_id>/comment', methods=['POST'])
+@require_jwt_auth
+def add_bug_comment(bug_id):
+    """
+    Add comment to bug
+
+    POST /mobile/dev/bugs/<id>/comment
+    Body: { "content": "Comment text" }
+    """
+    from models.bug_report import BugReport, BugComment
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_view_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        content = data.get('content', '').strip() if data else ''
+        if not content:
+            return jsonify({'error': 'Comment content is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            bug = db_session.query(BugReport).get(bug_id)
+            if not bug:
+                return jsonify({'error': 'Bug not found'}), 404
+
+            comment = BugComment(
+                bug_id=bug_id,
+                user_id=user.id,
+                content=content
+            )
+            db_session.add(comment)
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'comment': {
+                    'id': comment.id,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat() + 'Z' if comment.created_at else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Add bug comment error: {str(e)}")
+        return jsonify({'error': 'Failed to add comment'}), 500
+
+
+@json_api_bp.route('/dev/bugs/<int:bug_id>', methods=['DELETE'])
+@require_jwt_auth
+def delete_bug(bug_id):
+    """
+    Delete a bug report
+
+    DELETE /mobile/dev/bugs/<id>
+    """
+    from models.bug_report import BugReport
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_delete_bugs:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            bug = db_session.query(BugReport).get(bug_id)
+            if not bug:
+                return jsonify({'error': 'Bug not found'}), 404
+
+            db_session.delete(bug)
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Bug deleted'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Delete bug error: {str(e)}")
+        return jsonify({'error': 'Failed to delete bug'}), 500
+
+
+# MARK: - Release Management Endpoints
+
+@json_api_bp.route('/dev/releases', methods=['POST'])
+@require_jwt_auth
+def create_release():
+    """
+    Create a new release
+
+    POST /mobile/dev/releases
+    Body: {
+        "version": "1.0.0",
+        "name": "Release name",
+        "description": "Release description",
+        "release_type": "Major",
+        "planned_date": "2024-01-15"
+    }
+    """
+    from models.release import Release, ReleaseStatus, ReleaseType
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_create_releases:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        version = data.get('version', '').strip()
+        if not version:
+            return jsonify({'error': 'Version is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            release = Release(
+                version=version,
+                name=data.get('name', '').strip() or None,
+                description=data.get('description', '').strip() or None,
+                status=ReleaseStatus.PLANNING,
+                release_type=ReleaseType(data.get('release_type', 'Minor')) if data.get('release_type') else ReleaseType.MINOR,
+                planned_date=datetime.strptime(data['planned_date'], '%Y-%m-%d').date() if data.get('planned_date') else None,
+                release_manager_id=user.id
+            )
+
+            db_session.add(release)
+            db_session.commit()
+            db_session.refresh(release)
+
+            return jsonify({
+                'success': True,
+                'release': {
+                    'id': release.id,
+                    'version': release.version,
+                    'name': release.name,
+                    'status': release.status.value if release.status else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Create release error: {str(e)}")
+        return jsonify({'error': 'Failed to create release'}), 500
+
+
+@json_api_bp.route('/dev/releases/<int:release_id>', methods=['PUT'])
+@require_jwt_auth
+def update_release(release_id):
+    """
+    Update a release
+
+    PUT /mobile/dev/releases/<id>
+    """
+    from models.release import Release, ReleaseType
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_releases:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            release = db_session.query(Release).get(release_id)
+            if not release:
+                return jsonify({'error': 'Release not found'}), 404
+
+            if 'version' in data:
+                release.version = data['version'].strip()
+            if 'name' in data:
+                release.name = data['name'].strip() or None
+            if 'description' in data:
+                release.description = data['description'].strip() or None
+            if 'release_type' in data:
+                release.release_type = ReleaseType(data['release_type'])
+            if 'planned_date' in data:
+                release.planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date() if data['planned_date'] else None
+            if 'release_notes' in data:
+                release.release_notes = data['release_notes']
+
+            release.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Release updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update release error: {str(e)}")
+        return jsonify({'error': 'Failed to update release'}), 500
+
+
+@json_api_bp.route('/dev/releases/<int:release_id>/status', methods=['POST'])
+@require_jwt_auth
+def update_release_status(release_id):
+    """
+    Update release status
+
+    POST /mobile/dev/releases/<id>/status
+    Body: { "status": "In Development" }
+    """
+    from models.release import Release, ReleaseStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_edit_releases:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({'error': 'Status is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            release = db_session.query(Release).get(release_id)
+            if not release:
+                return jsonify({'error': 'Release not found'}), 404
+
+            try:
+                release.status = ReleaseStatus(data['status'])
+            except ValueError:
+                return jsonify({'error': 'Invalid status value'}), 400
+
+            if release.status == ReleaseStatus.RELEASED:
+                release.release_date = datetime.utcnow().date()
+
+            release.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Status updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update release status error: {str(e)}")
+        return jsonify({'error': 'Failed to update status'}), 500
+
+
+# MARK: - Testers Management Endpoints
+
+@json_api_bp.route('/dev/testers', methods=['GET'])
+@require_jwt_auth
+def get_testers():
+    """
+    Get list of testers
+
+    GET /mobile/dev/testers
+    """
+    from models.tester import Tester
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            testers = db_session.query(Tester)\
+                .options(joinedload(Tester.user))\
+                .all()
+
+            testers_data = [{
+                'id': t.id,
+                'user_id': t.user_id,
+                'username': t.user.username if t.user else None,
+                'email': t.user.email if t.user else None,
+                'is_active': t.is_active,
+                'created_at': t.created_at.isoformat() + 'Z' if t.created_at else None
+            } for t in testers]
+
+            return jsonify({'testers': testers_data}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get testers error: {str(e)}")
+        return jsonify({'error': 'Failed to get testers'}), 500
+
+
+# MARK: - Meetings & Action Items Endpoints
+
+@json_api_bp.route('/dev/meetings', methods=['GET'])
+@require_jwt_auth
+def get_meetings():
+    """
+    Get list of weekly meetings
+
+    GET /mobile/dev/meetings
+    """
+    from models.weekly_meeting import WeeklyMeeting
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import desc
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            meetings = db_session.query(WeeklyMeeting)\
+                .order_by(desc(WeeklyMeeting.meeting_date))\
+                .all()
+
+            meetings_data = [{
+                'id': m.id,
+                'name': m.name,
+                'meeting_date': m.meeting_date.isoformat() if m.meeting_date else None,
+                'notes': m.notes,
+                'is_active': m.is_active,
+                'created_at': m.created_at.isoformat() + 'Z' if m.created_at else None
+            } for m in meetings]
+
+            return jsonify({'meetings': meetings_data}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get meetings error: {str(e)}")
+        return jsonify({'error': 'Failed to get meetings'}), 500
+
+
+@json_api_bp.route('/dev/meetings', methods=['POST'])
+@require_jwt_auth
+def create_meeting():
+    """
+    Create a new weekly meeting
+
+    POST /mobile/dev/meetings
+    Body: {
+        "name": "Weekly Meeting 2024-01-15",
+        "meeting_date": "2024-01-15",
+        "notes": "Optional notes"
+    }
+    """
+    from models.weekly_meeting import WeeklyMeeting
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        name = data.get('name', '').strip()
+        meeting_date = data.get('meeting_date')
+
+        if not name:
+            return jsonify({'error': 'Meeting name is required'}), 400
+        if not meeting_date:
+            return jsonify({'error': 'Meeting date is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Deactivate all other meetings
+            db_session.query(WeeklyMeeting).update({WeeklyMeeting.is_active: False})
+
+            meeting = WeeklyMeeting(
+                name=name,
+                meeting_date=datetime.strptime(meeting_date, '%Y-%m-%d').date(),
+                notes=data.get('notes', '').strip() or None,
+                is_active=True,
+                created_by_id=user.id
+            )
+
+            db_session.add(meeting)
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'meeting': {
+                    'id': meeting.id,
+                    'name': meeting.name,
+                    'meeting_date': meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                    'is_active': meeting.is_active
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Create meeting error: {str(e)}")
+        return jsonify({'error': 'Failed to create meeting'}), 500
+
+
+@json_api_bp.route('/dev/meetings/<int:meeting_id>/action-items', methods=['GET'])
+@require_jwt_auth
+def get_meeting_action_items(meeting_id):
+    """
+    Get action items for a specific meeting
+
+    GET /mobile/dev/meetings/<id>/action-items
+    """
+    from models.action_item import ActionItem
+    from models.weekly_meeting import WeeklyMeeting
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            meeting = db_session.query(WeeklyMeeting).get(meeting_id)
+            if not meeting:
+                return jsonify({'error': 'Meeting not found'}), 404
+
+            items = db_session.query(ActionItem)\
+                .options(joinedload(ActionItem.assigned_to))\
+                .options(joinedload(ActionItem.tester))\
+                .filter(ActionItem.meeting_id == meeting_id)\
+                .order_by(ActionItem.item_number, ActionItem.position)\
+                .all()
+
+            items_data = [{
+                'id': item.id,
+                'item_number': item.item_number,
+                'title': item.title,
+                'description': item.description,
+                'status': item.status.value if item.status else None,
+                'priority': item.priority.value if item.priority else None,
+                'assigned_to': {
+                    'id': item.assigned_to.id,
+                    'username': item.assigned_to.username
+                } if item.assigned_to else None,
+                'tester': {
+                    'id': item.tester.id,
+                    'username': item.tester.username
+                } if item.tester else None,
+                'due_date': item.due_date.isoformat() if item.due_date else None,
+                'completed_at': item.completed_at.isoformat() + 'Z' if item.completed_at else None,
+                'created_at': item.created_at.isoformat() + 'Z' if item.created_at else None
+            } for item in items]
+
+            # Group by status for Kanban
+            columns = {
+                'NOT_STARTED': [],
+                'IN_PROGRESS': [],
+                'PENDING_TESTING': [],
+                'BLOCKED': [],
+                'DONE': []
+            }
+
+            for item in items_data:
+                status = item.get('status', 'NOT_STARTED') or 'NOT_STARTED'
+                if status in columns:
+                    columns[status].append(item)
+
+            return jsonify({
+                'meeting': {
+                    'id': meeting.id,
+                    'name': meeting.name,
+                    'meeting_date': meeting.meeting_date.isoformat() if meeting.meeting_date else None
+                },
+                'action_items': items_data,
+                'columns': columns
+            }), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get meeting action items error: {str(e)}")
+        return jsonify({'error': 'Failed to get action items'}), 500
+
+
+@json_api_bp.route('/dev/action-items', methods=['POST'])
+@require_jwt_auth
+def create_action_item():
+    """
+    Create a new action item
+
+    POST /mobile/dev/action-items
+    Body: {
+        "meeting_id": 1,
+        "title": "Action item title",
+        "description": "Description",
+        "priority": "High",
+        "assigned_to_id": 1,
+        "due_date": "2024-01-20"
+    }
+    """
+    from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        title = data.get('title', '').strip()
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Get max position
+            max_pos = db_session.query(ActionItem)\
+                .filter(ActionItem.status == ActionItemStatus.NOT_STARTED)\
+                .count()
+
+            item = ActionItem(
+                title=title,
+                description=data.get('description', '').strip() or None,
+                status=ActionItemStatus.NOT_STARTED,
+                priority=ActionItemPriority(data.get('priority', 'Medium')) if data.get('priority') else ActionItemPriority.MEDIUM,
+                created_by_id=user.id,
+                assigned_to_id=data.get('assigned_to_id') or None,
+                meeting_id=data.get('meeting_id') or None,
+                due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') else None,
+                position=max_pos
+            )
+
+            db_session.add(item)
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'action_item': {
+                    'id': item.id,
+                    'title': item.title,
+                    'status': item.status.value if item.status else None
+                }
+            }), 201
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Create action item error: {str(e)}")
+        return jsonify({'error': 'Failed to create action item'}), 500
+
+
+@json_api_bp.route('/dev/action-items/<int:item_id>', methods=['PUT'])
+@require_jwt_auth
+def update_action_item(item_id):
+    """
+    Update an action item
+
+    PUT /mobile/dev/action-items/<id>
+    """
+    from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            item = db_session.query(ActionItem).get(item_id)
+            if not item:
+                return jsonify({'error': 'Action item not found'}), 404
+
+            if 'title' in data:
+                item.title = data['title'].strip()
+            if 'description' in data:
+                item.description = data['description'].strip() or None
+            if 'status' in data:
+                old_status = item.status
+                item.status = ActionItemStatus(data['status'])
+                if item.status == ActionItemStatus.DONE and old_status != ActionItemStatus.DONE:
+                    item.completed_at = datetime.utcnow()
+                elif item.status != ActionItemStatus.DONE:
+                    item.completed_at = None
+            if 'priority' in data:
+                item.priority = ActionItemPriority(data['priority'])
+            if 'assigned_to_id' in data:
+                item.assigned_to_id = data['assigned_to_id'] or None
+            if 'tester_id' in data:
+                item.tester_id = data['tester_id'] or None
+            if 'due_date' in data:
+                item.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data['due_date'] else None
+
+            item.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Action item updated'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Update action item error: {str(e)}")
+        return jsonify({'error': 'Failed to update action item'}), 500
+
+
+@json_api_bp.route('/dev/action-items/<int:item_id>/move', methods=['POST'])
+@require_jwt_auth
+def move_action_item(item_id):
+    """
+    Move action item to different status (for Kanban drag-drop)
+
+    POST /mobile/dev/action-items/<id>/move
+    Body: { "status": "IN_PROGRESS", "position": 0 }
+    """
+    from models.action_item import ActionItem, ActionItemStatus
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({'error': 'Status is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            item = db_session.query(ActionItem).get(item_id)
+            if not item:
+                return jsonify({'error': 'Action item not found'}), 404
+
+            old_status = item.status
+            item.status = ActionItemStatus(data['status'])
+            item.position = data.get('position', 0)
+
+            if item.status == ActionItemStatus.DONE and old_status != ActionItemStatus.DONE:
+                item.completed_at = datetime.utcnow()
+            elif item.status != ActionItemStatus.DONE:
+                item.completed_at = None
+
+            item.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': f'Moved to {data["status"]}'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Move action item error: {str(e)}")
+        return jsonify({'error': 'Failed to move action item'}), 500
+
+
+@json_api_bp.route('/dev/action-items/<int:item_id>', methods=['DELETE'])
+@require_jwt_auth
+def delete_action_item(item_id):
+    """
+    Delete an action item
+
+    DELETE /mobile/dev/action-items/<id>
+    """
+    from models.action_item import ActionItem
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            item = db_session.query(ActionItem).get(item_id)
+            if not item:
+                return jsonify({'error': 'Action item not found'}), 404
+
+            db_session.delete(item)
+            db_session.commit()
+
+            return jsonify({'success': True, 'message': 'Action item deleted'}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Delete action item error: {str(e)}")
+        return jsonify({'error': 'Failed to delete action item'}), 500
+
+
+@json_api_bp.route('/dev/users', methods=['GET'])
+@require_jwt_auth
+def get_dev_users():
+    """
+    Get list of developers/users for assignment dropdowns
+
+    GET /mobile/dev/users
+    """
+    from models.user import User, UserType
+
+    try:
+        user = request.current_user
+
+        if not user.permissions or not user.permissions.can_access_development:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            users = db_session.query(User)\
+                .filter(User.user_type.in_([UserType.DEVELOPER, UserType.SUPER_ADMIN]))\
+                .order_by(User.username)\
+                .all()
+
+            users_data = [{
+                'id': u.id,
+                'username': u.username,
+                'email': u.email,
+                'user_type': u.user_type.value if u.user_type else None
+            } for u in users]
+
+            return jsonify({'users': users_data}), 200
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get dev users error: {str(e)}")
+        return jsonify({'error': 'Failed to get users'}), 500
