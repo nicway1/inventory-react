@@ -1378,27 +1378,64 @@ def view_tech_assets():
 def view_accessories():
     db_session = db_manager.get_session()
     try:
+        from models.user_company_permission import UserCompanyPermission
+
         # Get the current user
         user = db_manager.get_user(session['user_id'])
-        
+
         # Base query for accessories
         accessories_query = db_session.query(Accessory)
-        
-        # Filter by country if user is Country Admin or Supervisor
-        if (user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR) and user.assigned_countries:
-            accessories_query = accessories_query.filter(Accessory.country.in_(user.assigned_countries))
-        
+
+        # Filter by company for non-SUPER_ADMIN/DEVELOPER users
+        permitted_company_ids = []
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Get the companies this user has permission to view
+            user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if user_company_permissions:
+                permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+
+                # Also include child companies of any parent company the user has permission to
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                all_permitted_ids = list(permitted_company_ids)
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_ids = [c.id for c in company.child_companies.all()]
+                        all_permitted_ids.extend(child_ids)
+
+                permitted_company_ids = list(set(all_permitted_ids))
+
+                # Filter accessories by company_id
+                # Include accessories with NULL company_id OR matching company_id
+                from sqlalchemy import or_
+                accessories_query = accessories_query.filter(
+                    or_(
+                        Accessory.company_id.in_(permitted_company_ids),
+                        Accessory.company_id.is_(None)
+                    )
+                )
+                logger.info(f"Filtering accessories by company IDs: {permitted_company_ids}")
+
         # Execute query and get accessories
         accessories = accessories_query.all()
-        
+
         # Log for debugging
-        logger.info("User type: {user.user_type}, Accessories returned: {len(accessories)}")
-        
+        logger.info(f"User type: {user.user_type}, Accessories returned: {len(accessories)}")
+
         # Get customers for checkout (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
-        
-        # Get all companies for bulk assignment
-        companies = db_session.query(Company).order_by(Company.name).all()
+
+        # Get companies for bulk assignment (filtered for non-admin users)
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            companies = db_session.query(Company).order_by(Company.name).all()
+        elif permitted_company_ids:
+            companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).order_by(Company.name).all()
+        else:
+            companies = []
 
         # Render the template with appropriate context
         return render_template('inventory/accessories.html',
