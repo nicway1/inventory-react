@@ -2560,9 +2560,41 @@ def view_ticket(ticket_id):
 
         logger.info("Loading additional data...")
         # Load additional data needed for the template
-        all_users = db_session.query(User).order_by(User.username).all()
+        # Filter users based on current user's country permissions
+        from models.user_country_permission import UserCountryPermission
+
+        if current_user.is_super_admin or current_user.is_developer:
+            # Super admins and developers can see all users
+            all_users = db_session.query(User).order_by(User.username).all()
+        elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Country admins and supervisors can only see users from their assigned countries
+            user_countries = [cp.country for cp in current_user.country_permissions]
+            if user_countries:
+                # Get users who have country permissions matching any of the current user's countries
+                users_with_matching_countries = db_session.query(User).join(
+                    UserCountryPermission, User.id == UserCountryPermission.user_id
+                ).filter(
+                    UserCountryPermission.country.in_(user_countries)
+                ).distinct().order_by(User.username).all()
+
+                # Also include super admins and developers (they can always be notified)
+                admins_and_devs = db_session.query(User).filter(
+                    User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])
+                ).order_by(User.username).all()
+
+                # Combine and deduplicate
+                all_users_set = {u.id: u for u in users_with_matching_countries}
+                for u in admins_and_devs:
+                    all_users_set[u.id] = u
+                all_users = sorted(all_users_set.values(), key=lambda x: x.username)
+            else:
+                all_users = db_session.query(User).order_by(User.username).all()
+        else:
+            # Regular users can see all users
+            all_users = db_session.query(User).order_by(User.username).all()
+
         owner = ticket.assigned_to
-        
+
         # Convert users to a dictionary format for the template
         users_dict = {}
         users_list = []  # For @mention autocomplete
@@ -2571,7 +2603,8 @@ def view_ticket(ticket_id):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'is_active': user.is_active
+                'is_active': user.is_active,
+                'user_type': user.user_type.value if user.user_type else 'USER'
             }
             users_dict[str(user.id)] = user_data
             users_list.append(user_data)
