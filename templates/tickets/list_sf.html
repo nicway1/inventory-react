@@ -1084,6 +1084,9 @@
     let statusChart = null;
     let trendChart = null;
 
+    // Custom statuses from database
+    const customStatuses = {{ custom_statuses | tojson | safe }};
+
     // Status and priority mappings
     const statusColors = {
         'OPEN': { bg: '#e8f4ff', color: '#0176d3' },
@@ -1142,14 +1145,22 @@
 
     // Build filter checkboxes
     function buildFilters() {
-        // Build status filter
-        const statuses = [...new Set(allTickets.map(t => t.status))].filter(s => s);
-        const statusHtml = statuses.map(status => {
+        // Build status filter - include both ticket statuses and custom statuses
+        const ticketStatuses = [...new Set(allTickets.map(t => t.status))].filter(s => s);
+
+        // Add custom statuses that aren't already in the list
+        const customStatusNames = customStatuses.map(cs => cs.name);
+        const allStatuses = [...new Set([...ticketStatuses, ...customStatusNames])];
+
+        const statusHtml = allStatuses.map(status => {
             const count = allTickets.filter(t => t.status === status).length;
+            // Check if it's a custom status for styling
+            const customStatus = customStatuses.find(cs => cs.name === status);
+            const displayName = status.replace(/_/g, ' ');
             return `
                 <label class="sf-checkbox-item">
                     <input type="checkbox" value="${status}" onchange="applyFilters()">
-                    ${status.replace('_', ' ')}
+                    ${displayName}
                     <span class="count">${count}</span>
                 </label>
             `;

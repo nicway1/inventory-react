@@ -234,7 +234,20 @@ def list_tickets():
     finally:
         db_session.close()
 
-    return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts)
+    # Get custom ticket statuses
+    from models.custom_ticket_status import CustomTicketStatus
+    db_session = db_manager.get_session()
+    try:
+        custom_statuses = db_session.query(CustomTicketStatus).filter(
+            CustomTicketStatus.is_active == True
+        ).order_by(CustomTicketStatus.sort_order).all()
+        custom_statuses_list = [{'name': s.name, 'color': s.color, 'icon': s.icon} for s in custom_statuses]
+    except:
+        custom_statuses_list = []
+    finally:
+        db_session.close()
+
+    return render_template('tickets/list.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list)
 
 
 @tickets_bp.route('/sf')
@@ -343,7 +356,20 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts)
+    # Get custom ticket statuses
+    from models.custom_ticket_status import CustomTicketStatus
+    db_session = db_manager.get_session()
+    try:
+        custom_statuses = db_session.query(CustomTicketStatus).filter(
+            CustomTicketStatus.is_active == True
+        ).order_by(CustomTicketStatus.sort_order).all()
+        custom_statuses_list = [{'name': s.name, 'color': s.color, 'icon': s.icon} for s in custom_statuses]
+    except:
+        custom_statuses_list = []
+    finally:
+        db_session.close()
+
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list)
 
 
 @tickets_bp.route('/export/csv')
@@ -2037,6 +2063,7 @@ Additional Notes:
                 outbound_tracking = request.form.get('shipping_tracking', '')  # Renamed for clarity
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
                 notes = request.form.get('notes', '')
+                damage_description = request.form.get('damage_description', '')  # Reported issue
                 # queue_id and case_owner_id already extracted at line 1143-1145
                 # Extract the return description from the form
                 user_return_description = request.form.get('return_description', '') or request.form.get('description', '')
@@ -2106,6 +2133,7 @@ Shipping Method: Claw (Ship24)"""
                         queue_id=queue_id,
                         notes=notes,
                         return_description=user_return_description,
+                        damage_description=damage_description if damage_description else None,
                         case_owner_id=int(case_owner_id) if case_owner_id else None
                     )
 

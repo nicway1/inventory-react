@@ -1493,6 +1493,9 @@
                             <option value="On Hold">On Hold</option>
                             <option value="Resolved">Resolved</option>
                             <option value="Resolved (All Package Delivered)">Resolved (All Package Delivered)</option>
+                            {% for status in custom_statuses %}
+                            <option value="{{ status.name }}">{{ status.name }}</option>
+                            {% endfor %}
                         </select>
                         
                         <span class="sf-filter-label">Priority:</span>

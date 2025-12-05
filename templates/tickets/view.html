@@ -1193,6 +1193,14 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 {% endif %}
                             </div>
                         </div>
+                        {% if ticket.damage_description %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Reported Issue</div>
+                            <div class="sf-field-value">
+                                <pre class="whitespace-pre-wrap font-sans text-red-600">{{ ticket.damage_description }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% endif %}
 
                         {% if ticket.category and ticket.category.name == 'INTERNAL_TRANSFER' %}
