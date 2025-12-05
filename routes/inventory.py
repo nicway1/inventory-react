@@ -19,7 +19,7 @@ from models.audit_session import AuditSession
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
-from sqlalchemy import func, case, or_, text
+from sqlalchemy import func, case, or_, and_, text
 from sqlalchemy.orm.attributes import flag_modified
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
