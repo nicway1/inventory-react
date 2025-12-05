@@ -543,11 +543,18 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = "{{ url_for('inventory.add_accessory') }}";
     };
 
+    // Helper function to check if a row is visible
+    function isRowVisible(row) {
+        if (!row) return false;
+        // Check computed style for more reliable visibility detection
+        return window.getComputedStyle(row).display !== 'none';
+    }
+
     window.toggleAllCheckboxes = function(source) {
-        const checkboxes = document.querySelectorAll('.accessory-checkbox:not([style*="display: none"])');
+        const checkboxes = document.querySelectorAll('.accessory-checkbox');
         for (let checkbox of checkboxes) {
             const row = checkbox.closest('tr');
-            if (row && row.style.display !== 'none') {
+            if (isRowVisible(row)) {
                 checkbox.checked = source.checked;
             }
         }
@@ -555,17 +562,27 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.updateSelectedIds = function() {
-        const checkboxes = document.getElementsByClassName('accessory-checkbox');
-        const selectedIds = Array.from(checkboxes)
+        const allCheckboxes = document.getElementsByClassName('accessory-checkbox');
+        const selectedIds = Array.from(allCheckboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
         document.getElementById('selectedIds').value = JSON.stringify(selectedIds);
 
-        // Update select all checkbox state
+        // Count only visible checkboxes for header state
+        const visibleCheckboxes = Array.from(allCheckboxes).filter(cb => {
+            const row = cb.closest('tr');
+            return isRowVisible(row);
+        });
+        const visibleSelectedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+
+        // Update select all checkbox state based on visible rows only
         const selectAllCheckbox = document.getElementById('selectAll');
-        if (checkboxes.length > 0) {
-            selectAllCheckbox.checked = selectedIds.length === checkboxes.length;
-            selectAllCheckbox.indeterminate = selectedIds.length > 0 && selectedIds.length < checkboxes.length;
+        if (visibleCheckboxes.length > 0) {
+            selectAllCheckbox.checked = visibleSelectedCount === visibleCheckboxes.length;
+            selectAllCheckbox.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleCheckboxes.length;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
         }
     };
 
@@ -715,13 +732,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select all visible accessories
     window.selectAllAccessories = function() {
         const checkboxes = document.querySelectorAll('.accessory-checkbox');
+        let selectedCount = 0;
         checkboxes.forEach(cb => {
             const row = cb.closest('tr');
-            if (row && row.style.display !== 'none') {
+            if (isRowVisible(row)) {
                 cb.checked = true;
+                selectedCount++;
             }
         });
-        document.getElementById('selectAll').checked = true;
+        console.log('Selected', selectedCount, 'visible accessories');
         updateSelectedIds();
     };
 
