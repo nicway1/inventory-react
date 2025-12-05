@@ -1397,16 +1397,104 @@ def view_accessories():
         # Get customers for checkout (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
         
+        # Get all companies for bulk assignment
+        companies = db_session.query(Company).order_by(Company.name).all()
+
         # Render the template with appropriate context
-        return render_template('inventory/accessories.html', 
+        return render_template('inventory/accessories.html',
                              accessories=accessories,
                              customers=customers,
+                             companies=companies,
                              is_admin=user.is_admin,
                              is_country_admin=user.is_country_admin,
                              is_supervisor=user.user_type == UserType.SUPERVISOR,
                              user=user)
     finally:
         db_session.close()
+
+@inventory_bp.route('/api/accessories/bulk-update-company', methods=['POST'])
+@login_required
+def bulk_update_accessory_company():
+    """Bulk update company for multiple accessories"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        accessory_ids = data.get('accessory_ids', [])
+        company_id = data.get('company_id')
+
+        if not accessory_ids:
+            return jsonify({'success': False, 'error': 'No accessories selected'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Verify company exists if provided
+            company = None
+            if company_id:
+                company = db_session.query(Company).get(company_id)
+                if not company:
+                    return jsonify({'success': False, 'error': 'Company not found'}), 400
+
+            updated_count = 0
+            for accessory_id in accessory_ids:
+                accessory = db_session.query(Accessory).get(accessory_id)
+                if not accessory:
+                    continue
+
+                old_company_id = accessory.company_id
+                accessory.company_id = company_id if company_id else None
+                accessory.updated_at = datetime.now()
+
+                # Track change in history
+                if old_company_id != accessory.company_id:
+                    old_company_name = None
+                    if old_company_id:
+                        old_company = db_session.query(Company).get(old_company_id)
+                        old_company_name = old_company.name if old_company else None
+
+                    history_entry = accessory.track_change(
+                        user_id=user_id,
+                        action='bulk_company_update',
+                        changes={
+                            'company': {
+                                'old': old_company_name,
+                                'new': company.name if company else None
+                            }
+                        }
+                    )
+                    db_session.add(history_entry)
+
+                updated_count += 1
+
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'Successfully updated {updated_count} accessories'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f"Bulk accessory company update error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Bulk accessory company update API error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @inventory_bp.route('/accessories/<int:id>/add-stock', methods=['GET', 'POST'])
 @login_required

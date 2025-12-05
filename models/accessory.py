@@ -22,9 +22,11 @@ class Accessory(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     customer_id = Column(Integer, ForeignKey('customer_users.id'), nullable=True)
+    company_id = Column(Integer, ForeignKey('companies.id'), nullable=True)
 
     # Relationships
     tickets = relationship("Ticket", back_populates="accessory", lazy="dynamic")
+    company = relationship("Company")
     customer_user = relationship("CustomerUser", back_populates="assigned_accessories")
     history = relationship("AccessoryHistory", back_populates="accessory", order_by="desc(AccessoryHistory.created_at)")
     transactions = relationship("AccessoryTransaction", back_populates="accessory", order_by="desc(AccessoryTransaction.transaction_date)")
@@ -80,6 +82,8 @@ class Accessory(Base):
             'notes': self.notes,
             'image_url': self.image_url,
             'customer_id': self.customer_id,
+            'company_id': self.company_id,
+            'company_name': self.company.name if self.company else None,
             'aliases': [alias.alias_name for alias in self.aliases] if self.aliases else [],
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,
             'return_date': self.return_date.isoformat() if self.return_date else None,
