@@ -41,11 +41,11 @@ class TicketIssue(Base):
             'description': self.description,
             'reported_by_id': self.reported_by_id,
             'reported_by_name': self.reported_by.username if self.reported_by else None,
-            'reported_at': self.reported_at.isoformat() if self.reported_at else None,
+            'reported_at': self.reported_at.isoformat() + 'Z' if self.reported_at else None,
             'is_resolved': self.is_resolved,
             'resolution_notes': self.resolution_notes,
             'resolved_by_id': self.resolved_by_id,
             'resolved_by_name': self.resolved_by.username if self.resolved_by else None,
-            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
+            'resolved_at': self.resolved_at.isoformat() + 'Z' if self.resolved_at else None,
             'notified_user_ids': self.notified_user_ids
         }
