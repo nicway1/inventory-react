@@ -209,6 +209,111 @@
 <script>
 const statusesData = {{ statuses | tojson }};
 
+// ==================== DRAG AND DROP FUNCTIONALITY ====================
+let draggedItem = null;
+
+function initDragAndDrop() {
+    const statusesList = document.getElementById('statusesList');
+    const items = statusesList.querySelectorAll('[data-status-id]');
+
+    items.forEach(item => {
+        // Make the item draggable
+        item.setAttribute('draggable', 'true');
+
+        // Drag start
+        item.addEventListener('dragstart', function(e) {
+            draggedItem = this;
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        });
+
+        // Drag end
+        item.addEventListener('dragend', function(e) {
+            this.style.opacity = '1';
+            draggedItem = null;
+            // Remove all drag-over styles
+            items.forEach(i => i.classList.remove('bg-blue-50', 'border-t-2', 'border-blue-500'));
+        });
+
+        // Drag over
+        item.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('bg-blue-50', 'border-t-2', 'border-blue-500');
+        });
+
+        // Drag leave
+        item.addEventListener('dragleave', function(e) {
+            this.classList.remove('bg-blue-50', 'border-t-2', 'border-blue-500');
+        });
+
+        // Drop
+        item.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('bg-blue-50', 'border-t-2', 'border-blue-500');
+
+            if (draggedItem !== this) {
+                // Get all items and their positions
+                const allItems = Array.from(statusesList.querySelectorAll('[data-status-id]'));
+                const draggedIndex = allItems.indexOf(draggedItem);
+                const dropIndex = allItems.indexOf(this);
+
+                // Move the dragged item
+                if (draggedIndex < dropIndex) {
+                    this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedItem, this);
+                }
+
+                // Save new order
+                saveNewOrder();
+            }
+        });
+    });
+}
+
+async function saveNewOrder() {
+    const statusesList = document.getElementById('statusesList');
+    const items = statusesList.querySelectorAll('[data-status-id]');
+    const orderData = [];
+
+    items.forEach((item, index) => {
+        orderData.push({
+            id: parseInt(item.getAttribute('data-status-id')),
+            order: index
+        });
+    });
+
+    try {
+        const formData = new FormData();
+        formData.append('action', 'reorder');
+        formData.append('order_data', JSON.stringify(orderData));
+        formData.append('csrf_token', '{{ csrf_token() }}');
+
+        const response = await fetch('{{ url_for("admin.manage_ticket_statuses") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert('Error saving order: ' + result.error);
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error('Error saving order:', error);
+        alert('Error saving order');
+        window.location.reload();
+    }
+}
+
+// Initialize drag and drop on page load
+document.addEventListener('DOMContentLoaded', initDragAndDrop);
+
+// ==================== END DRAG AND DROP ====================
+
 // Add Status Button
 document.getElementById('addStatusBtn').addEventListener('click', function() {
     document.getElementById('modalTitle').textContent = 'Add Custom Status';

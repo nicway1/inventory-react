@@ -6368,7 +6368,12 @@ def manage_ticket_statuses():
 
             elif action == 'reorder':
                 # Update sort order
-                order_data = request.json.get('order', [])
+                import json
+                order_data_str = request.form.get('order_data', '[]')
+                try:
+                    order_data = json.loads(order_data_str)
+                except:
+                    order_data = []
 
                 for item in order_data:
                     status = db_session.query(CustomTicketStatus).get(item['id'])
