@@ -944,14 +944,15 @@ def api_bulk_update_individual():
                     asset.country = changes['country']
 
                 if 'company' in changes:
-                    # Find company by name
+                    # Update the customer field (text field used for display)
+                    asset.customer = changes['company']
+
+                    # Also update company_id if a matching company exists
                     company = db_session.query(Company).filter(
                         Company.name == changes['company']
                     ).first()
                     if company:
                         asset.company_id = company.id
-                    else:
-                        errors.append(f"Company not found for asset {asset_id}: {changes['company']}")
 
                 if 'asset_type' in changes:
                     asset.asset_type = changes['asset_type']
