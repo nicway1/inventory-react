@@ -3604,13 +3604,16 @@ def add_customer_user():
                     country=country_value
                 )
 
-                # Look for existing company by name
-                company = db_session.query(Company).filter(Company.name == company_name).first()
-                if not company:
-                    # Create new company if it doesn't exist
-                    company = Company(name=company_name)
-                    db_session.add(company)
-                    db_session.flush()
+                # Look for existing company by name (normalize to uppercase for comparison)
+                company_name_normalized = company_name.strip().upper() if company_name else None
+                company = None
+                if company_name_normalized:
+                    company = db_session.query(Company).filter(Company.name == company_name_normalized).first()
+                    if not company:
+                        # Create new company if it doesn't exist
+                        company = Company(name=company_name_normalized)
+                        db_session.add(company)
+                        db_session.flush()
 
                 customer.company = company
                 db_session.add(customer)
@@ -5186,13 +5189,16 @@ def import_customers():
                             errors.append(f"Row {index+2}: Invalid country '{country_str}'. Must be one of: {', '.join([c.name for c in Country])}")
                             continue
                         
-                        # Look for existing company by name
-                        company = db_session.query(Company).filter(Company.name == company_name).first()
-                        if not company:
-                            # Create new company if it doesn't exist
-                            company = Company(name=company_name)
-                            db_session.add(company)
-                            db_session.flush()
+                        # Look for existing company by name (normalize to uppercase for comparison)
+                        company_name_normalized = company_name.strip().upper() if company_name else None
+                        company = None
+                        if company_name_normalized:
+                            company = db_session.query(Company).filter(Company.name == company_name_normalized).first()
+                            if not company:
+                                # Create new company if it doesn't exist
+                                company = Company(name=company_name_normalized)
+                                db_session.add(company)
+                                db_session.flush()
                         
                         # Create new customer user
                         customer = CustomerUser(

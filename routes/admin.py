@@ -3543,22 +3543,25 @@ def csv_import_import_ticket():
             # 1. CREATE CUSTOMER FIRST (as requested)
             from models.customer_user import CustomerUser
             from models.company import Company
-            
+
             # Check if customer already exists
             customer = db_session.query(CustomerUser).filter(
                 CustomerUser.email == primary_item['primary_email']
             ).first()
-            
+
             customer_created = False
             if not customer:
-                # Get or create company
-                company = db_session.query(Company).filter(
-                    Company.name == primary_item['org_name']
-                ).first()
-                
-                if not company:
+                # Get or create company (normalize name to uppercase for comparison)
+                org_name = primary_item.get('org_name', '').strip().upper() if primary_item.get('org_name') else None
+                company = None
+                if org_name:
+                    company = db_session.query(Company).filter(
+                        Company.name == org_name
+                    ).first()
+
+                if not company and org_name:
                     company = Company(
-                        name=primary_item['org_name'],
+                        name=org_name,
                         description=f"Auto-created from CSV import",
                         contact_email=primary_item['primary_email']
                     )
@@ -4133,15 +4136,18 @@ def csv_import_import_ticket_internal(row, auto_create_customer=True, selected_a
             # Create new customer
             from models.user import Country
             from models.company import Company
-            
-            # Get or create company
-            company = db_session.query(Company).filter(
-                Company.name == row['org_name']
-            ).first()
-            
-            if not company:
+
+            # Get or create company (normalize name to uppercase for comparison)
+            org_name = row.get('org_name', '').strip().upper() if row.get('org_name') else None
+            company = None
+            if org_name:
+                company = db_session.query(Company).filter(
+                    Company.name == org_name
+                ).first()
+
+            if not company and org_name:
                 company = Company(
-                    name=row['org_name'],
+                    name=org_name,
                     description=f"Auto-created from CSV import",
                     contact_email=row['primary_email']
                 )
