@@ -5590,14 +5590,16 @@ def manage_company_grouping():
             Asset.customer != ''
         ).all()
         
-        existing_company_names = {c.name for c in existing_companies}
-        
+        existing_company_names = {c.name.upper() for c in existing_companies}
+
         # Create missing Company records for asset customers
         missing_companies = []
         for customer_tuple in asset_customers:
             customer_name = customer_tuple[0]
-            if customer_name and customer_name not in existing_company_names:
-                # Create a new Company record
+            # Compare uppercase to handle case-insensitive matching
+            normalized_name = customer_name.upper().strip()
+            if customer_name and normalized_name not in existing_company_names:
+                # Create a new Company record (name will be auto-uppercased by model validator)
                 new_company = Company(
                     name=customer_name,
                     is_parent_company=False,
@@ -5606,6 +5608,8 @@ def manage_company_grouping():
                 )
                 db_session.add(new_company)
                 missing_companies.append(new_company)
+                # Add to set to prevent duplicates within same batch
+                existing_company_names.add(normalized_name)
         
         # Commit new companies
         if missing_companies:
