@@ -10358,6 +10358,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateDaysOpenCounter, 3600000);
     // Load issues on page load
     loadTicketIssues({{ ticket.id }});
+    // Load return ticket issues if this is an Asset Return ticket
+    if (document.getElementById('returnIssuesDisplay')) {
+        loadReturnTicketIssues({{ ticket.id }});
+    }
 });
 
 // ============================================================================
@@ -10444,30 +10448,99 @@ async function loadReturnTicketIssues(ticketId) {
         const data = await response.json();
 
         const displayDiv = document.getElementById('returnIssuesDisplay');
-        if (data.issues && data.issues.length > 0) {
-            let html = '<div class="space-y-2">';
-            data.issues.forEach(issue => {
-                const statusClass = issue.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                html += `
-                    <div class="p-3 bg-white border border-gray-200 rounded-lg">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-900">${issue.issue_type}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}">
-                                ${issue.status}
-                            </span>
+        if (data.success && data.issues && data.issues.length > 0) {
+            displayDiv.innerHTML = data.issues.map(issue => `
+                <div class="border border-gray-300 rounded-lg p-3 mb-3 ${issue.is_resolved ? 'bg-green-50' : 'bg-red-50'}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${issue.is_resolved ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}">
+                                    ${issue.issue_type}
+                                </span>
+                            </div>
+                            <div class="bg-gray-50 rounded p-2 mb-2 space-y-1">
+                                <div class="flex items-start">
+                                    <span class="text-xs font-semibold text-gray-700 w-24">Reported by:</span>
+                                    <span class="text-xs text-gray-600">${issue.reported_by_name}</span>
+                                </div>
+                                <div class="flex items-start">
+                                    <span class="text-xs font-semibold text-gray-700 w-24">Date Reported:</span>
+                                    <span class="text-xs text-gray-600 font-medium">${formatDate(issue.reported_at)}</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-2"><strong>Description:</strong> ${issue.description}</p>
+
+                            ${issue.is_resolved ? `
+                                <div class="mt-2 pt-2 border-t border-green-300">
+                                    <div class="flex items-center gap-1 mb-2">
+                                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span class="text-xs font-semibold text-green-800">Issue Resolved</span>
+                                    </div>
+                                    <div class="bg-white bg-opacity-50 rounded p-2 space-y-1">
+                                        <div class="flex items-start">
+                                            <span class="text-xs font-semibold text-gray-700 w-24">Resolved by:</span>
+                                            <span class="text-xs text-gray-600">${issue.resolved_by_name || 'N/A'}</span>
+                                        </div>
+                                        <div class="flex items-start">
+                                            <span class="text-xs font-semibold text-gray-700 w-24">Date Resolved:</span>
+                                            <span class="text-xs text-gray-600 font-medium">${formatDate(issue.resolved_at)}</span>
+                                        </div>
+                                        ${issue.resolution_notes ? `
+                                        <div class="flex items-start">
+                                            <span class="text-xs font-semibold text-gray-700 w-24">Resolution:</span>
+                                            <span class="text-xs text-gray-600">${issue.resolution_notes}</span>
+                                        </div>` : ''}
+                                    </div>
+                                </div>
+                            ` : `
+                                <button onclick="resolveReturnIssue(${ticketId}, ${issue.id})"
+                                        class="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
+                                    Mark as Resolved
+                                </button>
+                            `}
                         </div>
-                        <p class="text-sm text-gray-600">${issue.description}</p>
-                        <p class="text-xs text-gray-400 mt-1">Reported by ${issue.reported_by} on ${issue.created_at}</p>
                     </div>
-                `;
-            });
-            html += '</div>';
-            displayDiv.innerHTML = html;
+                </div>
+            `).join('');
         } else {
             displayDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No issues reported</p>';
         }
     } catch (error) {
         console.error('Error loading return ticket issues:', error);
+    }
+}
+
+// Resolve Return Issue
+async function resolveReturnIssue(ticketId, issueId) {
+    const resolutionNotes = prompt('Enter resolution notes (optional):');
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/tickets/${ticketId}/issues/${issueId}/resolve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                resolution_notes: resolutionNotes || ''
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Issue resolved successfully', 'success');
+            loadReturnTicketIssues(ticketId);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error resolving issue:', error);
+        showToast('Error resolving issue', 'error');
     }
 }
 
