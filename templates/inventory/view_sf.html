@@ -1492,8 +1492,11 @@ function applyFilters() {
     const filters = getSelectedFilters();
     const search = document.getElementById('searchInput').value.toLowerCase();
 
+    console.log('applyFilters called - currentTab:', currentTab, 'search:', search);
+
     // Check if we're on the accessories tab
     if (currentTab === 'accessories') {
+        console.log('Routing to applyAccessoryFilters, accessoryData length:', accessoryData.length);
         applyAccessoryFilters(search, filters);
         return;
     }
@@ -1561,8 +1564,10 @@ function applyFilters() {
 
 // Apply filters for accessories tab
 function applyAccessoryFilters(search, filters) {
+    console.log('applyAccessoryFilters called - search:', search, 'accessoryData length:', accessoryData.length);
+
     filteredData = accessoryData.filter(accessory => {
-        // Check search - search in name, category, and manufacturer
+        // Check search - search in name, category, manufacturer, model, notes, country
         if (search) {
             const searchFields = [
                 accessory.name,
@@ -1578,19 +1583,18 @@ function applyAccessoryFilters(search, filters) {
             }
         }
 
-        // Check category filter (for accessories)
-        if (filters.categories.length > 0 && !filters.categories.includes(accessory.category)) {
-            return false;
-        }
-
-        // Check country filter (for accessories)
-        if (filters.countries.length > 0 && !filters.countries.includes(accessory.country)) {
-            return false;
-        }
-
-        // Check status filter (for accessories)
-        if (filters.statuses.length > 0 && !filters.statuses.includes(accessory.status)) {
-            return false;
+        // Note: We don't apply sidebar filters (category, company, location) to accessories
+        // because the sidebar filters are built for assets and have different values.
+        // Only apply country filter if selected (country values are consistent across both)
+        if (filters.countries.length > 0) {
+            // Check if the accessory's country matches any selected country
+            const accessoryCountry = (accessory.country || '').toLowerCase();
+            const matchesCountry = filters.countries.some(c =>
+                c.toLowerCase() === accessoryCountry
+            );
+            if (!matchesCountry) {
+                return false;
+            }
         }
 
         return true;
@@ -1598,6 +1602,8 @@ function applyAccessoryFilters(search, filters) {
 
     // Reset to first page
     currentPage = 1;
+
+    console.log('applyAccessoryFilters result - filteredData length:', filteredData.length);
 
     // Update UI
     updateAccessorySummary();
