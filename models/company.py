@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from models.base import Base
 from datetime import datetime
 
@@ -73,6 +73,13 @@ class Company(Base):
     def effective_display_name(self):
         """Return the effective display name for UI purposes"""
         return self.display_name or self.name 
+
+    @validates('name')
+    def validate_name(self, key, name):
+        """Automatically convert company name to uppercase and strip whitespace"""
+        if name:
+            return name.strip().upper()
+        return name
 
     def __repr__(self):
         return f'<Company {self.name}>'
