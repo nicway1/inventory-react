@@ -18,7 +18,7 @@ from routes.users import users_bp
 from routes.admin import admin_bp
 from routes.api_simple import api_bp
 from routes.mobile_api import mobile_api_bp
-# from routes.json_api import json_api_bp  # Temporarily disabled to avoid conflicts
+from routes.json_api import json_api_bp  # Re-enabled for Development Console mobile API
 from routes.inventory_api import inventory_api_bp
 from routes.search_api import search_api_bp
 from routes.assets import assets_bp
@@ -198,7 +198,7 @@ def create_app():
     app.register_blueprint(mobile_api_bp)
     app.register_blueprint(inventory_api_bp)
     app.register_blueprint(search_api_bp)
-    # app.register_blueprint(json_api_bp)  # Temporarily disabled
+    app.register_blueprint(json_api_bp)  # Development Console mobile API
     
     # Exempt API blueprints from CSRF protection
     csrf.exempt(api_bp)
@@ -206,7 +206,7 @@ def create_app():
     csrf.exempt(search_api_bp)
     csrf.exempt(inventory_api_bp)
     csrf.exempt(reports_bp)  # Exempt reports API endpoints
-    # csrf.exempt(json_api_bp)  # Temporarily disabled
+    csrf.exempt(json_api_bp)  # Exempt from CSRF for mobile API
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(documents_bp)
