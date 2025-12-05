@@ -919,28 +919,71 @@ def search_customers():
             return jsonify([]), 401
             
         customers_query = db_session.query(CustomerUser)
-        
+
         # Apply the same filtering logic as get_filtered_customers
         from models.company_customer_permission import CompanyCustomerPermission
-        
-        # SUPER_ADMIN users can see all customers
-        if user.user_type != UserType.SUPER_ADMIN:
-            # For other users, apply permission-based filtering
-            if user.company_id:
-                # Get companies this user's company has permission to view customers from
-                permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
-                    .filter(
-                        CompanyCustomerPermission.company_id == user.company_id,
-                        CompanyCustomerPermission.can_view == True
-                    ).subquery()
-                
-                # Users can always see their own company's customers, plus any permitted ones
+        from models.user_company_permission import UserCompanyPermission
+
+        # SUPER_ADMIN and DEVELOPER users can see all customers
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            pass  # No filtering needed
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # For COUNTRY_ADMIN and SUPERVISOR, use UserCompanyPermission
+            user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if user_company_permissions:
+                # Get permitted company IDs from user's company permissions
+                permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+                logger.info(f"DEBUG: {user.user_type.value} customer search filtering by company IDs: {permitted_company_ids}")
+
+                # Also include child companies of any parent company the user has permission to
+                from models.company import Company
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                all_permitted_ids = list(permitted_company_ids)
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_ids = [c.id for c in company.child_companies.all()]
+                        all_permitted_ids.extend(child_ids)
+
+                # Check for CompanyCustomerPermission entries for cross-company viewing
+                cross_company_ids = []
+                for company_id in all_permitted_ids:
+                    additional_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                        .filter(
+                            CompanyCustomerPermission.company_id == company_id,
+                            CompanyCustomerPermission.can_view == True
+                        ).all()
+                    cross_company_ids.extend([cid[0] for cid in additional_company_ids])
+
+                # Combine all permitted company IDs
+                final_permitted_ids = list(set(all_permitted_ids + cross_company_ids))
+
+                # Filter customers to only those from permitted companies
                 customers_query = customers_query.filter(
-                    or_(
-                        CustomerUser.company_id == user.company_id,  # Own company customers
-                        CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
-                    )
+                    CustomerUser.company_id.in_(final_permitted_ids)
                 )
+            else:
+                # No company permissions assigned - show NO customers
+                customers_query = customers_query.filter(CustomerUser.id == -1)
+        elif user.company_id:
+            # For other users (e.g., CLIENT), apply permission-based filtering
+            permitted_company_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                .filter(
+                    CompanyCustomerPermission.company_id == user.company_id,
+                    CompanyCustomerPermission.can_view == True
+                ).subquery()
+
+            # Users can always see their own company's customers, plus any permitted ones
+            customers_query = customers_query.filter(
+                or_(
+                    CustomerUser.company_id == user.company_id,  # Own company customers
+                    CustomerUser.company_id.in_(permitted_company_ids)  # Permitted customers
+                )
+            )
         
         # Apply search filter if provided
         if search_term:
