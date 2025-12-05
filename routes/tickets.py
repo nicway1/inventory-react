@@ -8061,10 +8061,19 @@ def add_accessory(ticket_id):
                         accessory.status = 'Out of Stock'
                     else:
                         accessory.status = 'Available'
-                else:
-                    # Return/Intake: add to inventory
+                elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
+                    # Intake: add NEW stock to inventory (increase both total and available)
+                    accessory.total_quantity += quantity
                     accessory.available_quantity += quantity
-                    logger.info(f"RETURN/INTAKE: Increasing inventory by {quantity}")
+                    logger.info(f"INTAKE: Increasing total and available inventory by {quantity}")
+
+                    # Update status - if we have stock, it's available
+                    if accessory.available_quantity > 0:
+                        accessory.status = 'Available'
+                else:
+                    # Return: add back to available inventory (total stays same)
+                    accessory.available_quantity += quantity
+                    logger.info(f"RETURN: Increasing available inventory by {quantity}")
 
                     # Update status - if we have stock, it's available
                     if accessory.available_quantity > 0:
