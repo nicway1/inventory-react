@@ -790,8 +790,207 @@ https://inventory.truelog.com.sg
         if result:
             logging.info(f"Queue notification sent successfully to {user.email}")
         return result
-        
+
     except Exception as e:
         logging.error(f"Error sending queue notification to {user.email}: {str(e)}")
         logger.info("Error sending queue notification: {str(e)}")
+        return False
+
+
+def send_issue_reported_email(notified_user, reporter, ticket, issue_type, description):
+    """
+    Send an email notification when an issue is reported on a ticket
+
+    Args:
+        notified_user: User to notify
+        reporter: User who reported the issue
+        ticket: The ticket the issue was reported on
+        issue_type: Type of issue reported
+        description: Description of the issue
+    """
+    try:
+        logging.info(f"Attempting to send issue reported email to {notified_user.email}")
+
+        if not current_app:
+            logging.error("No Flask application context")
+            return False
+
+        if not notified_user.email:
+            logging.warning(f"User {notified_user.username} has no email address")
+            return False
+
+        # Truncate description if too long
+        description_preview = description[:300] + "..." if len(description) > 300 else description
+
+        # Create the ticket URL
+        ticket_url = f"https://inventory.truelog.com.sg/tickets/{ticket.id}"
+
+        # HTML email template
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Issue Reported - Ticket #{ticket.display_id or ticket.id}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                        ⚠️ Issue Reported
+                    </h1>
+                    <p style="color: #fecaca; margin: 8px 0 0 0; font-size: 16px;">
+                        TrueLog Inventory Management
+                    </p>
+                </div>
+
+                <!-- Main Content -->
+                <div style="padding: 40px;">
+                    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <h2 style="color: #1a202c; margin: 0 0 10px 0; font-size: 20px;">
+                            Hello {notified_user.username}!
+                        </h2>
+                        <p style="color: #4a5568; margin: 0; font-size: 16px; line-height: 1.5;">
+                            <strong>{reporter.username}</strong> has reported an issue on Ticket <strong>#{ticket.display_id or ticket.id}</strong> and notified you.
+                        </p>
+                    </div>
+
+                    <!-- Issue Details Card -->
+                    <div style="border: 1px solid #fecaca; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background-color: #dc2626; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🚨 Issue Details</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 10px 0; color: #718096; font-weight: 600; width: 120px; vertical-align: top;">Issue Type:</td>
+                                    <td style="padding: 10px 0;">
+                                        <span style="background-color: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                                            {issue_type}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; color: #718096; font-weight: 600; vertical-align: top;">Description:</td>
+                                    <td style="padding: 10px 0; color: #2d3748; line-height: 1.6;">{description_preview}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; color: #718096; font-weight: 600;">Reported by:</td>
+                                    <td style="padding: 10px 0; color: #2d3748;">{reporter.username}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Ticket Info Card -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px;">
+                        <div style="background-color: #667eea; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">📋 Ticket Information</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600; width: 120px;">Ticket ID:</td>
+                                    <td style="padding: 8px 0; color: #2d3748;">#{ticket.display_id or ticket.id}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Subject:</td>
+                                    <td style="padding: 8px 0; color: #2d3748; font-weight: 600;">{ticket.subject}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-weight: 600;">Status:</td>
+                                    <td style="padding: 8px 0;">
+                                        <span style="background-color: #e0f2fe; color: #0277bd; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                            {ticket.status.value if ticket.status else 'New'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{ticket_url}"
+                           style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                                  color: white;
+                                  text-decoration: none;
+                                  padding: 14px 28px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  font-size: 16px;
+                                  display: inline-block;
+                                  box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);">
+                            🔗 View Ticket & Issue
+                        </a>
+                    </div>
+
+                    <!-- Action Required -->
+                    <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 20px;">
+                        <h4 style="color: #c2410c; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
+                            ⚡ Action Required
+                        </h4>
+                        <p style="color: #ea580c; margin: 0; line-height: 1.6; font-size: 14px;">
+                            Please review this issue and take appropriate action. You can resolve the issue or add comments directly on the ticket.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                        You were notified because you were selected to receive this issue report.
+                    </p>
+                    <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                        TrueLog Inventory Management System |
+                        <a href="https://inventory.truelog.com.sg" style="color: #667eea; text-decoration: none;">inventory.truelog.com.sg</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text version
+        text_body = f"""Issue Reported - TrueLog Inventory
+
+Hello {notified_user.username}!
+
+{reporter.username} has reported an issue on Ticket #{ticket.display_id or ticket.id} and notified you.
+
+Issue Details:
+- Issue Type: {issue_type}
+- Description: {description_preview}
+- Reported by: {reporter.username}
+
+Ticket Information:
+- Ticket ID: #{ticket.display_id or ticket.id}
+- Subject: {ticket.subject}
+- Status: {ticket.status.value if ticket.status else 'New'}
+
+View the ticket: {ticket_url}
+
+Action Required:
+Please review this issue and take appropriate action. You can resolve the issue or add comments directly on the ticket.
+
+---
+TrueLog Inventory Management System
+https://inventory.truelog.com.sg
+        """
+
+        result = _send_email_via_method(
+            to_emails=notified_user.email,
+            subject=f"[TrueLog] ⚠️ Issue Reported: {issue_type} on Ticket #{ticket.display_id or ticket.id}",
+            html_body=html_body,
+            text_body=text_body
+        )
+
+        if result:
+            logging.info(f"Issue reported email sent successfully to {notified_user.email}")
+        return result
+
+    except Exception as e:
+        logging.error(f"Error sending issue reported email to {notified_user.email}: {str(e)}")
         return False

@@ -9604,9 +9604,12 @@ def create_ticket_issue(ticket_id):
         db_session.add(new_issue)
         db_session.commit()
         
-        # Create notifications for specified users
+        # Create notifications for specified users and send emails
         reporter = db_session.query(User).get(session.get('user_id'))
+        from utils.email_sender import send_issue_reported_email
+
         for user_id in notified_user_ids:
+            # Create in-app notification
             notification = Notification(
                 user_id=int(user_id),
                 type='issue_reported',
@@ -9618,7 +9621,21 @@ def create_ticket_issue(ticket_id):
                 created_at=datetime.datetime.utcnow()
             )
             db_session.add(notification)
-        
+
+            # Send email notification
+            notified_user = db_session.query(User).get(int(user_id))
+            if notified_user and notified_user.email:
+                try:
+                    send_issue_reported_email(
+                        notified_user=notified_user,
+                        reporter=reporter,
+                        ticket=ticket,
+                        issue_type=issue_type,
+                        description=description
+                    )
+                except Exception as email_error:
+                    logger.error(f"Failed to send issue email to {notified_user.email}: {str(email_error)}")
+
         db_session.commit()
         
         logger.info(f"Issue created for ticket {ticket_id} by user {session.get('user_id')}")
