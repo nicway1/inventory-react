@@ -1018,8 +1018,8 @@ def get_bug_detail(bug_id):
                     'id': bug.assignee.id,
                     'username': bug.assignee.username
                 } if bug.assignee else None,
-                'resolution': bug.resolution,
-                'resolved_at': bug.resolved_at.isoformat() + 'Z' if bug.resolved_at else None,
+                'resolution': bug.resolution_notes,
+                'resolved_at': bug.resolution_date.isoformat() + 'Z' if bug.resolution_date else None,
                 'created_at': bug.created_at.isoformat() + 'Z' if bug.created_at else None,
                 'updated_at': bug.updated_at.isoformat() + 'Z' if bug.updated_at else None,
                 'comments': comments_data
