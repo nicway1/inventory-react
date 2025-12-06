@@ -839,10 +839,10 @@ def get_feature_detail(feature_id):
                 'estimated_effort': feature.estimated_effort,
                 'business_value': feature.business_value,
                 'acceptance_criteria': feature.acceptance_criteria,
-                'technical_notes': feature.technical_notes,
+                'target_date': feature.target_date.isoformat() if feature.target_date else None,
                 'approval_requested_at': feature.approval_requested_at.isoformat() + 'Z' if feature.approval_requested_at else None,
                 'approved_at': feature.approved_at.isoformat() + 'Z' if feature.approved_at else None,
-                'completed_at': feature.completed_at.isoformat() + 'Z' if feature.completed_at else None,
+                'completed_at': feature.completed_date.isoformat() + 'Z' if feature.completed_date else None,
                 'created_at': feature.created_at.isoformat() + 'Z' if feature.created_at else None,
                 'updated_at': feature.updated_at.isoformat() + 'Z' if feature.updated_at else None,
                 'comments': comments_data
