@@ -2,9 +2,12 @@
 Ship24 Parcel Tracking Utility
 Scrapes tracking information from ship24.com using Playwright when available,
 falls back to providing tracking links when Playwright is not installed.
+
+Supports PythonAnywhere deployment with pre-installed Chromium.
 """
 
 import asyncio
+import os
 from typing import Dict, List, Optional
 from datetime import datetime
 import logging
@@ -19,6 +22,33 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     logger.warning("Playwright not available - tracking will use fallback mode with tracking links")
+
+
+def is_pythonanywhere() -> bool:
+    """Check if running on PythonAnywhere"""
+    # PythonAnywhere sets specific environment variables
+    return os.path.exists('/usr/bin/chromium') and (
+        'PYTHONANYWHERE_SITE' in os.environ or
+        'pythonanywhere' in os.environ.get('HOME', '').lower() or
+        os.path.exists('/home/.pythonanywhere')
+    )
+
+
+def get_browser_launch_options() -> Dict:
+    """Get browser launch options based on environment"""
+    if is_pythonanywhere():
+        # PythonAnywhere specific settings - use pre-installed Chromium
+        return {
+            'executable_path': '/usr/bin/chromium',
+            'headless': True,
+            'args': ['--disable-gpu', '--no-sandbox', '--headless']
+        }
+    else:
+        # Local/other environment settings
+        return {
+            'headless': True,
+            'args': ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        }
 
 
 class Ship24Tracker:
@@ -151,10 +181,9 @@ class Ship24Tracker:
             from playwright.async_api import async_playwright
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-                )
+                # Get browser launch options (PythonAnywhere compatible)
+                launch_options = get_browser_launch_options()
+                browser = await p.chromium.launch(**launch_options)
                 context = await browser.new_context(
                     user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     viewport={'width': 1920, 'height': 1080}
@@ -511,10 +540,9 @@ class Ship24Tracker:
             from playwright.async_api import async_playwright
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-                )
+                # Get browser launch options (PythonAnywhere compatible)
+                launch_options = get_browser_launch_options()
+                browser = await p.chromium.launch(**launch_options)
                 context = await browser.new_context(
                     user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
                     viewport={'width': 390, 'height': 844}
@@ -662,10 +690,9 @@ class Ship24Tracker:
             from playwright.async_api import async_playwright
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-                )
+                # Get browser launch options (PythonAnywhere compatible)
+                launch_options = get_browser_launch_options()
+                browser = await p.chromium.launch(**launch_options)
                 # Use stealth mode with realistic browser settings
                 context = await browser.new_context(
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
