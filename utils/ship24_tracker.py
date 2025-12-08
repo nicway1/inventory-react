@@ -34,6 +34,15 @@ def is_pythonanywhere() -> bool:
     )
 
 
+def get_proxy_config() -> Optional[Dict]:
+    """Get proxy configuration from environment variable"""
+    proxy_url = os.environ.get('TRACKING_PROXY_URL')
+    if proxy_url:
+        # Support format: http://user:pass@host:port or http://host:port
+        return {'server': proxy_url}
+    return None
+
+
 def get_browser_launch_options() -> Dict:
     """Get browser launch options based on environment"""
     if is_pythonanywhere():
@@ -158,10 +167,11 @@ class Ship24Tracker:
                 result['tracking_links'] = self._get_all_tracking_links(tracking_number)
                 return result
 
-        # If Playwright is not available OR running on PythonAnywhere, skip directly to fallback
+        # If Playwright is not available OR running on PythonAnywhere without proxy, skip directly to fallback
         # PythonAnywhere's datacenter IPs are blocked by CloudFront/tracking sites
-        if not PLAYWRIGHT_AVAILABLE or is_pythonanywhere():
-            reason = "PythonAnywhere (sites block datacenter IPs)" if is_pythonanywhere() else "Playwright not available"
+        proxy_config = get_proxy_config()
+        if not PLAYWRIGHT_AVAILABLE or (is_pythonanywhere() and not proxy_config):
+            reason = "PythonAnywhere without proxy (sites block datacenter IPs)" if is_pythonanywhere() else "Playwright not available"
             logger.info(f"Skipping scraping ({reason}), returning tracking links for {tracking_number}")
             detected_carrier = carrier or self._detect_carrier(tracking_number) or 'Unknown'
             return {
@@ -186,10 +196,17 @@ class Ship24Tracker:
                 # Get browser launch options (PythonAnywhere compatible)
                 launch_options = get_browser_launch_options()
                 browser = await p.chromium.launch(**launch_options)
-                context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    viewport={'width': 1920, 'height': 1080}
-                )
+
+                # Build context options with optional proxy
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1920, 'height': 1080}
+                }
+                if proxy_config:
+                    context_options['proxy'] = proxy_config
+                    logger.info(f"Using proxy for Ship24: {proxy_config['server']}")
+
+                context = await browser.new_context(**context_options)
                 page = await context.new_page()
 
                 logger.info(f"Navigating to Ship24: {tracking_url}")
@@ -547,10 +564,18 @@ class Ship24Tracker:
                 # Get browser launch options (PythonAnywhere compatible)
                 launch_options = get_browser_launch_options()
                 browser = await p.chromium.launch(**launch_options)
-                context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                    viewport={'width': 390, 'height': 844}
-                )
+
+                # Build context options with optional proxy
+                proxy_config = get_proxy_config()
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                    'viewport': {'width': 390, 'height': 844}
+                }
+                if proxy_config:
+                    context_options['proxy'] = proxy_config
+                    logger.info(f"Using proxy for 17track: {proxy_config['server']}")
+
+                context = await browser.new_context(**context_options)
                 page = await context.new_page()
 
                 logger.info(f"Navigating to 17track: {tracking_url}")
@@ -699,13 +724,20 @@ class Ship24Tracker:
                 # Get browser launch options (PythonAnywhere compatible)
                 launch_options = get_browser_launch_options()
                 browser = await p.chromium.launch(**launch_options)
-                # Use stealth mode with realistic browser settings
-                context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    viewport={'width': 1366, 'height': 768},
-                    locale='en-US',
-                    timezone_id='America/New_York'
-                )
+
+                # Build context options with optional proxy
+                proxy_config = get_proxy_config()
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1366, 'height': 768},
+                    'locale': 'en-US',
+                    'timezone_id': 'America/New_York'
+                }
+                if proxy_config:
+                    context_options['proxy'] = proxy_config
+                    logger.info(f"Using proxy for TrackingMore: {proxy_config['server']}")
+
+                context = await browser.new_context(**context_options)
                 page = await context.new_page()
 
                 # Add stealth scripts to avoid detection
