@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    /* User Profile Card */
+    .user-profile-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid #dddbda;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .user-avatar-large {
+        width: 6rem;
+        height: 6rem;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0176d3, #014486);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+
+    .user-info h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #080707;
+        margin-bottom: 0.25rem;
+    }
+
+    .user-info p {
+        color: #706e6b;
+        margin-bottom: 0.5rem;
+    }
+
+    .user-meta {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .user-meta-item {
+        text-align: center;
+    }
+
+    .user-meta-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #0176d3;
+    }
+
+    .user-meta-label {
+        font-size: 0.75rem;
+        color: #706e6b;
+        text-transform: uppercase;
+    }
+
+    /* Stats Cards */
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-stat-card {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dddbda;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sf-stat-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .sf-stat-icon.green { background: #d4f5e9; color: #0a8f52; }
+    .sf-stat-icon.blue { background: #d8edff; color: #0176d3; }
+    .sf-stat-icon.purple { background: #ede4fa; color: #7b2dcd; }
+    .sf-stat-icon.orange { background: #ffecd4; color: #d16a00; }
+
+    .sf-stat-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .sf-stat-label {
+        font-size: 0.75rem;
+        color: #706e6b;
+        text-transform: uppercase;
+    }
+
+    /* Cards */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid #dddbda;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Table */
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table th {
+        text-align: left;
+        padding: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #706e6b;
+        text-transform: uppercase;
+        border-bottom: 1px solid #dddbda;
+        background: #f3f3f3;
+    }
+
+    .sf-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f3f3f3;
+        font-size: 0.875rem;
+    }
+
+    .sf-table tr:hover {
+        background: #f9f9f9;
+    }
+
+    .sf-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .sf-badge-success { background: #d4f5e9; color: #0a8f52; }
+    .sf-badge-warning { background: #ffecd4; color: #d16a00; }
+    .sf-badge-info { background: #d8edff; color: #0176d3; }
+    .sf-badge-gray { background: #f3f3f3; color: #706e6b; }
+
+    /* Timeline */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dddbda;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1.5rem;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -1.5rem;
+        top: 0.25rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background: #0176d3;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #0176d3;
+    }
+
+    .timeline-time {
+        font-size: 0.75rem;
+        color: #706e6b;
+        margin-bottom: 0.25rem;
+    }
+
+    .timeline-content {
+        background: #f3f3f3;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+    }
+
+    .timeline-title {
+        font-weight: 600;
+        color: #080707;
+        margin-bottom: 0.25rem;
+    }
+
+    .timeline-description {
+        font-size: 0.875rem;
+        color: #706e6b;
+    }
+
+    /* Grid Layout */
+    .sf-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .sf-grid-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 1024px) {
+        .sf-grid-2 {
+            grid-template-columns: 1fr;
+        }
+        .user-profile-card {
+            flex-direction: column;
+            text-align: center;
+        }
+        .user-meta {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">
+                <i class="fas fa-user"></i> User Activity: {{ user.username }}
+            </h1>
+            <div>
+                <a href="{{ url_for('development.user_analytics') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Analytics
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- User Profile Card -->
+        <div class="user-profile-card">
+            <div class="user-avatar-large">
+                {{ user.username[0]|upper }}
+            </div>
+            <div class="user-info">
+                <h2>{{ user.username }}</h2>
+                <p>{{ user.email }}</p>
+                <p>
+                    <span class="sf-badge sf-badge-info">{{ user.user_type.value if user.user_type else 'User' }}</span>
+                    {% if user.company %}
+                        <span class="sf-badge sf-badge-gray">{{ user.company.name }}</span>
+                    {% endif %}
+                </p>
+                <div class="user-meta">
+                    <div class="user-meta-item">
+                        <div class="user-meta-value">{{ total_sessions }}</div>
+                        <div class="user-meta-label">Sessions (30d)</div>
+                    </div>
+                    <div class="user-meta-item">
+                        <div class="user-meta-value">{{ total_duration }}</div>
+                        <div class="user-meta-label">Total Time</div>
+                    </div>
+                    <div class="user-meta-item">
+                        <div class="user-meta-value">{{ avg_duration }}</div>
+                        <div class="user-meta-label">Avg Session</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="sf-stats-grid">
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon blue">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ total_sessions }}</div>
+                    <div class="sf-stat-label">Total Sessions</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon green">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ total_duration }}</div>
+                    <div class="sf-stat-label">Total Time</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon purple">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ avg_duration }}</div>
+                    <div class="sf-stat-label">Average Session</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon orange">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ activities|length }}</div>
+                    <div class="sf-stat-label">Activities</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sf-grid sf-grid-2">
+            <!-- Session History -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title"><i class="fas fa-history"></i> Session History (Last 30 Days)</span>
+                </div>
+                <div class="sf-card-body" style="padding: 0; max-height: 500px; overflow-y: auto;">
+                    <table class="sf-table">
+                        <thead>
+                            <tr>
+                                <th>Login Time</th>
+                                <th>Duration</th>
+                                <th>Device</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in sessions %}
+                            <tr>
+                                <td>{{ session.login_at.strftime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
+                                <td>{{ session.duration_formatted }}</td>
+                                <td>
+                                    {% if session.device_type == 'mobile' %}
+                                        <i class="fas fa-mobile-alt"></i>
+                                    {% elif session.device_type == 'tablet' %}
+                                        <i class="fas fa-tablet-alt"></i>
+                                    {% else %}
+                                        <i class="fas fa-desktop"></i>
+                                    {% endif %}
+                                    {{ session.browser or 'Unknown' }}
+                                </td>
+                                <td>
+                                    {% if session.is_currently_active %}
+                                        <span class="sf-badge sf-badge-success"><i class="fas fa-circle"></i> Active</span>
+                                    {% elif session.logout_at %}
+                                        <span class="sf-badge sf-badge-gray">Logged Out</span>
+                                    {% else %}
+                                        <span class="sf-badge sf-badge-warning">Timeout</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No sessions found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title"><i class="fas fa-stream"></i> Recent Activities</span>
+                </div>
+                <div class="sf-card-body" style="max-height: 500px; overflow-y: auto;">
+                    {% if activities %}
+                    <div class="timeline">
+                        {% for activity in activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-time">
+                                {{ activity.created_at.strftime('%Y-%m-%d %H:%M') if activity.created_at else '-' }}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">{{ activity.type }}</div>
+                                <div class="timeline-description">{{ activity.content }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>No activities found</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Device & Browser Info -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <span class="sf-card-title"><i class="fas fa-info-circle"></i> Session Details</span>
+            </div>
+            <div class="sf-card-body" style="padding: 0;">
+                <table class="sf-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Login</th>
+                            <th>Logout</th>
+                            <th>Duration</th>
+                            <th>IP Address</th>
+                            <th>Browser</th>
+                            <th>OS</th>
+                            <th>Device</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions[:20] %}
+                        <tr>
+                            <td>{{ session.login_at.strftime('%Y-%m-%d') if session.login_at else '-' }}</td>
+                            <td>{{ session.login_at.strftime('%H:%M:%S') if session.login_at else '-' }}</td>
+                            <td>{{ session.logout_at.strftime('%H:%M:%S') if session.logout_at else '-' }}</td>
+                            <td>{{ session.duration_formatted }}</td>
+                            <td><code>{{ session.ip_address or '-' }}</code></td>
+                            <td>{{ session.browser or 'Unknown' }}</td>
+                            <td>{{ session.os or 'Unknown' }}</td>
+                            <td>{{ session.device_type or 'Unknown' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No session data</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

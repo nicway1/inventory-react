@@ -1,0 +1,816 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Salesforce-style CSS */
+    .sf-container {
+        background: #f3f3f3;
+        min-height: calc(100vh - 64px);
+    }
+
+    .sf-header {
+        background: white;
+        border-bottom: 3px solid #0176d3;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sf-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #080707;
+    }
+
+    .sf-button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sf-button-primary {
+        background: #0176d3;
+        color: white;
+    }
+
+    .sf-button-primary:hover {
+        background: #014486;
+    }
+
+    .sf-button-secondary {
+        background: white;
+        color: #0176d3;
+        border: 1px solid #dddbda;
+    }
+
+    .sf-button-secondary:hover {
+        background: #f3f3f3;
+    }
+
+    /* Stats Cards */
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-stat-card {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dddbda;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sf-stat-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .sf-stat-icon.green { background: #d4f5e9; color: #0a8f52; }
+    .sf-stat-icon.blue { background: #d8edff; color: #0176d3; }
+    .sf-stat-icon.purple { background: #ede4fa; color: #7b2dcd; }
+    .sf-stat-icon.orange { background: #ffecd4; color: #d16a00; }
+    .sf-stat-icon.red { background: #ffd6d6; color: #c53535; }
+
+    .sf-stat-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .sf-stat-label {
+        font-size: 0.75rem;
+        color: #706e6b;
+        text-transform: uppercase;
+    }
+
+    /* Cards */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid #dddbda;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dddbda;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Grid Layout */
+    .sf-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .sf-grid-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .sf-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    @media (max-width: 1024px) {
+        .sf-grid-2, .sf-grid-3 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Active Users */
+    .active-user-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        transition: background 0.2s;
+    }
+
+    .active-user-item:hover {
+        background: #f3f3f3;
+    }
+
+    .active-user-avatar {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        background: #0176d3;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .active-user-info {
+        flex: 1;
+    }
+
+    .active-user-name {
+        font-weight: 600;
+        color: #080707;
+    }
+
+    .active-user-meta {
+        font-size: 0.75rem;
+        color: #706e6b;
+    }
+
+    .online-indicator {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: #2e844a;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Table */
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table th {
+        text-align: left;
+        padding: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #706e6b;
+        text-transform: uppercase;
+        border-bottom: 1px solid #dddbda;
+        background: #f3f3f3;
+    }
+
+    .sf-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f3f3f3;
+        font-size: 0.875rem;
+    }
+
+    .sf-table tr:hover {
+        background: #f9f9f9;
+    }
+
+    .sf-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .sf-badge-success { background: #d4f5e9; color: #0a8f52; }
+    .sf-badge-warning { background: #ffecd4; color: #d16a00; }
+    .sf-badge-info { background: #d8edff; color: #0176d3; }
+    .sf-badge-gray { background: #f3f3f3; color: #706e6b; }
+
+    /* Charts */
+    .chart-container {
+        position: relative;
+        height: 250px;
+    }
+
+    /* Pie Chart Stats */
+    .pie-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .pie-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: #f3f3f3;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .pie-stat-color {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 0.125rem;
+    }
+
+    /* Bar Chart */
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        height: 200px;
+        padding: 1rem 0;
+    }
+
+    .bar-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .bar {
+        width: 100%;
+        max-width: 60px;
+        background: linear-gradient(180deg, #0176d3 0%, #014486 100%);
+        border-radius: 0.25rem 0.25rem 0 0;
+        transition: height 0.3s ease;
+        min-height: 4px;
+    }
+
+    .bar-label {
+        font-size: 0.65rem;
+        color: #706e6b;
+        text-align: center;
+    }
+
+    .bar-value {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #080707;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <div class="sf-header">
+        <div class="sf-page-header">
+            <h1 class="sf-page-title">User Analytics</h1>
+            <div>
+                <a href="{{ url_for('development.dashboard') }}" class="sf-button sf-button-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dev Dashboard
+                </a>
+                <button onclick="refreshData()" class="sf-button sf-button-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4">
+        <!-- Stats Cards -->
+        <div class="sf-stats-grid">
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon green">
+                    <i class="fas fa-circle"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value" id="active-count">{{ active_sessions|length }}</div>
+                    <div class="sf-stat-label">Currently Online</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon blue">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ today_logins }}</div>
+                    <div class="sf-stat-label">Today's Logins</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon purple">
+                    <i class="fas fa-calendar-week"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ week_logins }}</div>
+                    <div class="sf-stat-label">This Week</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon orange">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ unique_users_week }}</div>
+                    <div class="sf-stat-label">Unique Users (Week)</div>
+                </div>
+            </div>
+            <div class="sf-stat-card">
+                <div class="sf-stat-icon blue">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div>
+                    <div class="sf-stat-value">{{ total_sessions }}</div>
+                    <div class="sf-stat-label">Total Sessions</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sf-grid sf-grid-3">
+            <!-- Currently Active Users -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title">
+                        <i class="fas fa-circle text-success"></i> Currently Online
+                    </span>
+                    <span class="sf-badge sf-badge-success" id="online-badge">{{ active_sessions|length }} users</span>
+                </div>
+                <div class="sf-card-body" id="active-users-list">
+                    {% if active_sessions %}
+                        {% for session in active_sessions %}
+                        <div class="active-user-item">
+                            <div class="active-user-avatar">
+                                {{ session.user.username[0]|upper if session.user else '?' }}
+                            </div>
+                            <div class="active-user-info">
+                                <div class="active-user-name">{{ session.user.username if session.user else 'Unknown' }}</div>
+                                <div class="active-user-meta">
+                                    {{ session.duration_formatted }} • {{ session.device_type or 'Unknown' }}
+                                </div>
+                            </div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-user-slash fa-2x mb-2"></i>
+                            <p>No active users</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Sessions by Day Chart -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title">Sessions (Last 7 Days)</span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="chart-container">
+                        <canvas id="sessionsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sessions by Hour Chart -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title">Today's Activity (by Hour)</span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="chart-container">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sf-grid sf-grid-3">
+            <!-- Device Breakdown -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title"><i class="fas fa-laptop"></i> Devices</span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="deviceChart"></canvas>
+                    </div>
+                    <div class="pie-stats">
+                        {% for stat in device_stats %}
+                        <div class="pie-stat-item">
+                            <span class="pie-stat-color" style="background: {{ ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd'][loop.index0 % 4] }};"></span>
+                            {{ stat[0] or 'Unknown' }}: {{ stat[1] }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Browser Breakdown -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title"><i class="fas fa-globe"></i> Browsers</span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="browserChart"></canvas>
+                    </div>
+                    <div class="pie-stats">
+                        {% for stat in browser_stats %}
+                        <div class="pie-stat-item">
+                            <span class="pie-stat-color" style="background: {{ ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd', '#c53535'][loop.index0 % 5] }};"></span>
+                            {{ stat[0] or 'Unknown' }}: {{ stat[1] }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- OS Breakdown -->
+            <div class="sf-card">
+                <div class="sf-card-header">
+                    <span class="sf-card-title"><i class="fas fa-desktop"></i> Operating Systems</span>
+                </div>
+                <div class="sf-card-body">
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="osChart"></canvas>
+                    </div>
+                    <div class="pie-stats">
+                        {% for stat in os_stats %}
+                        <div class="pie-stat-item">
+                            <span class="pie-stat-color" style="background: {{ ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd', '#c53535'][loop.index0 % 5] }};"></span>
+                            {{ stat[0] or 'Unknown' }}: {{ stat[1] }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Users -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <span class="sf-card-title"><i class="fas fa-trophy"></i> Most Active Users (Last 30 Days)</span>
+            </div>
+            <div class="sf-card-body" style="padding: 0;">
+                <table class="sf-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>User</th>
+                            <th>Sessions</th>
+                            <th>Total Time</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in sessions_per_user %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}
+                                    <span style="color: gold;"><i class="fas fa-trophy"></i></span>
+                                {% elif loop.index == 2 %}
+                                    <span style="color: silver;"><i class="fas fa-medal"></i></span>
+                                {% elif loop.index == 3 %}
+                                    <span style="color: #cd7f32;"><i class="fas fa-medal"></i></span>
+                                {% else %}
+                                    {{ loop.index }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ user[0] }}</strong>
+                            </td>
+                            <td>
+                                <span class="sf-badge sf-badge-info">{{ user[1] }} sessions</span>
+                            </td>
+                            <td>
+                                {% set duration = user[2]|int if user[2] else 0 %}
+                                {% set hours = duration // 3600 %}
+                                {% set minutes = (duration % 3600) // 60 %}
+                                {{ hours }}h {{ minutes }}m
+                            </td>
+                            <td>
+                                <a href="{{ url_for('development.user_activity_detail', user_id=loop.index) }}" class="sf-button sf-button-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                    View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Sessions -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <span class="sf-card-title"><i class="fas fa-history"></i> Recent Sessions</span>
+                <select id="userFilter" class="form-select form-select-sm" style="width: auto;" onchange="filterSessions()">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sf-card-body" style="padding: 0; max-height: 500px; overflow-y: auto;">
+                <table class="sf-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Login Time</th>
+                            <th>Duration</th>
+                            <th>Device</th>
+                            <th>Browser / OS</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-table">
+                        {% for session in recent_sessions %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('development.user_activity_detail', user_id=session.user_id) }}">
+                                    <strong>{{ session.user.username if session.user else 'Unknown' }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ session.login_at.strftime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
+                            <td>{{ session.duration_formatted }}</td>
+                            <td>
+                                {% if session.device_type == 'mobile' %}
+                                    <i class="fas fa-mobile-alt"></i>
+                                {% elif session.device_type == 'tablet' %}
+                                    <i class="fas fa-tablet-alt"></i>
+                                {% else %}
+                                    <i class="fas fa-desktop"></i>
+                                {% endif %}
+                                {{ session.device_type or 'Unknown' }}
+                            </td>
+                            <td>{{ session.browser or 'Unknown' }} / {{ session.os or 'Unknown' }}</td>
+                            <td><code>{{ session.ip_address or '-' }}</code></td>
+                            <td>
+                                {% if session.is_currently_active %}
+                                    <span class="sf-badge sf-badge-success"><i class="fas fa-circle"></i> Active</span>
+                                {% elif session.logout_at %}
+                                    <span class="sf-badge sf-badge-gray">Logged Out</span>
+                                {% else %}
+                                    <span class="sf-badge sf-badge-warning">Timeout</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sessions by Day Chart
+const sessionsCtx = document.getElementById('sessionsChart').getContext('2d');
+new Chart(sessionsCtx, {
+    type: 'bar',
+    data: {
+        labels: [{% for day in sessions_by_day %}'{{ day.date }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Sessions',
+            data: [{% for day in sessions_by_day %}{{ day.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: '#0176d3',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+    }
+});
+
+// Hourly Chart
+const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+new Chart(hourlyCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for hour in sessions_by_hour %}'{{ hour.hour }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Sessions',
+            data: [{% for hour in sessions_by_hour %}{{ hour.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#0176d3',
+            backgroundColor: 'rgba(1, 118, 211, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+    }
+});
+
+// Device Chart
+const deviceCtx = document.getElementById('deviceChart').getContext('2d');
+new Chart(deviceCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [{% for stat in device_stats %}'{{ stat[0] or "Unknown" }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for stat in device_stats %}{{ stat[1] }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Browser Chart
+const browserCtx = document.getElementById('browserChart').getContext('2d');
+new Chart(browserCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [{% for stat in browser_stats %}'{{ stat[0] or "Unknown" }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for stat in browser_stats %}{{ stat[1] }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd', '#c53535']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// OS Chart
+const osCtx = document.getElementById('osChart').getContext('2d');
+new Chart(osCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [{% for stat in os_stats %}'{{ stat[0] or "Unknown" }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for stat in os_stats %}{{ stat[1] }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: ['#0176d3', '#2e844a', '#d16a00', '#7b2dcd', '#c53535']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Refresh active users
+function refreshActiveUsers() {
+    fetch('{{ url_for("development.api_active_users") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('active-count').textContent = data.active_count;
+                document.getElementById('online-badge').textContent = data.active_count + ' users';
+
+                const list = document.getElementById('active-users-list');
+                if (data.users.length > 0) {
+                    list.innerHTML = data.users.map(user => `
+                        <div class="active-user-item">
+                            <div class="active-user-avatar">${user.username[0].toUpperCase()}</div>
+                            <div class="active-user-info">
+                                <div class="active-user-name">${user.username}</div>
+                                <div class="active-user-meta">${user.duration} • ${user.last_page || 'Unknown'}</div>
+                            </div>
+                            <div class="online-indicator"></div>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-user-slash fa-2x mb-2"></i>
+                            <p>No active users</p>
+                        </div>
+                    `;
+                }
+            }
+        });
+}
+
+function refreshData() {
+    location.reload();
+}
+
+function filterSessions() {
+    const userId = document.getElementById('userFilter').value;
+    const url = new URL('{{ url_for("development.api_sessions") }}', window.location.origin);
+    if (userId) url.searchParams.set('user_id', userId);
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const tbody = document.getElementById('sessions-table');
+                tbody.innerHTML = data.sessions.map(s => `
+                    <tr>
+                        <td><a href="/development/analytics/user/${s.user_id}"><strong>${s.user_name || 'Unknown'}</strong></a></td>
+                        <td>${s.login_at ? new Date(s.login_at).toLocaleString() : '-'}</td>
+                        <td>${s.duration}</td>
+                        <td>
+                            <i class="fas fa-${s.device_type === 'mobile' ? 'mobile-alt' : s.device_type === 'tablet' ? 'tablet-alt' : 'desktop'}"></i>
+                            ${s.device_type || 'Unknown'}
+                        </td>
+                        <td>${s.browser || 'Unknown'} / ${s.os || 'Unknown'}</td>
+                        <td><code>${s.ip_address || '-'}</code></td>
+                        <td>
+                            ${s.is_currently_active
+                                ? '<span class="sf-badge sf-badge-success"><i class="fas fa-circle"></i> Active</span>'
+                                : s.logout_at
+                                    ? '<span class="sf-badge sf-badge-gray">Logged Out</span>'
+                                    : '<span class="sf-badge sf-badge-warning">Timeout</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        });
+}
+
+// Auto-refresh active users every 30 seconds
+setInterval(refreshActiveUsers, 30000);
+</script>
+{% endblock %}

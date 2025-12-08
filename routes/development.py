@@ -3360,3 +3360,284 @@ def get_work_plan(user_id):
         return jsonify({'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+# ============================================
+# USER ANALYTICS ROUTES
+# ============================================
+
+@development_bp.route('/analytics')
+@login_required
+@permission_required('can_access_development')
+def user_analytics():
+    """Developer analytics dashboard showing user activity and sessions"""
+    from models.user_session import UserSession
+    from models.activity import Activity
+    from datetime import timedelta
+
+    db_session = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        today = now.date()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        # Get all users
+        users = db_session.query(User).order_by(User.username).all()
+
+        # Current active sessions (last 15 minutes activity)
+        active_threshold = now - timedelta(minutes=15)
+        active_sessions = db_session.query(UserSession).filter(
+            UserSession.is_active == True,
+            UserSession.last_activity_at >= active_threshold
+        ).all()
+
+        # Today's logins
+        today_start = datetime.combine(today, datetime.min.time())
+        today_logins = db_session.query(UserSession).filter(
+            UserSession.login_at >= today_start
+        ).count()
+
+        # This week's logins
+        week_logins = db_session.query(UserSession).filter(
+            UserSession.login_at >= week_ago
+        ).count()
+
+        # Total sessions
+        total_sessions = db_session.query(UserSession).count()
+
+        # Unique users this week
+        unique_users_week = db_session.query(func.count(func.distinct(UserSession.user_id))).filter(
+            UserSession.login_at >= week_ago
+        ).scalar() or 0
+
+        # Recent sessions (last 50)
+        recent_sessions = db_session.query(UserSession).options(
+            joinedload(UserSession.user)
+        ).order_by(desc(UserSession.login_at)).limit(50).all()
+
+        # Sessions per user (top 10 this month)
+        sessions_per_user = db_session.query(
+            User.username,
+            func.count(UserSession.id).label('session_count'),
+            func.sum(
+                func.coalesce(
+                    func.extract('epoch', UserSession.logout_at) - func.extract('epoch', UserSession.login_at),
+                    func.extract('epoch', func.now()) - func.extract('epoch', UserSession.login_at)
+                )
+            ).label('total_duration')
+        ).join(UserSession, User.id == UserSession.user_id).filter(
+            UserSession.login_at >= month_ago
+        ).group_by(User.id, User.username).order_by(desc('session_count')).limit(10).all()
+
+        # Sessions by day (last 7 days)
+        sessions_by_day = []
+        for i in range(6, -1, -1):
+            day = today - timedelta(days=i)
+            day_start = datetime.combine(day, datetime.min.time())
+            day_end = datetime.combine(day, datetime.max.time())
+            count = db_session.query(UserSession).filter(
+                UserSession.login_at >= day_start,
+                UserSession.login_at <= day_end
+            ).count()
+            sessions_by_day.append({
+                'date': day.strftime('%a %m/%d'),
+                'count': count
+            })
+
+        # Sessions by hour (today)
+        sessions_by_hour = []
+        for hour in range(24):
+            hour_start = today_start + timedelta(hours=hour)
+            hour_end = hour_start + timedelta(hours=1)
+            count = db_session.query(UserSession).filter(
+                UserSession.login_at >= hour_start,
+                UserSession.login_at < hour_end
+            ).count()
+            sessions_by_hour.append({
+                'hour': f'{hour:02d}:00',
+                'count': count
+            })
+
+        # Device breakdown
+        device_stats = db_session.query(
+            UserSession.device_type,
+            func.count(UserSession.id).label('count')
+        ).filter(
+            UserSession.login_at >= month_ago
+        ).group_by(UserSession.device_type).all()
+
+        # Browser breakdown
+        browser_stats = db_session.query(
+            UserSession.browser,
+            func.count(UserSession.id).label('count')
+        ).filter(
+            UserSession.login_at >= month_ago
+        ).group_by(UserSession.browser).all()
+
+        # OS breakdown
+        os_stats = db_session.query(
+            UserSession.os,
+            func.count(UserSession.id).label('count')
+        ).filter(
+            UserSession.login_at >= month_ago
+        ).group_by(UserSession.os).all()
+
+        return render_template('development/analytics.html',
+            users=users,
+            active_sessions=active_sessions,
+            today_logins=today_logins,
+            week_logins=week_logins,
+            total_sessions=total_sessions,
+            unique_users_week=unique_users_week,
+            recent_sessions=recent_sessions,
+            sessions_per_user=sessions_per_user,
+            sessions_by_day=sessions_by_day,
+            sessions_by_hour=sessions_by_hour,
+            device_stats=device_stats,
+            browser_stats=browser_stats,
+            os_stats=os_stats
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading analytics: {str(e)}")
+        flash('Error loading analytics dashboard', 'error')
+        return redirect(url_for('development.dashboard'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/analytics/api/sessions')
+@login_required
+@permission_required('can_access_development')
+def api_sessions():
+    """API endpoint for session data"""
+    from models.user_session import UserSession
+    from datetime import timedelta
+
+    db_session = SessionLocal()
+    try:
+        # Filter parameters
+        user_id = request.args.get('user_id', type=int)
+        days = request.args.get('days', 7, type=int)
+        limit = request.args.get('limit', 100, type=int)
+
+        query = db_session.query(UserSession).options(joinedload(UserSession.user))
+
+        if user_id:
+            query = query.filter(UserSession.user_id == user_id)
+
+        if days:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            query = query.filter(UserSession.login_at >= cutoff)
+
+        sessions = query.order_by(desc(UserSession.login_at)).limit(limit).all()
+
+        return jsonify({
+            'success': True,
+            'sessions': [s.to_dict() for s in sessions]
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching sessions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/analytics/api/active-users')
+@login_required
+@permission_required('can_access_development')
+def api_active_users():
+    """API endpoint for currently active users"""
+    from models.user_session import UserSession
+    from datetime import timedelta
+
+    db_session = SessionLocal()
+    try:
+        active_threshold = datetime.utcnow() - timedelta(minutes=15)
+        active_sessions = db_session.query(UserSession).options(
+            joinedload(UserSession.user)
+        ).filter(
+            UserSession.is_active == True,
+            UserSession.last_activity_at >= active_threshold
+        ).all()
+
+        return jsonify({
+            'success': True,
+            'active_count': len(active_sessions),
+            'users': [{
+                'user_id': s.user_id,
+                'username': s.user.username if s.user else 'Unknown',
+                'last_activity': s.last_activity_at.isoformat() if s.last_activity_at else None,
+                'last_page': s.last_page,
+                'duration': s.duration_formatted
+            } for s in active_sessions]
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching active users: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/analytics/user/<int:user_id>')
+@login_required
+@permission_required('can_access_development')
+def user_activity_detail(user_id):
+    """Detailed activity view for a specific user"""
+    from models.user_session import UserSession
+    from models.activity import Activity
+    from datetime import timedelta
+
+    db_session = SessionLocal()
+    try:
+        user = db_session.query(User).filter_by(id=user_id).first()
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('development.user_analytics'))
+
+        now = datetime.utcnow()
+        month_ago = now - timedelta(days=30)
+
+        # User's sessions (last 30 days)
+        sessions = db_session.query(UserSession).filter(
+            UserSession.user_id == user_id,
+            UserSession.login_at >= month_ago
+        ).order_by(desc(UserSession.login_at)).all()
+
+        # Calculate stats
+        total_sessions = len(sessions)
+        total_duration = sum(s.duration_seconds for s in sessions)
+        avg_duration = total_duration // total_sessions if total_sessions > 0 else 0
+
+        # Format total duration
+        hours = total_duration // 3600
+        minutes = (total_duration % 3600) // 60
+        total_duration_formatted = f"{hours}h {minutes}m"
+
+        avg_hours = avg_duration // 3600
+        avg_minutes = (avg_duration % 3600) // 60
+        avg_duration_formatted = f"{avg_hours}h {avg_minutes}m" if avg_hours > 0 else f"{avg_minutes}m"
+
+        # Recent activities
+        activities = db_session.query(Activity).filter(
+            Activity.user_id == user_id
+        ).order_by(desc(Activity.created_at)).limit(50).all()
+
+        return render_template('development/user_activity.html',
+            user=user,
+            sessions=sessions,
+            total_sessions=total_sessions,
+            total_duration=total_duration_formatted,
+            avg_duration=avg_duration_formatted,
+            activities=activities
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading user activity: {str(e)}")
+        flash('Error loading user activity', 'error')
+        return redirect(url_for('development.user_analytics'))
+    finally:
+        db_session.close()

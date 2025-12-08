@@ -49,6 +49,7 @@ from models.developer_work_plan import DeveloperWorkPlan
 from models.weekly_meeting import WeeklyMeeting
 from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority, ActionItemComment
 from models.dev_blog_entry import DevBlogEntry
+from models.user_session import UserSession, parse_user_agent
 
 __all__ = [
     "Base",
@@ -123,5 +124,7 @@ __all__ = [
     "ActionItemStatus",
     "ActionItemPriority",
     "ActionItemComment",
-    "DevBlogEntry"
+    "DevBlogEntry",
+    "UserSession",
+    "parse_user_agent"
 ]

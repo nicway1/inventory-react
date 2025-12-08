@@ -8,6 +8,7 @@ from datetime import datetime
 from utils.timezone_utils import singapore_now_as_utc
 from models.user import User
 from models.permission import Permission
+from models.user_session import UserSession, parse_user_agent
 from database import SessionLocal
 import logging
 
@@ -49,9 +50,31 @@ def login():
                     session['user_type'] = user.user_type.value
                     session['username'] = user.username
                     session['user_theme'] = user.theme_preference or 'light'
-                    
+
                     # Update last login time
                     user.last_login = singapore_now_as_utc()
+
+                    # Create user session record for analytics
+                    try:
+                        ua_info = parse_user_agent(request.user_agent.string)
+                        user_session = UserSession(
+                            user_id=user.id,
+                            session_token=session.get('_id', str(user.id)),
+                            login_at=singapore_now_as_utc(),
+                            last_activity_at=singapore_now_as_utc(),
+                            ip_address=request.remote_addr,
+                            user_agent=request.user_agent.string[:500] if request.user_agent.string else None,
+                            device_type=ua_info['device_type'],
+                            browser=ua_info['browser'],
+                            os=ua_info['os'],
+                            is_active=True,
+                            pages_visited=1,
+                            last_page='login'
+                        )
+                        db.session.add(user_session)
+                        session['session_record_id'] = user_session.id
+                    except Exception as e:
+                        logger.warning(f"Failed to create session record: {str(e)}")
 
                     # Redirect to the next URL if provided, otherwise go to main index
                     next_url = request.form.get('next') or request.args.get('next')
@@ -69,6 +92,21 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    # End user session record for analytics
+    session_record_id = session.get('session_record_id')
+    if session_record_id:
+        try:
+            db = SessionLocal()
+            user_session = db.query(UserSession).filter_by(id=session_record_id).first()
+            if user_session:
+                user_session.logout_at = singapore_now_as_utc()
+                user_session.is_active = False
+                user_session.logout_reason = 'manual'
+                db.commit()
+            db.close()
+        except Exception as e:
+            logger.warning(f"Failed to end session record: {str(e)}")
+
     logout_user()
     session.clear()
     return redirect(url_for('auth.login'))
