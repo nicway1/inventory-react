@@ -299,6 +299,8 @@ class Ship24Tracker:
             lower_text = page_text.lower()
 
             logger.info(f"Ship24 page text length: {len(page_text)}")
+            # Debug: Log first 500 chars to see what content we're getting
+            logger.info(f"Ship24 page content preview: {page_text[:500] if page_text else 'EMPTY'}")
 
             # Check for "no tracking found" messages
             no_result_patterns = [
@@ -609,6 +611,8 @@ class Ship24Tracker:
             lower_text = page_text.lower()
 
             logger.info(f"17track page text length: {len(page_text)}")
+            # Debug: Log first 500 chars to see what content we're getting
+            logger.info(f"17track page content preview: {page_text[:500] if page_text else 'EMPTY'}")
 
             # Check for no results
             if 'not found' in lower_text or 'no result' in lower_text:
