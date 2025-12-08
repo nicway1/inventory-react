@@ -158,9 +158,11 @@ class Ship24Tracker:
                 result['tracking_links'] = self._get_all_tracking_links(tracking_number)
                 return result
 
-        # If Playwright is not available, skip directly to fallback
-        if not PLAYWRIGHT_AVAILABLE:
-            logger.info(f"Playwright not available, returning tracking links for {tracking_number}")
+        # If Playwright is not available OR running on PythonAnywhere, skip directly to fallback
+        # PythonAnywhere's datacenter IPs are blocked by CloudFront/tracking sites
+        if not PLAYWRIGHT_AVAILABLE or is_pythonanywhere():
+            reason = "PythonAnywhere (sites block datacenter IPs)" if is_pythonanywhere() else "Playwright not available"
+            logger.info(f"Skipping scraping ({reason}), returning tracking links for {tracking_number}")
             detected_carrier = carrier or self._detect_carrier(tracking_number) or 'Unknown'
             return {
                 'success': True,
@@ -173,7 +175,7 @@ class Ship24Tracker:
                 'last_updated': datetime.utcnow().isoformat(),
                 'tracking_url': tracking_url,
                 'tracking_links': self._get_all_tracking_links(tracking_number),
-                'message': 'Automatic tracking unavailable. Use the tracking links below to check status manually.',
+                'message': 'Click tracking links below to check status on carrier website.',
                 'source': 'fallback'
             }
 
