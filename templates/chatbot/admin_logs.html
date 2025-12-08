@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Chatbot Training Data{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Chatbot Training Data</h1>
+        <p class="mt-1 text-sm text-gray-600">View and export chat logs to improve the chatbot</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8" id="stats-cards">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-sm font-medium text-gray-500">Total Queries</div>
+            <div class="mt-1 text-2xl font-semibold text-gray-900" id="stat-total">-</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-sm font-medium text-gray-500">Answered</div>
+            <div class="mt-1 text-2xl font-semibold text-green-600" id="stat-answered">-</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-sm font-medium text-gray-500">Fallbacks (Unanswered)</div>
+            <div class="mt-1 text-2xl font-semibold text-red-600" id="stat-fallback">-</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-sm font-medium text-gray-500">Greetings</div>
+            <div class="mt-1 text-2xl font-semibold text-blue-600" id="stat-greeting">-</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-sm font-medium text-gray-500">Actions</div>
+            <div class="mt-1 text-2xl font-semibold text-purple-600" id="stat-action">-</div>
+        </div>
+    </div>
+
+    <!-- Top Unanswered Queries -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-4 py-3 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Top Unanswered Queries</h2>
+            <p class="text-sm text-gray-500">These queries triggered fallback responses - consider adding them to the knowledge base</p>
+        </div>
+        <div class="p-4" id="top-fallbacks">
+            <div class="text-gray-500 text-sm">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Search Query</label>
+                    <input type="text" id="filter-search" placeholder="Search queries..."
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Response Type</label>
+                    <select id="filter-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">All Types</option>
+                        <option value="answer">Answered</option>
+                        <option value="fallback">Fallback</option>
+                        <option value="greeting">Greeting</option>
+                        <option value="action_confirm">Action</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">From Date</label>
+                    <input type="date" id="filter-from"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">To Date</label>
+                    <input type="date" id="filter-to"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button onclick="loadLogs()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Filter
+                    </button>
+                    <button onclick="clearFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="mb-4 flex justify-end gap-2">
+        <a href="/chatbot/api/logs/export" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+            Export All (CSV)
+        </a>
+        <a href="/chatbot/api/logs/export?response_type=fallback" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">
+            Export Fallbacks Only
+        </a>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Query</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Response</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="logs-table">
+                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-gray-700">
+            Showing <span id="showing-from">0</span> to <span id="showing-to">0</span> of <span id="total-count">0</span> results
+        </div>
+        <div class="flex gap-2" id="pagination">
+        </div>
+    </div>
+</div>
+
+<style>
+    .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .type-answer { background: #d1fae5; color: #065f46; }
+    .type-fallback { background: #fee2e2; color: #991b1b; }
+    .type-greeting { background: #dbeafe; color: #1e40af; }
+    .type-action_confirm { background: #e9d5ff; color: #7c3aed; }
+    .type-error { background: #fef3c7; color: #92400e; }
+</style>
+
+<script>
+let currentPage = 1;
+const perPage = 50;
+
+function loadLogs(page = 1) {
+    currentPage = page;
+    const search = document.getElementById('filter-search').value;
+    const type = document.getElementById('filter-type').value;
+    const from = document.getElementById('filter-from').value;
+    const to = document.getElementById('filter-to').value;
+
+    const params = new URLSearchParams({
+        page: page,
+        per_page: perPage
+    });
+
+    if (search) params.append('search', search);
+    if (type) params.append('response_type', type);
+    if (from) params.append('date_from', from);
+    if (to) params.append('date_to', to);
+
+    fetch(`/chatbot/api/logs?${params}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                renderLogs(data.logs);
+                renderPagination(data.total, data.page, data.total_pages);
+                renderStats(data.stats);
+                renderTopFallbacks(data.top_fallbacks);
+            }
+        })
+        .catch(err => {
+            console.error('Error loading logs:', err);
+        });
+}
+
+function renderLogs(logs) {
+    const tbody = document.getElementById('logs-table');
+
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No logs found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = logs.map(log => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                ${new Date(log.created_at).toLocaleString()}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                ${log.user_name || 'Anonymous'}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-900">
+                <div class="max-w-xs truncate" title="${escapeHtml(log.query)}">
+                    ${escapeHtml(log.query)}
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm whitespace-nowrap">
+                <span class="type-badge type-${log.response_type}">${log.response_type}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">
+                <div class="max-w-md truncate" title="${escapeHtml(log.response || '')}">
+                    ${escapeHtml(log.response || '-')}
+                </div>
+                ${log.matched_question ? `<div class="text-xs text-gray-400 mt-1">Matched: ${escapeHtml(log.matched_question)}</div>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total_queries;
+    document.getElementById('stat-answered').textContent = stats.answer_count;
+    document.getElementById('stat-fallback').textContent = stats.fallback_count;
+    document.getElementById('stat-greeting').textContent = stats.greeting_count;
+    document.getElementById('stat-action').textContent = stats.action_count;
+}
+
+function renderTopFallbacks(fallbacks) {
+    const container = document.getElementById('top-fallbacks');
+
+    if (fallbacks.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 text-sm">No unanswered queries yet</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="space-y-2">
+            ${fallbacks.map(f => `
+                <div class="flex items-center justify-between p-2 bg-red-50 rounded">
+                    <span class="text-sm text-gray-800">${escapeHtml(f.query)}</span>
+                    <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">${f.count}x</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderPagination(total, page, totalPages) {
+    document.getElementById('showing-from').textContent = total === 0 ? 0 : (page - 1) * perPage + 1;
+    document.getElementById('showing-to').textContent = Math.min(page * perPage, total);
+    document.getElementById('total-count').textContent = total;
+
+    const container = document.getElementById('pagination');
+    let html = '';
+
+    if (page > 1) {
+        html += `<button onclick="loadLogs(${page - 1})" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Prev</button>`;
+    }
+
+    for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) {
+        const active = i === page ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300';
+        html += `<button onclick="loadLogs(${i})" class="px-3 py-1 rounded ${active}">${i}</button>`;
+    }
+
+    if (page < totalPages) {
+        html += `<button onclick="loadLogs(${page + 1})" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</button>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function clearFilters() {
+    document.getElementById('filter-search').value = '';
+    document.getElementById('filter-type').value = '';
+    document.getElementById('filter-from').value = '';
+    document.getElementById('filter-to').value = '';
+    loadLogs(1);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Load on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadLogs();
+});
+</script>
+{% endblock %}

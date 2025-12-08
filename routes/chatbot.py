@@ -3,13 +3,15 @@ Chatbot routes for help assistant
 Provides AI-like help for users navigating the application
 """
 
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, session
 from flask_login import login_required, current_user
 from database import SessionLocal
 from models.ticket import Ticket, TicketStatus, TicketPriority
 from models.custom_ticket_status import CustomTicketStatus
 from models.user import User
+from models.chat_log import ChatLog
 import re
+import uuid
 
 chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/chatbot')
 
@@ -461,6 +463,41 @@ def find_best_match(query):
     return None
 
 
+def log_chat_interaction(user_id, query, response, response_type, matched_question=None,
+                         match_score=None, action_type=None, session_id=None):
+    """Log a chat interaction to the database for training purposes"""
+    db_session = SessionLocal()
+    try:
+        # Get or create session ID
+        if not session_id:
+            session_id = session.get('chat_session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                session['chat_session_id'] = session_id
+
+        chat_log = ChatLog(
+            user_id=user_id,
+            session_id=session_id,
+            query=query,
+            response=response[:2000] if response and len(response) > 2000 else response,  # Truncate long responses
+            response_type=response_type,
+            matched_question=matched_question,
+            match_score=match_score,
+            action_type=action_type,
+            ip_address=request.remote_addr,
+            user_agent=request.user_agent.string[:500] if request.user_agent else None
+        )
+        db_session.add(chat_log)
+        db_session.commit()
+        return chat_log.id
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error logging chat: {e}")
+        return None
+    finally:
+        db_session.close()
+
+
 def get_suggested_questions(limit=5):
     """Get a list of suggested questions"""
     import random
@@ -481,6 +518,8 @@ def ask():
             "error": "Please enter a question"
         })
 
+    user_id = current_user.id if current_user else None
+
     # First, check if this is an action command
     action = parse_action(query)
     if action:
@@ -490,10 +529,12 @@ def ask():
             if action["action"] == "update_ticket_status":
                 ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
                 if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
                     return jsonify({
                         "success": True,
                         "type": "error",
-                        "answer": f"Ticket #{action['ticket_id']} not found."
+                        "answer": answer
                     })
 
                 # Check for custom status
@@ -506,6 +547,8 @@ def ask():
                 if custom_status:
                     status_display = custom_status.display_name
 
+                answer = f"Do you want to update **Ticket #{action['ticket_id']}** status to **{status_display}**?\n\nTicket: {ticket.subject}\nCurrent Status: {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
                 return jsonify({
                     "success": True,
                     "type": "action_confirm",
@@ -514,18 +557,22 @@ def ask():
                     "ticket_subject": ticket.subject,
                     "current_status": ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
                     "new_status": action["new_status"],
-                    "answer": f"Do you want to update **Ticket #{action['ticket_id']}** status to **{status_display}**?\n\nTicket: {ticket.subject}\nCurrent Status: {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}"
+                    "answer": answer
                 })
 
             elif action["action"] == "update_ticket_priority":
                 ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
                 if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
                     return jsonify({
                         "success": True,
                         "type": "error",
-                        "answer": f"Ticket #{action['ticket_id']} not found."
+                        "answer": answer
                     })
 
+                answer = f"Do you want to change **Ticket #{action['ticket_id']}** priority to **{action['new_priority']}**?\n\nTicket: {ticket.subject}\nCurrent Priority: {ticket.priority.value if ticket.priority else 'None'}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
                 return jsonify({
                     "success": True,
                     "type": "action_confirm",
@@ -534,16 +581,18 @@ def ask():
                     "ticket_subject": ticket.subject,
                     "current_priority": ticket.priority.value if ticket.priority else "None",
                     "new_priority": action["new_priority"],
-                    "answer": f"Do you want to change **Ticket #{action['ticket_id']}** priority to **{action['new_priority']}**?\n\nTicket: {ticket.subject}\nCurrent Priority: {ticket.priority.value if ticket.priority else 'None'}"
+                    "answer": answer
                 })
 
             elif action["action"] == "assign_ticket":
                 ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
                 if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
                     return jsonify({
                         "success": True,
                         "type": "error",
-                        "answer": f"Ticket #{action['ticket_id']} not found."
+                        "answer": answer
                     })
 
                 # Find user by name
@@ -553,12 +602,16 @@ def ask():
                 ).first()
 
                 if not user:
+                    answer = f"User '{assignee_name}' not found. Please check the name and try again."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
                     return jsonify({
                         "success": True,
                         "type": "error",
-                        "answer": f"User '{assignee_name}' not found. Please check the name and try again."
+                        "answer": answer
                     })
 
+                answer = f"Do you want to assign **Ticket #{action['ticket_id']}** to **{user.name}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.name if ticket.assigned_to else 'Unassigned'}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
                 return jsonify({
                     "success": True,
                     "type": "action_confirm",
@@ -568,7 +621,7 @@ def ask():
                     "current_assignee": ticket.assigned_to.name if ticket.assigned_to else "Unassigned",
                     "new_assignee_id": user.id,
                     "new_assignee": user.name,
-                    "answer": f"Do you want to assign **Ticket #{action['ticket_id']}** to **{user.name}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.name if ticket.assigned_to else 'Unassigned'}"
+                    "answer": answer
                 })
 
         finally:
@@ -592,14 +645,22 @@ def ask():
             # Add suggestions
             response["suggestions"] = get_suggested_questions(3)
 
+        # Log the interaction
+        log_chat_interaction(
+            user_id, query, result["answer"], result["type"],
+            matched_question=result.get("question") if result["type"] == "answer" else None
+        )
+
         return jsonify(response)
 
     # Fallback
     import random
+    fallback_answer = random.choice(FALLBACK_RESPONSES)
+    log_chat_interaction(user_id, query, fallback_answer, "fallback")
     return jsonify({
         "success": True,
         "type": "fallback",
-        "answer": random.choice(FALLBACK_RESPONSES),
+        "answer": fallback_answer,
         "suggestions": get_suggested_questions(5)
     })
 
@@ -731,3 +792,190 @@ def suggestions():
 def widget():
     """Render the chatbot widget (for iframe embedding)"""
     return render_template('chatbot/widget.html')
+
+
+# ============= Admin Routes for Chat Logs =============
+
+@chatbot_bp.route('/admin/logs')
+@login_required
+def admin_chat_logs():
+    """View chat logs for training purposes"""
+    # Check if user is admin
+    if not (current_user.is_super_admin or current_user.is_developer):
+        return jsonify({"error": "Access denied"}), 403
+
+    return render_template('chatbot/admin_logs.html')
+
+
+@chatbot_bp.route('/api/logs')
+@login_required
+def api_get_chat_logs():
+    """API to get chat logs with filtering"""
+    if not (current_user.is_super_admin or current_user.is_developer):
+        return jsonify({"error": "Access denied"}), 403
+
+    db_session = SessionLocal()
+    try:
+        from sqlalchemy import desc, func
+        from datetime import datetime, timedelta
+
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        response_type = request.args.get('response_type', '')
+        search = request.args.get('search', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+
+        # Build query
+        query = db_session.query(ChatLog)
+
+        if response_type:
+            query = query.filter(ChatLog.response_type == response_type)
+
+        if search:
+            query = query.filter(ChatLog.query.ilike(f'%{search}%'))
+
+        if date_from:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(ChatLog.created_at >= from_date)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+                query = query.filter(ChatLog.created_at < to_date)
+            except ValueError:
+                pass
+
+        # Get total count
+        total = query.count()
+
+        # Get paginated results
+        logs = query.order_by(desc(ChatLog.created_at))\
+            .offset((page - 1) * per_page)\
+            .limit(per_page)\
+            .all()
+
+        # Get statistics
+        stats = {
+            'total_queries': db_session.query(ChatLog).count(),
+            'fallback_count': db_session.query(ChatLog).filter(ChatLog.response_type == 'fallback').count(),
+            'answer_count': db_session.query(ChatLog).filter(ChatLog.response_type == 'answer').count(),
+            'greeting_count': db_session.query(ChatLog).filter(ChatLog.response_type == 'greeting').count(),
+            'action_count': db_session.query(ChatLog).filter(ChatLog.response_type == 'action_confirm').count(),
+        }
+
+        # Get top unanswered queries (fallbacks)
+        top_fallbacks = db_session.query(
+            ChatLog.query,
+            func.count(ChatLog.id).label('count')
+        ).filter(
+            ChatLog.response_type == 'fallback'
+        ).group_by(ChatLog.query).order_by(desc('count')).limit(10).all()
+
+        return jsonify({
+            'success': True,
+            'logs': [log.to_dict() for log in logs],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page,
+            'stats': stats,
+            'top_fallbacks': [{'query': q, 'count': c} for q, c in top_fallbacks]
+        })
+
+    finally:
+        db_session.close()
+
+
+@chatbot_bp.route('/api/logs/export')
+@login_required
+def api_export_chat_logs():
+    """Export chat logs as CSV for training"""
+    if not (current_user.is_super_admin or current_user.is_developer):
+        return jsonify({"error": "Access denied"}), 403
+
+    db_session = SessionLocal()
+    try:
+        import csv
+        import io
+        from flask import Response
+
+        # Get all logs or filtered
+        response_type = request.args.get('response_type', '')
+
+        query = db_session.query(ChatLog)
+        if response_type:
+            query = query.filter(ChatLog.response_type == response_type)
+
+        logs = query.order_by(ChatLog.created_at.desc()).all()
+
+        # Create CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow([
+            'ID', 'Date', 'User', 'Query', 'Response', 'Response Type',
+            'Matched Question', 'Action Type', 'Was Helpful', 'Feedback'
+        ])
+
+        # Data
+        for log in logs:
+            writer.writerow([
+                log.id,
+                log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '',
+                log.user.name if log.user else 'Anonymous',
+                log.query,
+                log.response,
+                log.response_type,
+                log.matched_question or '',
+                log.action_type or '',
+                'Yes' if log.was_helpful else ('No' if log.was_helpful is False else ''),
+                log.feedback or ''
+            ])
+
+        output.seek(0)
+
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=chat_logs.csv'}
+        )
+
+    finally:
+        db_session.close()
+
+
+@chatbot_bp.route('/api/logs/feedback', methods=['POST'])
+@login_required
+def api_submit_feedback():
+    """Submit feedback for a chat response"""
+    data = request.get_json()
+    log_id = data.get('log_id')
+    was_helpful = data.get('was_helpful')
+    feedback = data.get('feedback', '')
+
+    if not log_id:
+        return jsonify({"success": False, "error": "Missing log_id"})
+
+    db_session = SessionLocal()
+    try:
+        log = db_session.query(ChatLog).filter_by(id=log_id).first()
+        if not log:
+            return jsonify({"success": False, "error": "Log not found"})
+
+        log.was_helpful = was_helpful
+        log.feedback = feedback
+        db_session.commit()
+
+        return jsonify({"success": True, "message": "Feedback saved"})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        db_session.close()
