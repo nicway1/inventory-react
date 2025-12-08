@@ -223,6 +223,37 @@ def create_app():
     app.register_blueprint(dashboard_bp)  # New customizable dashboard
     app.register_blueprint(chatbot_bp)  # Help assistant chatbot
 
+    # Track user activity on every request
+    @app.before_request
+    def track_user_activity():
+        """Update user session activity on every request"""
+        # Skip for static files and non-authenticated users
+        if request.endpoint and request.endpoint.startswith('static'):
+            return
+        if not current_user.is_authenticated:
+            return
+
+        # Get session record ID from Flask session
+        session_record_id = session.get('session_record_id')
+        if not session_record_id:
+            return
+
+        try:
+            from models.user_session import UserSession
+            from utils.timezone_utils import singapore_now_as_utc
+
+            db = SessionLocal()
+            user_session = db.query(UserSession).filter_by(id=session_record_id).first()
+            if user_session:
+                user_session.last_activity_at = singapore_now_as_utc()
+                user_session.pages_visited = (user_session.pages_visited or 0) + 1
+                user_session.last_page = request.endpoint or request.path
+                user_session.is_active = True
+                db.commit()
+            db.close()
+        except Exception as e:
+            logging.debug(f"Failed to track activity: {str(e)}")
+
     @app.context_processor
     def utility_processor():
         """Make current_user available in all templates"""
