@@ -3,327 +3,276 @@
 {% block title %}{{ article.title }} - Knowledge Base{% endblock %}
 
 {% block content %}
-<div class="slds-scope">
+<div class="kb-article-page">
     <!-- Breadcrumb Navigation -->
-    <div class="slds-breadcrumb" style="background: #f3f3f3; padding: 1rem 0; border-bottom: 1px solid #d8dde6;">
+    <div class="kb-breadcrumb-bar">
         <div class="container-fluid">
-            <ol class="slds-breadcrumb__list">
-                <li class="slds-breadcrumb__item">
-                    <a href="{{ url_for('knowledge.index') }}" style="color: #0070d2; text-decoration: none;">Knowledge Base</a>
-                </li>
+            <nav class="kb-breadcrumb">
+                <a href="{{ url_for('knowledge.index') }}" class="kb-breadcrumb-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    Knowledge Base
+                </a>
                 {% if article.category %}
-                <li class="slds-breadcrumb__item">
-                    <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" style="color: #0070d2; text-decoration: none;">{{ article.category.name }}</a>
-                </li>
+                <span class="kb-breadcrumb-sep">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </span>
+                <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" class="kb-breadcrumb-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    {{ article.category.name }}
+                </a>
                 {% endif %}
-                <li class="slds-breadcrumb__item slds-breadcrumb__item_active">
-                    <span style="color: #3e3e3c;">{{ article.title }}</span>
-                </li>
-            </ol>
+                <span class="kb-breadcrumb-sep">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </span>
+                <span class="kb-breadcrumb-current">{{ article.title }}</span>
+            </nav>
         </div>
     </div>
 
-    <div class="container-fluid" style="padding: 2rem 0;">
-        <div class="slds-grid slds-wrap slds-gutters">
+    <div class="container-fluid kb-article-container">
+        <div class="kb-article-layout">
             <!-- Main Content -->
-            <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
-                <!-- Article Header -->
-                <div class="slds-page-header" style="background: white; border: 1px solid #d8dde6; border-radius: 0.5rem; margin-bottom: 1.5rem; padding: 1.5rem;">
-                    <div class="slds-grid slds-grid_align-spread slds-has-flexi-truncate">
-                        <div class="slds-grid slds-grid_vertical-align-center slds-has-flexi-truncate">
-                            <div class="slds-media slds-media_center slds-no-space slds-grow">
-                                <div class="slds-media__figure">
-                                    <span class="slds-icon_container" style="background: #0070d2; border-radius: 0.5rem;">
-                                        <svg class="slds-icon slds-icon-text-default" style="width: 2.5rem; height: 2.5rem; fill: white;" viewBox="0 0 24 24">
-                                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                        </svg>
-                                    </span>
-                                </div>
-                                <div class="slds-media__body">
-                                    <div class="slds-page-header__name">
-                                        <div class="slds-page-header__name-title">
-                                            <h1 class="slds-page-header__title slds-truncate" style="color: #080707; font-size: 1.75rem; font-weight: 400; margin: 0;">{{ article.title }}</h1>
-                                        </div>
-                                    </div>
-                                    <div class="slds-page-header__info" style="margin-top: 0.5rem;">
-                                        <div class="slds-grid slds-grid_align-spread">
-                                            <div class="slds-col">
-                                                <span class="slds-text-body_small" style="color: #706e6b;">
-                                                    By <strong>{{ article.author.username }}</strong> • 
-                                                    Created {{ article.created_at.strftime('%b %d, %Y') }}
-                                                    {% if article.updated_at != article.created_at %}
-                                                    • Updated {{ article.updated_at.strftime('%b %d, %Y') }}
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-                                            <div class="slds-col slds-no-flex">
-                                                <span class="slds-badge" style="background: #ecebea; color: #3e3e3c;">
-                                                    {{ article.view_count }} views
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <div class="kb-article-main">
+                <!-- Article Header Card -->
+                <div class="kb-article-header-card">
+                    <div class="kb-article-header-top">
+                        <div class="kb-article-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
                         </div>
-                        <div class="slds-no-flex">
-                            {% if current_user.permissions.can_edit_articles or article.author_id == current_user.id %}
-                            <div class="slds-button-group" role="group">
-                                <a href="{{ url_for('knowledge.admin_edit_article', article_id=article.id) }}" 
-                                   class="slds-button slds-button_neutral" style="border: 1px solid #d8dde6;">
-                                    <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
-                                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        <div class="kb-article-header-content">
+                            <h1 class="kb-article-title">{{ article.title }}</h1>
+                            <div class="kb-article-meta">
+                                <div class="kb-article-meta-item">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
                                     </svg>
-                                    Edit Article
-                                </a>
+                                    <span>By <strong>{{ article.author.username }}</strong></span>
+                                </div>
+                                <div class="kb-article-meta-item">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                        <line x1="3" y1="10" x2="21" y2="10"/>
+                                    </svg>
+                                    <span>Created {{ article.created_at.strftime('%b %d, %Y') }}</span>
+                                </div>
+                                {% if article.updated_at != article.created_at %}
+                                <div class="kb-article-meta-item">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span>Updated {{ article.updated_at.strftime('%b %d, %Y') }}</span>
+                                </div>
+                                {% endif %}
                             </div>
-                            {% endif %}
                         </div>
+                    </div>
+                    <div class="kb-article-header-actions">
+                        <div class="kb-view-badge">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            {{ article.view_count }} views
+                        </div>
+                        {% if current_user.permissions.can_edit_articles or article.author_id == current_user.id %}
+                        <a href="{{ url_for('knowledge.admin_edit_article', article_id=article.id) }}" class="kb-edit-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            Edit Article
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Article Content -->
-                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem; margin-bottom: 1.5rem;">
-                    <div class="slds-card__body slds-card__body_inner" style="padding: 2rem;">
-                        <div class="article-content slds-text-longform" style="line-height: 1.8; color: #3e3e3c; font-size: 1rem; max-width: 900px;">
-                            <style>
-                                .article-content {
-                                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                                }
-                                .article-content p {
-                                    margin-bottom: 1.5rem;
-                                    line-height: 1.8;
-                                    text-align: justify;
-                                }
-                                .article-content img {
-                                    max-width: 100%;
-                                    height: auto;
-                                    margin: 2rem auto;
-                                    display: block;
-                                    border-radius: 0.5rem;
-                                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                                    border: 1px solid #e5e5e5;
-                                }
-                                .article-content br {
-                                    display: block;
-                                    margin: 0.25rem 0;
-                                    line-height: 0.25rem;
-                                }
-                                .article-content strong {
-                                    font-weight: 600;
-                                    color: #080707;
-                                    display: inline-block;
-                                    margin-top: 1rem;
-                                }
-                                .article-content h1, .article-content h2, .article-content h3 {
-                                    margin-top: 2rem;
-                                    margin-bottom: 1rem;
-                                    font-weight: 600;
-                                    color: #080707;
-                                    line-height: 1.3;
-                                }
-                                .article-content ul, .article-content ol {
-                                    margin: 1.5rem 0;
-                                    padding-left: 2rem;
-                                    line-height: 1.8;
-                                }
-                                .article-content li {
-                                    margin-bottom: 0.75rem;
-                                }
-                            </style>
-                            {{ article.content | safe }}
-                        </div>
-
-                        <!-- Tags -->
-                        {% if article.tags %}
-                        <div class="slds-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
-                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Tags</h3>
-                            <div class="slds-grid slds-wrap">
-                                {% for tag in article.tags %}
-                                <span class="slds-badge slds-m-right_x-small slds-m-bottom_x-small" style="background: #0070d2; color: white;">
-                                    {{ tag.name }}
-                                </span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Attachments -->
-                        {% if article.attachments %}
-                        <div class="slds-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
-                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Attachments</h3>
-                            <ul class="slds-list_vertical slds-has-dividers_around-space">
-                                {% for attachment in article.attachments %}
-                                <li class="slds-list__item slds-p-around_medium">
-                                    <div class="slds-media">
-                                        <div class="slds-media__figure">
-                                            <span class="slds-icon_container" style="background: #f3f3f3; border-radius: 0.25rem;">
-                                                <svg class="slds-icon slds-icon_small" style="fill: #706e6b; width: 1.5rem; height: 1.5rem;" viewBox="0 0 24 24">
-                                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                                </svg>
-                                            </span>
-                                        </div>
-                                        <div class="slds-media__body">
-                                            <div class="slds-grid slds-grid_align-spread slds-has-flexi-truncate">
-                                                <div class="slds-has-flexi-truncate">
-                                                    <h3 class="slds-truncate" style="color: #080707; font-weight: 500;">
-                                                        {{ attachment.original_filename }}
-                                                    </h3>
-                                                    <p class="slds-text-body_small slds-text-color_weak">
-                                                        {{ attachment.get_file_size_formatted() }}
-                                                    </p>
-                                                </div>
-                                                <div class="slds-no-flex">
-                                                    <a href="{{ url_for('knowledge.download_attachment', attachment_id=attachment.id) }}" 
-                                                       class="slds-button slds-button_neutral" style="border: 1px solid #d8dde6;">
-                                                        <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
-                                                            <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
-                                                        </svg>
-                                                        Download
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
+                <!-- Article Content Card -->
+                <div class="kb-content-card">
+                    <div class="kb-article-body">
+                        {{ article.content | safe }}
                     </div>
+
+                    <!-- Tags -->
+                    {% if article.tags %}
+                    <div class="kb-tags-section">
+                        <h3 class="kb-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                            Tags
+                        </h3>
+                        <div class="kb-tags-list">
+                            {% for tag in article.tags %}
+                            <span class="kb-tag">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Attachments -->
+                    {% if article.attachments %}
+                    <div class="kb-attachments-section">
+                        <h3 class="kb-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                            </svg>
+                            Attachments
+                        </h3>
+                        <div class="kb-attachments-list">
+                            {% for attachment in article.attachments %}
+                            <div class="kb-attachment-item">
+                                <div class="kb-attachment-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                <div class="kb-attachment-info">
+                                    <span class="kb-attachment-name">{{ attachment.original_filename }}</span>
+                                    <span class="kb-attachment-size">{{ attachment.get_file_size_formatted() }}</span>
+                                </div>
+                                <a href="{{ url_for('knowledge.download_attachment', attachment_id=attachment.id) }}" class="kb-download-btn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    Download
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Feedback Section -->
-                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
-                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
-                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                            <div class="slds-media__figure">
-                                <span class="slds-icon_container" style="background: #2e844a; border-radius: 0.25rem;">
-                                    <svg class="slds-icon slds-icon_small" style="fill: white; width: 1.5rem; height: 1.5rem;" viewBox="0 0 24 24">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                    </svg>
-                                </span>
-                            </div>
-                            <div class="slds-media__body">
-                                <h2 class="slds-card__header-title">
-                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Article Feedback</span>
-                                </h2>
-                            </div>
-                        </header>
+                <div class="kb-feedback-card">
+                    <div class="kb-feedback-header">
+                        <div class="kb-feedback-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <h2 class="kb-feedback-title">Article Feedback</h2>
                     </div>
-                    <div class="slds-card__body slds-card__body_inner" style="padding: 1.5rem;">
+                    <div class="kb-feedback-body">
                         <!-- Feedback Stats -->
                         {% if article.feedback %}
-                        <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_large">
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
-                                <div class="slds-text-align_center">
-                                    <div class="slds-text-heading_large" style="color: #0070d2; font-weight: 600;">
-                                        {{ "%.1f"|format(article.get_average_rating()) }}
-                                    </div>
-                                    <div class="slds-text-body_small slds-text-color_weak">Average Rating</div>
-                                </div>
+                        <div class="kb-feedback-stats">
+                            <div class="kb-stat-item">
+                                <div class="kb-stat-value kb-stat-rating">{{ "%.1f"|format(article.get_average_rating()) }}</div>
+                                <div class="kb-stat-label">Average Rating</div>
                             </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
-                                <div class="slds-text-align_center">
-                                    <div class="slds-text-heading_large" style="color: #2e844a; font-weight: 600;">
-                                        {{ article.get_helpful_count() }}
-                                    </div>
-                                    <div class="slds-text-body_small slds-text-color_weak">Found Helpful</div>
-                                </div>
+                            <div class="kb-stat-item">
+                                <div class="kb-stat-value kb-stat-helpful">{{ article.get_helpful_count() }}</div>
+                                <div class="kb-stat-label">Found Helpful</div>
                             </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
-                                <div class="slds-text-align_center">
-                                    <div class="slds-text-heading_large" style="color: #c23934; font-weight: 600;">
-                                        {{ article.get_not_helpful_count() }}
-                                    </div>
-                                    <div class="slds-text-body_small slds-text-color_weak">Not Helpful</div>
-                                </div>
+                            <div class="kb-stat-item">
+                                <div class="kb-stat-value kb-stat-not-helpful">{{ article.get_not_helpful_count() }}</div>
+                                <div class="kb-stat-label">Not Helpful</div>
                             </div>
                         </div>
                         {% endif %}
 
                         <!-- Feedback Form -->
-                        <form action="{{ url_for('knowledge.submit_feedback', article_id=article.id) }}" method="POST" class="slds-form">
+                        <form action="{{ url_for('knowledge.submit_feedback', article_id=article.id) }}" method="POST" class="kb-feedback-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            
-                            <div class="slds-grid slds-wrap slds-gutters">
-                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                    <div class="slds-form-element">
-                                        <label class="slds-form-element__label" style="color: #080707; font-weight: 500;">Rate this article</label>
-                                        <div class="slds-form-element__control">
-                                            <div class="rating-stars">
-                                                {% for i in range(1, 6) %}
-                                                <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" class="rating-input">
-                                                <label for="star{{ i }}" class="rating-star">★</label>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
+
+                            <div class="kb-feedback-row">
+                                <div class="kb-feedback-field">
+                                    <label class="kb-feedback-label">Rate this article</label>
+                                    <div class="kb-rating-stars">
+                                        {% for i in range(5, 0, -1) %}
+                                        <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" class="kb-rating-input">
+                                        <label for="star{{ i }}" class="kb-rating-star">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                            </svg>
+                                        </label>
+                                        {% endfor %}
                                     </div>
                                 </div>
-                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                    <div class="slds-form-element">
-                                        <label class="slds-form-element__label" style="color: #080707; font-weight: 500;">Was this helpful?</label>
-                                        <div class="slds-form-element__control">
-                                            <div class="slds-radio_button-group">
-                                                <span class="slds-button slds-radio_button">
-                                                    <input type="radio" name="is_helpful" id="helpful_yes" value="true" class="slds-assistive-text">
-                                                    <label class="slds-radio_button__label" for="helpful_yes" style="padding: 0.5rem 1rem; border: 1px solid #d8dde6; border-radius: 0.25rem 0 0 0.25rem;">
-                                                        <span class="slds-radio_faux">Yes</span>
-                                                    </label>
-                                                </span>
-                                                <span class="slds-button slds-radio_button">
-                                                    <input type="radio" name="is_helpful" id="helpful_no" value="false" class="slds-assistive-text">
-                                                    <label class="slds-radio_button__label" for="helpful_no" style="padding: 0.5rem 1rem; border: 1px solid #d8dde6; border-left: none; border-radius: 0 0.25rem 0.25rem 0;">
-                                                        <span class="slds-radio_faux">No</span>
-                                                    </label>
-                                                </span>
-                                            </div>
-                                        </div>
+                                <div class="kb-feedback-field">
+                                    <label class="kb-feedback-label">Was this helpful?</label>
+                                    <div class="kb-helpful-buttons">
+                                        <label class="kb-helpful-btn">
+                                            <input type="radio" name="is_helpful" value="true">
+                                            <span class="kb-helpful-btn-content">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                                                </svg>
+                                                Yes
+                                            </span>
+                                        </label>
+                                        <label class="kb-helpful-btn">
+                                            <input type="radio" name="is_helpful" value="false">
+                                            <span class="kb-helpful-btn-content">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                                                </svg>
+                                                No
+                                            </span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="slds-form-element slds-m-top_medium">
-                                <label class="slds-form-element__label" for="comment" style="color: #080707; font-weight: 500;">Comments (optional)</label>
-                                <div class="slds-form-element__control">
-                                    <textarea class="slds-textarea" name="comment" id="comment" rows="3" 
-                                              placeholder="Share your thoughts about this article..."
-                                              style="border: 1px solid #d8dde6; border-radius: 0.25rem;"></textarea>
-                                </div>
+
+                            <div class="kb-feedback-field">
+                                <label class="kb-feedback-label" for="comment">Comments (optional)</label>
+                                <textarea class="kb-feedback-textarea" name="comment" id="comment" rows="3"
+                                          placeholder="Share your thoughts about this article..."></textarea>
                             </div>
-                            
-                            <div class="slds-m-top_medium">
-                                <button type="submit" class="slds-button slds-button_brand" style="background: #0070d2; border: 1px solid #0070d2; color: white; padding: 0.75rem 1.5rem; border-radius: 0.25rem;">
-                                    Submit Feedback
-                                </button>
-                            </div>
+
+                            <button type="submit" class="kb-submit-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="22" y1="2" x2="11" y2="13"/>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                </svg>
+                                Submit Feedback
+                            </button>
                         </form>
 
                         <!-- Recent Comments -->
                         {% if article.feedback %}
-                        <div class="slds-section slds-m-top_large" style="padding-top: 1.5rem; border-top: 1px solid #d8dde6;">
-                            <h3 class="slds-text-heading_small" style="color: #080707; margin-bottom: 1rem;">Recent Comments</h3>
+                        <div class="kb-comments-section">
+                            <h3 class="kb-comments-title">Recent Comments</h3>
                             {% for feedback in article.feedback[-5:] %}
                             {% if feedback.comment %}
-                            <div class="slds-box slds-m-bottom_small" style="background: #f8f9fa; border: 1px solid #d8dde6; border-radius: 0.25rem; padding: 1rem;">
-                                <div class="slds-grid slds-grid_align-spread slds-m-bottom_x-small">
-                                    <div class="slds-col">
-                                        <strong style="color: #080707;">{{ feedback.user.username }}</strong>
+                            <div class="kb-comment-item">
+                                <div class="kb-comment-header">
+                                    <div class="kb-comment-avatar">{{ feedback.user.username[0]|upper }}</div>
+                                    <div class="kb-comment-meta">
+                                        <strong class="kb-comment-author">{{ feedback.user.username }}</strong>
+                                        <span class="kb-comment-date">{{ feedback.created_at.strftime('%b %d, %Y') }}</span>
                                     </div>
-                                    <div class="slds-col slds-no-flex">
-                                        <span class="slds-text-body_small slds-text-color_weak">
-                                            {{ feedback.created_at.strftime('%b %d, %Y') }}
-                                        </span>
+                                    {% if feedback.rating %}
+                                    <div class="kb-comment-rating">
+                                        {% for i in range(feedback.rating) %}★{% endfor %}{% for i in range(5-feedback.rating) %}☆{% endfor %}
                                     </div>
+                                    {% endif %}
                                 </div>
-                                <p style="color: #3e3e3c; margin: 0;">{{ feedback.comment }}</p>
-                                {% if feedback.rating %}
-                                <div class="slds-m-top_x-small">
-                                    <span class="slds-text-body_small slds-text-color_weak">
-                                        Rating: {{ feedback.rating }}/5 stars
-                                    </span>
-                                </div>
-                                {% endif %}
+                                <p class="kb-comment-text">{{ feedback.comment }}</p>
                             </div>
                             {% endif %}
                             {% endfor %}
@@ -334,81 +283,60 @@
             </div>
 
             <!-- Sidebar -->
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
+            <div class="kb-article-sidebar">
                 <!-- Navigation Card -->
-                <div class="slds-card slds-m-bottom_medium" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
-                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
-                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                            <div class="slds-media__body">
-                                <h2 class="slds-card__header-title">
-                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Navigation</span>
-                                </h2>
-                            </div>
-                        </header>
+                <div class="kb-sidebar-card">
+                    <div class="kb-sidebar-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                        </svg>
+                        Navigation
                     </div>
-                    <div class="slds-card__body slds-card__body_inner" style="padding: 1rem;">
-                        <div class="slds-button-group slds-button-group_vertical" style="width: 100%;">
-                            <a href="{{ url_for('knowledge.index') }}" 
-                               class="slds-button slds-button_neutral" 
-                               style="width: 100%; justify-content: flex-start; margin-bottom: 0.5rem; border: 1px solid #d8dde6;">
-                                <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
-                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                                </svg>
-                                Knowledge Base Home
-                            </a>
-                            {% if article.category %}
-                            <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" 
-                               class="slds-button slds-button_neutral" 
-                               style="width: 100%; justify-content: flex-start; border: 1px solid #d8dde6;">
-                                <svg class="slds-button__icon slds-button__icon_left" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
-                                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
-                                </svg>
-                                {{ article.category.name }}
-                            </a>
-                            {% endif %}
-                        </div>
+                    <div class="kb-sidebar-body">
+                        <a href="{{ url_for('knowledge.index') }}" class="kb-nav-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                            Knowledge Base Home
+                        </a>
+                        {% if article.category %}
+                        <a href="{{ url_for('knowledge.view_category', category_id=article.category.id) }}" class="kb-nav-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            {{ article.category.name }}
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
 
                 <!-- Related Articles -->
                 {% if related_articles %}
-                <div class="slds-card" style="border: 1px solid #d8dde6; border-radius: 0.5rem;">
-                    <div class="slds-card__header slds-grid" style="background: #fafaf9; border-bottom: 1px solid #d8dde6; padding: 1rem;">
-                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                            <div class="slds-media__body">
-                                <h2 class="slds-card__header-title">
-                                    <span class="slds-text-heading_small" style="color: #080707; font-weight: 600;">Related Articles</span>
-                                </h2>
-                            </div>
-                        </header>
+                <div class="kb-sidebar-card">
+                    <div class="kb-sidebar-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Related Articles
                     </div>
-                    <div class="slds-card__body slds-card__body_inner" style="padding: 0;">
-                        <ul class="slds-list_vertical slds-has-dividers_around-space">
-                            {% for related in related_articles %}
-                            <li class="slds-list__item slds-p-around_medium">
-                                <div class="slds-media">
-                                    <div class="slds-media__figure">
-                                        <span class="slds-icon_container" style="background: #f3f3f3; border-radius: 0.25rem;">
-                                            <svg class="slds-icon slds-icon_x-small" style="fill: #706e6b; width: 1rem; height: 1rem;" viewBox="0 0 24 24">
-                                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                            </svg>
-                                        </span>
-                                    </div>
-                                    <div class="slds-media__body">
-                                        <h3 class="slds-truncate">
-                                            <a href="{{ url_for('knowledge.view_article', article_id=related.id) }}" 
-                                               style="color: #0070d2; text-decoration: none; font-weight: 500; font-size: 0.875rem;">
-                                                {{ related.title }}
-                                            </a>
-                                        </h3>
-                                        <p class="slds-text-body_small slds-text-color_weak" style="margin-top: 0.25rem;">
-                                            {{ related.view_count }} views
-                                        </p>
-                                    </div>
-                                </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                    <div class="kb-sidebar-body kb-related-list">
+                        {% for related in related_articles %}
+                        <a href="{{ url_for('knowledge.view_article', article_id=related.id) }}" class="kb-related-item">
+                            <div class="kb-related-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                            </div>
+                            <div class="kb-related-content">
+                                <span class="kb-related-title">{{ related.title }}</span>
+                                <span class="kb-related-views">{{ related.view_count }} views</span>
+                            </div>
+                        </a>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
@@ -418,237 +346,886 @@
 </div>
 
 <style>
-/* Salesforce-inspired Article Styles */
-.slds-scope {
-    font-family: 'Salesforce Sans', Arial, sans-serif;
+/* ========================================
+   Knowledge Base Article Page Styles
+   ======================================== */
+
+.kb-article-page {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+    min-height: 100vh;
 }
 
-.article-content {
-    line-height: 1.7;
-    color: #3e3e3c;
+/* Breadcrumb Bar */
+.kb-breadcrumb-bar {
+    background: white;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid #e1e5eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.article-content h1, 
-.article-content h2, 
-.article-content h3, 
-.article-content h4, 
-.article-content h5, 
-.article-content h6 {
-    color: #080707;
-    font-weight: 600;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-}
-
-.article-content h1 { font-size: 2rem; }
-.article-content h2 { font-size: 1.5rem; }
-.article-content h3 { font-size: 1.25rem; }
-
-/* Article Image Styles */
-.article-content .article-image {
-    margin: 1.5rem 0;
-    text-align: center;
-}
-
-.article-content .article-image img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.25rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.article-content .article-image img:hover {
-    transform: scale(1.02);
-}
-
-.article-content .article-image p {
-    font-size: 0.875rem;
-    color: #706e6b;
-    margin-top: 0.5rem;
-    font-style: italic;
-}
-
-/* General image styling for any images in content */
-.article-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.25rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.article-content h4 { font-size: 1.125rem; }
-
-.article-content p {
-    margin-bottom: 1rem;
-}
-
-.article-content ul, 
-.article-content ol {
-    margin: 1rem 0;
-    padding-left: 2rem;
-}
-
-.article-content li {
-    margin-bottom: 0.5rem;
-}
-
-.article-content pre {
-    background-color: #f8f9fa;
-    border: 1px solid #d8dde6;
-    border-radius: 0.25rem;
-    padding: 1rem;
-    overflow-x: auto;
-    margin: 1rem 0;
-}
-
-.article-content code {
-    background-color: #f8f9fa;
-    border: 1px solid #d8dde6;
-    border-radius: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    font-family: 'Courier New', monospace;
+.kb-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     font-size: 0.875rem;
 }
 
-.article-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.25rem;
-    margin: 1rem 0;
+.kb-breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: #0070d2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s;
 }
+.kb-breadcrumb-link:hover { color: #005bb5; }
+.kb-breadcrumb-link svg { stroke: currentColor; }
 
-.article-content blockquote {
-    border-left: 4px solid #0070d2;
-    padding-left: 1rem;
-    margin: 1rem 0;
-    font-style: italic;
-    color: #706e6b;
-}
-
-.article-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-    border: 1px solid #d8dde6;
-}
-
-.article-content th,
-.article-content td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #d8dde6;
-}
-
-.article-content th {
-    background-color: #f8f9fa;
-    font-weight: 600;
-    color: #080707;
-}
-
-/* Star Rating */
-.rating-stars {
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-    gap: 0.25rem;
-}
-
-.rating-input {
-    display: none;
-}
-
-.rating-star {
-    cursor: pointer;
-    font-size: 1.5rem;
-    color: #d8dde6;
-    transition: color 0.2s ease;
-}
-
-.rating-star:hover,
-.rating-star:hover ~ .rating-star,
-.rating-input:checked ~ .rating-star {
-    color: #fe9339;
-}
-
-/* Radio Button Group */
-.slds-radio_button-group .slds-radio_button__label {
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.slds-radio_button-group input:checked + .slds-radio_button__label {
-    background-color: #0070d2;
-    color: white;
-    border-color: #0070d2;
-}
-
-.slds-radio_button-group .slds-radio_button__label:hover {
-    background-color: #f8f9fa;
-}
-
-/* Card Hover Effects */
-.slds-card:hover {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Button Hover Effects */
-.slds-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* List Item Hover */
-.slds-list__item:hover {
-    background-color: #f8f9fa;
-}
-
-/* Breadcrumb */
-.slds-breadcrumb__list {
-    display: flex;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.slds-breadcrumb__item {
+.kb-breadcrumb-sep {
+    color: #9ca3af;
     display: flex;
     align-items: center;
 }
 
-.slds-breadcrumb__item:not(:last-child)::after {
-    content: '>';
-    margin: 0 0.5rem;
-    color: #706e6b;
+.kb-breadcrumb-current {
+    color: #4b5563;
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* Image modal for full-size viewing */
-.image-modal {
+/* Article Container */
+.kb-article-container {
+    padding: 2rem 0;
+}
+
+.kb-article-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+    .kb-article-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kb-article-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Article Header Card */
+.kb-article-header-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.75rem 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+}
+
+.kb-article-header-top {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.kb-article-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #0070d2 0%, #00a1e0 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.kb-article-icon svg { stroke: white; }
+
+.kb-article-header-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.kb-article-title {
+    font-size: 1.625rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.3;
+}
+
+.kb-article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.kb-article-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: #6b7280;
+}
+.kb-article-meta-item svg { stroke: #9ca3af; }
+.kb-article-meta-item strong { color: #374151; font-weight: 600; }
+
+.kb-article-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.kb-view-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: #f0f9ff;
+    color: #0369a1;
+    padding: 0.5rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+.kb-view-badge svg { stroke: #0369a1; }
+
+.kb-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #0070d2 0%, #0062b3 100%);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,112,210,0.3);
+}
+.kb-edit-btn:hover {
+    background: linear-gradient(135deg, #005bb5 0%, #004d99 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,112,210,0.4);
+    color: white;
+}
+.kb-edit-btn svg { stroke: white; }
+
+/* Content Card */
+.kb-content-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+}
+
+/* Article Body Styles */
+.kb-article-body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #374151;
+}
+
+.kb-article-body h1,
+.kb-article-body h2,
+.kb-article-body h3,
+.kb-article-body h4,
+.kb-article-body h5,
+.kb-article-body h6 {
+    color: #111827;
+    font-weight: 600;
+    margin: 2rem 0 1rem 0;
+    line-height: 1.3;
+}
+
+.kb-article-body h1 { font-size: 1.875rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+.kb-article-body h2 { font-size: 1.5rem; }
+.kb-article-body h3 { font-size: 1.25rem; }
+.kb-article-body h4 { font-size: 1.125rem; }
+
+.kb-article-body h1:first-child,
+.kb-article-body h2:first-child,
+.kb-article-body h3:first-child {
+    margin-top: 0;
+}
+
+.kb-article-body p {
+    margin-bottom: 1.25rem;
+}
+
+.kb-article-body strong {
+    font-weight: 600;
+    color: #111827;
+}
+
+.kb-article-body ul,
+.kb-article-body ol {
+    margin: 1.25rem 0;
+    padding-left: 1.75rem;
+}
+
+.kb-article-body li {
+    margin-bottom: 0.625rem;
+}
+
+.kb-article-body li::marker {
+    color: #0070d2;
+}
+
+/* Code Blocks */
+.kb-article-body pre {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.kb-article-body code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+    font-size: 0.875em;
+    border: 1px solid #e2e8f0;
+}
+
+.kb-article-body pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+
+/* Tables */
+.kb-article-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.kb-article-body th {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    color: #111827;
+    font-weight: 600;
+    padding: 0.875rem 1rem;
+    text-align: left;
+    border-bottom: 2px solid #e5e7eb;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.kb-article-body td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+}
+
+.kb-article-body tr:last-child td {
+    border-bottom: none;
+}
+
+.kb-article-body tr:hover td {
+    background: #f9fafb;
+}
+
+/* Blockquotes */
+.kb-article-body blockquote {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-left: 4px solid #0070d2;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 0 10px 10px 0;
+    color: #1e40af;
+    font-style: italic;
+}
+
+/* Images */
+.kb-article-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin: 1.5rem auto;
+    display: block;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.kb-article-body img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+/* Tags Section */
+.kb-tags-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.kb-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 1rem 0;
+}
+.kb-section-title svg { stroke: #6b7280; }
+
+.kb-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.kb-tag {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #0070d2 0%, #00a1e0 100%);
+    color: white;
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+/* Attachments Section */
+.kb-attachments-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.kb-attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kb-attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f9fafb;
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.15s;
+}
+
+.kb-attachment-item:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.kb-attachment-icon {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.kb-attachment-icon svg { stroke: #6b7280; }
+
+.kb-attachment-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.kb-attachment-name {
+    display: block;
+    font-weight: 500;
+    color: #111827;
+    margin-bottom: 0.125rem;
+}
+
+.kb-attachment-size {
+    display: block;
+    font-size: 0.8125rem;
+    color: #6b7280;
+}
+
+.kb-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    color: #0070d2;
+    padding: 0.5rem 1rem;
+    border: 1px solid #0070d2;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.kb-download-btn:hover {
+    background: #0070d2;
+    color: white;
+}
+.kb-download-btn svg { stroke: currentColor; }
+
+/* Feedback Card */
+.kb-feedback-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.kb-feedback-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    padding: 1rem 1.5rem;
+}
+
+.kb-feedback-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.kb-feedback-icon svg { stroke: white; }
+
+.kb-feedback-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+.kb-feedback-body {
+    padding: 1.5rem;
+}
+
+/* Feedback Stats */
+.kb-feedback-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.kb-stat-item {
+    text-align: center;
+}
+
+.kb-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.kb-stat-rating { color: #0070d2; }
+.kb-stat-helpful { color: #059669; }
+.kb-stat-not-helpful { color: #dc2626; }
+
+.kb-stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+/* Feedback Form */
+.kb-feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.kb-feedback-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+    .kb-feedback-row { grid-template-columns: 1fr; }
+}
+
+.kb-feedback-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.kb-feedback-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Star Rating */
+.kb-rating-stars {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.kb-rating-input { display: none; }
+
+.kb-rating-star {
+    cursor: pointer;
+    color: #d1d5db;
+    transition: color 0.15s, transform 0.15s;
+}
+
+.kb-rating-star:hover { transform: scale(1.15); }
+
+.kb-rating-input:checked ~ .kb-rating-star,
+.kb-rating-star:hover,
+.kb-rating-star:hover ~ .kb-rating-star {
+    color: #fbbf24;
+}
+
+/* Helpful Buttons */
+.kb-helpful-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.kb-helpful-btn {
+    cursor: pointer;
+}
+
+.kb-helpful-btn input { display: none; }
+
+.kb-helpful-btn-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #374151;
+    transition: all 0.15s;
+}
+
+.kb-helpful-btn-content svg { stroke: currentColor; }
+
+.kb-helpful-btn input:checked + .kb-helpful-btn-content {
+    background: #0070d2;
+    border-color: #0070d2;
+    color: white;
+}
+
+.kb-helpful-btn:hover .kb-helpful-btn-content {
+    border-color: #0070d2;
+    color: #0070d2;
+}
+
+.kb-helpful-btn input:checked + .kb-helpful-btn-content:hover {
+    color: white;
+}
+
+/* Textarea */
+.kb-feedback-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.kb-feedback-textarea:focus {
+    outline: none;
+    border-color: #0070d2;
+    box-shadow: 0 0 0 3px rgba(0,112,210,0.1);
+}
+
+/* Submit Button */
+.kb-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #0070d2 0%, #0062b3 100%);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,112,210,0.3);
+    align-self: flex-start;
+}
+
+.kb-submit-btn:hover {
+    background: linear-gradient(135deg, #005bb5 0%, #004d99 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,112,210,0.4);
+}
+
+.kb-submit-btn svg { stroke: white; }
+
+/* Comments Section */
+.kb-comments-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.kb-comments-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 1rem 0;
+}
+
+.kb-comment-item {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+}
+
+.kb-comment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.kb-comment-avatar {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #0070d2 0%, #00a1e0 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.kb-comment-meta {
+    flex: 1;
+}
+
+.kb-comment-author {
+    display: block;
+    color: #111827;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.kb-comment-date {
+    display: block;
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+.kb-comment-rating {
+    color: #fbbf24;
+    font-size: 0.875rem;
+}
+
+.kb-comment-text {
+    color: #374151;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+/* Sidebar */
+.kb-article-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .kb-article-sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .kb-sidebar-card {
+        flex: 1;
+        min-width: 280px;
+    }
+}
+
+.kb-sidebar-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.kb-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+.kb-sidebar-header svg { stroke: #6b7280; }
+
+.kb-sidebar-body {
+    padding: 0.75rem;
+}
+
+.kb-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.75rem 1rem;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+
+.kb-nav-link:hover {
+    background: #f3f4f6;
+    color: #0070d2;
+}
+
+.kb-nav-link svg { stroke: #6b7280; transition: stroke 0.15s; }
+.kb-nav-link:hover svg { stroke: #0070d2; }
+
+/* Related Articles */
+.kb-related-list {
+    padding: 0;
+}
+
+.kb-related-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    text-decoration: none;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s;
+}
+
+.kb-related-item:last-child {
+    border-bottom: none;
+}
+
+.kb-related-item:hover {
+    background: #f9fafb;
+}
+
+.kb-related-icon {
+    width: 28px;
+    height: 28px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.kb-related-icon svg { stroke: #6b7280; }
+
+.kb-related-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.kb-related-title {
+    display: block;
+    color: #0070d2;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+}
+
+.kb-related-views {
+    display: block;
+    color: #9ca3af;
+    font-size: 0.75rem;
+}
+
+/* Image Modal */
+.kb-image-modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 9999;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.8);
+    background-color: rgba(0,0,0,0.9);
     cursor: pointer;
+    backdrop-filter: blur(4px);
 }
 
-.image-modal img {
+.kb-image-modal img {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     max-width: 90%;
     max-height: 90%;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 </style>
 
 <!-- Image Modal -->
-<div id="imageModal" class="image-modal" onclick="closeImageModal()">
+<div id="imageModal" class="kb-image-modal" onclick="closeImageModal()">
     <img id="modalImage" src="" alt="">
 </div>
 
@@ -656,8 +1233,9 @@
 // Image modal functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Add click handlers to all images in article content
-    const images = document.querySelectorAll('.article-content img');
+    const images = document.querySelectorAll('.kb-article-body img');
     images.forEach(function(img) {
+        img.style.cursor = 'pointer';
         img.addEventListener('click', function() {
             openImageModal(this.src, this.alt);
         });
@@ -670,10 +1248,12 @@ function openImageModal(src, alt) {
     modal.style.display = 'block';
     modalImg.src = src;
     modalImg.alt = alt;
+    document.body.style.overflow = 'hidden';
 }
 
 function closeImageModal() {
     document.getElementById('imageModal').style.display = 'none';
+    document.body.style.overflow = '';
 }
 
 // Close modal with Escape key
