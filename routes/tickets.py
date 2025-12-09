@@ -10903,7 +10903,7 @@ def bulk_import_1stbase():
 
                     # Create the ticket
                     ticket = Ticket(
-                        subject=f"1stbase Return - {customer_name}",
+                        subject=f"Asset Return - {customer_name}",
                         description=description,
                         requester_id=user_id,
                         assigned_to_id=assigned_to_id,
