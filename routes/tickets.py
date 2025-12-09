@@ -10563,6 +10563,62 @@ def bulk_import_1stbase():
                 ).all()
                 existing_order_ids = {t.firstbaseorderid for t in existing_tickets}
 
+                # Country code to full name mapping
+                country_code_map = {
+                    'SG': 'SINGAPORE', 'SINGAPORE': 'SINGAPORE',
+                    'PH': 'PHILIPPINES', 'PHILIPPINES': 'PHILIPPINES',
+                    'MX': 'MEXICO', 'MEXICO': 'MEXICO',
+                    'JP': 'JAPAN', 'JAPAN': 'JAPAN',
+                    'IN': 'INDIA', 'INDIA': 'INDIA',
+                    'IL': 'ISRAEL', 'ISRAEL': 'ISRAEL',
+                    'US': 'USA', 'USA': 'USA', 'UNITED STATES': 'USA',
+                    'AU': 'AUSTRALIA', 'AUSTRALIA': 'AUSTRALIA',
+                    'TW': 'TAIWAN', 'TAIWAN': 'TAIWAN',
+                    'CN': 'CHINA', 'CHINA': 'CHINA',
+                    'HK': 'HONG_KONG', 'HONG KONG': 'HONG_KONG', 'HONG_KONG': 'HONG_KONG',
+                    'MY': 'MALAYSIA', 'MALAYSIA': 'MALAYSIA',
+                    'TH': 'THAILAND', 'THAILAND': 'THAILAND',
+                    'VN': 'VIETNAM', 'VIETNAM': 'VIETNAM',
+                    'KR': 'SOUTH_KOREA', 'SOUTH KOREA': 'SOUTH_KOREA', 'SOUTH_KOREA': 'SOUTH_KOREA',
+                    'ID': 'INDONESIA', 'INDONESIA': 'INDONESIA',
+                    'UK': 'UNITED_KINGDOM', 'GB': 'UNITED_KINGDOM', 'UNITED KINGDOM': 'UNITED_KINGDOM', 'UNITED_KINGDOM': 'UNITED_KINGDOM',
+                    'CA': 'CANADA', 'CANADA': 'CANADA',
+                    'AE': 'UAE', 'UAE': 'UAE',
+                    'DE': 'GERMANY', 'GERMANY': 'GERMANY',
+                    'FR': 'FRANCE', 'FRANCE': 'FRANCE',
+                    'IT': 'ITALY', 'ITALY': 'ITALY',
+                    'ES': 'SPAIN', 'SPAIN': 'SPAIN',
+                    'NL': 'NETHERLANDS', 'NETHERLANDS': 'NETHERLANDS',
+                    'BR': 'BRAZIL', 'BRAZIL': 'BRAZIL',
+                    'AR': 'ARGENTINA', 'ARGENTINA': 'ARGENTINA',
+                    'CL': 'CHILE', 'CHILE': 'CHILE',
+                    'CO': 'COLOMBIA', 'COLOMBIA': 'COLOMBIA',
+                    'PE': 'PERU', 'PERU': 'PERU',
+                    'NZ': 'NEW_ZEALAND', 'NEW ZEALAND': 'NEW_ZEALAND', 'NEW_ZEALAND': 'NEW_ZEALAND',
+                    'IE': 'IRELAND', 'IRELAND': 'IRELAND',
+                    'SE': 'SWEDEN', 'SWEDEN': 'SWEDEN',
+                    'NO': 'NORWAY', 'NORWAY': 'NORWAY',
+                    'DK': 'DENMARK', 'DENMARK': 'DENMARK',
+                    'FI': 'FINLAND', 'FINLAND': 'FINLAND',
+                    'CH': 'SWITZERLAND', 'SWITZERLAND': 'SWITZERLAND',
+                    'AT': 'AUSTRIA', 'AUSTRIA': 'AUSTRIA',
+                    'BE': 'BELGIUM', 'BELGIUM': 'BELGIUM',
+                    'PT': 'PORTUGAL', 'PORTUGAL': 'PORTUGAL',
+                    'PL': 'POLAND', 'POLAND': 'POLAND',
+                    'CZ': 'CZECH_REPUBLIC', 'CZECH REPUBLIC': 'CZECH_REPUBLIC', 'CZECH_REPUBLIC': 'CZECH_REPUBLIC',
+                    'GR': 'GREECE', 'GREECE': 'GREECE',
+                    'TR': 'TURKEY', 'TURKEY': 'TURKEY',
+                    'RU': 'RUSSIA', 'RUSSIA': 'RUSSIA',
+                    'ZA': 'SOUTH_AFRICA', 'SOUTH AFRICA': 'SOUTH_AFRICA', 'SOUTH_AFRICA': 'SOUTH_AFRICA',
+                    'EG': 'EGYPT', 'EGYPT': 'EGYPT',
+                    'NG': 'NIGERIA', 'NIGERIA': 'NIGERIA',
+                    'KE': 'KENYA', 'KENYA': 'KENYA',
+                    'SA': 'SAUDI_ARABIA', 'SAUDI ARABIA': 'SAUDI_ARABIA', 'SAUDI_ARABIA': 'SAUDI_ARABIA',
+                    'PK': 'PAKISTAN', 'PAKISTAN': 'PAKISTAN',
+                    'BD': 'BANGLADESH', 'BANGLADESH': 'BANGLADESH',
+                    'GY': 'GUYANA', 'GUYANA': 'GUYANA',
+                }
+
                 # Read all rows for preview
                 preview_data = []
                 row_number = 1
@@ -10597,13 +10653,17 @@ def bulk_import_1stbase():
                     order_id = row.get('order_id', '').strip()
                     is_duplicate = order_id and order_id in existing_order_ids
 
+                    # Map country code to full country name
+                    raw_country = row.get('country', '').strip().upper()
+                    mapped_country = country_code_map.get(raw_country, raw_country)
+
                     row_data = {
                         'row_number': row_number,
                         'customer_name': customer_name,
                         'customer_email': row.get('email', ''),
                         'customer_phone': row.get('san', ''),
                         'customer_company': row.get('company', ''),
-                        'customer_country': row.get('country', ''),
+                        'customer_country': mapped_country,
                         'customer_address': customer_address,
                         'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_description', 'N/A')} | Serial: {row.get('serial_number1Z83RR694236566929', 'N/A')}",
                         'asset_serial_number': row.get('serial_number1Z83RR694236566929', ''),
@@ -10616,7 +10676,7 @@ def bulk_import_1stbase():
                         'zip': row.get('zip', ''),
                         'secondary_email': row.get('secondary_email', ''),
                         'priority': 'Medium',
-                        'queue_name': row.get('country', ''),  # Use country as queue name
+                        'queue_name': mapped_country,  # Use mapped country as queue name
                         'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', ''),
                         'name_is_empty': name_is_empty,  # Validation flag
                         'is_duplicate': is_duplicate,  # Duplicate order_id flag
