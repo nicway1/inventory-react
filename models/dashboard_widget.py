@@ -151,7 +151,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-ticket-alt',
     color='green',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
     data_loader='load_ticket_stats'
 ))
 
@@ -181,7 +181,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-layer-group',
     color='orange',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
     data_loader='load_queue_stats'
 ))
 
@@ -197,7 +197,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-chart-bar',
     color='indigo',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
     data_loader='load_weekly_ticket_data'
 ))
 
@@ -513,24 +513,21 @@ DEFAULT_DASHBOARD_LAYOUT = {
     ],
     'SUPERVISOR': [
         {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
-        {'widget_id': 'ticket_stats', 'position': 1, 'size': 'small', 'config': {}},
-        {'widget_id': 'customer_stats', 'position': 2, 'size': 'small', 'config': {}},
-        {'widget_id': 'clock_widget', 'position': 3, 'size': 'small', 'config': {}},
-        {'widget_id': 'quick_actions', 'position': 4, 'size': 'small', 'config': {}},
-        {'widget_id': 'view_inventory', 'position': 5, 'size': 'small', 'config': {}},
-        {'widget_id': 'weekly_tickets_chart', 'position': 6, 'size': 'medium', 'config': {}},
-        {'widget_id': 'queue_stats', 'position': 7, 'size': 'medium', 'config': {}},
-        {'widget_id': 'shipments_list', 'position': 8, 'size': 'large', 'config': {}},
-        {'widget_id': 'import_tickets', 'position': 9, 'size': 'small', 'config': {}},
+        {'widget_id': 'customer_stats', 'position': 1, 'size': 'small', 'config': {}},
+        {'widget_id': 'clock_widget', 'position': 2, 'size': 'small', 'config': {}},
+        {'widget_id': 'quick_actions', 'position': 3, 'size': 'small', 'config': {}},
+        {'widget_id': 'view_inventory', 'position': 4, 'size': 'small', 'config': {}},
+        {'widget_id': 'asset_status_chart', 'position': 5, 'size': 'medium', 'config': {}},
+        {'widget_id': 'shipments_list', 'position': 6, 'size': 'large', 'config': {}},
+        {'widget_id': 'import_tickets', 'position': 7, 'size': 'small', 'config': {}},
     ],
     'COUNTRY_ADMIN': [
         {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
-        {'widget_id': 'ticket_stats', 'position': 1, 'size': 'small', 'config': {}},
-        {'widget_id': 'clock_widget', 'position': 2, 'size': 'small', 'config': {}},
-        {'widget_id': 'quick_actions', 'position': 3, 'size': 'small', 'config': {}},
-        {'widget_id': 'queue_stats', 'position': 4, 'size': 'medium', 'config': {}},
-        {'widget_id': 'weekly_tickets_chart', 'position': 5, 'size': 'medium', 'config': {}},
-        {'widget_id': 'shipments_list', 'position': 6, 'size': 'large', 'config': {}},
+        {'widget_id': 'clock_widget', 'position': 1, 'size': 'small', 'config': {}},
+        {'widget_id': 'quick_actions', 'position': 2, 'size': 'small', 'config': {}},
+        {'widget_id': 'view_inventory', 'position': 3, 'size': 'small', 'config': {}},
+        {'widget_id': 'asset_status_chart', 'position': 4, 'size': 'medium', 'config': {}},
+        {'widget_id': 'shipments_list', 'position': 5, 'size': 'large', 'config': {}},
     ],
     'CLIENT': [
         {'widget_id': 'ticket_stats', 'position': 0, 'size': 'small', 'config': {}},
