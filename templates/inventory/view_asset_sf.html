@@ -628,6 +628,63 @@
         padding: 4px 12px;
         font-size: 0.75rem;
     }
+
+    /* Edit Mode Styles */
+    .sf-detail-edit {
+        display: none;
+    }
+    .sf-page.sf-edit-active .sf-detail-view {
+        display: none !important;
+    }
+    .sf-page.sf-edit-active .sf-detail-edit {
+        display: block !important;
+    }
+    .sf-edit-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        background: white;
+    }
+    .sf-edit-input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+    .sf-edit-select {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        background: white;
+    }
+    .sf-edit-select:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+    .sf-edit-textarea {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        resize: vertical;
+        min-height: 80px;
+    }
+    .sf-edit-textarea:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+    .sf-page.sf-edit-active {
+        background: #fef9e7;
+    }
+    .sf-page.sf-edit-active .sf-card {
+        border-color: #f1c40f;
+    }
 </style>
 {% endblock %}
 
@@ -663,6 +720,23 @@
                 </div>
             </div>
             <div class="sf-header-actions">
+                <button type="button" id="edit-btn" onclick="toggleEditMode()" class="sf-btn sf-btn-brand">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Edit
+                </button>
+                <button type="button" id="save-btn" onclick="saveAllChanges()" class="sf-btn sf-btn-brand" style="display: none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save
+                </button>
+                <button type="button" id="cancel-btn" onclick="cancelEditMode()" class="sf-btn sf-btn-neutral" style="display: none;">
+                    Cancel
+                </button>
                 <a href="{{ url_for('inventory.view_asset', asset_id=asset.id) }}" class="sf-btn sf-btn-neutral">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -707,19 +781,19 @@
                         {% set mfg_lower = (asset.manufacturer or '')|lower %}
 
                         {% if 'macbook' in model_lower or 'macbook' in name_lower or mfg_lower == 'apple' %}
-                            {% set product_image = 'https://pngimg.com/uploads/macbook/small/macbook_PNG101754.png' %}
+                            {% set product_image = url_for('static', filename='images/products/macbook.png') %}
                         {% elif 'thinkpad' in model_lower or 'thinkpad' in name_lower or mfg_lower == 'lenovo' %}
-                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101762.png' %}
+                            {% set product_image = url_for('static', filename='images/products/laptop_lenovo.png') %}
                         {% elif 'latitude' in model_lower or 'xps' in model_lower or mfg_lower == 'dell' %}
-                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101775.png' %}
+                            {% set product_image = url_for('static', filename='images/products/laptop_dell.png') %}
                         {% elif 'elitebook' in model_lower or 'probook' in model_lower or mfg_lower == 'hp' %}
-                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101764.png' %}
+                            {% set product_image = url_for('static', filename='images/products/laptop_hp.png') %}
                         {% elif 'surface' in model_lower or mfg_lower == 'microsoft' %}
-                            {% set product_image = 'https://pngimg.com/uploads/laptop/small/laptop_PNG101770.png' %}
+                            {% set product_image = url_for('static', filename='images/products/laptop_surface.png') %}
                         {% elif 'iphone' in model_lower or 'iphone' in name_lower %}
-                            {% set product_image = 'https://pngimg.com/uploads/iphone/small/iphone_PNG5732.png' %}
+                            {% set product_image = url_for('static', filename='images/products/iphone.png') %}
                         {% elif 'ipad' in model_lower or 'ipad' in name_lower %}
-                            {% set product_image = 'https://pngimg.com/uploads/ipad/small/ipad_PNG101936.png' %}
+                            {% set product_image = url_for('static', filename='images/products/ipad.png') %}
                         {% endif %}
                     {% endif %}
 
@@ -795,35 +869,63 @@
                             Asset Information
                         </span>
                     </div>
-                    <div class="sf-card-body">
+                    <div class="sf-card-body sf-edit-mode" id="asset-info-card">
                         <div class="sf-detail-grid">
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Asset Tag</div>
-                                <div class="sf-detail-value">{{ asset.asset_tag or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.asset_tag or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="asset_tag" value="{{ asset.asset_tag or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Serial Number</div>
-                                <div class="sf-detail-value">{{ asset.serial_num or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.serial_num or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="serial_num" value="{{ asset.serial_num or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Name</div>
-                                <div class="sf-detail-value">{{ asset.name or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.name or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="name" value="{{ asset.name or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Model</div>
-                                <div class="sf-detail-value">{{ asset.model or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.model or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="model" value="{{ asset.model or '' }}" list="model-list">
+                                    <datalist id="model-list">
+                                        {% for m in models %}
+                                        <option value="{{ m }}">{{ m }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Manufacturer</div>
-                                <div class="sf-detail-value">{{ asset.manufacturer or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.manufacturer or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="manufacturer" value="{{ asset.manufacturer or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Category / Type</div>
-                                <div class="sf-detail-value">{{ asset.asset_type or asset.category or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.asset_type or asset.category or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="asset_type" value="{{ asset.asset_type or '' }}" list="asset-type-list">
+                                    <datalist id="asset-type-list">
+                                        {% for t in asset_types %}
+                                        <option value="{{ t }}">{{ t }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Status</div>
-                                <div class="sf-detail-value">
+                                <div class="sf-detail-value sf-detail-view">
                                     {% if asset.status %}
                                     <span class="sf-status-badge sf-status-{{ asset.status.value|lower|replace(' ', '') }}">
                                         {{ asset.status.value }}
@@ -832,10 +934,26 @@
                                     -
                                     {% endif %}
                                 </div>
+                                <div class="sf-detail-edit">
+                                    <select class="sf-edit-select" name="status">
+                                        <option value="">-- Select Status --</option>
+                                        {% for s in statuses %}
+                                        <option value="{{ s.name }}" {% if asset.status == s %}selected{% endif %}>{{ s.value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Condition</div>
-                                <div class="sf-detail-value">{{ asset.condition or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.condition or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="condition" value="{{ asset.condition or '' }}" list="condition-list">
+                                    <datalist id="condition-list">
+                                        {% for c in conditions %}
+                                        <option value="{{ c }}">{{ c }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -851,19 +969,35 @@
                             Location & Assignment
                         </span>
                     </div>
-                    <div class="sf-card-body">
+                    <div class="sf-card-body sf-edit-mode" id="location-card">
                         <div class="sf-detail-grid">
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Customer</div>
-                                <div class="sf-detail-value">{{ asset.customer or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.customer or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="customer" value="{{ asset.customer or '' }}" list="customer-list">
+                                    <datalist id="customer-list">
+                                        {% for cust in customers %}
+                                        <option value="{{ cust }}">{{ cust }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Country</div>
-                                <div class="sf-detail-value">{{ asset.country or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.country or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="country" value="{{ asset.country or '' }}" list="country-list">
+                                    <datalist id="country-list">
+                                        {% for ctry in countries %}
+                                        <option value="{{ ctry }}">{{ ctry }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Location</div>
-                                <div class="sf-detail-value" id="location-display">
+                                <div class="sf-detail-value sf-detail-view" id="location-display">
                                     <span id="location-text">{% if asset.location %}{{ asset.location.name }}{% else %}-{% endif %}</span>
                                     <button type="button" onclick="showLocationEditor()" class="sf-inline-edit-btn" title="Edit Location">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -871,6 +1005,16 @@
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                         </svg>
                                     </button>
+                                </div>
+                                <div class="sf-detail-edit">
+                                    <select class="sf-edit-select" name="location_id">
+                                        <option value="">-- Select Location --</option>
+                                        {% for loc in locations %}
+                                        <option value="{{ loc.id }}" {% if asset.location_id == loc.id %}selected{% endif %}>
+                                            {{ loc.name }}{% if loc.country %} ({{ loc.country }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 <div id="location-editor" style="display: none;">
                                     <select id="location-select" class="sf-inline-select">
@@ -894,7 +1038,10 @@
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Inventory</div>
-                                <div class="sf-detail-value">{{ asset.inventory or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.inventory or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="inventory" value="{{ asset.inventory or '' }}">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -910,39 +1057,78 @@
                             Specifications
                         </span>
                     </div>
-                    <div class="sf-card-body">
+                    <div class="sf-card-body sf-edit-mode" id="specs-card">
                         <div class="sf-detail-grid">
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">CPU Type</div>
-                                <div class="sf-detail-value">{{ asset.cpu_type or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.cpu_type or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="cpu_type" value="{{ asset.cpu_type or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">CPU Cores</div>
-                                <div class="sf-detail-value">{{ asset.cpu_cores or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.cpu_cores or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="cpu_cores" value="{{ asset.cpu_cores or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Memory</div>
-                                <div class="sf-detail-value">{{ asset.memory or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.memory or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="memory" value="{{ asset.memory or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Hard Drive</div>
-                                <div class="sf-detail-value">{{ asset.harddrive or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.harddrive or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="harddrive" value="{{ asset.harddrive or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">GPU Cores</div>
-                                <div class="sf-detail-value">{{ asset.gpu_cores or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.gpu_cores or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="gpu_cores" value="{{ asset.gpu_cores or '' }}">
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Keyboard</div>
-                                <div class="sf-detail-value">{{ asset.keyboard or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.keyboard or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="keyboard" value="{{ asset.keyboard or '' }}" list="keyboard-list">
+                                    <datalist id="keyboard-list">
+                                        {% for kb in keyboards %}
+                                        <option value="{{ kb }}">{{ kb }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Charger</div>
-                                <div class="sf-detail-value">{{ asset.charger or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.charger or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="charger" value="{{ asset.charger or '' }}" list="charger-list">
+                                    <datalist id="charger-list">
+                                        {% for ch in chargers %}
+                                        <option value="{{ ch }}">{{ ch }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Diagnostics</div>
-                                <div class="sf-detail-value">{{ asset.diag or '-' }}</div>
+                                <div class="sf-detail-value sf-detail-view">{{ asset.diag or '-' }}</div>
+                                <div class="sf-detail-edit">
+                                    <input type="text" class="sf-edit-input" name="diag" value="{{ asset.diag or '' }}" list="diag-list">
+                                    <datalist id="diag-list">
+                                        {% for d in diags %}
+                                        <option value="{{ d }}">{{ d }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1008,14 +1194,20 @@
                             Notes
                         </span>
                     </div>
-                    <div class="sf-card-body">
+                    <div class="sf-card-body sf-edit-mode" id="notes-card">
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">General Notes</div>
-                            <div class="sf-detail-value">{{ asset.notes or 'No notes' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.notes or 'No notes' }}</div>
+                            <div class="sf-detail-edit">
+                                <textarea class="sf-edit-textarea" name="notes">{{ asset.notes or '' }}</textarea>
+                            </div>
                         </div>
                         <div class="sf-detail-field" style="margin-top: 1rem;">
                             <div class="sf-detail-label">Technical Notes</div>
-                            <div class="sf-detail-value">{{ asset.tech_notes or 'No technical notes' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.tech_notes or 'No technical notes' }}</div>
+                            <div class="sf-detail-edit">
+                                <textarea class="sf-edit-textarea" name="tech_notes">{{ asset.tech_notes or '' }}</textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1030,22 +1222,34 @@
                             Purchase Information
                         </span>
                     </div>
-                    <div class="sf-card-body">
+                    <div class="sf-card-body sf-edit-mode" id="purchase-card">
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Cost Price</div>
-                            <div class="sf-detail-value">{{ '${:,.2f}'.format(asset.cost_price) if asset.cost_price else '-' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ '${:,.2f}'.format(asset.cost_price) if asset.cost_price else '-' }}</div>
+                            <div class="sf-detail-edit">
+                                <input type="number" step="0.01" class="sf-edit-input" name="cost_price" value="{{ asset.cost_price or '' }}">
+                            </div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">PO Number</div>
-                            <div class="sf-detail-value">{{ asset.po or '-' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.po or '-' }}</div>
+                            <div class="sf-detail-edit">
+                                <input type="text" class="sf-edit-input" name="po" value="{{ asset.po or '' }}">
+                            </div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Receiving Date</div>
-                            <div class="sf-detail-value">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '-' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '-' }}</div>
+                            <div class="sf-detail-edit">
+                                <input type="date" class="sf-edit-input" name="receiving_date" value="{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '' }}">
+                            </div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Erased</div>
-                            <div class="sf-detail-value">{{ asset.erased or '-' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.erased or '-' }}</div>
+                            <div class="sf-detail-edit">
+                                <input type="text" class="sf-edit-input" name="erased" value="{{ asset.erased or '' }}">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1320,6 +1524,91 @@ async function saveLocation() {
     } catch (error) {
         console.error('Error:', error);
         alert('Error updating location: ' + error.message);
+    }
+}
+
+// ============================================
+// Edit Mode Functions
+// ============================================
+let isEditMode = false;
+
+function toggleEditMode() {
+    isEditMode = !isEditMode;
+    const page = document.querySelector('.sf-page');
+    const editBtn = document.getElementById('edit-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+
+    if (isEditMode) {
+        // Enter edit mode - CSS handles showing/hiding via sf-edit-active class
+        page.classList.add('sf-edit-active');
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-flex';
+        cancelBtn.style.display = 'inline-flex';
+    } else {
+        // Exit edit mode
+        exitEditMode();
+    }
+}
+
+function cancelEditMode() {
+    isEditMode = false;
+    exitEditMode();
+    // Reload to reset any changes
+    window.location.reload();
+}
+
+function exitEditMode() {
+    const page = document.querySelector('.sf-page');
+    const editBtn = document.getElementById('edit-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+
+    page.classList.remove('sf-edit-active');
+    editBtn.style.display = 'inline-flex';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+}
+
+async function saveAllChanges() {
+    // Collect all form data from edit inputs
+    const formData = {};
+
+    // Get all input/select/textarea elements with name attribute
+    document.querySelectorAll('.sf-detail-edit input[name], .sf-detail-edit select[name], .sf-detail-edit textarea[name]').forEach(el => {
+        const name = el.getAttribute('name');
+        let value = el.value;
+
+        // Handle empty values
+        if (value === '' || value === null) {
+            value = null;
+        }
+
+        formData[name] = value;
+    });
+
+    // Send data to server
+    try {
+        const response = await fetch(`/inventory/api/asset/${assetId}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload the page to show updated values
+            window.location.reload();
+        } else {
+            alert('Error saving changes: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error saving changes: ' + error.message);
     }
 }
 </script>
