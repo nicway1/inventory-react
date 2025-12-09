@@ -539,19 +539,19 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <strong>{{ user[0] }}</strong>
+                                <strong>{{ user[1] }}</strong>
                             </td>
                             <td>
-                                <span class="sf-badge sf-badge-info">{{ user[1] }} sessions</span>
+                                <span class="sf-badge sf-badge-info">{{ user[2] }} sessions</span>
                             </td>
                             <td>
-                                {% set duration = user[2]|int if user[2] else 0 %}
+                                {% set duration = user[3]|int if user[3] else 0 %}
                                 {% set hours = duration // 3600 %}
                                 {% set minutes = (duration % 3600) // 60 %}
                                 {{ hours }}h {{ minutes }}m
                             </td>
                             <td>
-                                <a href="{{ url_for('development.user_activity_detail', user_id=loop.index) }}" class="sf-button sf-button-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                <a href="{{ url_for('development.user_activity_detail', user_id=user[0]) }}" class="sf-button sf-button-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                     View Details
                                 </a>
                             </td>

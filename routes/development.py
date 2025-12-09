@@ -3418,6 +3418,7 @@ def user_analytics():
 
         # Sessions per user (top 10 this month)
         sessions_per_user = db_session.query(
+            User.id,
             User.username,
             func.count(UserSession.id).label('session_count'),
             func.sum(
