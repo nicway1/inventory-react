@@ -186,8 +186,8 @@
                     <h1 class="text-3xl font-bold text-gray-900">Welcome, {{ user.username }}!</h1>
                     <p class="text-gray-600 mt-1">Here's an overview of your system</p>
 
-                    <!-- Weekly Ticket Chart -->
-                    {% if weekly_ticket_data %}
+                    <!-- Weekly Ticket Chart (hidden for Country Admin and Supervisor) -->
+                    {% if weekly_ticket_data and user.user_type.value not in ['COUNTRY_ADMIN', 'SUPERVISOR'] %}
                     <div class="mt-6 pt-6 border-t border-gray-200">
                         <h3 class="text-sm font-semibold text-gray-700 mb-4">This Week's Tickets (Mon-Fri)</h3>
                         <div class="flex items-end gap-4" style="height: 140px;">
