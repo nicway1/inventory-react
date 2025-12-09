@@ -10313,7 +10313,7 @@ def bulk_import_asset_return():
 
                     # Get optional fields first
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
-                    customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip()
+                    customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip().upper()  # Auto-convert to uppercase
 
                     # Get direct customer_address from form (editable field)
                     direct_address = request.form.get(f'row_{i}_customer_address', '').strip()
@@ -10792,7 +10792,7 @@ def bulk_import_1stbase():
 
                     # Get optional fields first
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
-                    customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip()
+                    customer_company_name = request.form.get(f'row_{i}_customer_company', '').strip().upper()  # Auto-convert to uppercase
 
                     # Get direct customer_address from form (editable field)
                     direct_address = request.form.get(f'row_{i}_customer_address', '').strip()
