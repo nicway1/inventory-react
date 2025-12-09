@@ -305,6 +305,7 @@ def index():
             shipment_query = db_session.query(Ticket).filter(
                 Ticket.category.in_([
                     TicketCategory.ASSET_CHECKOUT,
+                    TicketCategory.ASSET_CHECKOUT1,
                     TicketCategory.ASSET_CHECKOUT_SINGPOST,
                     TicketCategory.ASSET_CHECKOUT_DHL,
                     TicketCategory.ASSET_CHECKOUT_UPS,

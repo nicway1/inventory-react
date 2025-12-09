@@ -8137,7 +8137,7 @@ def add_accessory(ticket_id):
                 
                 # For Asset Checkout categories, deduct from inventory (checkout)
                 # For Asset Return and Asset Intake categories, add to inventory (return/intake)
-                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                     # Checkout: deduct from inventory
                     if accessory.available_quantity < quantity:
                         return jsonify({'success': False, 'message': f'Not enough quantity available. Only {accessory.available_quantity} units available.'}), 400
@@ -8171,7 +8171,7 @@ def add_accessory(ticket_id):
                 logger.info("=== INVENTORY UPDATE END ===")
 
                 # Create transaction record
-                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                     transaction_type = 'Checkout'
                     transaction_notes = f'Accessory checked out via ticket #{ticket_id} - inventory decreased'
                 elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
@@ -8225,7 +8225,7 @@ def add_accessory(ticket_id):
                 db_session.flush()
 
                 # Update inventory based on ticket category
-                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                     if new_accessory.available_quantity < quantity:
                         return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
                     new_accessory.available_quantity -= quantity
@@ -8247,7 +8247,7 @@ def add_accessory(ticket_id):
                 db_session.add(ticket_accessory)
 
                 # Create transaction records
-                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+                if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                     assignment_transaction_type = 'Checkout'
                     assignment_transaction_notes = f'New accessory created and checked out via ticket #{ticket_id} - inventory decreased'
                 elif ticket.category and ticket.category.name == 'ASSET_INTAKE':
@@ -8324,7 +8324,7 @@ def add_accessory(ticket_id):
             
             # For Asset Checkout categories, deduct from inventory (checkout)
             # For Asset Return and Asset Intake categories, add to inventory (return/intake)
-            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                 # Checkout: deduct from inventory
                 if new_accessory.available_quantity < quantity:
                     return jsonify({'success': False, 'message': f'Not enough quantity available. Only {new_accessory.available_quantity} units available.'}), 400
@@ -8351,7 +8351,7 @@ def add_accessory(ticket_id):
             db_session.add(ticket_accessory)
 
             # Create transaction record for the assignment
-            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
+            if ticket.category and (ticket.category.name in ['ASSET_CHECKOUT', 'ASSET_CHECKOUT1', 'ASSET_CHECKOUT_CLAW', 'ASSET_CHECKOUT_MAIN', 'ASSET_CHECKOUT_SINGPOST', 'ASSET_CHECKOUT_DHL', 'ASSET_CHECKOUT_UPS', 'ASSET_CHECKOUT_BLUEDART', 'ASSET_CHECKOUT_DTDC', 'ASSET_CHECKOUT_AUTO']):
                 assignment_transaction_type = 'Checkout'
                 assignment_transaction_notes = f'New accessory created and checked out via ticket #{ticket_id} - inventory decreased'
             elif ticket.category and ticket.category.name == 'ASSET_INTAKE':

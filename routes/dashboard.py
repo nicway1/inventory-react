@@ -212,6 +212,7 @@ def load_widget_data(user, layout):
             shipment_query = db.query(Ticket).filter(
                 Ticket.category.in_([
                     TicketCategory.ASSET_CHECKOUT,
+                    TicketCategory.ASSET_CHECKOUT1,
                     TicketCategory.ASSET_CHECKOUT_SINGPOST,
                     TicketCategory.ASSET_CHECKOUT_DHL,
                     TicketCategory.ASSET_CHECKOUT_UPS,

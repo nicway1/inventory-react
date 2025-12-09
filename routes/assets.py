@@ -36,6 +36,7 @@ def _is_asset_checkout_ticket(ticket_category):
     
     checkout_categories = [
         TicketCategory.ASSET_CHECKOUT,
+        TicketCategory.ASSET_CHECKOUT1,
         TicketCategory.ASSET_CHECKOUT_SINGPOST,
         TicketCategory.ASSET_CHECKOUT_DHL,
         TicketCategory.ASSET_CHECKOUT_UPS,

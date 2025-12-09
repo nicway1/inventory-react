@@ -29,6 +29,7 @@ class TicketCategory(enum.Enum):
     REPAIR_QUOTE = "Repair Quote"
     ITAD_QUOTE = "ITAD Quote"
     ASSET_CHECKOUT = "Asset Checkout"
+    ASSET_CHECKOUT1 = "Asset Checkout1"
     ASSET_CHECKOUT_SINGPOST = "Asset Checkout (SingPost)"
     ASSET_CHECKOUT_DHL = "Asset Checkout (DHL)"
     ASSET_CHECKOUT_UPS = "Asset Checkout (UPS)"
