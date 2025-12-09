@@ -520,9 +520,10 @@ def export_tickets_csv():
                 from models.ticket import TicketStatus
                 try:
                     status_enum = TicketStatus(status_filter)
-                    query = query.filter(Ticket.status == status_enum)
+                    query = query.filter(Ticket.status == status_enum, Ticket.custom_status == None)
                 except ValueError:
-                    pass
+                    # Not a standard status - filter by custom_status
+                    query = query.filter(Ticket.custom_status == status_filter)
 
             # Apply queue filter
             if queue_filter and queue_filter != 'all':

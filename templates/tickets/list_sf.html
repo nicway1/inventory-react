@@ -1122,7 +1122,7 @@
                 subject: {{ ticket.subject | tojson }},
                 category: {{ (ticket.category.value if ticket.category else null) | tojson }},
                 priority: {{ (ticket.priority.value if ticket.priority else 'MEDIUM') | tojson }},
-                status: {{ (ticket.status.value if ticket.status else 'OPEN') | tojson }},
+                status: {{ (ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else 'NEW')) | tojson }},
                 queue: {{ (ticket.queue.name if ticket.queue else 'Unassigned') | tojson }},
                 queue_id: {{ ticket.queue_id | tojson if ticket.queue_id else 'null' }},
                 created_at: {{ (ticket.created_at.isoformat() if ticket.created_at else null) | tojson }},
