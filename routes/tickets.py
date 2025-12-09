@@ -10532,6 +10532,14 @@ def bulk_import_1stbase():
                     flash(f'Missing required columns: {", ".join(missing_headers)}', 'error')
                     return redirect(request.url)
 
+                # Get existing order_ids to check for duplicates
+                existing_order_ids = set()
+                existing_tickets = db_session.query(Ticket.firstbaseorderid).filter(
+                    Ticket.firstbaseorderid.isnot(None),
+                    Ticket.firstbaseorderid != ''
+                ).all()
+                existing_order_ids = {t.firstbaseorderid for t in existing_tickets}
+
                 # Read all rows for preview
                 preview_data = []
                 row_number = 1
@@ -10562,6 +10570,10 @@ def bulk_import_1stbase():
                         address_parts.append(', '.join(city_state_zip))
                     customer_address = ', '.join(address_parts) if address_parts else ''
 
+                    # Check if order_id already exists
+                    order_id = row.get('order_id', '').strip()
+                    is_duplicate = order_id and order_id in existing_order_ids
+
                     row_data = {
                         'row_number': row_number,
                         'customer_name': customer_name,
@@ -10572,7 +10584,7 @@ def bulk_import_1stbase():
                         'customer_address': customer_address,
                         'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_description', 'N/A')} | Serial: {row.get('serial_number1Z83RR694236566929', 'N/A')}",
                         'asset_serial_number': row.get('serial_number1Z83RR694236566929', ''),
-                        'order_id': row.get('order_id', ''),
+                        'order_id': order_id,
                         'product_description': row.get('product_description', ''),
                         'address_line_1': row.get('address_line_1', ''),
                         'address_line_2': row.get('address_line_2', ''),
@@ -10584,6 +10596,7 @@ def bulk_import_1stbase():
                         'queue_name': row.get('country', ''),  # Use country as queue name
                         'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', ''),
                         'name_is_empty': name_is_empty,  # Validation flag
+                        'is_duplicate': is_duplicate,  # Duplicate order_id flag
                         'first_name': first_name,
                         'last_name': last_name
                     }
@@ -10591,6 +10604,10 @@ def bulk_import_1stbase():
                     # Log rows with empty names for debugging
                     if name_is_empty:
                         logger.info(f"Row {row_number}: Empty customer name detected (first='{first_name}', last='{last_name}')")
+
+                    # Log duplicate order_ids
+                    if is_duplicate:
+                        logger.info(f"Row {row_number}: Duplicate order_id detected: {order_id}")
 
                     preview_data.append(row_data)
 
@@ -10603,7 +10620,8 @@ def bulk_import_1stbase():
 
                 # Log summary
                 empty_name_count = sum(1 for r in preview_data if r.get('name_is_empty'))
-                logger.info(f"Preview prepared: {len(preview_data)} total rows, {empty_name_count} with empty names")
+                duplicate_count = sum(1 for r in preview_data if r.get('is_duplicate'))
+                logger.info(f"Preview prepared: {len(preview_data)} total rows, {empty_name_count} with empty names, {duplicate_count} duplicates")
 
                 return render_template('tickets/bulk_import_preview.html',
                                      user=user,
@@ -10628,6 +10646,21 @@ def bulk_import_1stbase():
             for i in range(row_count):
                 row_number = int(request.form.get(f'row_{i}_number', i + 2))
                 try:
+                    # Get order_id first to check for duplicates
+                    order_id = request.form.get(f'row_{i}_order_id', '').strip()
+
+                    # Check if order_id already exists in database
+                    if order_id:
+                        existing_ticket = db_session.query(Ticket).filter(
+                            Ticket.firstbaseorderid == order_id
+                        ).first()
+                        if existing_ticket:
+                            failed_imports.append({
+                                'row': row_number,
+                                'reason': f'Duplicate order_id: {order_id} (already exists in ticket #{existing_ticket.id})'
+                            })
+                            continue
+
                     # Validate required fields
                     customer_name = request.form.get(f'row_{i}_customer_name', '').strip()
                     customer_email = request.form.get(f'row_{i}_customer_email', '').strip()
@@ -10775,7 +10808,8 @@ def bulk_import_1stbase():
                         return_description=return_description,
                         queue_id=queue_id,
                         notes=notes if notes else None,
-                        shipping_carrier='singpost'
+                        shipping_carrier='singpost',
+                        firstbaseorderid=order_id if order_id else None  # Store order_id for duplicate prevention
                     )
                     db_session.add(ticket)
                     db_session.flush()

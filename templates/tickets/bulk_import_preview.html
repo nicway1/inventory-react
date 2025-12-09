@@ -81,6 +81,21 @@
         align-items: center;
         gap: 0.25rem;
     }
+    .duplicate-row {
+        background-color: #fef3c7;
+    }
+    .duplicate-field {
+        border: 2px solid #f59e0b !important;
+        background-color: #fef3c7;
+    }
+    .duplicate-message {
+        color: #d97706;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
 </style>
 {% endblock %}
 
@@ -95,6 +110,7 @@
 
         <!-- Summary Stats -->
         {% set rows_with_errors = preview_data | selectattr('name_is_empty', 'equalto', true) | list | length %}
+        {% set duplicate_rows = preview_data | selectattr('is_duplicate', 'equalto', true) | list | length %}
         {% if rows_with_errors > 0 %}
         <div class="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
             <div class="flex items-start">
@@ -108,17 +124,34 @@
             </div>
         </div>
         {% endif %}
+        {% if duplicate_rows > 0 %}
+        <div class="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-amber-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <div>
+                    <p class="text-amber-900 font-semibold">⚠️ {{ duplicate_rows }} duplicate order ID(s) detected</p>
+                    <p class="text-amber-800 text-sm mt-1">Rows highlighted in yellow have order IDs that already exist in the system and will be skipped during import.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p class="text-blue-900">
-                <strong>{{ preview_data|length }} rows</strong> ready to import.
+                <strong>{{ preview_data|length }} rows</strong> found.
+                {% if duplicate_rows > 0 %}
+                <strong class="text-amber-600">{{ duplicate_rows }} duplicate(s) will be skipped.</strong>
+                {% endif %}
                 {% if rows_with_errors > 0 %}
                 <strong class="text-red-600">{{ rows_with_errors }} row(s) require attention.</strong>
                 {% endif %}
-                Review the data below and fill in any missing required fields before proceeding.
+                {% set importable_rows = preview_data|length - duplicate_rows %}
+                <strong class="text-green-600">{{ importable_rows }} row(s) will be imported.</strong>
             </p>
         </div>
 
-        <form id="importForm" method="POST" action="{{ url_for('tickets.bulk_import_asset_return') }}">
+        <form id="importForm" method="POST" action="{% if import_type == '1stbase' %}{{ url_for('tickets.bulk_import_1stbase') }}{% else %}{{ url_for('tickets.bulk_import_asset_return') }}{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="import">
             <input type="hidden" name="row_count" value="{{ preview_data|length }}">
@@ -145,10 +178,18 @@
                     </thead>
                     <tbody>
                         {% for row in preview_data %}
-                        <tr class="{% if row.name_is_empty %}error-row{% endif %}" data-name-empty="{{ row.name_is_empty }}" data-customer-name="{{ row.customer_name }}">
+                        <tr class="{% if row.name_is_empty %}error-row{% elif row.is_duplicate %}duplicate-row{% endif %}" data-name-empty="{{ row.name_is_empty }}" data-customer-name="{{ row.customer_name }}" data-is-duplicate="{{ row.is_duplicate }}">
                             <td class="row-number">
                                 {{ row.row_number }}
                                 <input type="hidden" name="row_{{ loop.index0 }}_number" value="{{ row.row_number }}">
+                                <input type="hidden" name="row_{{ loop.index0 }}_order_id" value="{{ row.order_id or '' }}">
+                                {% if row.is_duplicate %}
+                                <div class="duplicate-message" title="Order ID already exists in system">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <input type="text"
@@ -286,6 +327,8 @@
                 <li>Fields marked with <span class="required-star">*</span> are required and must be filled</li>
                 <li>You can edit any field directly in the table before importing</li>
                 <li>Invalid or incomplete rows will be skipped during import</li>
+                <li><span class="text-amber-600 font-medium">Rows highlighted in yellow</span> have duplicate order IDs and will be skipped</li>
+                <li><span class="text-red-600 font-medium">Rows highlighted in red</span> have missing required fields</li>
                 <li>Click "Confirm and Import" when you're ready to create the tickets</li>
                 <li>The table is scrollable - scroll horizontally to see all fields</li>
             </ul>
