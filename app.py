@@ -49,6 +49,7 @@ from routes.action_items import action_items_bp
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from utils.auth import safe_generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
@@ -80,6 +81,10 @@ os.makedirs('data', exist_ok=True)
 
 def create_app():
     app = Flask(__name__)
+
+    # Apply ProxyFix to get real client IP when behind reverse proxy (nginx, PythonAnywhere, etc.)
+    # x_for=1 means trust 1 proxy hop for X-Forwarded-For header
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Configure Flask app
     app.config.update(
