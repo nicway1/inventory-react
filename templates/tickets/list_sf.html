@@ -1840,6 +1840,19 @@
         document.getElementById('exportPreviewSection').style.display = 'none';
         document.getElementById('previewButton').style.display = 'inline-block';
         document.getElementById('exportButton').style.display = 'none';
+
+        // Reset filter result count
+        document.getElementById('filterResultCount').textContent = '';
+    }
+
+    function applyExportFilters() {
+        const filteredTickets = getFilteredExportTickets();
+        const countEl = document.getElementById('filterResultCount');
+        countEl.textContent = `${filteredTickets.length} ticket(s) match your filters`;
+        countEl.style.color = filteredTickets.length > 0 ? '#059669' : '#dc2626';
+
+        // Automatically show preview
+        showPreview();
     }
 
     function showTicketSelection() {
@@ -2010,25 +2023,13 @@
             <div id="filterExportSection" class="export-section" style="display: none;">
                 <h4 class="export-subsection-title">Filter Options</h4>
                 <div class="export-filter-grid">
-                    <div class="export-filter-group">
+                    <div class="export-filter-group full-width">
                         <label class="export-label">Date Range:</label>
                         <div class="date-range-inputs">
-                            <input type="date" name="dateFrom" class="export-input">
+                            <input type="date" name="dateFrom" class="export-input" placeholder="From">
                             <span class="date-separator">to</span>
-                            <input type="date" name="dateTo" class="export-input">
+                            <input type="date" name="dateTo" class="export-input" placeholder="To">
                         </div>
-                    </div>
-                    <div class="export-filter-group">
-                        <label class="export-label">Category:</label>
-                        <select id="exportCategoryFilter" name="categoryFilter" class="export-select">
-                            <option value="all">All Categories</option>
-                        </select>
-                    </div>
-                    <div class="export-filter-group">
-                        <label class="export-label">Priority:</label>
-                        <select id="exportPriorityFilter" name="priorityFilter" class="export-select">
-                            <option value="all">All Priorities</option>
-                        </select>
                     </div>
                     <div class="export-filter-group">
                         <label class="export-label">Status:</label>
@@ -2046,16 +2047,34 @@
                         </select>
                     </div>
                     <div class="export-filter-group">
+                        <label class="export-label">Priority:</label>
+                        <select id="exportPriorityFilter" name="priorityFilter" class="export-select">
+                            <option value="all">All Priorities</option>
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Category:</label>
+                        <select id="exportCategoryFilter" name="categoryFilter" class="export-select">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
                         <label class="export-label">Queue:</label>
                         <select id="exportQueueFilter" name="queueFilter" class="export-select">
                             <option value="all">All Queues</option>
                         </select>
                     </div>
-                    <div class="export-filter-group">
+                    <div class="export-filter-group full-width">
                         <label class="export-label">Company:</label>
                         <select id="exportCompanyFilter" name="companyFilter" class="export-select">
                             <option value="all">All Companies</option>
                         </select>
+                    </div>
+                    <div class="export-filter-group full-width" style="margin-top: 8px;">
+                        <button type="button" onclick="applyExportFilters()" class="wizard-button apply-filter-button">
+                            <i class="fas fa-filter"></i> Apply Filters
+                        </button>
+                        <span id="filterResultCount" class="filter-result-count"></span>
                     </div>
                 </div>
             </div>
@@ -2111,18 +2130,22 @@
 .export-wizard-body { padding: 24px; }
 .export-wizard-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; background: #f9fafb; border-radius: 0 0 8px 8px; }
 .export-section { margin-bottom: 24px; }
-.export-label { display: block; font-weight: 500; margin-bottom: 8px; color: #374151; }
-.export-select, .export-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
-.export-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-.export-filter-group { margin-bottom: 12px; }
+.export-label { display: block; font-weight: 500; margin-bottom: 8px; color: #374151; font-size: 13px; }
+.export-select, .export-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+.export-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.export-filter-group { margin-bottom: 0; }
+.export-filter-group.full-width { grid-column: 1 / -1; }
 .export-subsection-title { font-size: 14px; font-weight: 600; color: #374151; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
-.date-range-inputs { display: flex; align-items: center; gap: 8px; }
-.date-separator { color: #6b7280; }
-.wizard-button { padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; }
+.date-range-inputs { display: flex; align-items: center; gap: 12px; }
+.date-range-inputs .export-input { flex: 1; min-width: 0; }
+.date-separator { color: #6b7280; font-size: 13px; flex-shrink: 0; }
+.wizard-button { padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; }
 .cancel-button { background: #f3f4f6; color: #374151; }
 .preview-button { background: #3b82f6; color: white; }
 .export-button { background: #10b981; color: white; }
+.apply-filter-button { background: #6366f1; color: white; }
 .wizard-button:hover { opacity: 0.9; }
+.filter-result-count { margin-left: 12px; font-size: 13px; color: #374151; font-weight: 500; }
 .selection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .selection-actions { display: flex; gap: 8px; }
 .selection-button { padding: 6px 12px; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-size: 13px; }

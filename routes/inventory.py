@@ -1147,10 +1147,10 @@ def api_update_asset_location(asset_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@inventory_bp.route('/api/locations', methods=['POST'])
+@inventory_bp.route('/api/asset/<int:asset_id>/update', methods=['POST'])
 @login_required
-def api_create_location():
-    """Create a new location"""
+def api_update_asset(asset_id):
+    """Update asset details via inline edit"""
     try:
         user_id = session.get('user_id')
         user_type = session.get('user_type')
@@ -1166,8 +1166,107 @@ def api_create_location():
         if data is None:
             return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
 
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).get(asset_id)
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+            # List of updatable fields
+            updatable_fields = [
+                'asset_tag', 'serial_num', 'name', 'model', 'manufacturer',
+                'asset_type', 'condition', 'customer', 'country', 'inventory',
+                'cpu_type', 'cpu_cores', 'memory', 'harddrive', 'gpu_cores',
+                'keyboard', 'charger', 'diag', 'notes', 'tech_notes',
+                'cost_price', 'po', 'erased'
+            ]
+
+            # Update each field if present in data
+            for field in updatable_fields:
+                if field in data:
+                    value = data[field]
+                    # Handle empty strings as None
+                    if value == '' or value == 'null':
+                        value = None
+                    # Handle numeric fields
+                    if field == 'cost_price' and value is not None:
+                        try:
+                            value = float(value)
+                        except (ValueError, TypeError):
+                            value = None
+                    setattr(asset, field, value)
+
+            # Handle status separately (it's an enum)
+            if 'status' in data and data['status']:
+                try:
+                    from models.asset import AssetStatus
+                    asset.status = AssetStatus[data['status']]
+                except (KeyError, ValueError):
+                    pass  # Invalid status, ignore
+
+            # Handle location_id separately
+            if 'location_id' in data:
+                loc_id = data['location_id']
+                if loc_id and loc_id != '':
+                    try:
+                        asset.location_id = int(loc_id)
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    asset.location_id = None
+
+            # Handle receiving_date separately
+            if 'receiving_date' in data:
+                date_str = data['receiving_date']
+                if date_str and date_str != '':
+                    try:
+                        from datetime import datetime
+                        asset.receiving_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    asset.receiving_date = None
+
+            db_session.commit()
+
+            logger.info(f"Updated asset {asset_id} via inline edit by user {user_id}")
+
+            return jsonify({
+                'success': True,
+                'asset_id': asset_id
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error updating asset: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/locations', methods=['POST'])
+@login_required
+def api_create_location():
+    """Create a new location"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Allow DEVELOPER, SUPER_ADMIN, and ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
         name = data.get('name', '').strip()
         country = data.get('country', '').strip() if data.get('country') else None
+        address = data.get('address', '').strip() if data.get('address') else None
 
         if not name:
             return jsonify({'success': False, 'error': 'Location name is required'}), 400
@@ -1182,7 +1281,7 @@ def api_create_location():
                 return jsonify({'success': False, 'error': 'Location with this name already exists'}), 400
 
             # Create new location
-            location = Location(name=name, country=country)
+            location = Location(name=name, country=country, address=address)
             db_session.add(location)
             db_session.commit()
 
@@ -1238,13 +1337,49 @@ def view_asset_sf(asset_id):
         from models.location import Location
         locations = db_session.query(Location).order_by(Location.name).all()
 
+        # Get all unique values for edit dropdowns
+        models = db_session.query(Asset.model).distinct().filter(Asset.model.isnot(None)).all()
+        models = sorted([m[0] for m in models if m[0]])
+
+        chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        chargers = sorted([c[0] for c in chargers if c[0]])
+
+        customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        customers = sorted([c[0] for c in customers if c[0]])
+
+        countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        countries = sorted([c[0] for c in countries if c[0]])
+
+        asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        asset_types = sorted([t[0] for t in asset_types if t[0]])
+
+        conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        conditions = sorted([c[0] for c in conditions if c[0]])
+
+        diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        diags = sorted([d[0] for d in diags if d[0]])
+
+        keyboards = db_session.query(Asset.keyboard).distinct().filter(Asset.keyboard.isnot(None)).all()
+        keyboards = sorted([k[0] for k in keyboards if k[0]])
+
+        from models.asset import AssetStatus
+
         return render_template('inventory/view_asset_sf.html',
                              asset=asset,
                              user=user,
                              related_tickets=related_tickets,
                              asset_history=asset_history,
                              asset_transactions=asset_transactions,
-                             locations=locations)
+                             locations=locations,
+                             models=models,
+                             chargers=chargers,
+                             customers=customers,
+                             countries=countries,
+                             asset_types=asset_types,
+                             conditions=conditions,
+                             diags=diags,
+                             keyboards=keyboards,
+                             statuses=AssetStatus)
     finally:
         db_session.close()
 

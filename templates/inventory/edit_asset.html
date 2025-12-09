@@ -139,16 +139,23 @@
 
                     <div>
                         <label for="location_id" class="block text-sm font-medium text-gray-700">Location</label>
-                        <select id="location_id"
-                                name="location_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select Location --</option>
-                            {% for location in locations %}
-                            <option value="{{ location.id }}" {% if asset.location_id == location.id %}selected{% endif %}>
-                                {{ location.name }}{% if location.country %} ({{ location.country }}){% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="flex gap-2 mt-1">
+                            <select id="location_id"
+                                    name="location_id"
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select Location --</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}" {% if asset.location_id == location.id %}selected{% endif %}>
+                                    {{ location.name }}{% if location.country %} ({{ location.country }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" onclick="showAddLocationModal()"
+                                    class="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm whitespace-nowrap"
+                                    title="Add New Location">
+                                + Add
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -158,11 +165,19 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="hardware_type" class="block text-sm font-medium text-gray-700">Hardware Type</label>
-                            <input type="text" 
-                                   id="hardware_type" 
-                                   name="hardware_type" 
-                                   value="{{ asset.hardware_type or '' }}"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <div class="flex gap-2 mt-1">
+                                <input type="text"
+                                       id="hardware_type"
+                                       name="hardware_type"
+                                       value="{{ asset.hardware_type or '' }}"
+                                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <button type="button"
+                                        onclick="generateHardwareType()"
+                                        class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm whitespace-nowrap"
+                                        title="Generate from specs">
+                                    Generate
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -327,4 +342,149 @@
         </div>
     </div>
 </div>
+
+<!-- Add Location Modal -->
+<div id="addLocationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Add New Location</h3>
+                <button type="button" onclick="hideAddLocationModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4">
+            <div class="space-y-4">
+                <div>
+                    <label for="new_location_name" class="block text-sm font-medium text-gray-700">Location Name *</label>
+                    <input type="text" id="new_location_name" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                           placeholder="e.g., Warehouse A, Office Building 2">
+                </div>
+                <div>
+                    <label for="new_location_country" class="block text-sm font-medium text-gray-700">Country</label>
+                    <input type="text" id="new_location_country" list="location-country-list"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                           placeholder="e.g., United States, Singapore">
+                    <datalist id="location-country-list">
+                        {% for country in countries %}
+                        <option value="{{ country }}">{{ country }}</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div>
+                    <label for="new_location_address" class="block text-sm font-medium text-gray-700">Address</label>
+                    <textarea id="new_location_address" rows="2"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              placeholder="Full address (optional)"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button type="button" onclick="hideAddLocationModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="button" onclick="saveNewLocation()"
+                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                Save Location
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddLocationModal() {
+    document.getElementById('addLocationModal').classList.remove('hidden');
+    document.getElementById('addLocationModal').classList.add('flex');
+    document.getElementById('new_location_name').focus();
+}
+
+function hideAddLocationModal() {
+    document.getElementById('addLocationModal').classList.add('hidden');
+    document.getElementById('addLocationModal').classList.remove('flex');
+    document.getElementById('new_location_name').value = '';
+    document.getElementById('new_location_country').value = '';
+    document.getElementById('new_location_address').value = '';
+}
+
+async function saveNewLocation() {
+    const name = document.getElementById('new_location_name').value.trim();
+    const country = document.getElementById('new_location_country').value.trim();
+    const address = document.getElementById('new_location_address').value.trim();
+
+    if (!name) {
+        alert('Location name is required');
+        return;
+    }
+
+    try {
+        const response = await fetch('/inventory/api/locations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                name: name,
+                country: country || null,
+                address: address || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Add new option to the dropdown and select it
+            const select = document.getElementById('location_id');
+            const option = document.createElement('option');
+            option.value = data.location_id;
+            option.textContent = name + (country ? ` (${country})` : '');
+            option.selected = true;
+            select.appendChild(option);
+
+            hideAddLocationModal();
+            alert('Location added successfully!');
+        } else {
+            alert('Error adding location: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error adding location: ' + error.message);
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('addLocationModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideAddLocationModal();
+    }
+});
+
+// Generate Hardware Type from specs
+function generateHardwareType() {
+    const product = document.getElementById('product').value;
+    const assetType = document.getElementById('asset_type').value;
+    const cpuType = document.getElementById('cpu_type').value;
+    const cpuCores = document.getElementById('cpu_cores').value;
+    const gpuCores = document.getElementById('gpu_cores').value;
+    const harddrive = document.getElementById('harddrive').value;
+
+    let hardwareType = '';
+
+    // Build the hardware type string
+    if (product) hardwareType += product + ' ';
+    if (assetType) hardwareType += assetType + ' ';
+    if (cpuType) hardwareType += cpuType + ' ';
+    if (cpuCores) hardwareType += cpuCores + '-Core ';
+    if (gpuCores) hardwareType += gpuCores + '-Core GPU ';
+    if (harddrive) hardwareType += harddrive + 'GB';
+
+    // Set the generated hardware type
+    document.getElementById('hardware_type').value = hardwareType.trim();
+}
+</script>
 {% endblock %} 
