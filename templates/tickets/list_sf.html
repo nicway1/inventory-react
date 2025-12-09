@@ -841,7 +841,7 @@
                     </a>
                     <div class="sf-dropdown-divider"></div>
                     <div class="sf-dropdown-divider-label">Export</div>
-                    <a href="{{ url_for('tickets.list_tickets') }}?showExportWizard=true" class="sf-dropdown-item">
+                    <a href="{{ url_for('tickets.list_tickets_sf') }}?showExportWizard=true" class="sf-dropdown-item">
                         <i class="fas fa-download"></i> Ticket Export Wizard
                     </a>
                 </div>
@@ -1741,7 +1741,7 @@
         });
     }
 
-    // Export tickets
+    // Export tickets (simple)
     function exportTickets() {
         window.location.href = "{{ url_for('tickets.export_tickets_csv') }}";
     }
@@ -1752,5 +1752,395 @@
         div.textContent = text || '';
         return div.innerHTML;
     }
+
+    // ============ Export Wizard Functions ============
+    function showExportWizard() {
+        document.getElementById('exportWizardModal').style.display = 'flex';
+        populateExportFilters();
+    }
+
+    function hideExportWizard() {
+        document.getElementById('exportWizardModal').style.display = 'none';
+        document.getElementById('exportForm').reset();
+        document.getElementById('exportPreviewSection').style.display = 'none';
+        document.getElementById('previewButton').style.display = 'inline-block';
+        document.getElementById('exportButton').style.display = 'none';
+    }
+
+    function populateExportFilters() {
+        const categories = new Set();
+        const priorities = new Set();
+        const queues = new Set();
+
+        allTickets.forEach(ticket => {
+            if (ticket.category) categories.add(ticket.category);
+            if (ticket.priority) priorities.add(ticket.priority);
+            if (ticket.queue) queues.add(ticket.queue);
+        });
+
+        // Update category filter
+        const categorySelect = document.getElementById('exportCategoryFilter');
+        categorySelect.innerHTML = '<option value="all">All Categories</option>';
+        categories.forEach(cat => {
+            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+
+        // Update priority filter
+        const prioritySelect = document.getElementById('exportPriorityFilter');
+        prioritySelect.innerHTML = '<option value="all">All Priorities</option>';
+        priorities.forEach(pri => {
+            prioritySelect.innerHTML += `<option value="${pri}">${pri}</option>`;
+        });
+
+        // Update queue filter
+        const queueSelect = document.getElementById('exportQueueFilter');
+        queueSelect.innerHTML = '<option value="all">All Queues</option>';
+        queues.forEach(queue => {
+            queueSelect.innerHTML += `<option value="${queue}">${queue}</option>`;
+        });
+
+        // Load companies
+        loadCompaniesForExport();
+    }
+
+    function loadCompaniesForExport() {
+        fetch('/api/v1/companies')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.companies) {
+                    const companySelect = document.getElementById('exportCompanyFilter');
+                    companySelect.innerHTML = '<option value="all">All Companies</option>';
+                    data.companies.forEach(company => {
+                        let displayName = company.grouped_display_name;
+                        if (company.parent_company_id && !company.is_parent_company) {
+                            displayName = '  ↳ ' + displayName;
+                        } else if (company.is_parent_company) {
+                            displayName = '📁 ' + displayName;
+                        }
+                        companySelect.innerHTML += `<option value="${company.id}">${displayName}</option>`;
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading companies:', error));
+    }
+
+    function toggleExportMode() {
+        const mode = document.getElementById('exportMode').value;
+        const filterSection = document.getElementById('filterExportSection');
+        const selectionSection = document.getElementById('selectionExportSection');
+
+        filterSection.style.display = mode === 'filtered' ? 'block' : 'none';
+        selectionSection.style.display = mode === 'selected' ? 'block' : 'none';
+
+        if (mode === 'selected') {
+            showTicketSelection();
+        }
+
+        // Reset preview
+        document.getElementById('exportPreviewSection').style.display = 'none';
+        document.getElementById('previewButton').style.display = 'inline-block';
+        document.getElementById('exportButton').style.display = 'none';
+    }
+
+    function showTicketSelection() {
+        const selectionContainer = document.getElementById('ticketSelectionList');
+        selectionContainer.innerHTML = '';
+
+        filteredTickets.forEach(ticket => {
+            const checkboxItem = document.createElement('div');
+            checkboxItem.className = 'ticket-selection-item';
+            checkboxItem.innerHTML = `
+                <label class="ticket-selection-label">
+                    <input type="checkbox" name="selectedTickets" value="${ticket.id}">
+                    <span class="ticket-info">
+                        <strong>#${ticket.id}</strong> - ${escapeHtml(ticket.subject)}
+                        <span class="ticket-status">${ticket.status || 'Unknown'}</span>
+                    </span>
+                </label>
+            `;
+            selectionContainer.appendChild(checkboxItem);
+        });
+    }
+
+    function selectAllExportTickets() {
+        document.querySelectorAll('#ticketSelectionList input[name="selectedTickets"]').forEach(cb => cb.checked = true);
+    }
+
+    function clearSelectedExportTickets() {
+        document.querySelectorAll('#ticketSelectionList input[name="selectedTickets"]').forEach(cb => cb.checked = false);
+    }
+
+    function filterExportTicketList() {
+        const searchTerm = document.getElementById('ticketSearchInput').value.toLowerCase().trim();
+        document.querySelectorAll('.ticket-selection-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = (searchTerm === '' || text.includes(searchTerm)) ? '' : 'none';
+        });
+    }
+
+    function showPreview() {
+        const mode = document.getElementById('exportMode').value;
+        let ticketsToPreview = [];
+
+        if (mode === 'all') {
+            ticketsToPreview = [...allTickets];
+        } else if (mode === 'filtered') {
+            ticketsToPreview = getFilteredExportTickets();
+        } else if (mode === 'selected') {
+            const selectedIds = Array.from(document.querySelectorAll('input[name="selectedTickets"]:checked')).map(cb => parseInt(cb.value));
+            ticketsToPreview = allTickets.filter(t => selectedIds.includes(t.id));
+        }
+
+        displayPreview(ticketsToPreview);
+
+        document.getElementById('exportPreviewSection').style.display = 'block';
+        document.getElementById('previewButton').style.display = 'none';
+        document.getElementById('exportButton').style.display = 'inline-block';
+        document.getElementById('exportPreviewSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function getFilteredExportTickets() {
+        const form = document.getElementById('exportForm');
+        const dateFrom = form.querySelector('[name="dateFrom"]').value;
+        const dateTo = form.querySelector('[name="dateTo"]').value;
+        const category = document.getElementById('exportCategoryFilter').value;
+        const priority = document.getElementById('exportPriorityFilter').value;
+        const status = document.getElementById('exportStatusFilter').value;
+        const queue = document.getElementById('exportQueueFilter').value;
+        const company = document.getElementById('exportCompanyFilter').value;
+
+        return allTickets.filter(ticket => {
+            if (dateFrom && ticket.created < dateFrom) return false;
+            if (dateTo && ticket.created > dateTo + 'T23:59:59') return false;
+            if (category !== 'all' && ticket.category !== category) return false;
+            if (priority !== 'all' && ticket.priority !== priority) return false;
+            if (status !== 'all' && ticket.status !== status) return false;
+            if (queue !== 'all' && ticket.queue !== queue) return false;
+            if (company !== 'all' && ticket.companyId != company) return false;
+            return true;
+        });
+    }
+
+    function displayPreview(tickets) {
+        const tbody = document.getElementById('previewTableBody');
+        const emptyState = document.getElementById('previewEmptyState');
+        const container = document.getElementById('previewTableContainer');
+
+        document.getElementById('previewCount').textContent = tickets.length + ' tickets';
+
+        if (tickets.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            container.querySelector('table').style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+            container.querySelector('table').style.display = '';
+            tbody.innerHTML = tickets.slice(0, 50).map(t => `
+                <tr>
+                    <td>#${t.id}</td>
+                    <td>${escapeHtml(t.subject)}</td>
+                    <td>${t.status || '-'}</td>
+                    <td>${t.priority || '-'}</td>
+                    <td>${t.category || '-'}</td>
+                    <td>${t.created ? new Date(t.created).toLocaleDateString() : '-'}</td>
+                </tr>
+            `).join('');
+
+            if (tickets.length > 50) {
+                tbody.innerHTML += `<tr><td colspan="6" style="text-align:center;color:#666;">...and ${tickets.length - 50} more tickets</td></tr>`;
+            }
+        }
+    }
+
+    function executeExport() {
+        const mode = document.getElementById('exportMode').value;
+        const params = new URLSearchParams();
+        params.append('mode', mode);
+
+        if (mode === 'filtered') {
+            const form = document.getElementById('exportForm');
+            const dateFrom = form.querySelector('[name="dateFrom"]').value;
+            const dateTo = form.querySelector('[name="dateTo"]').value;
+            if (dateFrom) params.append('date_from', dateFrom);
+            if (dateTo) params.append('date_to', dateTo);
+            if (document.getElementById('exportCategoryFilter').value !== 'all') params.append('category', document.getElementById('exportCategoryFilter').value);
+            if (document.getElementById('exportPriorityFilter').value !== 'all') params.append('priority', document.getElementById('exportPriorityFilter').value);
+            if (document.getElementById('exportStatusFilter').value !== 'all') params.append('status', document.getElementById('exportStatusFilter').value);
+            if (document.getElementById('exportQueueFilter').value !== 'all') params.append('queue', document.getElementById('exportQueueFilter').value);
+            if (document.getElementById('exportCompanyFilter').value !== 'all') params.append('company', document.getElementById('exportCompanyFilter').value);
+        } else if (mode === 'selected') {
+            const selectedIds = Array.from(document.querySelectorAll('input[name="selectedTickets"]:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                alert('Please select at least one ticket to export.');
+                return;
+            }
+            params.append('ticket_ids', selectedIds.join(','));
+        }
+
+        window.open(`{{ url_for('tickets.export_tickets_csv') }}?${params.toString()}`, '_blank');
+        hideExportWizard();
+    }
+
+    // Check URL parameter to show export wizard
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('showExportWizard') === 'true') {
+        // Wait for tickets to load then show wizard
+        setTimeout(() => showExportWizard(), 500);
+    }
 </script>
+
+<!-- Export Wizard Modal -->
+<div id="exportWizardModal" class="export-wizard-modal" style="display: none;">
+    <div class="export-wizard-content">
+        <div class="export-wizard-header">
+            <h3>Ticket Export Wizard</h3>
+            <button type="button" onclick="hideExportWizard()" class="close-button">&times;</button>
+        </div>
+
+        <form id="exportForm" class="export-wizard-body">
+            <div class="export-section">
+                <label class="export-label">Export Mode:</label>
+                <select id="exportMode" name="exportMode" onchange="toggleExportMode()" class="export-select">
+                    <option value="all">Export All Tickets</option>
+                    <option value="filtered">Export by Filters</option>
+                    <option value="selected">Export Selected Tickets</option>
+                </select>
+            </div>
+
+            <div id="filterExportSection" class="export-section" style="display: none;">
+                <h4 class="export-subsection-title">Filter Options</h4>
+                <div class="export-filter-grid">
+                    <div class="export-filter-group">
+                        <label class="export-label">Date Range:</label>
+                        <div class="date-range-inputs">
+                            <input type="date" name="dateFrom" class="export-input">
+                            <span class="date-separator">to</span>
+                            <input type="date" name="dateTo" class="export-input">
+                        </div>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Category:</label>
+                        <select id="exportCategoryFilter" name="categoryFilter" class="export-select">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Priority:</label>
+                        <select id="exportPriorityFilter" name="priorityFilter" class="export-select">
+                            <option value="all">All Priorities</option>
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Status:</label>
+                        <select id="exportStatusFilter" name="statusFilter" class="export-select">
+                            <option value="all">All Statuses</option>
+                            <option value="New">New</option>
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Waiting">Waiting</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                            {% for status in custom_statuses %}
+                            <option value="{{ status.name }}">{{ status.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Queue:</label>
+                        <select id="exportQueueFilter" name="queueFilter" class="export-select">
+                            <option value="all">All Queues</option>
+                        </select>
+                    </div>
+                    <div class="export-filter-group">
+                        <label class="export-label">Company:</label>
+                        <select id="exportCompanyFilter" name="companyFilter" class="export-select">
+                            <option value="all">All Companies</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="selectionExportSection" class="export-section" style="display: none;">
+                <div class="selection-header">
+                    <h4 class="export-subsection-title">Select Tickets to Export</h4>
+                    <div class="selection-actions">
+                        <button type="button" onclick="selectAllExportTickets()" class="selection-button">Select All</button>
+                        <button type="button" onclick="clearSelectedExportTickets()" class="selection-button">Clear All</button>
+                    </div>
+                </div>
+                <div class="ticket-search-container" style="margin-bottom: 16px;">
+                    <input type="text" id="ticketSearchInput" class="ticket-search-input" placeholder="Search by ticket number or title..." onkeyup="filterExportTicketList()">
+                </div>
+                <div id="ticketSelectionList" class="ticket-selection-container"></div>
+            </div>
+
+            <div id="exportPreviewSection" class="export-section" style="display: none;">
+                <div class="preview-header">
+                    <h4 class="export-subsection-title">Export Preview</h4>
+                    <div class="preview-summary"><span id="previewCount">0 tickets</span> will be exported</div>
+                </div>
+                <div id="previewTableContainer" class="preview-table-container">
+                    <table class="preview-table">
+                        <thead>
+                            <tr><th>Ticket ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Category</th><th>Created Date</th></tr>
+                        </thead>
+                        <tbody id="previewTableBody"></tbody>
+                    </table>
+                    <div id="previewEmptyState" class="preview-empty-state" style="display: none;">
+                        <i class="fas fa-inbox" style="font-size: 48px; color: #d1d5db; margin-bottom: 16px;"></i>
+                        <p>No tickets match your current selection criteria.</p>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <div class="export-wizard-footer">
+            <button type="button" onclick="hideExportWizard()" class="wizard-button cancel-button">Cancel</button>
+            <button type="button" onclick="showPreview()" id="previewButton" class="wizard-button preview-button">Preview Export</button>
+            <button type="button" onclick="executeExport()" id="exportButton" class="wizard-button export-button" style="display: none;">Export to CSV</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.export-wizard-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+.export-wizard-content { background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.export-wizard-header { padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 8px 8px 0 0; }
+.export-wizard-header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827; }
+.export-wizard-header .close-button { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+.export-wizard-body { padding: 24px; }
+.export-wizard-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; background: #f9fafb; border-radius: 0 0 8px 8px; }
+.export-section { margin-bottom: 24px; }
+.export-label { display: block; font-weight: 500; margin-bottom: 8px; color: #374151; }
+.export-select, .export-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+.export-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.export-filter-group { margin-bottom: 12px; }
+.export-subsection-title { font-size: 14px; font-weight: 600; color: #374151; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+.date-range-inputs { display: flex; align-items: center; gap: 8px; }
+.date-separator { color: #6b7280; }
+.wizard-button { padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; }
+.cancel-button { background: #f3f4f6; color: #374151; }
+.preview-button { background: #3b82f6; color: white; }
+.export-button { background: #10b981; color: white; }
+.wizard-button:hover { opacity: 0.9; }
+.selection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.selection-actions { display: flex; gap: 8px; }
+.selection-button { padding: 6px 12px; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.ticket-selection-container { max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; }
+.ticket-selection-item { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+.ticket-selection-item:last-child { border-bottom: none; }
+.ticket-selection-label { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.ticket-selection-label input { width: 16px; height: 16px; }
+.ticket-info { flex: 1; }
+.ticket-status { display: inline-block; padding: 2px 8px; background: #f3f4f6; border-radius: 4px; font-size: 12px; margin-left: 8px; }
+.ticket-search-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; }
+.preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.preview-summary { color: #6b7280; font-size: 14px; }
+.preview-count { font-weight: 600; color: #3b82f6; }
+.preview-table-container { max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.preview-table th, .preview-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f3f4f6; }
+.preview-table th { background: #f9fafb; font-weight: 600; position: sticky; top: 0; }
+.preview-empty-state { padding: 40px; text-align: center; color: #6b7280; }
+</style>
 {% endblock %}
