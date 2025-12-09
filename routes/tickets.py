@@ -2621,7 +2621,9 @@ def view_ticket(ticket_id):
             all_users = db_session.query(User).order_by(User.username).all()
         elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             # Country admins and supervisors can only see users from their assigned countries
-            user_countries = [cp.country for cp in current_user.country_permissions]
+            # Re-fetch current user in this session to avoid lazy loading issues
+            current_user_fresh = db_session.query(User).get(current_user.id)
+            user_countries = [cp.country for cp in current_user_fresh.country_permissions] if current_user_fresh else []
             if user_countries:
                 # Get users who have country permissions matching any of the current user's countries
                 users_with_matching_countries = db_session.query(User).join(
