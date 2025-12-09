@@ -595,6 +595,39 @@
             grid-template-columns: repeat(2, 1fr);
         }
     }
+
+    /* Inline Edit Styles */
+    .sf-inline-edit-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 6px;
+        margin-left: 8px;
+        color: var(--sf-blue);
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    .sf-inline-edit-btn:hover {
+        opacity: 1;
+    }
+    .sf-inline-select {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    .sf-inline-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    .sf-btn-sm {
+        padding: 4px 12px;
+        font-size: 0.75rem;
+    }
 </style>
 {% endblock %}
 
@@ -830,12 +863,33 @@
                             </div>
                             <div class="sf-detail-field">
                                 <div class="sf-detail-label">Location</div>
-                                <div class="sf-detail-value">
-                                    {% if asset.location %}
-                                    {{ asset.location.name }}
-                                    {% else %}
-                                    -
-                                    {% endif %}
+                                <div class="sf-detail-value" id="location-display">
+                                    <span id="location-text">{% if asset.location %}{{ asset.location.name }}{% else %}-{% endif %}</span>
+                                    <button type="button" onclick="showLocationEditor()" class="sf-inline-edit-btn" title="Edit Location">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="location-editor" style="display: none;">
+                                    <select id="location-select" class="sf-inline-select">
+                                        <option value="">-- Select Location --</option>
+                                        {% for loc in locations %}
+                                        <option value="{{ loc.id }}" {% if asset.location_id == loc.id %}selected{% endif %}>
+                                            {{ loc.name }}{% if loc.country %} ({{ loc.country }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                        <option value="new">+ Add New Location</option>
+                                    </select>
+                                    <div id="new-location-input" style="display: none; margin-top: 8px;">
+                                        <input type="text" id="new-location-name" placeholder="Location name" class="sf-inline-input">
+                                        <input type="text" id="new-location-country" placeholder="Country (optional)" class="sf-inline-input" style="margin-top: 4px;">
+                                    </div>
+                                    <div style="margin-top: 8px;">
+                                        <button type="button" onclick="saveLocation()" class="sf-btn sf-btn-primary sf-btn-sm">Save</button>
+                                        <button type="button" onclick="cancelLocationEdit()" class="sf-btn sf-btn-neutral sf-btn-sm">Cancel</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="sf-detail-field">
@@ -1169,5 +1223,104 @@ document.getElementById('imageModal').addEventListener('click', function(e) {
         closeImageModal();
     }
 });
+
+// Location Editor Functions
+function showLocationEditor() {
+    document.getElementById('location-display').style.display = 'none';
+    document.getElementById('location-editor').style.display = 'block';
+}
+
+function cancelLocationEdit() {
+    document.getElementById('location-editor').style.display = 'none';
+    document.getElementById('location-display').style.display = 'flex';
+    document.getElementById('new-location-input').style.display = 'none';
+    document.getElementById('new-location-name').value = '';
+    document.getElementById('new-location-country').value = '';
+}
+
+// Handle "Add New Location" selection
+document.getElementById('location-select').addEventListener('change', function() {
+    if (this.value === 'new') {
+        document.getElementById('new-location-input').style.display = 'block';
+    } else {
+        document.getElementById('new-location-input').style.display = 'none';
+    }
+});
+
+async function saveLocation() {
+    const select = document.getElementById('location-select');
+    let locationId = select.value;
+    let newLocationName = document.getElementById('new-location-name').value.trim();
+    let newLocationCountry = document.getElementById('new-location-country').value.trim();
+
+    // If creating new location
+    if (locationId === 'new') {
+        if (!newLocationName) {
+            alert('Please enter a location name');
+            return;
+        }
+
+        try {
+            // Create new location first
+            const createResponse = await fetch('/inventory/api/locations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    name: newLocationName,
+                    country: newLocationCountry || null
+                })
+            });
+
+            const createData = await createResponse.json();
+            if (createData.success) {
+                locationId = createData.location_id;
+            } else {
+                alert('Error creating location: ' + (createData.error || 'Unknown error'));
+                return;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error creating location: ' + error.message);
+            return;
+        }
+    }
+
+    // Update asset location
+    try {
+        const response = await fetch(`/inventory/api/asset/${assetId}/location`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ location_id: locationId || null })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // Update the display
+            document.getElementById('location-text').textContent = data.location_name || '-';
+            cancelLocationEdit();
+
+            // If new location was created, add it to the dropdown
+            if (newLocationName && locationId) {
+                const option = document.createElement('option');
+                option.value = locationId;
+                option.textContent = newLocationName + (newLocationCountry ? ` (${newLocationCountry})` : '');
+                // Insert before the "Add New" option
+                const addNewOption = select.querySelector('option[value="new"]');
+                select.insertBefore(option, addNewOption);
+            }
+        } else {
+            alert('Error updating location: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating location: ' + error.message);
+    }
+}
 </script>
 {% endblock %}

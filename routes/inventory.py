@@ -1088,6 +1088,122 @@ def api_update_asset_image(asset_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@inventory_bp.route('/api/asset/<int:asset_id>/location', methods=['POST'])
+@login_required
+def api_update_asset_location(asset_id):
+    """Update asset location"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        location_id = data.get('location_id')
+
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).get(asset_id)
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+            # Update the location
+            if location_id:
+                from models.location import Location
+                location = db_session.query(Location).get(int(location_id))
+                if not location:
+                    return jsonify({'success': False, 'error': 'Location not found'}), 404
+                asset.location_id = location.id
+                location_name = location.name
+            else:
+                asset.location_id = None
+                location_name = None
+
+            db_session.commit()
+
+            logger.info(f"Updated asset {asset_id} location_id to: {location_id}")
+
+            return jsonify({
+                'success': True,
+                'asset_id': asset_id,
+                'location_id': asset.location_id,
+                'location_name': location_name
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error updating asset location: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@inventory_bp.route('/api/locations', methods=['POST'])
+@login_required
+def api_create_location():
+    """Create a new location"""
+    try:
+        user_id = session.get('user_id')
+        user_type = session.get('user_type')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'No user in session'}), 403
+
+        # Only allow DEVELOPER and SUPER_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        name = data.get('name', '').strip()
+        country = data.get('country', '').strip() if data.get('country') else None
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Location name is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            from models.location import Location
+
+            # Check if location with same name already exists
+            existing = db_session.query(Location).filter_by(name=name).first()
+            if existing:
+                return jsonify({'success': False, 'error': 'Location with this name already exists'}), 400
+
+            # Create new location
+            location = Location(name=name, country=country)
+            db_session.add(location)
+            db_session.commit()
+
+            logger.info(f"Created new location: {name} (ID: {location.id})")
+
+            return jsonify({
+                'success': True,
+                'location_id': location.id,
+                'name': location.name,
+                'country': location.country
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating location: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @inventory_bp.route('/sf/asset/<int:asset_id>')
 @login_required
 def view_asset_sf(asset_id):
@@ -1118,12 +1234,17 @@ def view_asset_sf(asset_id):
         # Get asset transactions
         asset_transactions = asset.transactions[:10] if asset.transactions else []
 
+        # Get all locations for dropdown
+        from models.location import Location
+        locations = db_session.query(Location).order_by(Location.name).all()
+
         return render_template('inventory/view_asset_sf.html',
                              asset=asset,
                              user=user,
                              related_tickets=related_tickets,
                              asset_history=asset_history,
-                             asset_transactions=asset_transactions)
+                             asset_transactions=asset_transactions,
+                             locations=locations)
     finally:
         db_session.close()
 
