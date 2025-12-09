@@ -212,7 +212,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-chart-pie',
     color='cyan',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
     data_loader='load_asset_status_data',
     configurable=True,
     default_config={'chart_type': 'doughnut'}
@@ -518,9 +518,8 @@ DEFAULT_DASHBOARD_LAYOUT = {
         {'widget_id': 'quick_actions', 'position': 3, 'size': 'small', 'config': {}},
         {'widget_id': 'view_inventory', 'position': 4, 'size': 'small', 'config': {}},
         {'widget_id': 'view_tickets', 'position': 5, 'size': 'small', 'config': {}},
-        {'widget_id': 'asset_status_chart', 'position': 6, 'size': 'medium', 'config': {}},
-        {'widget_id': 'shipments_list', 'position': 7, 'size': 'large', 'config': {}},
-        {'widget_id': 'import_tickets', 'position': 8, 'size': 'small', 'config': {}},
+        {'widget_id': 'shipments_list', 'position': 6, 'size': 'large', 'config': {}},
+        {'widget_id': 'import_tickets', 'position': 7, 'size': 'small', 'config': {}},
     ],
     'COUNTRY_ADMIN': [
         {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
@@ -528,8 +527,7 @@ DEFAULT_DASHBOARD_LAYOUT = {
         {'widget_id': 'quick_actions', 'position': 2, 'size': 'small', 'config': {}},
         {'widget_id': 'view_inventory', 'position': 3, 'size': 'small', 'config': {}},
         {'widget_id': 'view_tickets', 'position': 4, 'size': 'small', 'config': {}},
-        {'widget_id': 'asset_status_chart', 'position': 5, 'size': 'medium', 'config': {}},
-        {'widget_id': 'shipments_list', 'position': 6, 'size': 'large', 'config': {}},
+        {'widget_id': 'shipments_list', 'position': 5, 'size': 'large', 'config': {}},
     ],
     'CLIENT': [
         {'widget_id': 'ticket_stats', 'position': 0, 'size': 'small', 'config': {}},
