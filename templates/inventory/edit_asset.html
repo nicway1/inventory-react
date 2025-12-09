@@ -124,9 +124,9 @@
 
                     <div>
                         <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                        <input type="text" 
-                               id="country" 
-                               name="country" 
+                        <input type="text"
+                               id="country"
+                               name="country"
                                value="{{ asset.country or '' }}"
                                list="country-list"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -135,6 +135,20 @@
                             <option value="{{ country }}">{{ country }}</option>
                             {% endfor %}
                         </datalist>
+                    </div>
+
+                    <div>
+                        <label for="location_id" class="block text-sm font-medium text-gray-700">Location</label>
+                        <select id="location_id"
+                                name="location_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">-- Select Location --</option>
+                            {% for location in locations %}
+                            <option value="{{ location.id }}" {% if asset.location_id == location.id %}selected{% endif %}>
+                                {{ location.name }}{% if location.country %} ({{ location.country }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 

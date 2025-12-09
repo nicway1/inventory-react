@@ -3280,7 +3280,11 @@ def edit_asset(asset_id):
         
         keyboards = db_session.query(Asset.keyboard).distinct().filter(Asset.keyboard.isnot(None)).all()
         keyboards = sorted([k[0] for k in keyboards if k[0]])
-        
+
+        # Get all locations for dropdown
+        from models.location import Location
+        locations = db_session.query(Location).order_by(Location.name).all()
+
         if request.method == 'POST':
             try:
                 logger.info("Received POST request for asset edit")  # Debug log
@@ -3305,6 +3309,7 @@ def edit_asset(asset_id):
                     'status': asset.status.value if asset.status else None,
                     'customer': asset.customer,
                     'country': asset.country,
+                    'location_id': asset.location_id,
                     'hardware_type': asset.hardware_type,
                     'cpu_type': asset.cpu_type,
                     'cpu_cores': asset.cpu_cores,
@@ -3366,6 +3371,11 @@ def edit_asset(asset_id):
                 # Update remaining fields
                 asset.customer = request.form.get('customer')
                 asset.country = request.form.get('country')
+
+                # Handle location
+                location_id = request.form.get('location_id')
+                asset.location_id = int(location_id) if location_id else None
+
                 asset.hardware_type = request.form.get('hardware_type')
                 asset.cpu_type = request.form.get('cpu_type')
                 asset.cpu_cores = request.form.get('cpu_cores')
@@ -3419,18 +3429,20 @@ def edit_asset(asset_id):
                                      chargers=chargers,
                                      customers=customers,
                                      countries=countries,
+                                     locations=locations,
                                      asset_types=asset_types,
                                      conditions=conditions,
                                      diags=diags,
                                      keyboards=keyboards,
                                      statuses=AssetStatus)
-        
+
         return render_template('inventory/edit_asset.html',
                              asset=asset,
                              models=models,
                              chargers=chargers,
                              customers=customers,
                              countries=countries,
+                             locations=locations,
                              asset_types=asset_types,
                              conditions=conditions,
                              diags=diags,
