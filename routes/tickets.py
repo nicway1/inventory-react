@@ -10237,7 +10237,38 @@ def bulk_import_asset_return():
                     })
 
                 # Get available countries, queues, and users for dropdowns
-                countries = [country.name for country in Country]
+                # Comprehensive list of all countries
+                all_countries = [
+                    'AFGHANISTAN', 'ALBANIA', 'ALGERIA', 'ANDORRA', 'ANGOLA', 'ARGENTINA', 'ARMENIA',
+                    'AUSTRALIA', 'AUSTRIA', 'AZERBAIJAN', 'BAHAMAS', 'BAHRAIN', 'BANGLADESH', 'BARBADOS',
+                    'BELARUS', 'BELGIUM', 'BELIZE', 'BENIN', 'BHUTAN', 'BOLIVIA', 'BOSNIA', 'BOTSWANA',
+                    'BRAZIL', 'BRUNEI', 'BULGARIA', 'BURKINA_FASO', 'BURUNDI', 'CAMBODIA', 'CAMEROON',
+                    'CANADA', 'CAPE_VERDE', 'CENTRAL_AFRICAN_REPUBLIC', 'CHAD', 'CHILE', 'CHINA', 'COLOMBIA',
+                    'COMOROS', 'CONGO', 'COSTA_RICA', 'CROATIA', 'CUBA', 'CYPRUS', 'CZECH_REPUBLIC',
+                    'DENMARK', 'DJIBOUTI', 'DOMINICA', 'DOMINICAN_REPUBLIC', 'ECUADOR', 'EGYPT', 'EL_SALVADOR',
+                    'EQUATORIAL_GUINEA', 'ERITREA', 'ESTONIA', 'ETHIOPIA', 'FIJI', 'FINLAND', 'FRANCE',
+                    'GABON', 'GAMBIA', 'GEORGIA', 'GERMANY', 'GHANA', 'GREECE', 'GRENADA', 'GUATEMALA',
+                    'GUINEA', 'GUYANA', 'HAITI', 'HONDURAS', 'HONG_KONG', 'HUNGARY', 'ICELAND', 'INDIA',
+                    'INDONESIA', 'IRAN', 'IRAQ', 'IRELAND', 'ISRAEL', 'ITALY', 'IVORY_COAST', 'JAMAICA',
+                    'JAPAN', 'JORDAN', 'KAZAKHSTAN', 'KENYA', 'KIRIBATI', 'KUWAIT', 'KYRGYZSTAN', 'LAOS',
+                    'LATVIA', 'LEBANON', 'LESOTHO', 'LIBERIA', 'LIBYA', 'LIECHTENSTEIN', 'LITHUANIA',
+                    'LUXEMBOURG', 'MACAU', 'MACEDONIA', 'MADAGASCAR', 'MALAWI', 'MALAYSIA', 'MALDIVES',
+                    'MALI', 'MALTA', 'MARSHALL_ISLANDS', 'MAURITANIA', 'MAURITIUS', 'MEXICO', 'MICRONESIA',
+                    'MOLDOVA', 'MONACO', 'MONGOLIA', 'MONTENEGRO', 'MOROCCO', 'MOZAMBIQUE', 'MYANMAR',
+                    'NAMIBIA', 'NAURU', 'NEPAL', 'NETHERLANDS', 'NEW_ZEALAND', 'NICARAGUA', 'NIGER',
+                    'NIGERIA', 'NORTH_KOREA', 'NORWAY', 'OMAN', 'PAKISTAN', 'PALAU', 'PALESTINE', 'PANAMA',
+                    'PAPUA_NEW_GUINEA', 'PARAGUAY', 'PERU', 'PHILIPPINES', 'POLAND', 'PORTUGAL', 'PUERTO_RICO',
+                    'QATAR', 'ROMANIA', 'RUSSIA', 'RWANDA', 'SAINT_KITTS', 'SAINT_LUCIA', 'SAMOA',
+                    'SAN_MARINO', 'SAO_TOME', 'SAUDI_ARABIA', 'SENEGAL', 'SERBIA', 'SEYCHELLES',
+                    'SIERRA_LEONE', 'SINGAPORE', 'SLOVAKIA', 'SLOVENIA', 'SOLOMON_ISLANDS', 'SOMALIA',
+                    'SOUTH_AFRICA', 'SOUTH_KOREA', 'SOUTH_SUDAN', 'SPAIN', 'SRI_LANKA', 'SUDAN', 'SURINAME',
+                    'SWAZILAND', 'SWEDEN', 'SWITZERLAND', 'SYRIA', 'TAIWAN', 'TAJIKISTAN', 'TANZANIA',
+                    'THAILAND', 'TIMOR_LESTE', 'TOGO', 'TONGA', 'TRINIDAD_TOBAGO', 'TUNISIA', 'TURKEY',
+                    'TURKMENISTAN', 'TUVALU', 'UAE', 'UGANDA', 'UKRAINE', 'UNITED_KINGDOM', 'USA',
+                    'URUGUAY', 'UZBEKISTAN', 'VANUATU', 'VATICAN', 'VENEZUELA', 'VIETNAM', 'YEMEN',
+                    'ZAMBIA', 'ZIMBABWE'
+                ]
+                countries = sorted(all_countries)
                 queues = db_session.query(Queue).order_by(Queue.name).all()
                 users = db_session.query(User).filter(
                     User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
@@ -10278,15 +10309,7 @@ def bulk_import_asset_return():
                         })
                         continue
 
-                    # Validate country
-                    try:
-                        country_enum = Country[customer_country]
-                    except KeyError:
-                        failed_imports.append({
-                            'row': row_number,
-                            'reason': f'Invalid country: {customer_country}. Must be one of: {", ".join([c.name for c in Country])}'
-                        })
-                        continue
+                    # Country is stored as string, no enum validation needed
 
                     # Get optional fields first
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
@@ -10612,7 +10635,38 @@ def bulk_import_1stbase():
                     preview_data.append(row_data)
 
                 # Get available countries, queues, and users for dropdowns
-                countries = [country.name for country in Country]
+                # Comprehensive list of all countries
+                all_countries = [
+                    'AFGHANISTAN', 'ALBANIA', 'ALGERIA', 'ANDORRA', 'ANGOLA', 'ARGENTINA', 'ARMENIA',
+                    'AUSTRALIA', 'AUSTRIA', 'AZERBAIJAN', 'BAHAMAS', 'BAHRAIN', 'BANGLADESH', 'BARBADOS',
+                    'BELARUS', 'BELGIUM', 'BELIZE', 'BENIN', 'BHUTAN', 'BOLIVIA', 'BOSNIA', 'BOTSWANA',
+                    'BRAZIL', 'BRUNEI', 'BULGARIA', 'BURKINA_FASO', 'BURUNDI', 'CAMBODIA', 'CAMEROON',
+                    'CANADA', 'CAPE_VERDE', 'CENTRAL_AFRICAN_REPUBLIC', 'CHAD', 'CHILE', 'CHINA', 'COLOMBIA',
+                    'COMOROS', 'CONGO', 'COSTA_RICA', 'CROATIA', 'CUBA', 'CYPRUS', 'CZECH_REPUBLIC',
+                    'DENMARK', 'DJIBOUTI', 'DOMINICA', 'DOMINICAN_REPUBLIC', 'ECUADOR', 'EGYPT', 'EL_SALVADOR',
+                    'EQUATORIAL_GUINEA', 'ERITREA', 'ESTONIA', 'ETHIOPIA', 'FIJI', 'FINLAND', 'FRANCE',
+                    'GABON', 'GAMBIA', 'GEORGIA', 'GERMANY', 'GHANA', 'GREECE', 'GRENADA', 'GUATEMALA',
+                    'GUINEA', 'GUYANA', 'HAITI', 'HONDURAS', 'HONG_KONG', 'HUNGARY', 'ICELAND', 'INDIA',
+                    'INDONESIA', 'IRAN', 'IRAQ', 'IRELAND', 'ISRAEL', 'ITALY', 'IVORY_COAST', 'JAMAICA',
+                    'JAPAN', 'JORDAN', 'KAZAKHSTAN', 'KENYA', 'KIRIBATI', 'KUWAIT', 'KYRGYZSTAN', 'LAOS',
+                    'LATVIA', 'LEBANON', 'LESOTHO', 'LIBERIA', 'LIBYA', 'LIECHTENSTEIN', 'LITHUANIA',
+                    'LUXEMBOURG', 'MACAU', 'MACEDONIA', 'MADAGASCAR', 'MALAWI', 'MALAYSIA', 'MALDIVES',
+                    'MALI', 'MALTA', 'MARSHALL_ISLANDS', 'MAURITANIA', 'MAURITIUS', 'MEXICO', 'MICRONESIA',
+                    'MOLDOVA', 'MONACO', 'MONGOLIA', 'MONTENEGRO', 'MOROCCO', 'MOZAMBIQUE', 'MYANMAR',
+                    'NAMIBIA', 'NAURU', 'NEPAL', 'NETHERLANDS', 'NEW_ZEALAND', 'NICARAGUA', 'NIGER',
+                    'NIGERIA', 'NORTH_KOREA', 'NORWAY', 'OMAN', 'PAKISTAN', 'PALAU', 'PALESTINE', 'PANAMA',
+                    'PAPUA_NEW_GUINEA', 'PARAGUAY', 'PERU', 'PHILIPPINES', 'POLAND', 'PORTUGAL', 'PUERTO_RICO',
+                    'QATAR', 'ROMANIA', 'RUSSIA', 'RWANDA', 'SAINT_KITTS', 'SAINT_LUCIA', 'SAMOA',
+                    'SAN_MARINO', 'SAO_TOME', 'SAUDI_ARABIA', 'SENEGAL', 'SERBIA', 'SEYCHELLES',
+                    'SIERRA_LEONE', 'SINGAPORE', 'SLOVAKIA', 'SLOVENIA', 'SOLOMON_ISLANDS', 'SOMALIA',
+                    'SOUTH_AFRICA', 'SOUTH_KOREA', 'SOUTH_SUDAN', 'SPAIN', 'SRI_LANKA', 'SUDAN', 'SURINAME',
+                    'SWAZILAND', 'SWEDEN', 'SWITZERLAND', 'SYRIA', 'TAIWAN', 'TAJIKISTAN', 'TANZANIA',
+                    'THAILAND', 'TIMOR_LESTE', 'TOGO', 'TONGA', 'TRINIDAD_TOBAGO', 'TUNISIA', 'TURKEY',
+                    'TURKMENISTAN', 'TUVALU', 'UAE', 'UGANDA', 'UKRAINE', 'UNITED_KINGDOM', 'USA',
+                    'URUGUAY', 'UZBEKISTAN', 'VANUATU', 'VATICAN', 'VENEZUELA', 'VIETNAM', 'YEMEN',
+                    'ZAMBIA', 'ZIMBABWE'
+                ]
+                countries = sorted(all_countries)
                 queues = db_session.query(Queue).order_by(Queue.name).all()
                 users = db_session.query(User).filter(
                     User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
@@ -10674,15 +10728,7 @@ def bulk_import_1stbase():
                         })
                         continue
 
-                    # Validate country
-                    try:
-                        country_enum = Country[customer_country]
-                    except KeyError:
-                        failed_imports.append({
-                            'row': row_number,
-                            'reason': f'Invalid country: {customer_country}. Must be one of: {", ".join([c.name for c in Country])}'
-                        })
-                        continue
+                    # Country is stored as string, no enum validation needed
 
                     # Get optional fields first
                     customer_phone = request.form.get(f'row_{i}_customer_phone', '').strip()
