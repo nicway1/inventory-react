@@ -33,6 +33,7 @@ def create_table():
         CREATE TABLE chat_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
+            user_name VARCHAR(100),
             session_id VARCHAR(100),
             query TEXT NOT NULL,
             response TEXT,

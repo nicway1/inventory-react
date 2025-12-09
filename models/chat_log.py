@@ -14,6 +14,7 @@ class ChatLog(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    user_name = Column(String(100), nullable=True)  # Store user name directly to avoid lazy loading issues
     session_id = Column(String(100), nullable=True)  # For grouping conversations
 
     # The user's query
@@ -49,7 +50,7 @@ class ChatLog(Base):
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'user_name': self.user.name if self.user else None,
+            'user_name': self.user_name,  # Use stored user_name to avoid lazy loading
             'session_id': self.session_id,
             'query': self.query,
             'response': self.response,

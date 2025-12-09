@@ -475,8 +475,14 @@ def log_chat_interaction(user_id, query, response, response_type, matched_questi
                 session_id = str(uuid.uuid4())
                 session['chat_session_id'] = session_id
 
+        # Get user name to store directly (avoid lazy loading issues later)
+        user_name = None
+        if current_user and hasattr(current_user, 'name'):
+            user_name = current_user.name
+
         chat_log = ChatLog(
             user_id=user_id,
+            user_name=user_name,
             session_id=session_id,
             query=query,
             response=response[:2000] if response and len(response) > 2000 else response,  # Truncate long responses
@@ -928,7 +934,7 @@ def api_export_chat_logs():
             writer.writerow([
                 log.id,
                 log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '',
-                log.user.name if log.user else 'Anonymous',
+                log.user_name or 'Anonymous',
                 log.query,
                 log.response,
                 log.response_type,
