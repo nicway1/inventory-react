@@ -4330,8 +4330,8 @@ def search():
 @inventory_bp.route('/export/<string:item_type>', methods=['GET', 'POST'])
 @login_required
 def export_inventory(item_type):
-    # Ensure user has permission to export data
-    if not (current_user.is_admin or current_user.is_supervisor):
+    # Ensure user has permission to export data - only SUPER_ADMIN and DEVELOPER can export
+    if not (current_user.is_super_admin or current_user.is_developer):
         flash('You do not have permission to export data', 'error')
         return redirect(url_for('inventory.view_inventory'))
 

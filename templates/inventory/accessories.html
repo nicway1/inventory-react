@@ -17,7 +17,7 @@
             <h1 class="text-2xl font-bold text-gray-800">Accessories</h1>
         </div>
         <div class="flex space-x-4">
-            {% if user.permissions.can_export_data %}
+            {% if user.is_super_admin or user.is_developer %}
             <form id="exportForm" action="{{ url_for('inventory.export_inventory', item_type='accessories') }}" method="POST" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="selected_ids" id="selectedIds" value="">

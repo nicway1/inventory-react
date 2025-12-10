@@ -5,7 +5,7 @@
     <div class="mb-6 flex justify-between items-center">
         <h1 class="text-2xl font-bold">Tech Assets</h1>
         <div class="flex space-x-4">
-            {% if current_user.is_authenticated and (current_user.is_admin or current_user.is_supervisor) %}
+            {% if current_user.is_authenticated and (current_user.is_super_admin or current_user.is_developer) %}
             <form action="{{ url_for('inventory.export_inventory', item_type='assets') }}" method="POST" id="exportForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" 
