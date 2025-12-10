@@ -1508,23 +1508,19 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <input type="text" id="customIssueType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Enter custom issue type...">
                                         </div>
 
-                                        <div>
+                                        <div class="relative">
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
                                             <textarea id="issueDescription" required rows="3"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                                    placeholder="Describe the issue in detail..."></textarea>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-xs font-medium text-gray-700 mb-1">Notify Users</label>
-                                            <select id="notifyUsers" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" size="5">
-                                                {% for user_id, user_info in users_dict.items() %}
-                                                    {% if user_id != session.get('user_id') %}
-                                                    <option value="{{ user_id }}">{{ user_info.username }} ({{ user_info.user_type }})</option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </select>
-                                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple users</p>
+                                                    placeholder="Describe the issue... Use @username to notify someone"
+                                                    oninput="checkIssueMention(this)"></textarea>
+                                            <!-- @mention Dropdown -->
+                                            <div id="issueMentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-50">
+                                                <!-- Will be populated by JavaScript -->
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                <span class="text-blue-600 font-medium">@username</span> to mention and notify someone
+                                            </p>
                                         </div>
 
                                         <div class="flex gap-2">
@@ -1854,23 +1850,19 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <input type="text" id="customIssueType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Enter custom issue type...">
                                         </div>
 
-                                        <div>
+                                        <div class="relative">
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
                                             <textarea id="issueDescription" required rows="3"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                                    placeholder="Describe the issue in detail..."></textarea>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-xs font-medium text-gray-700 mb-1">Notify Users</label>
-                                            <select id="notifyUsers" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" size="5">
-                                                {% for user_id, user_info in users_dict.items() %}
-                                                    {% if user_id != session.get('user_id') %}
-                                                    <option value="{{ user_id }}">{{ user_info.username }} ({{ user_info.user_type }})</option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </select>
-                                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple users</p>
+                                                    placeholder="Describe the issue... Use @username to notify someone"
+                                                    oninput="checkIssueMention(this)"></textarea>
+                                            <!-- @mention Dropdown -->
+                                            <div id="issueMentionDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto w-64 z-50">
+                                                <!-- Will be populated by JavaScript -->
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                <span class="text-blue-600 font-medium">@username</span> to mention and notify someone
+                                            </p>
                                         </div>
 
                                         <div class="flex gap-2">
@@ -10417,12 +10409,13 @@ function toggleIssueReportForm() {
         // Reset form
         document.getElementById('issueType').value = '';
         document.getElementById('issueDescription').value = '';
-        document.getElementById('notifyUsers').selectedIndex = -1;
         // Reset custom issue type
         const customContainer = document.getElementById('customIssueTypeContainer');
         const customInput = document.getElementById('customIssueType');
         if (customContainer) customContainer.style.display = 'none';
         if (customInput) customInput.value = '';
+        // Hide mention dropdown
+        hideIssueMentionDropdown();
     }
 }
 
@@ -10441,14 +10434,12 @@ function toggleCustomIssueType(selectElement) {
     }
 }
 
-// Submit issue report
+// Submit issue report - now uses @mentions in description instead of separate notified users field
 async function submitIssueReport(event, ticketId) {
     event.preventDefault();
 
     let issueType = document.getElementById('issueType').value;
     const description = document.getElementById('issueDescription').value;
-    const notifySelect = document.getElementById('notifyUsers');
-    const notifiedUserIds = Array.from(notifySelect.selectedOptions).map(opt => opt.value);
 
     // Use custom issue type if "Other" is selected
     if (issueType === 'Other') {
@@ -10476,8 +10467,7 @@ async function submitIssueReport(event, ticketId) {
             },
             body: JSON.stringify({
                 issue_type: issueType,
-                description: description,
-                notified_user_ids: notifiedUserIds
+                description: description
             })
         });
 
@@ -10496,6 +10486,100 @@ async function submitIssueReport(event, ticketId) {
     }
 }
 
+// @mention system for issue description
+let issueMentionStartPos = -1;
+let issueCurrentMentionText = '';
+const issueAvailableUsers = [
+    {% for user_id, user_info in users_dict.items() %}
+    { id: {{ user_id }}, username: '{{ user_info.username }}', email: '{{ user_info.email or "" }}' },
+    {% endfor %}
+];
+
+function checkIssueMention(textarea) {
+    const cursorPos = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Find last @ before cursor
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            atPos = i;
+            break;
+        }
+        if (text[i] === ' ' || text[i] === '\n') {
+            break;
+        }
+    }
+
+    if (atPos !== -1) {
+        issueMentionStartPos = atPos;
+        issueCurrentMentionText = text.substring(atPos + 1, cursorPos).toLowerCase();
+        showIssueMentionDropdown(issueCurrentMentionText);
+    } else {
+        hideIssueMentionDropdown();
+    }
+}
+
+function showIssueMentionDropdown(searchText) {
+    const dropdown = document.getElementById('issueMentionDropdown');
+    const filtered = issueAvailableUsers.filter(user =>
+        user.username.toLowerCase().includes(searchText)
+    );
+
+    if (filtered.length === 0) {
+        hideIssueMentionDropdown();
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    filtered.slice(0, 10).forEach((user) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center';
+        item.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm mr-3">
+                ${user.username[0].toUpperCase()}
+            </div>
+            <div>
+                <div class="font-medium text-sm">${user.username}</div>
+                <div class="text-xs text-gray-500">${user.email}</div>
+            </div>
+        `;
+        item.onclick = function() {
+            selectIssueMention(user.username);
+        };
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+function hideIssueMentionDropdown() {
+    document.getElementById('issueMentionDropdown').classList.add('hidden');
+    issueMentionStartPos = -1;
+}
+
+function selectIssueMention(username) {
+    const textarea = document.getElementById('issueDescription');
+    const text = textarea.value;
+    const beforeMention = text.substring(0, issueMentionStartPos);
+    const afterMention = text.substring(textarea.selectionStart);
+
+    textarea.value = beforeMention + '@' + username + ' ' + afterMention;
+    const newPos = beforeMention.length + username.length + 2;
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+
+    hideIssueMentionDropdown();
+}
+
+// Close mention dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('#issueDescription') && !event.target.closest('#issueMentionDropdown')) {
+        hideIssueMentionDropdown();
+    }
+});
+
 // Load and display ticket issues
 async function loadTicketIssues(ticketId) {
     try {
@@ -10510,7 +10594,7 @@ async function loadTicketIssues(ticketId) {
     }
 }
 
-// Display issues in the UI
+// Display issues in the UI with Chatter
 function displayIssues(issues, ticketId) {
     const container = document.getElementById('issuesDisplay');
 
@@ -10525,67 +10609,338 @@ function displayIssues(issues, ticketId) {
         return;
     }
 
-    container.innerHTML = issues.map(issue => `
-        <div class="border border-gray-300 rounded-lg p-3 mb-3 ${issue.is_resolved ? 'bg-green-50' : 'bg-red-50'}">
-            <div class="flex items-start justify-between">
-                <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${issue.is_resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">
-                            ${issue.issue_type}
-                        </span>
-                    </div>
-                    <div class="bg-gray-50 rounded p-2 mb-2 space-y-1">
-                        <div class="flex items-start">
-                            <span class="text-xs font-semibold text-gray-700 w-24">Reported by:</span>
-                            <span class="text-xs text-gray-600">${issue.reported_by_name}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="text-xs font-semibold text-gray-700 w-24">Date Reported:</span>
-                            <span class="text-xs text-gray-600 font-medium">${formatDate(issue.reported_at)}</span>
-                        </div>
-                    </div>
-                    <p class="text-sm text-gray-700 mb-2"><strong>Description:</strong> ${issue.description}</p>
+    const currentUserId = {{ session.get('user_id') }};
+    const currentUsername = '{{ session.get("username", "") }}';
 
-                    ${issue.is_resolved ? `
-                        <div class="mt-2 pt-2 border-t border-green-300">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-1">
-                                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span class="text-xs font-semibold text-green-800">Issue Resolved</span>
-                                </div>
-                                <button onclick="reopenIssue(${ticketId}, ${issue.id})"
-                                        class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded font-medium">
-                                    Reopen Issue
-                                </button>
+    container.innerHTML = issues.map(issue => `
+        <div class="border border-gray-300 rounded-lg mb-3 ${issue.is_resolved ? 'bg-green-50' : 'bg-red-50'}">
+            <!-- Issue Header & Details -->
+            <div class="p-3">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${issue.is_resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">
+                                ${issue.issue_type}
+                            </span>
+                        </div>
+                        <div class="bg-gray-50 rounded p-2 mb-2 space-y-1">
+                            <div class="flex items-start">
+                                <span class="text-xs font-semibold text-gray-700 w-24">Reported by:</span>
+                                <span class="text-xs text-gray-600">${issue.reported_by_name}</span>
                             </div>
-                            <div class="bg-white bg-opacity-50 rounded p-2 space-y-1">
-                                <div class="flex items-start">
-                                    <span class="text-xs font-semibold text-gray-700 w-24">Resolved by:</span>
-                                    <span class="text-xs text-gray-600">${issue.resolved_by_name || 'N/A'}</span>
-                                </div>
-                                <div class="flex items-start">
-                                    <span class="text-xs font-semibold text-gray-700 w-24">Date Resolved:</span>
-                                    <span class="text-xs text-gray-600 font-medium">${formatDate(issue.resolved_at)}</span>
-                                </div>
-                                ${issue.resolution_notes ? `
-                                <div class="flex items-start">
-                                    <span class="text-xs font-semibold text-gray-700 w-24">Resolution:</span>
-                                    <span class="text-xs text-gray-600">${issue.resolution_notes}</span>
-                                </div>` : ''}
+                            <div class="flex items-start">
+                                <span class="text-xs font-semibold text-gray-700 w-24">Date Reported:</span>
+                                <span class="text-xs text-gray-600 font-medium">${formatDate(issue.reported_at)}</span>
                             </div>
                         </div>
-                    ` : `
-                        <button onclick="resolveIssue(${ticketId}, ${issue.id})"
-                                class="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
-                            Mark as Resolved
-                        </button>
-                    `}
+                        <p class="text-sm text-gray-700 mb-2"><strong>Description:</strong> ${formatMentions(issue.description)}</p>
+
+                        ${issue.is_resolved ? `
+                            <div class="mt-2 pt-2 border-t border-green-300">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span class="text-xs font-semibold text-green-800">Issue Resolved</span>
+                                    </div>
+                                    <button onclick="reopenIssue(${ticketId}, ${issue.id})"
+                                            class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded font-medium">
+                                        Reopen Issue
+                                    </button>
+                                </div>
+                                <div class="bg-white bg-opacity-50 rounded p-2 space-y-1">
+                                    <div class="flex items-start">
+                                        <span class="text-xs font-semibold text-gray-700 w-24">Resolved by:</span>
+                                        <span class="text-xs text-gray-600">${issue.resolved_by_name || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <span class="text-xs font-semibold text-gray-700 w-24">Date Resolved:</span>
+                                        <span class="text-xs text-gray-600 font-medium">${formatDate(issue.resolved_at)}</span>
+                                    </div>
+                                    ${issue.resolution_notes ? `
+                                    <div class="flex items-start">
+                                        <span class="text-xs font-semibold text-gray-700 w-24">Resolution:</span>
+                                        <span class="text-xs text-gray-600">${issue.resolution_notes}</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                        ` : `
+                            <button onclick="resolveIssue(${ticketId}, ${issue.id})"
+                                    class="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">
+                                Mark as Resolved
+                            </button>
+                        `}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chatter Section -->
+            <div class="border-t border-gray-300">
+                <button onclick="toggleChatter(${issue.id})"
+                        class="w-full px-3 py-2 flex items-center justify-between bg-gray-100 hover:bg-gray-200 transition-colors">
+                    <span class="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        Discussion
+                        <span id="chatterCount-${issue.id}" class="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                    </span>
+                    <svg id="chatterChevron-${issue.id}" class="w-4 h-4 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <div id="chatter-${issue.id}" class="hidden">
+                    <!-- Comments Container -->
+                    <div id="chatterComments-${issue.id}" class="max-h-48 overflow-y-auto p-3 bg-gray-50 space-y-2">
+                        <p class="text-xs text-gray-500 text-center py-2">Loading comments...</p>
+                    </div>
+
+                    <!-- Comment Input -->
+                    <div class="p-3 bg-white border-t border-gray-200">
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <input type="text"
+                                       id="chatterInput-${issue.id}"
+                                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="Write a comment... @mention to notify"
+                                       oninput="checkChatterMention(this, ${issue.id})"
+                                       onkeypress="handleChatterKeyPress(event, ${ticketId}, ${issue.id})">
+                                <div id="chatterMentionDropdown-${issue.id}"
+                                     class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-36 overflow-y-auto w-56 z-50">
+                                </div>
+                            </div>
+                            <button onclick="submitChatterComment(${ticketId}, ${issue.id})"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Use <span class="text-blue-500">@username</span> to mention and notify</p>
+                    </div>
                 </div>
             </div>
         </div>
     `).join('');
+
+    // Load comment counts for all issues
+    issues.forEach(issue => loadIssueComments(ticketId, issue.id, false));
+}
+
+// Format @mentions in text to styled spans
+function formatMentions(text) {
+    if (!text) return '';
+    return text.replace(/@([a-zA-Z0-9._@-]+)/g, '<span class="bg-blue-100 text-blue-700 px-1 rounded font-medium">@$1</span>');
+}
+
+// Toggle chatter section visibility
+function toggleChatter(issueId) {
+    const chatter = document.getElementById(`chatter-${issueId}`);
+    const chevron = document.getElementById(`chatterChevron-${issueId}`);
+
+    if (chatter.classList.contains('hidden')) {
+        chatter.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+        loadIssueComments({{ ticket.id }}, issueId, true);
+    } else {
+        chatter.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+    }
+}
+
+// Load comments for an issue
+async function loadIssueComments(ticketId, issueId, showComments = true) {
+    try {
+        const response = await fetch(`/tickets/${ticketId}/issues/${issueId}/comments`);
+        const data = await response.json();
+
+        if (data.success) {
+            const countBadge = document.getElementById(`chatterCount-${issueId}`);
+            if (data.comments.length > 0) {
+                countBadge.textContent = data.comments.length;
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+
+            if (showComments) {
+                displayIssueComments(issueId, data.comments);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading issue comments:', error);
+    }
+}
+
+// Display comments in messenger style
+function displayIssueComments(issueId, comments) {
+    const container = document.getElementById(`chatterComments-${issueId}`);
+    const currentUserId = {{ session.get('user_id') }};
+
+    if (comments.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center py-2">No comments yet. Start the discussion!</p>';
+        return;
+    }
+
+    container.innerHTML = comments.map(comment => {
+        const isCurrentUser = comment.user_id === currentUserId;
+        return `
+            <div class="flex ${isCurrentUser ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-[80%]">
+                    <div class="flex items-center mb-0.5 ${isCurrentUser ? 'flex-row-reverse' : ''}">
+                        <div class="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-semibold ${isCurrentUser ? 'bg-blue-500 ml-1' : 'bg-gray-500 mr-1'}">
+                            ${(comment.username || 'U')[0].toUpperCase()}
+                        </div>
+                        <span class="text-xs text-gray-500">${comment.username || 'Unknown'}</span>
+                    </div>
+                    <div class="${isCurrentUser ? 'bg-blue-500 text-white rounded-l-xl rounded-tr-xl' : 'bg-white border border-gray-200 text-gray-800 rounded-r-xl rounded-tl-xl'} px-3 py-2 shadow-sm">
+                        <p class="text-xs whitespace-pre-wrap break-words">${formatMentions(comment.content)}</p>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5 ${isCurrentUser ? 'text-right' : ''}">${formatCommentTime(comment.created_at)}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+// Format comment timestamp
+function formatCommentTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+// Chatter @mention variables
+let chatterMentionStartPos = {};
+let chatterCurrentMentionText = {};
+
+// Check for @mention in chatter input
+function checkChatterMention(input, issueId) {
+    const cursorPos = input.selectionStart;
+    const text = input.value;
+
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            atPos = i;
+            break;
+        }
+        if (text[i] === ' ' || text[i] === '\n') {
+            break;
+        }
+    }
+
+    if (atPos !== -1) {
+        chatterMentionStartPos[issueId] = atPos;
+        chatterCurrentMentionText[issueId] = text.substring(atPos + 1, cursorPos).toLowerCase();
+        showChatterMentionDropdown(issueId, chatterCurrentMentionText[issueId]);
+    } else {
+        hideChatterMentionDropdown(issueId);
+    }
+}
+
+function showChatterMentionDropdown(issueId, searchText) {
+    const dropdown = document.getElementById(`chatterMentionDropdown-${issueId}`);
+    const filtered = issueAvailableUsers.filter(user =>
+        user.username.toLowerCase().includes(searchText)
+    );
+
+    if (filtered.length === 0) {
+        hideChatterMentionDropdown(issueId);
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    filtered.slice(0, 8).forEach((user) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-center text-sm';
+        item.innerHTML = `
+            <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-xs mr-2">
+                ${user.username[0].toUpperCase()}
+            </div>
+            <span class="font-medium">${user.username}</span>
+        `;
+        item.onclick = function() {
+            selectChatterMention(issueId, user.username);
+        };
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+function hideChatterMentionDropdown(issueId) {
+    const dropdown = document.getElementById(`chatterMentionDropdown-${issueId}`);
+    if (dropdown) dropdown.classList.add('hidden');
+    chatterMentionStartPos[issueId] = -1;
+}
+
+function selectChatterMention(issueId, username) {
+    const input = document.getElementById(`chatterInput-${issueId}`);
+    const text = input.value;
+    const beforeMention = text.substring(0, chatterMentionStartPos[issueId]);
+    const afterMention = text.substring(input.selectionStart);
+
+    input.value = beforeMention + '@' + username + ' ' + afterMention;
+    const newPos = beforeMention.length + username.length + 2;
+    input.setSelectionRange(newPos, newPos);
+    input.focus();
+
+    hideChatterMentionDropdown(issueId);
+}
+
+// Handle Enter key in chatter input
+function handleChatterKeyPress(event, ticketId, issueId) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        submitChatterComment(ticketId, issueId);
+    }
+}
+
+// Submit a chatter comment
+async function submitChatterComment(ticketId, issueId) {
+    const input = document.getElementById(`chatterInput-${issueId}`);
+    const content = input.value.trim();
+
+    if (!content) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/tickets/${ticketId}/issues/${issueId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ content: content })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            input.value = '';
+            loadIssueComments(ticketId, issueId, true);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error posting comment:', error);
+        showToast('Failed to post comment', 'error');
+    }
 }
 
 // Resolve an issue

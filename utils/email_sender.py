@@ -994,3 +994,160 @@ https://inventory.truelog.com.sg
     except Exception as e:
         logging.error(f"Error sending issue reported email to {notified_user.email}: {str(e)}")
         return False
+
+
+def send_issue_comment_email(notified_user, commenter, ticket, issue, comment_content):
+    """
+    Send an email notification when someone is mentioned in an issue comment
+
+    Args:
+        notified_user: User to notify
+        commenter: User who wrote the comment
+        ticket: The ticket the issue belongs to
+        issue: The issue being commented on
+        comment_content: Content of the comment
+    """
+    try:
+        logging.info(f"Attempting to send issue comment email to {notified_user.email}")
+
+        if not current_app:
+            logging.error("No Flask application context")
+            return False
+
+        if not notified_user.email:
+            logging.warning(f"User {notified_user.username} has no email address")
+            return False
+
+        # Truncate content if too long
+        content_preview = comment_content[:300] + "..." if len(comment_content) > 300 else comment_content
+
+        # Create the ticket URL
+        ticket_url = f"https://inventory.truelog.com.sg/tickets/{ticket.id}"
+
+        # HTML email template
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>You were mentioned - Ticket #{ticket.display_id or ticket.id}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 30px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                        💬 You were mentioned
+                    </h1>
+                    <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 16px;">
+                        TrueLog Inventory Management
+                    </p>
+                </div>
+
+                <!-- Main Content -->
+                <div style="padding: 40px;">
+                    <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <h2 style="color: #1a202c; margin: 0 0 10px 0; font-size: 20px;">
+                            Hello {notified_user.username}!
+                        </h2>
+                        <p style="color: #4a5568; margin: 0; font-size: 16px; line-height: 1.5;">
+                            <strong>{commenter.username}</strong> mentioned you in a comment on issue <strong>{issue.issue_type}</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Comment Card -->
+                    <div style="border: 1px solid #bfdbfe; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background-color: #3b82f6; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">💬 Comment</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <div style="background-color: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                <p style="color: #2d3748; margin: 0; line-height: 1.6; white-space: pre-wrap;">{content_preview}</p>
+                            </div>
+                            <p style="color: #718096; margin: 0; font-size: 14px;">
+                                Posted by <strong>{commenter.username}</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Issue Info Card -->
+                    <div style="border: 1px solid #fed7aa; border-radius: 12px; overflow: hidden; margin-bottom: 30px;">
+                        <div style="background-color: #f97316; color: white; padding: 15px 20px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🚨 Issue: {issue.issue_type}</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <p style="color: #2d3748; margin: 0; line-height: 1.6;">
+                                {issue.description[:200] + '...' if len(issue.description) > 200 else issue.description}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{ticket_url}"
+                           style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                                  color: white;
+                                  text-decoration: none;
+                                  padding: 14px 28px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  font-size: 16px;
+                                  display: inline-block;
+                                  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
+                            🔗 View Ticket & Reply
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                        You were notified because you were @mentioned in a comment.
+                    </p>
+                    <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                        TrueLog Inventory Management System |
+                        <a href="https://inventory.truelog.com.sg" style="color: #667eea; text-decoration: none;">inventory.truelog.com.sg</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text version
+        text_body = f"""You were mentioned - TrueLog Inventory
+
+Hello {notified_user.username}!
+
+{commenter.username} mentioned you in a comment on issue "{issue.issue_type}".
+
+Comment:
+{content_preview}
+
+Posted by: {commenter.username}
+
+Issue: {issue.issue_type}
+{issue.description[:200] + '...' if len(issue.description) > 200 else issue.description}
+
+View the ticket: {ticket_url}
+
+---
+TrueLog Inventory Management System
+https://inventory.truelog.com.sg
+        """
+
+        result = _send_email_via_method(
+            to_emails=notified_user.email,
+            subject=f"[TrueLog] 💬 {commenter.username} mentioned you on Ticket #{ticket.display_id or ticket.id}",
+            html_body=html_body,
+            text_body=text_body
+        )
+
+        if result:
+            logging.info(f"Issue comment email sent successfully to {notified_user.email}")
+        return result
+
+    except Exception as e:
+        logging.error(f"Error sending issue comment email to {notified_user.email}: {str(e)}")
+        return False

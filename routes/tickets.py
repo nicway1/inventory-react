@@ -9705,7 +9705,6 @@ def create_ticket_issue(ticket_id):
         data = request.get_json()
         issue_type = data.get('issue_type')
         description = data.get('description')
-        notified_user_ids = data.get('notified_user_ids', [])  # List of user IDs to notify
 
         if not issue_type or not description:
             return jsonify({'success': False, 'error': 'Issue type and description are required'}), 400
@@ -9721,6 +9720,28 @@ def create_ticket_issue(ticket_id):
                 new_custom_type = CustomIssueType(name=issue_type)
                 db_session.add(new_custom_type)
 
+        # Extract @mentions from description
+        import re
+        from models.group import Group
+        from models.group_membership import GroupMembership
+        mention_pattern = r'@([a-zA-Z0-9._@-]+)'
+        mentions = re.findall(mention_pattern, description)
+
+        notified_user_ids = set()
+        for mention in mentions:
+            # Check if it's a user
+            mentioned_user = db_session.query(User).filter(User.username == mention).first()
+            if mentioned_user and mentioned_user.id != session.get('user_id'):
+                notified_user_ids.add(mentioned_user.id)
+            else:
+                # Check if it's a group
+                group = db_session.query(Group).filter(Group.name == mention, Group.is_active == True).first()
+                if group:
+                    memberships = db_session.query(GroupMembership).filter_by(group_id=group.id).all()
+                    for membership in memberships:
+                        if membership.user_id != session.get('user_id'):
+                            notified_user_ids.add(membership.user_id)
+
         # Create new issue
         new_issue = TicketIssue(
             ticket_id=ticket_id,
@@ -9730,11 +9751,11 @@ def create_ticket_issue(ticket_id):
             reported_at=datetime.datetime.utcnow(),
             notified_user_ids=','.join(map(str, notified_user_ids)) if notified_user_ids else ''
         )
-        
+
         db_session.add(new_issue)
         db_session.commit()
-        
-        # Create notifications for specified users and send emails
+
+        # Create notifications for @mentioned users and send emails
         reporter = db_session.query(User).get(session.get('user_id'))
         from utils.email_sender import send_issue_reported_email
 
@@ -9744,7 +9765,7 @@ def create_ticket_issue(ticket_id):
                 user_id=int(user_id),
                 type='issue_reported',
                 title=f'Issue Reported on Ticket #{ticket.display_id}',
-                message=f'{reporter.username} reported: {issue_type} - {description[:100]}',
+                message=f'{reporter.username} mentioned you: {issue_type} - {description[:100]}',
                 reference_type='ticket',
                 reference_id=ticket_id,
                 is_read=False,
@@ -9940,6 +9961,140 @@ def reopen_ticket_issue(ticket_id, issue_id):
     except Exception as e:
         db_session.rollback()
         logger.error(f"Error reopening ticket issue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/issues/<int:issue_id>/comments', methods=['GET'])
+@login_required
+def get_issue_comments(ticket_id, issue_id):
+    """Get all comments for a specific issue"""
+    from models.ticket_issue import TicketIssue
+    from models.ticket_issue_comment import TicketIssueComment
+
+    db_session = db_manager.get_session()
+    try:
+        # Verify issue exists and belongs to ticket
+        issue = db_session.query(TicketIssue).filter_by(id=issue_id, ticket_id=ticket_id).first()
+        if not issue:
+            return jsonify({'success': False, 'error': 'Issue not found'}), 404
+
+        comments = db_session.query(TicketIssueComment).filter_by(issue_id=issue_id)\
+            .order_by(TicketIssueComment.created_at.asc()).all()
+
+        return jsonify({
+            'success': True,
+            'comments': [c.to_dict() for c in comments]
+        })
+    except Exception as e:
+        logger.error(f"Error getting issue comments: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/issues/<int:issue_id>/comments', methods=['POST'])
+@login_required
+def add_issue_comment(ticket_id, issue_id):
+    """Add a comment to an issue (Chatter)"""
+    from models.ticket_issue import TicketIssue
+    from models.ticket_issue_comment import TicketIssueComment
+    from models.notification import Notification
+    from models.group import Group
+    from models.group_membership import GroupMembership
+    import re
+
+    db_session = db_manager.get_session()
+    try:
+        # Verify issue exists and belongs to ticket
+        issue = db_session.query(TicketIssue).filter_by(id=issue_id, ticket_id=ticket_id).first()
+        if not issue:
+            return jsonify({'success': False, 'error': 'Issue not found'}), 404
+
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        data = request.get_json()
+        content = data.get('content', '').strip()
+
+        if not content:
+            return jsonify({'success': False, 'error': 'Comment content is required'}), 400
+
+        # Create the comment
+        comment = TicketIssueComment(
+            issue_id=issue_id,
+            user_id=session.get('user_id'),
+            content=content,
+            created_at=datetime.datetime.utcnow()
+        )
+        db_session.add(comment)
+        db_session.commit()
+
+        # Extract and process @mentions
+        mention_pattern = r'@([a-zA-Z0-9._@-]+)'
+        mentions = re.findall(mention_pattern, content)
+
+        commenter = db_session.query(User).get(session.get('user_id'))
+        notified_user_ids = set()
+
+        for mention in mentions:
+            # Check if it's a user
+            mentioned_user = db_session.query(User).filter(User.username == mention).first()
+            if mentioned_user and mentioned_user.id != session.get('user_id'):
+                notified_user_ids.add(mentioned_user.id)
+            else:
+                # Check if it's a group
+                group = db_session.query(Group).filter(Group.name == mention, Group.is_active == True).first()
+                if group:
+                    # Get all members of the group
+                    memberships = db_session.query(GroupMembership).filter_by(group_id=group.id).all()
+                    for membership in memberships:
+                        if membership.user_id != session.get('user_id'):
+                            notified_user_ids.add(membership.user_id)
+
+        # Send notifications to mentioned users
+        from utils.email_sender import send_issue_comment_email
+        for user_id in notified_user_ids:
+            notification = Notification(
+                user_id=user_id,
+                type='issue_comment',
+                title=f'You were mentioned in Issue #{issue.id}',
+                message=f'{commenter.username} mentioned you: {content[:100]}...' if len(content) > 100 else f'{commenter.username} mentioned you: {content}',
+                reference_type='ticket',
+                reference_id=ticket_id,
+                is_read=False,
+                created_at=datetime.datetime.utcnow()
+            )
+            db_session.add(notification)
+
+            # Send email notification
+            notified_user = db_session.query(User).get(user_id)
+            if notified_user and notified_user.email:
+                try:
+                    send_issue_comment_email(
+                        notified_user=notified_user,
+                        commenter=commenter,
+                        ticket=ticket,
+                        issue=issue,
+                        comment_content=content
+                    )
+                except Exception as email_error:
+                    logger.error(f"Failed to send issue comment email to {notified_user.email}: {str(email_error)}")
+
+        db_session.commit()
+
+        logger.info(f"Comment added to issue {issue_id} by user {session.get('user_id')}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Comment added successfully',
+            'comment': comment.to_dict()
+        })
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error adding issue comment: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
