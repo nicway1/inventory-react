@@ -731,7 +731,9 @@
              onmouseout="this.style.background='linear-gradient(135deg, #45a59a 0%, #3a8a82 100%)'">
             <h2 class="text-xl font-semibold mb-2">Tech Assets</h2>
             <p class="text-sm opacity-80 mb-4">Laptops, Desktops, Monitors, etc.</p>
+            {% if not is_supervisor and not is_country_admin %}
             <p class="text-3xl font-bold" id="techAssetsCount">{{ tech_assets_count }}</p>
+            {% endif %}
         </div>
 
         {% if not is_client %}
@@ -743,7 +745,9 @@
              onmouseout="this.style.background='linear-gradient(135deg, #10b981 0%, #059669 100%)'">
             <h2 class="text-xl font-semibold mb-2">Accessories</h2>
             <p class="text-sm opacity-80 mb-4">Keyboards, Mice, Cables, etc.</p>
+            {% if not is_supervisor and not is_country_admin %}
             <p class="text-3xl font-bold" id="accessoriesCount">{{ accessories_count }}</p>
+            {% endif %}
         </a>
 
         <!-- Maintenance Card -->
@@ -754,7 +758,9 @@
              onmouseout="this.style.background='linear-gradient(135deg, #f97316 0%, #ea580c 100%)'">
             <h2 class="text-xl font-semibold mb-2">Maintenance</h2>
             <p class="text-sm opacity-80 mb-4">Assets needing erasure attention</p>
+            {% if not is_supervisor and not is_country_admin %}
             <p class="text-3xl font-bold" id="maintenanceCount">{{ maintenance_assets_count }}</p>
+            {% endif %}
         </div>
         {% endif %}
     </div>
