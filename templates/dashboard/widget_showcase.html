@@ -1,0 +1,1464 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* ============================================
+       Apple App Store Design System
+       ============================================ */
+
+    :root {
+        /* System Colors - Light Mode */
+        --systemPrimary: rgba(0, 0, 0, 1);
+        --systemSecondary: rgba(0, 0, 0, 0.56);
+        --systemTertiary: rgba(0, 0, 0, 0.28);
+        --systemQuaternary: rgba(0, 0, 0, 0.08);
+        --systemBackground: #f5f5f7;
+        --systemBackgroundElevated: #ffffff;
+        --systemGray4: rgba(0, 0, 0, 0.08);
+        --systemGray5: rgba(0, 0, 0, 0.04);
+        --systemBlue: #007aff;
+        --systemBlueHover: #0056b3;
+
+        /* Typography */
+        --title-1: 700 32px/1.125 -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+        --title-2: 700 24px/1.1667 -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+        --title-3: 600 20px/1.2 -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+        --headline: 600 17px/1.2353 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --body: 400 17px/1.4706 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --body-emphasized: 600 17px/1.4706 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --callout: 400 16px/1.375 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --callout-emphasized: 600 16px/1.375 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --subhead: 400 15px/1.3333 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --subhead-emphasized: 600 12px/1.3333 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --footnote: 400 13px/1.3846 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --caption: 400 12px/1.3333 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        --eyebrow: 600 12px/1.3333 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+        /* Spacing */
+        --bodyGutter: 22px;
+        --cardPadding: 20px;
+        --shelfGap: 24px;
+        --itemGap: 16px;
+
+        /* Border Radius */
+        --radius-large: 14px;
+        --radius-medium: 10px;
+        --radius-small: 8px;
+        --radius-icon: 22.5%;
+
+        /* Shadows */
+        --shadow-small: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-medium: 0 8px 28px rgba(0, 0, 0, 0.12);
+
+        /* Transitions */
+        --transition-fast: 150ms ease-out;
+        --transition-normal: 210ms ease-out;
+
+        /* Widget Gradients */
+        --gradient-blue: linear-gradient(135deg, #007aff 0%, #5ac8fa 100%);
+        --gradient-green: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+        --gradient-purple: linear-gradient(135deg, #af52de 0%, #bf5af2 100%);
+        --gradient-orange: linear-gradient(135deg, #ff9500 0%, #ffcc00 100%);
+        --gradient-red: linear-gradient(135deg, #ff3b30 0%, #ff6961 100%);
+        --gradient-cyan: linear-gradient(135deg, #32ade6 0%, #64d2ff 100%);
+        --gradient-teal: linear-gradient(135deg, #5ac8fa 0%, #70d7ff 100%);
+        --gradient-indigo: linear-gradient(135deg, #5856d6 0%, #7d7aff 100%);
+        --gradient-gray: linear-gradient(135deg, #8e8e93 0%, #aeaeb2 100%);
+        --gradient-yellow: linear-gradient(135deg, #ffcc00 0%, #ffdb4d 100%);
+        --gradient-pink: linear-gradient(135deg, #ff2d55 0%, #ff6482 100%);
+    }
+
+    .dark {
+        --systemPrimary: rgba(255, 255, 255, 1);
+        --systemSecondary: rgba(255, 255, 255, 0.56);
+        --systemTertiary: rgba(255, 255, 255, 0.28);
+        --systemQuaternary: rgba(255, 255, 255, 0.08);
+        --systemBackground: #000000;
+        --systemBackgroundElevated: #1c1c1e;
+        --systemGray4: rgba(255, 255, 255, 0.08);
+        --systemGray5: rgba(255, 255, 255, 0.04);
+    }
+
+    /* ============================================
+       Base Layout
+       ============================================ */
+
+    .app-store-page {
+        background: var(--systemBackground);
+        min-height: 100vh;
+        color: var(--systemPrimary);
+    }
+
+    /* ============================================
+       Navigation Bar
+       ============================================ */
+
+    .store-nav {
+        background: var(--systemBackgroundElevated);
+        border-bottom: 1px solid var(--systemGray4);
+        padding: 0 var(--bodyGutter);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    .nav-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        gap: 24px;
+    }
+
+    .nav-back {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--systemBlue);
+        text-decoration: none;
+        font: var(--body);
+        transition: opacity var(--transition-fast);
+    }
+
+    .nav-back:hover {
+        opacity: 0.7;
+    }
+
+    .nav-back i {
+        font-size: 14px;
+    }
+
+    .nav-title {
+        font: var(--headline);
+        color: var(--systemPrimary);
+    }
+
+    .nav-tabs {
+        display: flex;
+        gap: 4px;
+        margin-left: auto;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-tab {
+        padding: 8px 16px;
+        font: var(--subhead);
+        color: var(--systemSecondary);
+        text-decoration: none;
+        border-radius: 980px;
+        white-space: nowrap;
+        transition: all var(--transition-fast);
+    }
+
+    .nav-tab:hover {
+        background: var(--systemQuaternary);
+        color: var(--systemPrimary);
+    }
+
+    .nav-tab.active {
+        background: var(--systemBlue);
+        color: white;
+    }
+
+    /* ============================================
+       Hero Section (Today Card Style)
+       ============================================ */
+
+    .store-hero {
+        position: relative;
+        margin: var(--bodyGutter);
+        margin-bottom: 0;
+        border-radius: var(--radius-large);
+        overflow: hidden;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        min-height: 380px;
+    }
+
+    .hero-background {
+        position: absolute;
+        inset: 0;
+        opacity: 0.15;
+        background-image:
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(100, 200, 255, 0.2) 0%, transparent 40%);
+        animation: gradientShift 8s ease infinite;
+    }
+
+    @keyframes gradientShift {
+        0%, 100% { opacity: 0.15; }
+        50% { opacity: 0.25; }
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 48px 40px;
+        color: white;
+        max-width: 600px;
+    }
+
+    .hero-eyebrow {
+        font: var(--eyebrow);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 8px;
+    }
+
+    .hero-title {
+        font: var(--title-1);
+        font-size: 40px;
+        line-height: 1.1;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-description {
+        font: var(--body);
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0 0 32px 0;
+        max-width: 480px;
+    }
+
+    .hero-stats {
+        display: flex;
+        gap: 40px;
+    }
+
+    .hero-stat {
+        text-align: left;
+    }
+
+    .hero-stat-value {
+        font: var(--title-2);
+        font-size: 32px;
+        margin-bottom: 4px;
+    }
+
+    .hero-stat-label {
+        font: var(--caption);
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .hero-artwork {
+        position: absolute;
+        right: 40px;
+        bottom: 0;
+        width: 300px;
+        height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hero-icon-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        transform: rotate(-5deg);
+    }
+
+    .hero-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: white;
+        box-shadow: var(--shadow-medium);
+    }
+
+    /* ============================================
+       Main Content
+       ============================================ */
+
+    .store-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--shelfGap) var(--bodyGutter);
+    }
+
+    /* ============================================
+       Search Bar
+       ============================================ */
+
+    .search-section {
+        margin-bottom: var(--shelfGap);
+    }
+
+    .search-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--systemBackgroundElevated);
+        border-radius: var(--radius-medium);
+        padding: 12px 16px;
+        box-shadow: var(--shadow-small);
+    }
+
+    .search-bar i {
+        color: var(--systemTertiary);
+        font-size: 16px;
+    }
+
+    .search-bar input {
+        flex: 1;
+        border: none;
+        background: none;
+        font: var(--body);
+        color: var(--systemPrimary);
+        outline: none;
+    }
+
+    .search-bar input::placeholder {
+        color: var(--systemTertiary);
+    }
+
+    /* ============================================
+       Shelf (Category Section)
+       ============================================ */
+
+    .shelf {
+        margin-bottom: 40px;
+    }
+
+    .shelf-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 13px;
+        border-bottom: 1px solid var(--systemGray4);
+    }
+
+    .shelf-title-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .shelf-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .shelf-title {
+        font: var(--title-2);
+        color: var(--systemPrimary);
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .shelf-subtitle {
+        font: var(--subhead);
+        color: var(--systemSecondary);
+        margin: 4px 0 0 0;
+    }
+
+    .shelf-action {
+        font: var(--body);
+        color: var(--systemBlue);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity var(--transition-fast);
+    }
+
+    .shelf-action:hover {
+        opacity: 0.7;
+    }
+
+    /* ============================================
+       Widget Grid
+       ============================================ */
+
+    .widget-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: var(--itemGap);
+    }
+
+    @media (max-width: 768px) {
+        .widget-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ============================================
+       Medium Lockup Item (Widget Card)
+       ============================================ */
+
+    .lockup-item {
+        background: var(--systemBackgroundElevated);
+        border-radius: var(--radius-large);
+        overflow: hidden;
+        box-shadow: var(--shadow-small);
+        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        cursor: pointer;
+        position: relative;
+    }
+
+    .lockup-item:hover {
+        transform: scale(1.02);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .lockup-item.unavailable {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .lockup-item.unavailable:hover {
+        transform: none;
+    }
+
+    /* Hover overlay effect like App Store */
+    .lockup-item::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: white;
+        opacity: 0;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        transition: opacity var(--transition-normal);
+        border-radius: var(--radius-large);
+    }
+
+    .lockup-item:hover::after {
+        opacity: 0.1;
+    }
+
+    .lockup-artwork {
+        position: relative;
+        height: 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .lockup-artwork-bg {
+        position: absolute;
+        inset: 0;
+        opacity: 0.1;
+    }
+
+    .lockup-artwork img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+    }
+
+    .lockup-artwork-icon {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        color: white;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .lockup-content {
+        padding: var(--cardPadding);
+    }
+
+    .lockup-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .lockup-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .lockup-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .lockup-eyebrow {
+        font: var(--eyebrow);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--systemSecondary);
+        margin-bottom: 2px;
+    }
+
+    .lockup-title {
+        font: var(--headline);
+        color: var(--systemPrimary);
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .lockup-subtitle {
+        font: var(--footnote);
+        color: var(--systemSecondary);
+        margin: 2px 0 0 0;
+    }
+
+    .lockup-description {
+        font: var(--callout);
+        color: var(--systemSecondary);
+        margin: 0 0 16px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.4;
+    }
+
+    .lockup-meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .lockup-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font: var(--caption);
+        color: var(--systemTertiary);
+    }
+
+    .lockup-meta-item i {
+        font-size: 12px;
+    }
+
+    .lockup-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    /* ============================================
+       Buttons (App Store Style)
+       ============================================ */
+
+    .btn-get {
+        flex: 1;
+        padding: 8px 20px;
+        font: var(--callout-emphasized);
+        border-radius: 980px;
+        border: none;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 72px;
+    }
+
+    .btn-get.primary {
+        background: var(--systemBlue);
+        color: white;
+    }
+
+    .btn-get.primary:hover {
+        background: var(--systemBlueHover);
+    }
+
+    .btn-get.added {
+        background: var(--systemGray4);
+        color: var(--systemSecondary);
+    }
+
+    .btn-get.unavailable {
+        background: var(--systemGray5);
+        color: var(--systemTertiary);
+        cursor: not-allowed;
+    }
+
+    .btn-info {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: var(--systemQuaternary);
+        color: var(--systemSecondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+    }
+
+    .btn-info:hover {
+        background: var(--systemGray4);
+        color: var(--systemPrimary);
+    }
+
+    /* ============================================
+       Featured Brick Cards (Large Cards)
+       ============================================ */
+
+    .brick-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--itemGap);
+        margin-bottom: 40px;
+    }
+
+    @media (max-width: 1024px) {
+        .brick-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .brick-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .brick-item {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        border-radius: var(--radius-large);
+        overflow: hidden;
+        cursor: pointer;
+        box-shadow: var(--shadow-small);
+    }
+
+    .brick-item::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: white;
+        opacity: 0;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        transition: opacity var(--transition-normal);
+    }
+
+    .brick-item:hover::after {
+        opacity: 0.15;
+    }
+
+    .brick-bg {
+        position: absolute;
+        inset: 0;
+    }
+
+    .brick-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0) 100%);
+    }
+
+    .brick-content {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: var(--cardPadding);
+        color: white;
+    }
+
+    .brick-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: white;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-small);
+    }
+
+    .brick-eyebrow {
+        font: var(--eyebrow);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 4px;
+    }
+
+    .brick-title {
+        font: var(--title-3);
+        margin: 0;
+    }
+
+    .brick-subtitle {
+        font: var(--footnote);
+        color: rgba(255, 255, 255, 0.8);
+        margin: 4px 0 0 0;
+    }
+
+    /* ============================================
+       Modal (Product Page Style)
+       ============================================ */
+
+    .widget-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+
+    .widget-modal.active {
+        display: flex;
+    }
+
+    .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal-content {
+        position: relative;
+        background: var(--systemBackgroundElevated);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-hero {
+        position: relative;
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .modal-hero-bg {
+        position: absolute;
+        inset: 0;
+        opacity: 0.2;
+    }
+
+    .modal-hero-icon {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 44px;
+        color: white;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background var(--transition-fast);
+        z-index: 1;
+    }
+
+    .modal-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .modal-title {
+        font: var(--title-2);
+        color: var(--systemPrimary);
+        margin: 0 0 8px 0;
+    }
+
+    .modal-subtitle {
+        font: var(--body);
+        color: var(--systemSecondary);
+        margin: 0;
+    }
+
+    .modal-section {
+        margin-bottom: 24px;
+    }
+
+    .modal-section-title {
+        font: var(--eyebrow);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--systemSecondary);
+        margin-bottom: 12px;
+    }
+
+    .modal-section-content {
+        font: var(--body);
+        color: var(--systemPrimary);
+        line-height: 1.5;
+    }
+
+    .modal-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .modal-tag {
+        padding: 6px 12px;
+        font: var(--caption);
+        background: var(--systemQuaternary);
+        color: var(--systemSecondary);
+        border-radius: 6px;
+    }
+
+    .modal-footer {
+        padding: 20px 24px;
+        border-top: 1px solid var(--systemGray4);
+        display: flex;
+        gap: 12px;
+    }
+
+    .modal-btn {
+        flex: 1;
+        padding: 14px 24px;
+        font: var(--body-emphasized);
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .modal-btn-primary {
+        background: var(--systemBlue);
+        color: white;
+    }
+
+    .modal-btn-primary:hover {
+        background: var(--systemBlueHover);
+    }
+
+    .modal-btn-secondary {
+        background: var(--systemQuaternary);
+        color: var(--systemPrimary);
+    }
+
+    .modal-btn-secondary:hover {
+        background: var(--systemGray4);
+    }
+
+    /* ============================================
+       Toast Notification
+       ============================================ */
+
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--systemPrimary);
+        color: var(--systemBackground);
+        padding: 14px 24px;
+        border-radius: 14px;
+        font: var(--callout-emphasized);
+        box-shadow: var(--shadow-medium);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 1001;
+    }
+
+    .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+
+    .toast.success {
+        background: #34c759;
+        color: white;
+    }
+
+    .toast.error {
+        background: #ff3b30;
+        color: white;
+    }
+
+    /* ============================================
+       Empty State
+       ============================================ */
+
+    .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--systemTertiary);
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    /* ============================================
+       Responsive
+       ============================================ */
+
+    @media (max-width: 768px) {
+        .store-hero {
+            min-height: 320px;
+            margin: 12px;
+        }
+
+        .hero-content {
+            padding: 32px 24px;
+        }
+
+        .hero-title {
+            font-size: 28px;
+        }
+
+        .hero-artwork {
+            display: none;
+        }
+
+        .hero-stats {
+            gap: 24px;
+        }
+
+        .hero-stat-value {
+            font-size: 24px;
+        }
+
+        .store-content {
+            padding: 16px;
+        }
+
+        .nav-tabs {
+            display: none;
+        }
+
+        .shelf-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-store-page">
+    <!-- Navigation -->
+    <nav class="store-nav">
+        <div class="nav-inner">
+            <a href="{{ url_for('dashboard.index') }}" class="nav-back">
+                <i class="fas fa-chevron-left"></i>
+                Dashboard
+            </a>
+            <span class="nav-title">Widget Gallery</span>
+            <div class="nav-tabs">
+                <a href="#all" class="nav-tab active" data-category="all">All</a>
+                {% for category in widget_categories %}
+                <a href="#{{ category.value }}" class="nav-tab" data-category="{{ category.value }}">
+                    {{ category_info[category].name.split(' ')[0] }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="store-hero">
+        <div class="hero-background"></div>
+        <div class="hero-content">
+            <div class="hero-eyebrow">Customize Your Experience</div>
+            <h1 class="hero-title">Widget Gallery</h1>
+            <p class="hero-description">
+                Discover powerful widgets to personalize your dashboard. Add statistics, charts, quick actions, and more to create your perfect workspace.
+            </p>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-value">{{ all_widgets|length }}</div>
+                    <div class="hero-stat-label">Widgets</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">{{ available_widget_ids|length }}</div>
+                    <div class="hero-stat-label">Available</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">{{ dashboard_widget_ids|length }}</div>
+                    <div class="hero-stat-label">Active</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-artwork">
+            <div class="hero-icon-grid">
+                {% for widget in all_widgets[:9] %}
+                <div class="hero-icon" style="background: var(--gradient-{{ widget.color }});">
+                    <i class="{{ widget.icon }}"></i>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="store-content">
+        <!-- Search -->
+        <div class="search-section">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="widgetSearch" placeholder="Search widgets">
+            </div>
+        </div>
+
+        <!-- Featured Widgets (Brick Style) -->
+        <div class="shelf" data-category="featured">
+            <div class="shelf-header">
+                <div>
+                    <h2 class="shelf-title">Featured Widgets</h2>
+                    <p class="shelf-subtitle">Essential widgets for your dashboard</p>
+                </div>
+            </div>
+            <div class="brick-grid">
+                {% set featured_widgets = ['inventory_stats', 'weekly_tickets_chart', 'launchpad', 'shipments_list', 'system_management', 'quick_actions'] %}
+                {% for widget in all_widgets %}
+                {% if widget.id in featured_widgets %}
+                <div class="brick-item" onclick="showWidgetDetails('{{ widget.id }}')">
+                    <div class="brick-bg" style="background: var(--gradient-{{ widget.color }});"></div>
+                    {% if widget.screenshot %}
+                    <img src="{{ url_for('static', filename='images/widgets/' + widget.screenshot) }}" alt="{{ widget.name }}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;">
+                    {% endif %}
+                    <div class="brick-gradient"></div>
+                    <div class="brick-content">
+                        <div class="brick-icon" style="background: rgba(255,255,255,0.2);">
+                            <i class="{{ widget.icon }}"></i>
+                        </div>
+                        <div class="brick-eyebrow">{{ category_info[widget.category].name }}</div>
+                        <h3 class="brick-title">{{ widget.name }}</h3>
+                        <p class="brick-subtitle">{{ widget.description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Widget Categories -->
+        {% for category in widget_categories %}
+        {% set widgets = widgets_by_category[category] %}
+        {% if widgets %}
+        <div class="shelf" data-category="{{ category.value }}">
+            <div class="shelf-header">
+                <div class="shelf-title-group">
+                    <div class="shelf-icon" style="background: var(--gradient-{{ category_info[category].color }});">
+                        <i class="{{ category_info[category].icon }}"></i>
+                    </div>
+                    <div>
+                        <h2 class="shelf-title">{{ category_info[category].name }}</h2>
+                        <p class="shelf-subtitle">{{ category_info[category].description }}</p>
+                    </div>
+                </div>
+                <span class="shelf-action">
+                    {{ widgets|length }} widgets
+                </span>
+            </div>
+
+            <div class="widget-grid">
+                {% for widget in widgets %}
+                <div class="lockup-item {% if widget.id not in available_widget_ids %}unavailable{% endif %}"
+                     data-widget-id="{{ widget.id }}"
+                     data-widget-name="{{ widget.name }}"
+                     data-searchable="{{ widget.name|lower }} {{ widget.description|lower }}">
+
+                    <!-- Artwork Area -->
+                    <div class="lockup-artwork">
+                        <div class="lockup-artwork-bg" style="background: var(--gradient-{{ widget.color }});"></div>
+                        {% if widget.screenshot %}
+                        <img src="{{ url_for('static', filename='images/widgets/' + widget.screenshot) }}" alt="{{ widget.name }}">
+                        {% else %}
+                        <div class="lockup-artwork-icon" style="background: var(--gradient-{{ widget.color }});">
+                            <i class="{{ widget.icon }}"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="lockup-content">
+                        <div class="lockup-header">
+                            <div class="lockup-icon" style="background: var(--gradient-{{ widget.color }});">
+                                <i class="{{ widget.icon }}"></i>
+                            </div>
+                            <div class="lockup-info">
+                                <div class="lockup-eyebrow">{{ widget.default_size.value|title }} Widget</div>
+                                <h3 class="lockup-title">{{ widget.name }}</h3>
+                                <p class="lockup-subtitle">{{ category_info[category].name }}</p>
+                            </div>
+                        </div>
+
+                        <p class="lockup-description">
+                            {{ widget.long_description or widget.description }}
+                        </p>
+
+                        <div class="lockup-meta">
+                            {% if widget.refreshable %}
+                            <div class="lockup-meta-item">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>Live Data</span>
+                            </div>
+                            {% endif %}
+                            {% if widget.configurable %}
+                            <div class="lockup-meta-item">
+                                <i class="fas fa-sliders-h"></i>
+                                <span>Customizable</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="lockup-actions">
+                            {% if widget.id not in available_widget_ids %}
+                            <button class="btn-get unavailable" disabled>
+                                <i class="fas fa-lock"></i>
+                                Unavailable
+                            </button>
+                            {% elif widget.id in dashboard_widget_ids %}
+                            <button class="btn-get added" disabled>
+                                <i class="fas fa-check"></i>
+                                Added
+                            </button>
+                            {% else %}
+                            <button class="btn-get primary" onclick="event.stopPropagation(); addWidget('{{ widget.id }}')">
+                                GET
+                            </button>
+                            {% endif %}
+                            <button class="btn-info" onclick="event.stopPropagation(); showWidgetDetails('{{ widget.id }}')">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Widget Detail Modal -->
+<div class="widget-modal" id="widgetModal">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-hero" id="modalHero">
+            <div class="modal-hero-bg" id="modalHeroBg"></div>
+            <button class="modal-close" onclick="closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-hero-icon" id="modalIcon">
+                <i id="modalIconClass"></i>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle"></h2>
+                <p class="modal-subtitle" id="modalSubtitle"></p>
+            </div>
+
+            <div class="modal-section">
+                <div class="modal-section-title">Description</div>
+                <div class="modal-section-content" id="modalDescription"></div>
+            </div>
+
+            <div class="modal-section">
+                <div class="modal-section-title">Features</div>
+                <div class="modal-tags" id="modalFeatures"></div>
+            </div>
+
+            <div class="modal-section">
+                <div class="modal-section-title">Available For</div>
+                <div class="modal-tags" id="modalUserTypes"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-secondary" onclick="closeModal()">
+                Cancel
+            </button>
+            <button class="modal-btn modal-btn-primary" id="modalAddBtn" onclick="addWidgetFromModal()">
+                <i class="fas fa-plus"></i>
+                Add to Dashboard
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage"></span>
+</div>
+
+<script>
+    // Widget data
+    const widgetData = {
+        {% for widget in all_widgets %}
+        '{{ widget.id }}': {
+            id: '{{ widget.id }}',
+            name: '{{ widget.name }}',
+            description: '{{ widget.description }}',
+            longDescription: '{{ widget.long_description or widget.description }}',
+            icon: '{{ widget.icon }}',
+            color: '{{ widget.color }}',
+            screenshot: '{{ widget.screenshot or "" }}',
+            size: '{{ widget.default_size.value }}',
+            refreshable: {{ 'true' if widget.refreshable else 'false' }},
+            configurable: {{ 'true' if widget.configurable else 'false' }},
+            userTypes: {{ widget.required_user_types | tojson }},
+            available: {{ 'true' if widget.id in available_widget_ids else 'false' }},
+            added: {{ 'true' if widget.id in dashboard_widget_ids else 'false' }}
+        },
+        {% endfor %}
+    };
+
+    let currentWidgetId = null;
+
+    // Search
+    document.getElementById('widgetSearch').addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.lockup-item').forEach(card => {
+            const searchable = card.dataset.searchable;
+            card.style.display = searchable.includes(query) ? '' : 'none';
+        });
+
+        // Also filter brick items
+        document.querySelectorAll('.brick-item').forEach(brick => {
+            const title = brick.querySelector('.brick-title').textContent.toLowerCase();
+            brick.style.display = title.includes(query) ? '' : 'none';
+        });
+    });
+
+    // Category tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            const category = this.dataset.category;
+
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            document.querySelectorAll('.shelf').forEach(section => {
+                const sectionCategory = section.dataset.category;
+                if (category === 'all' || sectionCategory === category || sectionCategory === 'featured') {
+                    section.style.display = '';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Show widget details
+    function showWidgetDetails(widgetId) {
+        const widget = widgetData[widgetId];
+        if (!widget) return;
+
+        currentWidgetId = widgetId;
+
+        document.getElementById('modalTitle').textContent = widget.name;
+        document.getElementById('modalSubtitle').textContent = widget.size.charAt(0).toUpperCase() + widget.size.slice(1) + ' Widget';
+        document.getElementById('modalDescription').textContent = widget.longDescription;
+        document.getElementById('modalIconClass').className = widget.icon;
+        document.getElementById('modalIcon').style.background = `var(--gradient-${widget.color})`;
+        document.getElementById('modalHeroBg').style.background = `var(--gradient-${widget.color})`;
+
+        // Features
+        const featuresEl = document.getElementById('modalFeatures');
+        let features = [`<span class="modal-tag">${widget.size} size</span>`];
+        if (widget.refreshable) features.push('<span class="modal-tag">Live Data</span>');
+        if (widget.configurable) features.push('<span class="modal-tag">Customizable</span>');
+        featuresEl.innerHTML = features.join('');
+
+        // User types
+        const userTypesEl = document.getElementById('modalUserTypes');
+        const userTypeLabels = {
+            'DEVELOPER': 'Developer',
+            'SUPER_ADMIN': 'Super Admin',
+            'SUPERVISOR': 'Supervisor',
+            'COUNTRY_ADMIN': 'Country Admin',
+            'CLIENT': 'Client'
+        };
+        userTypesEl.innerHTML = widget.userTypes.map(ut =>
+            `<span class="modal-tag">${userTypeLabels[ut] || ut}</span>`
+        ).join('');
+
+        // Button state
+        const addBtn = document.getElementById('modalAddBtn');
+        if (!widget.available) {
+            addBtn.disabled = true;
+            addBtn.innerHTML = '<i class="fas fa-lock"></i> Unavailable';
+            addBtn.className = 'modal-btn modal-btn-secondary';
+        } else if (widget.added) {
+            addBtn.disabled = true;
+            addBtn.innerHTML = '<i class="fas fa-check"></i> Added';
+            addBtn.className = 'modal-btn modal-btn-secondary';
+        } else {
+            addBtn.disabled = false;
+            addBtn.innerHTML = '<i class="fas fa-plus"></i> Add to Dashboard';
+            addBtn.className = 'modal-btn modal-btn-primary';
+        }
+
+        document.getElementById('widgetModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        document.getElementById('widgetModal').classList.remove('active');
+        document.body.style.overflow = '';
+        currentWidgetId = null;
+    }
+
+    function addWidgetFromModal() {
+        if (currentWidgetId) {
+            addWidget(currentWidgetId);
+            closeModal();
+        }
+    }
+
+    // Add widget
+    async function addWidget(widgetId) {
+        try {
+            const widget = widgetData[widgetId];
+
+            const saveResponse = await fetch('/dashboard/api/save-layout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    layout: [...getCurrentDashboardLayout(), {
+                        widget_id: widgetId,
+                        position: getCurrentDashboardLayout().length,
+                        size: widget.size,
+                        config: {}
+                    }]
+                })
+            });
+
+            const result = await saveResponse.json();
+
+            if (result.success) {
+                showToast(`${widget.name} added to your dashboard!`, 'success');
+
+                // Update UI
+                const card = document.querySelector(`[data-widget-id="${widgetId}"]`);
+                if (card) {
+                    const btn = card.querySelector('.btn-get');
+                    if (btn) {
+                        btn.className = 'btn-get added';
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-check"></i> Added';
+                    }
+                }
+
+                widgetData[widgetId].added = true;
+            } else {
+                showToast('Failed to add widget', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding widget:', error);
+            showToast('Failed to add widget', 'error');
+        }
+    }
+
+    function getCurrentDashboardLayout() {
+        return {{ dashboard_widget_ids | tojson }}.map((id, index) => ({
+            widget_id: id,
+            position: index,
+            size: widgetData[id]?.size || 'small',
+            config: {}
+        }));
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+
+        toast.className = 'toast ' + type;
+        toastMessage.textContent = message;
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // Close modal on escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    // Make lockup items clickable
+    document.querySelectorAll('.lockup-item').forEach(item => {
+        item.addEventListener('click', function() {
+            showWidgetDetails(this.dataset.widgetId);
+        });
+    });
+</script>
+{% endblock %}
