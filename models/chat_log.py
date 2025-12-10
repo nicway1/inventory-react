@@ -5,7 +5,7 @@ Used for training and improving the chatbot
 
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from models.base import Base
 
 
@@ -44,7 +44,7 @@ class ChatLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    user = relationship("User", backref="chat_logs")
+    user = relationship("User", backref=backref("chat_logs", cascade="all, delete-orphan"))
 
     def to_dict(self):
         return {
