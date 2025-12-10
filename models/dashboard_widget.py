@@ -138,7 +138,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-box',
     color='purple',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
     data_loader='load_inventory_stats',
     screenshot='inventory_overview.png'
 ))
@@ -555,22 +555,20 @@ DEFAULT_DASHBOARD_LAYOUT = {
         {'widget_id': 'user_overview', 'position': 11, 'size': 'small', 'config': {}},
     ],
     'SUPERVISOR': [
-        {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
-        {'widget_id': 'customer_stats', 'position': 1, 'size': 'small', 'config': {}},
-        {'widget_id': 'clock_widget', 'position': 2, 'size': 'small', 'config': {}},
-        {'widget_id': 'quick_actions', 'position': 3, 'size': 'small', 'config': {}},
-        {'widget_id': 'view_inventory', 'position': 4, 'size': 'small', 'config': {}},
-        {'widget_id': 'view_tickets', 'position': 5, 'size': 'small', 'config': {}},
-        {'widget_id': 'shipments_list', 'position': 6, 'size': 'large', 'config': {}},
-        {'widget_id': 'import_tickets', 'position': 7, 'size': 'small', 'config': {}},
-    ],
-    'COUNTRY_ADMIN': [
-        {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
+        {'widget_id': 'customer_stats', 'position': 0, 'size': 'small', 'config': {}},
         {'widget_id': 'clock_widget', 'position': 1, 'size': 'small', 'config': {}},
         {'widget_id': 'quick_actions', 'position': 2, 'size': 'small', 'config': {}},
         {'widget_id': 'view_inventory', 'position': 3, 'size': 'small', 'config': {}},
         {'widget_id': 'view_tickets', 'position': 4, 'size': 'small', 'config': {}},
         {'widget_id': 'shipments_list', 'position': 5, 'size': 'large', 'config': {}},
+        {'widget_id': 'import_tickets', 'position': 6, 'size': 'small', 'config': {}},
+    ],
+    'COUNTRY_ADMIN': [
+        {'widget_id': 'clock_widget', 'position': 0, 'size': 'small', 'config': {}},
+        {'widget_id': 'quick_actions', 'position': 1, 'size': 'small', 'config': {}},
+        {'widget_id': 'view_inventory', 'position': 2, 'size': 'small', 'config': {}},
+        {'widget_id': 'view_tickets', 'position': 3, 'size': 'small', 'config': {}},
+        {'widget_id': 'shipments_list', 'position': 4, 'size': 'large', 'config': {}},
     ],
     'CLIENT': [
         {'widget_id': 'ticket_stats', 'position': 0, 'size': 'small', 'config': {}},
