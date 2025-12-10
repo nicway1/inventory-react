@@ -10463,8 +10463,10 @@ async function submitIssueReport(event, ticketId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
+            credentials: 'include',
             body: JSON.stringify({
                 issue_type: issueType,
                 description: description

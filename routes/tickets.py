@@ -9698,7 +9698,9 @@ def create_ticket_issue(ticket_id):
             return jsonify({'success': False, 'error': 'Ticket not found'}), 404
 
         # Check if user is the ticket owner or has permission
-        if ticket.requester_id != session.get('user_id') and session.get('user_type') not in ['SUPER_ADMIN', 'ADMIN']:
+        # Allow: ticket requester, SUPER_ADMIN, DEVELOPER, COUNTRY_ADMIN, SUPERVISOR
+        allowed_types = ['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN', 'SUPERVISOR']
+        if ticket.requester_id != session.get('user_id') and session.get('user_type') not in allowed_types:
             return jsonify({'success': False, 'error': 'Permission denied'}), 403
 
         # Get data from request

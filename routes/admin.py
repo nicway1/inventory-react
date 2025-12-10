@@ -1064,7 +1064,9 @@ def delete_user(user_id):
         flash('User not found', 'error')
         return redirect(url_for('admin.manage_users'))
 
-    if user.is_admin:
+    # Allow DEVELOPER and SUPER_ADMIN to delete admin users
+    current_user_type = session.get('user_type')
+    if user.is_admin and current_user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
         flash('Cannot delete admin user', 'error')
         return redirect(url_for('admin.manage_users'))
 
