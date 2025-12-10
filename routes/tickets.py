@@ -1600,7 +1600,10 @@ def create_ticket():
         users_for_assignment = []
         if user.is_admin:
             from models.user import User
-            all_users = db_session.query(User).filter(User.is_active == True).all()
+            all_users = db_session.query(User).filter(
+                User.is_active == True,
+                or_(User.is_deleted == False, User.is_deleted == None)
+            ).all()
             users_for_assignment = [{
                 'id': u.id,
                 'username': u.username,
@@ -2691,9 +2694,12 @@ def view_ticket(ticket_id):
         # Filter users based on current user's country permissions
         from models.user_country_permission import UserCountryPermission
 
+        # Base filter to exclude deleted users
+        not_deleted_filter = or_(User.is_deleted == False, User.is_deleted == None)
+
         if current_user.is_super_admin or current_user.is_developer:
-            # Super admins and developers can see all users
-            all_users = db_session.query(User).order_by(User.username).all()
+            # Super admins and developers can see all users (except deleted)
+            all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
         elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             # Country admins and supervisors can only see users from their assigned countries
             # Re-fetch current user in this session to avoid lazy loading issues
@@ -2704,12 +2710,14 @@ def view_ticket(ticket_id):
                 users_with_matching_countries = db_session.query(User).join(
                     UserCountryPermission, User.id == UserCountryPermission.user_id
                 ).filter(
-                    UserCountryPermission.country.in_(user_countries)
+                    UserCountryPermission.country.in_(user_countries),
+                    not_deleted_filter
                 ).distinct().order_by(User.username).all()
 
                 # Also include super admins and developers (they can always be notified)
                 admins_and_devs = db_session.query(User).filter(
-                    User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER])
+                    User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER]),
+                    not_deleted_filter
                 ).order_by(User.username).all()
 
                 # Combine and deduplicate
@@ -2718,10 +2726,10 @@ def view_ticket(ticket_id):
                     all_users_set[u.id] = u
                 all_users = sorted(all_users_set.values(), key=lambda x: x.username)
             else:
-                all_users = db_session.query(User).order_by(User.username).all()
+                all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
         else:
-            # Regular users can see all users
-            all_users = db_session.query(User).order_by(User.username).all()
+            # Regular users can see all users (except deleted)
+            all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
 
         owner = ticket.assigned_to
 
@@ -9517,12 +9525,14 @@ def search_users():
         db_session = db_manager.get_session()
         try:
             # Search users by username or email
+            # Exclude deactivated/deleted users
             users = db_session.query(User).filter(
                 or_(
                     User.username.ilike(f'%{query}%'),
                     User.email.ilike(f'%{query}%')
-                )
-            ).limit(10).all()
+                ),
+                or_(User.is_deleted == False, User.is_deleted == None)
+            ).all()
             
             # Convert to dict for JSON response
             users_data = []
