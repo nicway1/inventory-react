@@ -53,6 +53,7 @@
         /* Transitions */
         --transition-fast: 150ms ease-out;
         --transition-normal: 210ms ease-out;
+        --transition-spring: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
         /* Widget Gradients */
         --gradient-blue: linear-gradient(135deg, #007aff 0%, #5ac8fa 100%);
@@ -151,7 +152,8 @@
         text-decoration: none;
         border-radius: 980px;
         white-space: nowrap;
-        transition: all var(--transition-fast);
+        transition: all var(--transition-normal);
+        position: relative;
     }
 
     .nav-tab:hover {
@@ -162,42 +164,181 @@
     .nav-tab.active {
         background: var(--systemBlue);
         color: white;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+    }
+
+    .nav-tab:active {
+        transform: scale(0.95);
     }
 
     /* ============================================
-       Hero Section (Today Card Style)
+       Hero Section (Premium Animated Style)
        ============================================ */
 
     .store-hero {
         position: relative;
         margin: var(--bodyGutter);
         margin-bottom: 0;
-        border-radius: var(--radius-large);
+        border-radius: 24px;
         overflow: hidden;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        min-height: 380px;
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        min-height: 420px;
+    }
+
+    /* Animated mesh gradient background */
+    .store-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(ellipse 80% 50% at 20% -20%, rgba(120, 119, 198, 0.5) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 50% at 80% 120%, rgba(255, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 40% at 100% 50%, rgba(99, 102, 241, 0.4) 0%, transparent 40%),
+            radial-gradient(ellipse 50% 80% at 0% 50%, rgba(16, 185, 129, 0.3) 0%, transparent 50%);
+        animation: meshGradient 12s ease-in-out infinite alternate;
+    }
+
+    @keyframes meshGradient {
+        0% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+        50% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+        100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+    }
+
+    /* Animated shine sweep */
+    .store-hero::after {
+        content: '';
+        position: absolute;
+        top: -100%;
+        left: -100%;
+        width: 300%;
+        height: 300%;
+        background: linear-gradient(
+            45deg,
+            transparent 30%,
+            rgba(255,255,255,0.02) 40%,
+            rgba(255,255,255,0.08) 50%,
+            rgba(255,255,255,0.02) 60%,
+            transparent 70%
+        );
+        animation: heroShine 6s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    @keyframes heroShine {
+        0% { transform: translateX(-50%) translateY(-50%) rotate(25deg); }
+        100% { transform: translateX(50%) translateY(50%) rotate(25deg); }
+    }
+
+    /* Floating particles */
+    .hero-particles {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .hero-particle {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        animation: particleFloat 20s linear infinite;
+    }
+
+    .hero-particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 25s; }
+    .hero-particle:nth-child(2) { left: 20%; animation-delay: -5s; animation-duration: 20s; width: 4px; height: 4px; }
+    .hero-particle:nth-child(3) { left: 35%; animation-delay: -10s; animation-duration: 28s; }
+    .hero-particle:nth-child(4) { left: 50%; animation-delay: -15s; animation-duration: 22s; width: 8px; height: 8px; }
+    .hero-particle:nth-child(5) { left: 65%; animation-delay: -3s; animation-duration: 30s; width: 5px; height: 5px; }
+    .hero-particle:nth-child(6) { left: 80%; animation-delay: -8s; animation-duration: 24s; }
+    .hero-particle:nth-child(7) { left: 90%; animation-delay: -12s; animation-duration: 26s; width: 4px; height: 4px; }
+    .hero-particle:nth-child(8) { left: 5%; animation-delay: -18s; animation-duration: 32s; width: 3px; height: 3px; }
+
+    @keyframes particleFloat {
+        0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+        10% { opacity: 0.6; }
+        90% { opacity: 0.6; }
+        100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+    }
+
+    /* Glowing orbs */
+    .hero-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(60px);
+        animation: orbPulse 8s ease-in-out infinite;
+    }
+
+    .hero-orb-1 {
+        width: 300px;
+        height: 300px;
+        background: rgba(99, 102, 241, 0.4);
+        top: -100px;
+        right: 10%;
+        animation-delay: 0s;
+    }
+
+    .hero-orb-2 {
+        width: 250px;
+        height: 250px;
+        background: rgba(236, 72, 153, 0.3);
+        bottom: -80px;
+        left: 20%;
+        animation-delay: -4s;
+    }
+
+    .hero-orb-3 {
+        width: 200px;
+        height: 200px;
+        background: rgba(16, 185, 129, 0.3);
+        top: 50%;
+        right: 30%;
+        animation-delay: -2s;
+    }
+
+    @keyframes orbPulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.2); opacity: 0.8; }
     }
 
     .hero-background {
         position: absolute;
         inset: 0;
-        opacity: 0.15;
+        opacity: 0.2;
         background-image:
-            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(100, 200, 255, 0.2) 0%, transparent 40%);
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.4) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(100, 200, 255, 0.3) 0%, transparent 40%);
         animation: gradientShift 8s ease infinite;
     }
 
     @keyframes gradientShift {
-        0%, 100% { opacity: 0.15; }
-        50% { opacity: 0.25; }
+        0%, 100% { opacity: 0.2; transform: scale(1); }
+        50% { opacity: 0.35; transform: scale(1.05); }
+    }
+
+    /* Grid pattern overlay */
+    .hero-grid-pattern {
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
+        animation: gridMove 20s linear infinite;
+        opacity: 0.5;
+    }
+
+    @keyframes gridMove {
+        0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+        100% { transform: perspective(500px) rotateX(60deg) translateY(50px); }
     }
 
     .hero-content {
         position: relative;
-        z-index: 1;
-        padding: 48px 40px;
+        z-index: 10;
+        padding: 56px 48px;
         color: white;
         max-width: 600px;
     }
@@ -205,76 +346,251 @@
     .hero-eyebrow {
         font: var(--eyebrow);
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: rgba(255, 255, 255, 0.7);
-        margin-bottom: 8px;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 12px;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: heroFadeIn 0.6s ease 0.1s forwards;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(90deg, rgba(99, 102, 241, 0.3), rgba(236, 72, 153, 0.3));
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hero-eyebrow::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
     }
 
     .hero-title {
         font: var(--title-1);
-        font-size: 40px;
+        font-size: 48px;
         line-height: 1.1;
-        margin: 0 0 16px 0;
-        letter-spacing: -0.02em;
+        margin: 0 0 20px 0;
+        letter-spacing: -0.03em;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: heroFadeIn 0.7s ease 0.2s forwards;
+        background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 80px rgba(99, 102, 241, 0.5);
     }
 
     .hero-description {
         font: var(--body);
-        color: rgba(255, 255, 255, 0.8);
-        margin: 0 0 32px 0;
+        font-size: 18px;
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0 0 36px 0;
         max-width: 480px;
+        line-height: 1.6;
+        opacity: 0;
+        transform: translateY(15px);
+        animation: heroFadeIn 0.6s ease 0.35s forwards;
+    }
+
+    @keyframes heroFadeIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .hero-stats {
         display: flex;
-        gap: 40px;
+        gap: 32px;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: heroFadeIn 0.5s ease 0.5s forwards;
     }
 
     .hero-stat {
         text-align: left;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        padding: 16px 24px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+        min-width: 100px;
+    }
+
+    .hero-stat:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     }
 
     .hero-stat-value {
         font: var(--title-2);
-        font-size: 32px;
+        font-size: 36px;
+        font-weight: 700;
         margin-bottom: 4px;
+        background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     .hero-stat-label {
         font: var(--caption);
+        font-size: 11px;
         color: rgba(255, 255, 255, 0.6);
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.08em;
     }
 
     .hero-artwork {
         position: absolute;
         right: 40px;
-        bottom: 0;
-        width: 300px;
-        height: 300px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 380px;
+        height: 380px;
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 5;
     }
 
     .hero-icon-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        transform: rotate(-5deg);
+        gap: 16px;
+        transform: perspective(1000px) rotateY(-15deg) rotateX(5deg);
+        transform-style: preserve-3d;
+        animation: gridFloat 8s ease-in-out infinite;
+    }
+
+    @keyframes gridFloat {
+        0%, 100% { transform: perspective(1000px) rotateY(-15deg) rotateX(5deg) translateY(0); }
+        50% { transform: perspective(1000px) rotateY(-12deg) rotateX(8deg) translateY(-15px); }
     }
 
     .hero-icon {
-        width: 72px;
-        height: 72px;
-        border-radius: var(--radius-icon);
+        width: 80px;
+        height: 80px;
+        border-radius: 22px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
+        font-size: 32px;
         color: white;
-        box-shadow: var(--shadow-medium);
+        box-shadow:
+            0 20px 40px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+        animation: iconFloat 5s ease-in-out infinite;
+        animation-delay: calc(var(--icon-index, 0) * 0.2s);
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-icon::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 50%);
+        pointer-events: none;
+    }
+
+    .hero-icon::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            45deg,
+            transparent 40%,
+            rgba(255,255,255,0.3) 50%,
+            transparent 60%
+        );
+        transform: translateX(-100%);
+        animation: iconShine 4s ease-in-out infinite;
+        animation-delay: calc(var(--icon-index, 0) * 0.3s);
+    }
+
+    @keyframes iconShine {
+        0%, 80%, 100% { transform: translateX(-100%); }
+        40% { transform: translateX(100%); }
+    }
+
+    .hero-icon:hover {
+        transform: scale(1.15) translateZ(30px);
+        box-shadow:
+            0 30px 60px rgba(0, 0, 0, 0.5),
+            0 0 30px rgba(99, 102, 241, 0.4);
+    }
+
+    @keyframes iconFloat {
+        0%, 100% { transform: translateY(0) translateZ(0); }
+        50% { transform: translateY(-8px) translateZ(10px); }
+    }
+
+    .hero-icon:nth-child(1) { --icon-index: 0; }
+    .hero-icon:nth-child(2) { --icon-index: 1; }
+    .hero-icon:nth-child(3) { --icon-index: 2; }
+    .hero-icon:nth-child(4) { --icon-index: 3; }
+    .hero-icon:nth-child(5) { --icon-index: 4; }
+    .hero-icon:nth-child(6) { --icon-index: 5; }
+    .hero-icon:nth-child(7) { --icon-index: 6; }
+    .hero-icon:nth-child(8) { --icon-index: 7; }
+    .hero-icon:nth-child(9) { --icon-index: 8; }
+
+    /* Decorative rings */
+    .hero-ring {
+        position: absolute;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: ringExpand 8s ease-out infinite;
+    }
+
+    .hero-ring-1 {
+        width: 200px;
+        height: 200px;
+        right: 100px;
+        top: 30%;
+        animation-delay: 0s;
+    }
+
+    .hero-ring-2 {
+        width: 300px;
+        height: 300px;
+        right: 50px;
+        top: 20%;
+        animation-delay: -2s;
+    }
+
+    .hero-ring-3 {
+        width: 400px;
+        height: 400px;
+        right: 0px;
+        top: 10%;
+        animation-delay: -4s;
+    }
+
+    @keyframes ringExpand {
+        0% { transform: scale(0.8); opacity: 0.3; }
+        50% { opacity: 0.15; }
+        100% { transform: scale(1.2); opacity: 0; }
     }
 
     /* ============================================
@@ -303,11 +619,23 @@
         border-radius: var(--radius-medium);
         padding: 12px 16px;
         box-shadow: var(--shadow-small);
+        border: 2px solid transparent;
+        transition: all var(--transition-normal);
+    }
+
+    .search-bar:focus-within {
+        border-color: var(--systemBlue);
+        box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15), var(--shadow-small);
     }
 
     .search-bar i {
         color: var(--systemTertiary);
         font-size: 16px;
+        transition: color var(--transition-fast);
+    }
+
+    .search-bar:focus-within i {
+        color: var(--systemBlue);
     }
 
     .search-bar input {
@@ -321,6 +649,11 @@
 
     .search-bar input::placeholder {
         color: var(--systemTertiary);
+        transition: opacity var(--transition-fast);
+    }
+
+    .search-bar:focus-within input::placeholder {
+        opacity: 0.6;
     }
 
     /* ============================================
@@ -355,6 +688,12 @@
         justify-content: center;
         font-size: 24px;
         color: white;
+        box-shadow: var(--shadow-small);
+        transition: transform var(--transition-spring);
+    }
+
+    .shelf-title-group:hover .shelf-icon {
+        transform: scale(1.05);
     }
 
     .shelf-title {
@@ -409,14 +748,20 @@
         border-radius: var(--radius-large);
         overflow: hidden;
         box-shadow: var(--shadow-small);
-        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        transition: transform var(--transition-spring), box-shadow var(--transition-normal);
         cursor: pointer;
         position: relative;
+        will-change: transform;
     }
 
     .lockup-item:hover {
-        transform: scale(1.02);
-        box-shadow: var(--shadow-medium);
+        transform: scale(1.03) translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .lockup-item:active {
+        transform: scale(0.98);
+        transition: transform 100ms ease-out;
     }
 
     .lockup-item.unavailable {
@@ -480,6 +825,37 @@
         font-size: 32px;
         color: white;
         box-shadow: var(--shadow-medium);
+        overflow: hidden;
+        transition: transform var(--transition-spring), box-shadow var(--transition-normal);
+    }
+
+    .lockup-artwork-icon::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            45deg,
+            transparent 40%,
+            rgba(255,255,255,0.15) 45%,
+            rgba(255,255,255,0.25) 50%,
+            rgba(255,255,255,0.15) 55%,
+            transparent 60%
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s ease;
+        pointer-events: none;
+    }
+
+    .lockup-item:hover .lockup-artwork-icon {
+        transform: scale(1.05);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .lockup-item:hover .lockup-artwork-icon::after {
+        transform: translateX(100%);
     }
 
     .lockup-content {
@@ -503,6 +879,12 @@
         font-size: 24px;
         color: white;
         flex-shrink: 0;
+        transition: transform var(--transition-spring), box-shadow var(--transition-normal);
+    }
+
+    .lockup-item:hover .lockup-icon {
+        transform: scale(1.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
 
     .lockup-info {
@@ -581,21 +963,39 @@
         border-radius: 980px;
         border: none;
         cursor: pointer;
-        transition: all var(--transition-fast);
+        transition: all var(--transition-fast), transform 100ms ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
         min-width: 72px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-get::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%);
+        pointer-events: none;
     }
 
     .btn-get.primary {
         background: var(--systemBlue);
         color: white;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
     }
 
     .btn-get.primary:hover {
         background: var(--systemBlueHover);
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .btn-get.primary:active {
+        transform: scale(0.95) translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.3);
     }
 
     .btn-get.added {
@@ -607,6 +1007,10 @@
         background: var(--systemGray5);
         color: var(--systemTertiary);
         cursor: not-allowed;
+    }
+
+    .btn-get.unavailable::before {
+        display: none;
     }
 
     .btn-info {
@@ -658,6 +1062,38 @@
         overflow: hidden;
         cursor: pointer;
         box-shadow: var(--shadow-small);
+        transition: transform var(--transition-spring), box-shadow var(--transition-normal);
+        will-change: transform;
+    }
+
+    .brick-item:hover {
+        transform: scale(1.02) translateY(-6px);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+    }
+
+    .brick-item:active {
+        transform: scale(0.98);
+        transition: transform 100ms ease-out;
+    }
+
+    .brick-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            135deg,
+            rgba(255,255,255,0) 0%,
+            rgba(255,255,255,0.1) 50%,
+            rgba(255,255,255,0) 100%
+        );
+        opacity: 0;
+        transition: opacity var(--transition-normal);
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .brick-item:hover::before {
+        opacity: 1;
     }
 
     .brick-item::after {
@@ -672,7 +1108,7 @@
     }
 
     .brick-item:hover::after {
-        opacity: 0.15;
+        opacity: 0.1;
     }
 
     .brick-bg {
@@ -732,17 +1168,23 @@
        ============================================ */
 
     .widget-modal {
-        display: none;
+        display: flex;
         position: fixed;
         inset: 0;
         z-index: 1000;
         align-items: center;
         justify-content: center;
         padding: 24px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
     }
 
     .widget-modal.active {
-        display: flex;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
     }
 
     .modal-backdrop {
@@ -751,6 +1193,12 @@
         background: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .widget-modal.active .modal-backdrop {
+        opacity: 1;
     }
 
     .modal-content {
@@ -758,38 +1206,18 @@
         background: var(--systemBackgroundElevated);
         border-radius: 20px;
         width: 100%;
-        max-width: 600px;
-        max-height: 85vh;
+        max-width: 680px;
+        max-height: 90vh;
         overflow-y: auto;
         box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
+        transform: scale(0.9) translateY(20px);
+        opacity: 0;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
     }
 
-    .modal-hero {
-        position: relative;
-        height: 200px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    .modal-hero-bg {
-        position: absolute;
-        inset: 0;
-        opacity: 0.2;
-    }
-
-    .modal-hero-icon {
-        position: relative;
-        width: 100px;
-        height: 100px;
-        border-radius: var(--radius-icon);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 44px;
-        color: white;
-        box-shadow: var(--shadow-medium);
+    .widget-modal.active .modal-content {
+        transform: scale(1) translateY(0);
+        opacity: 1;
     }
 
     .modal-close {
@@ -800,57 +1228,257 @@
         height: 32px;
         border-radius: 50%;
         border: none;
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
+        background: var(--systemQuaternary);
+        color: var(--systemSecondary);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background var(--transition-fast);
-        z-index: 1;
+        transition: all var(--transition-fast);
+        z-index: 10;
     }
 
     .modal-close:hover {
-        background: rgba(255, 255, 255, 0.3);
+        background: var(--systemGray4);
+        color: var(--systemPrimary);
+    }
+
+    /* Widget Header - App Store Style */
+    .modal-widget-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+        padding-right: 60px;
+    }
+
+    .modal-widget-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: white;
+        box-shadow: var(--shadow-medium);
+        flex-shrink: 0;
+    }
+
+    .modal-widget-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .modal-title {
+        font: var(--title-3);
+        color: var(--systemPrimary);
+        margin: 0 0 4px 0;
+    }
+
+    .modal-category {
+        font: var(--subhead);
+        color: var(--systemSecondary);
+        margin: 0 0 8px 0;
+    }
+
+    .modal-size-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: var(--systemQuaternary);
+        border-radius: 6px;
+        font: var(--caption);
+        color: var(--systemSecondary);
+    }
+
+    .modal-header-action {
+        flex-shrink: 0;
+    }
+
+    .modal-get-btn {
+        padding: 8px 24px;
+        font: var(--callout-emphasized);
+        border-radius: 980px;
+        border: none;
+        background: var(--systemBlue);
+        color: white;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+    }
+
+    .modal-get-btn:hover {
+        background: var(--systemBlueHover);
+        transform: scale(1.05);
+    }
+
+    .modal-get-btn:active {
+        transform: scale(0.95);
+    }
+
+    .modal-get-btn.added {
+        background: var(--systemGray4);
+        color: var(--systemSecondary);
+        box-shadow: none;
+        cursor: default;
+    }
+
+    .modal-get-btn.unavailable {
+        background: var(--systemGray5);
+        color: var(--systemTertiary);
+        box-shadow: none;
+        cursor: not-allowed;
+    }
+
+    /* Screenshot Preview */
+    .modal-preview {
+        margin: 0 24px;
+        border-radius: var(--radius-large);
+        overflow: hidden;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        aspect-ratio: 16 / 9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .modal-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        font: var(--subhead);
+    }
+
+    .modal-preview-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: white;
+        opacity: 0.8;
+    }
+
+    .modal-preview-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 
     .modal-body {
         padding: 24px;
     }
 
-    .modal-header {
-        text-align: center;
-        margin-bottom: 24px;
-    }
-
-    .modal-title {
-        font: var(--title-2);
-        color: var(--systemPrimary);
-        margin: 0 0 8px 0;
-    }
-
-    .modal-subtitle {
-        font: var(--body);
-        color: var(--systemSecondary);
-        margin: 0;
-    }
-
     .modal-section {
         margin-bottom: 24px;
     }
 
+    .modal-section:last-child {
+        margin-bottom: 0;
+    }
+
     .modal-section-title {
-        font: var(--eyebrow);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--systemSecondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: var(--headline);
+        color: var(--systemPrimary);
         margin-bottom: 12px;
+    }
+
+    .modal-section-title i {
+        color: var(--systemSecondary);
+        font-size: 14px;
     }
 
     .modal-section-content {
         font: var(--body);
+        color: var(--systemSecondary);
+        line-height: 1.6;
+    }
+
+    /* Info Grid */
+    .modal-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--systemGray4);
+        border-radius: var(--radius-medium);
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .modal-info-item {
+        background: var(--systemBackgroundElevated);
+        padding: 16px 12px;
+        text-align: center;
+    }
+
+    .modal-info-label {
+        font: var(--caption);
+        color: var(--systemTertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+    }
+
+    .modal-info-value {
+        font: var(--callout-emphasized);
         color: var(--systemPrimary);
-        line-height: 1.5;
+    }
+
+    /* Features List */
+    .modal-features-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .modal-feature-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--systemQuaternary);
+        border-radius: var(--radius-small);
+    }
+
+    .modal-feature-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .modal-feature-icon.blue { background: rgba(0, 122, 255, 0.15); color: var(--systemBlue); }
+    .modal-feature-icon.green { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+    .modal-feature-icon.purple { background: rgba(175, 82, 222, 0.15); color: #af52de; }
+    .modal-feature-icon.orange { background: rgba(255, 149, 0, 0.15); color: #ff9500; }
+
+    .modal-feature-text {
+        flex: 1;
+    }
+
+    .modal-feature-title {
+        font: var(--callout-emphasized);
+        color: var(--systemPrimary);
+        margin-bottom: 2px;
+    }
+
+    .modal-feature-desc {
+        font: var(--caption);
+        color: var(--systemSecondary);
     }
 
     .modal-tags {
@@ -860,11 +1488,25 @@
     }
 
     .modal-tag {
-        padding: 6px 12px;
-        font: var(--caption);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        font: var(--subhead);
         background: var(--systemQuaternary);
         color: var(--systemSecondary);
-        border-radius: 6px;
+        border-radius: 8px;
+        transition: all var(--transition-fast);
+    }
+
+    .modal-tag i {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    .modal-tag.available {
+        background: rgba(52, 199, 89, 0.1);
+        color: #34c759;
     }
 
     .modal-footer {
@@ -874,6 +1516,25 @@
         gap: 12px;
     }
 
+    @media (max-width: 640px) {
+        .modal-info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .modal-widget-header {
+            flex-wrap: wrap;
+        }
+
+        .modal-header-action {
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .modal-get-btn {
+            width: 100%;
+        }
+    }
+
     .modal-btn {
         flex: 1;
         padding: 14px 24px;
@@ -881,20 +1542,38 @@
         border-radius: 12px;
         border: none;
         cursor: pointer;
-        transition: all var(--transition-fast);
+        transition: all var(--transition-fast), transform 100ms ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .modal-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 50%);
+        pointer-events: none;
     }
 
     .modal-btn-primary {
         background: var(--systemBlue);
         color: white;
+        box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35);
     }
 
     .modal-btn-primary:hover {
         background: var(--systemBlueHover);
+        box-shadow: 0 6px 20px rgba(0, 122, 255, 0.45);
+        transform: translateY(-2px);
+    }
+
+    .modal-btn-primary:active {
+        transform: scale(0.97) translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
     }
 
     .modal-btn-secondary {
@@ -904,7 +1583,56 @@
 
     .modal-btn-secondary:hover {
         background: var(--systemGray4);
+        transform: translateY(-1px);
     }
+
+    .modal-btn-secondary:active {
+        transform: scale(0.97);
+    }
+
+    /* ============================================
+       Entrance Animations
+       ============================================ */
+
+    .lockup-item {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Staggered animation delays */
+    .widget-grid .lockup-item:nth-child(1) { animation-delay: 0.05s; }
+    .widget-grid .lockup-item:nth-child(2) { animation-delay: 0.1s; }
+    .widget-grid .lockup-item:nth-child(3) { animation-delay: 0.15s; }
+    .widget-grid .lockup-item:nth-child(4) { animation-delay: 0.2s; }
+    .widget-grid .lockup-item:nth-child(5) { animation-delay: 0.25s; }
+    .widget-grid .lockup-item:nth-child(6) { animation-delay: 0.3s; }
+    .widget-grid .lockup-item:nth-child(7) { animation-delay: 0.35s; }
+    .widget-grid .lockup-item:nth-child(8) { animation-delay: 0.4s; }
+
+    .brick-item {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+        animation: fadeInScale 0.6s ease forwards;
+    }
+
+    @keyframes fadeInScale {
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .brick-grid .brick-item:nth-child(1) { animation-delay: 0.1s; }
+    .brick-grid .brick-item:nth-child(2) { animation-delay: 0.2s; }
+    .brick-grid .brick-item:nth-child(3) { animation-delay: 0.3s; }
 
     /* ============================================
        Toast Notification
@@ -914,34 +1642,40 @@
         position: fixed;
         bottom: 24px;
         left: 50%;
-        transform: translateX(-50%) translateY(100px);
+        transform: translateX(-50%) translateY(100px) scale(0.9);
         background: var(--systemPrimary);
         color: var(--systemBackground);
-        padding: 14px 24px;
-        border-radius: 14px;
+        padding: 16px 24px;
+        border-radius: 16px;
         font: var(--callout-emphasized);
-        box-shadow: var(--shadow-medium);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         opacity: 0;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         z-index: 1001;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .toast.show {
-        transform: translateX(-50%) translateY(0);
+        transform: translateX(-50%) translateY(0) scale(1);
         opacity: 1;
     }
 
     .toast.success {
-        background: #34c759;
+        background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
         color: white;
     }
 
     .toast.error {
-        background: #ff3b30;
+        background: linear-gradient(135deg, #ff3b30 0%, #ff6961 100%);
         color: white;
+    }
+
+    .toast i {
+        font-size: 18px;
     }
 
     /* ============================================
@@ -966,16 +1700,17 @@
 
     @media (max-width: 768px) {
         .store-hero {
-            min-height: 320px;
+            min-height: 360px;
             margin: 12px;
+            border-radius: 20px;
         }
 
         .hero-content {
-            padding: 32px 24px;
+            padding: 36px 24px;
         }
 
         .hero-title {
-            font-size: 28px;
+            font-size: 32px;
         }
 
         .hero-artwork {
@@ -983,11 +1718,45 @@
         }
 
         .hero-stats {
-            gap: 24px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat {
+            padding: 12px 16px;
+            min-width: 80px;
         }
 
         .hero-stat-value {
-            font-size: 24px;
+            font-size: 28px;
+        }
+
+        .hero-eyebrow {
+            font-size: 10px;
+            padding: 5px 12px;
+        }
+
+        .hero-ring,
+        .hero-grid-pattern {
+            display: none;
+        }
+
+        .hero-orb {
+            filter: blur(80px);
+        }
+
+        .hero-orb-1 {
+            width: 200px;
+            height: 200px;
+        }
+
+        .hero-orb-2 {
+            width: 150px;
+            height: 150px;
+        }
+
+        .hero-orb-3 {
+            display: none;
         }
 
         .store-content {
@@ -1030,7 +1799,32 @@
 
     <!-- Hero Section -->
     <div class="store-hero">
+        <!-- Decorative background elements -->
         <div class="hero-background"></div>
+        <div class="hero-grid-pattern"></div>
+
+        <!-- Glowing orbs -->
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+        <div class="hero-orb hero-orb-3"></div>
+
+        <!-- Floating particles -->
+        <div class="hero-particles">
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+            <div class="hero-particle"></div>
+        </div>
+
+        <!-- Decorative rings -->
+        <div class="hero-ring hero-ring-1"></div>
+        <div class="hero-ring hero-ring-2"></div>
+        <div class="hero-ring hero-ring-3"></div>
+
         <div class="hero-content">
             <div class="hero-eyebrow">Customize Your Experience</div>
             <h1 class="hero-title">Widget Gallery</h1>
@@ -1209,39 +2003,90 @@
 <div class="widget-modal" id="widgetModal">
     <div class="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-content">
-        <div class="modal-hero" id="modalHero">
-            <div class="modal-hero-bg" id="modalHeroBg"></div>
-            <button class="modal-close" onclick="closeModal()">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="modal-hero-icon" id="modalIcon">
+        <button class="modal-close" onclick="closeModal()">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <!-- Widget Header -->
+        <div class="modal-widget-header">
+            <div class="modal-widget-icon" id="modalIcon">
                 <i id="modalIconClass"></i>
             </div>
-        </div>
-        <div class="modal-body">
-            <div class="modal-header">
+            <div class="modal-widget-info">
                 <h2 class="modal-title" id="modalTitle"></h2>
-                <p class="modal-subtitle" id="modalSubtitle"></p>
+                <p class="modal-category" id="modalCategory"></p>
+                <div class="modal-size-badge" id="modalSizeBadge"></div>
             </div>
+            <div class="modal-header-action">
+                <button class="modal-get-btn" id="modalGetBtn" onclick="addWidgetFromModal()">
+                    GET
+                </button>
+            </div>
+        </div>
 
+        <!-- Screenshot Preview -->
+        <div class="modal-preview" id="modalPreview">
+            <div class="modal-preview-placeholder" id="modalPreviewPlaceholder">
+                <div class="modal-preview-icon" id="modalPreviewIcon">
+                    <i id="modalPreviewIconClass"></i>
+                </div>
+                <span>Widget Preview</span>
+            </div>
+            <img class="modal-preview-image" id="modalPreviewImage" src="" alt="Widget Preview" style="display: none;">
+        </div>
+
+        <div class="modal-body">
+            <!-- Description -->
             <div class="modal-section">
-                <div class="modal-section-title">Description</div>
+                <div class="modal-section-title">
+                    <i class="fas fa-info-circle"></i>
+                    About this Widget
+                </div>
                 <div class="modal-section-content" id="modalDescription"></div>
             </div>
 
-            <div class="modal-section">
-                <div class="modal-section-title">Features</div>
-                <div class="modal-tags" id="modalFeatures"></div>
+            <!-- Information Grid -->
+            <div class="modal-info-grid">
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Size</div>
+                    <div class="modal-info-value" id="modalInfoSize">-</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Category</div>
+                    <div class="modal-info-value" id="modalInfoCategory">-</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Data</div>
+                    <div class="modal-info-value" id="modalInfoData">-</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Customizable</div>
+                    <div class="modal-info-value" id="modalInfoConfig">-</div>
+                </div>
             </div>
 
+            <!-- Features -->
             <div class="modal-section">
-                <div class="modal-section-title">Available For</div>
+                <div class="modal-section-title">
+                    <i class="fas fa-star"></i>
+                    Features
+                </div>
+                <div class="modal-features-list" id="modalFeatures"></div>
+            </div>
+
+            <!-- Available For -->
+            <div class="modal-section">
+                <div class="modal-section-title">
+                    <i class="fas fa-users"></i>
+                    Available For
+                </div>
                 <div class="modal-tags" id="modalUserTypes"></div>
             </div>
         </div>
+
         <div class="modal-footer">
             <button class="modal-btn modal-btn-secondary" onclick="closeModal()">
-                Cancel
+                Close
             </button>
             <button class="modal-btn modal-btn-primary" id="modalAddBtn" onclick="addWidgetFromModal()">
                 <i class="fas fa-plus"></i>
@@ -1270,6 +2115,8 @@
             color: '{{ widget.color }}',
             screenshot: '{{ widget.screenshot or "" }}',
             size: '{{ widget.default_size.value }}',
+            category: '{{ widget.category.value }}',
+            categoryName: '{{ category_info[widget.category].name }}',
             refreshable: {{ 'true' if widget.refreshable else 'false' }},
             configurable: {{ 'true' if widget.configurable else 'false' }},
             userTypes: {{ widget.required_user_types | tojson }},
@@ -1277,6 +2124,13 @@
             added: {{ 'true' if widget.id in dashboard_widget_ids else 'false' }}
         },
         {% endfor %}
+    };
+
+    // Size descriptions
+    const sizeDescriptions = {
+        'small': 'Compact display',
+        'medium': 'Standard view',
+        'large': 'Expanded layout'
     };
 
     let currentWidgetId = null;
@@ -1323,34 +2177,120 @@
 
         currentWidgetId = widgetId;
 
+        // Header section
         document.getElementById('modalTitle').textContent = widget.name;
-        document.getElementById('modalSubtitle').textContent = widget.size.charAt(0).toUpperCase() + widget.size.slice(1) + ' Widget';
-        document.getElementById('modalDescription').textContent = widget.longDescription;
+        document.getElementById('modalCategory').textContent = widget.categoryName;
+        document.getElementById('modalSizeBadge').innerHTML = `<i class="fas fa-th-large"></i> ${widget.size.charAt(0).toUpperCase() + widget.size.slice(1)} Widget`;
         document.getElementById('modalIconClass').className = widget.icon;
         document.getElementById('modalIcon').style.background = `var(--gradient-${widget.color})`;
-        document.getElementById('modalHeroBg').style.background = `var(--gradient-${widget.color})`;
 
-        // Features
+        // Screenshot preview
+        const previewPlaceholder = document.getElementById('modalPreviewPlaceholder');
+        const previewImage = document.getElementById('modalPreviewImage');
+        const previewIcon = document.getElementById('modalPreviewIcon');
+        const previewIconClass = document.getElementById('modalPreviewIconClass');
+
+        if (widget.screenshot) {
+            previewPlaceholder.style.display = 'none';
+            previewImage.style.display = 'block';
+            previewImage.src = `/static/images/widgets/${widget.screenshot}`;
+        } else {
+            previewPlaceholder.style.display = 'flex';
+            previewImage.style.display = 'none';
+            previewIcon.style.background = `var(--gradient-${widget.color})`;
+            previewIconClass.className = widget.icon;
+        }
+
+        // Description
+        document.getElementById('modalDescription').textContent = widget.longDescription;
+
+        // Info grid
+        document.getElementById('modalInfoSize').textContent = widget.size.charAt(0).toUpperCase() + widget.size.slice(1);
+        document.getElementById('modalInfoCategory').textContent = widget.categoryName.split(' ')[0];
+        document.getElementById('modalInfoData').textContent = widget.refreshable ? 'Live' : 'Static';
+        document.getElementById('modalInfoConfig').textContent = widget.configurable ? 'Yes' : 'No';
+
+        // Features list
         const featuresEl = document.getElementById('modalFeatures');
-        let features = [`<span class="modal-tag">${widget.size} size</span>`];
-        if (widget.refreshable) features.push('<span class="modal-tag">Live Data</span>');
-        if (widget.configurable) features.push('<span class="modal-tag">Customizable</span>');
+        let features = [];
+
+        features.push(`
+            <div class="modal-feature-item">
+                <div class="modal-feature-icon blue"><i class="fas fa-th-large"></i></div>
+                <div class="modal-feature-text">
+                    <div class="modal-feature-title">${widget.size.charAt(0).toUpperCase() + widget.size.slice(1)} Size</div>
+                    <div class="modal-feature-desc">${sizeDescriptions[widget.size] || 'Standard widget size'}</div>
+                </div>
+            </div>
+        `);
+
+        if (widget.refreshable) {
+            features.push(`
+                <div class="modal-feature-item">
+                    <div class="modal-feature-icon green"><i class="fas fa-sync-alt"></i></div>
+                    <div class="modal-feature-text">
+                        <div class="modal-feature-title">Live Data</div>
+                        <div class="modal-feature-desc">Automatically updates with real-time information</div>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (widget.configurable) {
+            features.push(`
+                <div class="modal-feature-item">
+                    <div class="modal-feature-icon purple"><i class="fas fa-sliders-h"></i></div>
+                    <div class="modal-feature-text">
+                        <div class="modal-feature-title">Customizable</div>
+                        <div class="modal-feature-desc">Personalize settings to fit your needs</div>
+                    </div>
+                </div>
+            `);
+        }
+
+        features.push(`
+            <div class="modal-feature-item">
+                <div class="modal-feature-icon orange"><i class="fas fa-layer-group"></i></div>
+                <div class="modal-feature-text">
+                    <div class="modal-feature-title">${widget.categoryName}</div>
+                    <div class="modal-feature-desc">Part of the ${widget.categoryName.toLowerCase()} widget collection</div>
+                </div>
+            </div>
+        `);
+
         featuresEl.innerHTML = features.join('');
 
         // User types
         const userTypesEl = document.getElementById('modalUserTypes');
         const userTypeLabels = {
-            'DEVELOPER': 'Developer',
-            'SUPER_ADMIN': 'Super Admin',
-            'SUPERVISOR': 'Supervisor',
-            'COUNTRY_ADMIN': 'Country Admin',
-            'CLIENT': 'Client'
+            'DEVELOPER': { label: 'Developer', icon: 'fas fa-code' },
+            'SUPER_ADMIN': { label: 'Super Admin', icon: 'fas fa-user-shield' },
+            'SUPERVISOR': { label: 'Supervisor', icon: 'fas fa-user-tie' },
+            'COUNTRY_ADMIN': { label: 'Country Admin', icon: 'fas fa-globe' },
+            'CLIENT': { label: 'Client', icon: 'fas fa-user' }
         };
-        userTypesEl.innerHTML = widget.userTypes.map(ut =>
-            `<span class="modal-tag">${userTypeLabels[ut] || ut}</span>`
-        ).join('');
+        userTypesEl.innerHTML = widget.userTypes.map(ut => {
+            const info = userTypeLabels[ut] || { label: ut, icon: 'fas fa-user' };
+            return `<span class="modal-tag"><i class="${info.icon}"></i> ${info.label}</span>`;
+        }).join('');
 
-        // Button state
+        // Header GET button state
+        const getBtn = document.getElementById('modalGetBtn');
+        if (!widget.available) {
+            getBtn.disabled = true;
+            getBtn.textContent = 'Locked';
+            getBtn.className = 'modal-get-btn unavailable';
+        } else if (widget.added) {
+            getBtn.disabled = true;
+            getBtn.innerHTML = '<i class="fas fa-check"></i> Added';
+            getBtn.className = 'modal-get-btn added';
+        } else {
+            getBtn.disabled = false;
+            getBtn.textContent = 'GET';
+            getBtn.className = 'modal-get-btn';
+        }
+
+        // Footer button state
         const addBtn = document.getElementById('modalAddBtn');
         if (!widget.available) {
             addBtn.disabled = true;
@@ -1358,7 +2298,7 @@
             addBtn.className = 'modal-btn modal-btn-secondary';
         } else if (widget.added) {
             addBtn.disabled = true;
-            addBtn.innerHTML = '<i class="fas fa-check"></i> Added';
+            addBtn.innerHTML = '<i class="fas fa-check"></i> Added to Dashboard';
             addBtn.className = 'modal-btn modal-btn-secondary';
         } else {
             addBtn.disabled = false;
