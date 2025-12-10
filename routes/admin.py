@@ -422,6 +422,178 @@ def get_user_quick_details(user_id):
     finally:
         db_session.close()
 
+@admin_bp.route('/api/users/<int:user_id>/countries', methods=['POST'])
+@admin_required
+def save_user_countries(user_id):
+    """API endpoint to save user's country permissions"""
+    from models.user_country_permission import UserCountryPermission
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        data = request.get_json()
+        countries = data.get('countries', [])
+
+        # Delete existing country permissions
+        db_session.query(UserCountryPermission).filter_by(user_id=user_id).delete()
+
+        # Create new country permissions
+        for country in countries:
+            permission = UserCountryPermission(user_id=user_id, country=country)
+            db_session.add(permission)
+
+        db_session.commit()
+        logger.info(f"Updated country permissions for user {user_id}: {len(countries)} countries")
+
+        return jsonify({'success': True, 'count': len(countries)})
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error saving country permissions: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@admin_bp.route('/api/users/<int:user_id>/companies', methods=['POST'])
+@admin_required
+def save_user_companies(user_id):
+    """API endpoint to save user's company permissions"""
+    from models.user_company_permission import UserCompanyPermission
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        data = request.get_json()
+        company_ids = data.get('company_ids', [])
+
+        # Delete existing company permissions
+        db_session.query(UserCompanyPermission).filter_by(user_id=user_id).delete()
+
+        # Create new company permissions
+        for company_id in company_ids:
+            permission = UserCompanyPermission(
+                user_id=user_id,
+                company_id=int(company_id),
+                can_view=True,
+                can_edit=False,
+                can_delete=False
+            )
+            db_session.add(permission)
+
+        # Update user's primary company_id to first selected company (for backwards compatibility)
+        if company_ids:
+            user.company_id = int(company_ids[0])
+
+        db_session.commit()
+        logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies")
+
+        return jsonify({'success': True, 'count': len(company_ids)})
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error saving company permissions: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@admin_bp.route('/api/users/<int:user_id>/queues', methods=['POST'])
+@admin_required
+def save_user_queues(user_id):
+    """API endpoint to save user's queue permissions"""
+    from models.company_queue_permission import CompanyQueuePermission
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        if not user.company_id:
+            return jsonify({'success': False, 'error': 'User has no primary company for queue assignment'}), 400
+
+        data = request.get_json()
+        queue_ids = data.get('queue_ids', [])
+
+        # Delete existing queue permissions for this user's company
+        db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).delete()
+
+        # Create new queue permissions
+        for queue_id in queue_ids:
+            permission = CompanyQueuePermission(
+                company_id=user.company_id,
+                queue_id=int(queue_id),
+                can_view=True,
+                can_create=True
+            )
+            db_session.add(permission)
+
+        db_session.commit()
+        logger.info(f"Updated queue permissions for user {user_id}: {len(queue_ids)} queues")
+
+        return jsonify({'success': True, 'count': len(queue_ids)})
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error saving queue permissions: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+@admin_bp.route('/api/users/<int:user_id>/mentions', methods=['POST'])
+@admin_required
+def save_user_mentions(user_id):
+    """API endpoint to save user's mention settings"""
+    from models.user_mention_permission import UserMentionPermission
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        data = request.get_json()
+        enabled = data.get('enabled', False)
+        user_ids = data.get('user_ids', [])
+        group_ids = data.get('group_ids', [])
+
+        # Update mention filter enabled status
+        user.mention_filter_enabled = enabled
+
+        # Delete existing mention permissions
+        db_session.query(UserMentionPermission).filter_by(user_id=user_id).delete()
+
+        # Create new mention permissions if filtering is enabled
+        if enabled:
+            for uid in user_ids:
+                permission = UserMentionPermission(
+                    user_id=user_id,
+                    target_type='user',
+                    target_id=int(uid)
+                )
+                db_session.add(permission)
+
+            for gid in group_ids:
+                permission = UserMentionPermission(
+                    user_id=user_id,
+                    target_type='group',
+                    target_id=int(gid)
+                )
+                db_session.add(permission)
+
+        db_session.commit()
+        logger.info(f"Updated mention settings for user {user_id}: enabled={enabled}, users={len(user_ids)}, groups={len(group_ids)}")
+
+        return jsonify({'success': True, 'enabled': enabled, 'user_count': len(user_ids), 'group_count': len(group_ids)})
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error saving mention settings: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
 def _format_parent_companies(parent_companies):
     """Helper to format parent companies with their child companies"""
     return [
@@ -969,8 +1141,35 @@ def user_overview(user_id):
         # Get user's company info
         user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
 
-        # Get all users for side panel navigation
+        # Get all users for side panel navigation and mention settings
         all_users = db_session.query(User).order_by(User.username).all()
+
+        # Get all data needed for inline editing panels
+        # All available countries from assets
+        from models.asset import Asset
+        asset_countries = db_session.query(Asset.country).filter(
+            Asset.country.isnot(None),
+            Asset.country != ''
+        ).distinct().all()
+        all_countries = sorted([c[0] for c in asset_countries if c[0]])
+
+        # All companies for company access editing
+        all_companies = db_session.query(Company).order_by(Company.name).all()
+        all_companies_data = []
+        for c in all_companies:
+            all_companies_data.append({
+                'id': c.id,
+                'name': c.name,
+                'is_parent': c.is_parent_company,
+                'parent_id': c.parent_company_id,
+                'parent_name': c.parent_company.name if c.parent_company else None
+            })
+
+        # All queues for queue access editing
+        all_queues = db_session.query(Queue).order_by(Queue.name).all()
+
+        # All groups for mention settings editing
+        all_groups = db_session.query(Group).filter(Group.is_active == True).order_by(Group.name).all()
 
         # Organize permissions by category for display
         permission_categories = {}
@@ -1071,7 +1270,12 @@ def user_overview(user_id):
                              mention_filter_enabled=user.mention_filter_enabled,
                              allowed_mention_users=allowed_mention_users,
                              allowed_mention_groups=allowed_mention_groups,
-                             all_users=all_users)
+                             all_users=all_users,
+                             # Data for inline editing panels
+                             all_countries=all_countries,
+                             all_companies=all_companies_data,
+                             all_queues=all_queues,
+                             all_groups=all_groups)
     finally:
         db_session.close()
 

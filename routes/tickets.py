@@ -1453,13 +1453,77 @@ def create_ticket():
         # Get current user
         user = db_manager.get_user(session['user_id'])
         is_client = user.user_type == UserType.CLIENT
-        
-        # Get all available assets for the dropdown
-        assets = db_session.query(Asset).filter(
+
+        # Get available assets for the dropdown - filtered by user permissions
+        from models.user_company_permission import UserCompanyPermission
+        from models.company_customer_permission import CompanyCustomerPermission
+
+        assets_query = db_session.query(Asset).filter(
             Asset.status.in_([AssetStatus.IN_STOCK, AssetStatus.READY_TO_DEPLOY]),
             Asset.serial_num != None
-        ).all()
-        
+        )
+
+        # Apply permission filtering for non-SUPER_ADMIN/DEVELOPER users
+        permitted_company_ids = None
+        if user.user_type not in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                # Get companies this user has permission to view
+                user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id,
+                    can_view=True
+                ).all()
+
+                if user_company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+
+                    # Include child companies of any parent companies
+                    from models.company import Company
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    all_permitted_ids = list(permitted_company_ids)
+
+                    for company in permitted_companies:
+                        if company.is_parent_company or company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            all_permitted_ids.extend(child_ids)
+
+                    # Include cross-company permissions
+                    cross_company_ids = []
+                    for company_id in all_permitted_ids:
+                        additional_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                            .filter(
+                                CompanyCustomerPermission.company_id == company_id,
+                                CompanyCustomerPermission.can_view == True
+                            ).all()
+                        cross_company_ids.extend([cid[0] for cid in additional_ids])
+
+                    permitted_company_ids = list(set(all_permitted_ids + cross_company_ids))
+                    logger.debug(f"SUPERVISOR/COUNTRY_ADMIN asset filtering - permitted company IDs: {permitted_company_ids}")
+
+                    # Filter assets by company_id OR by customer_user's company_id
+                    from sqlalchemy import or_
+                    from models.customer_user import CustomerUser
+
+                    # Get customer_user IDs from permitted companies
+                    permitted_customer_ids = db_session.query(CustomerUser.id).filter(
+                        CustomerUser.company_id.in_(permitted_company_ids)
+                    ).subquery()
+
+                    assets_query = assets_query.filter(
+                        or_(
+                            Asset.company_id.in_(permitted_company_ids),
+                            Asset.customer_id.in_(permitted_customer_ids)
+                        )
+                    )
+                else:
+                    # No permissions - show no assets
+                    logger.debug(f"User {user.username} has no company permissions - showing 0 assets")
+                    assets_query = assets_query.filter(Asset.id == -1)
+            elif user.user_type == UserType.CLIENT and user.company_id:
+                # CLIENT users can only see assets from their company
+                assets_query = assets_query.filter(Asset.company_id == user.company_id)
+
+        assets = assets_query.all()
+
         assets_data = [{
             'id': asset.id,
             'serial_number': asset.serial_num,
@@ -1467,28 +1531,38 @@ def create_ticket():
             'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
             'asset_tag': asset.asset_tag
         } for asset in assets]
-        
+
         # Get all customers for the dropdown (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
-        
+
         # Get all queues for the dropdown and filter based on permissions
         all_queues = queue_store.get_all_queues()
         queues = []
         for queue in all_queues:
             if user.can_create_in_queue(queue.id):
                 queues.append(queue)
-                
-        # Get companies for the customer creation modal dropdown
-        # ONLY use company names from assets table - no Company table
-        company_names_from_assets = db_session.query(Asset.customer)\
-            .filter(Asset.customer.isnot(None))\
-            .distinct()\
-            .all()
-            
-        # Extract and sort company names from assets only
-        companies_list = [company[0] for company in company_names_from_assets if company[0]]
-        companies_list = sorted(companies_list)
-        logger.debug(f"Found {len(companies_list)} tech asset companies for dropdown")
+
+        # Get companies for the customer creation modal dropdown - filtered by user permissions
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # SUPER_ADMIN/DEVELOPER can see all companies
+            company_names_from_assets = db_session.query(Asset.customer)\
+                .filter(Asset.customer.isnot(None))\
+                .distinct()\
+                .all()
+            companies_list = sorted([company[0] for company in company_names_from_assets if company[0]])
+        elif permitted_company_ids:
+            # Use the same permitted company IDs we calculated for assets
+            from models.company import Company
+            permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+            companies_list = sorted([c.name for c in permitted_companies])
+        elif user.company_id:
+            # CLIENT users - only their company
+            user_company = db_session.query(Company).get(user.company_id)
+            companies_list = [user_company.name] if user_company else []
+        else:
+            companies_list = []
+
+        logger.debug(f"Found {len(companies_list)} companies for dropdown (filtered by permissions)")
         
         # Get all enabled categories (both predefined and custom)
         from models.ticket_category_config import CategoryDisplayConfig

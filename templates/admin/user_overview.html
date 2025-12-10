@@ -308,6 +308,34 @@
         color: #1e40af;
         font-weight: 500;
     }
+    .card-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .card-edit-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .card-edit-btn:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    .card-edit-btn svg {
+        width: 12px;
+        height: 12px;
+    }
     .card-body {
         padding: 1.25rem;
     }
@@ -422,6 +450,91 @@
     .badge-edit { background: #fef3c7; color: #92400e; }
     .badge-delete { background: #fee2e2; color: #991b1b; }
     .badge-create { background: #d1fae5; color: #065f46; }
+    .granted-by-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+    .granted-by-badge svg {
+        stroke: #92400e;
+    }
+
+    /* Company Access Enhancements */
+    .company-access-item {
+        flex-wrap: wrap;
+    }
+    .company-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+    .parent-company-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+    .parent-company-badge svg {
+        stroke: #0369a1;
+    }
+    .child-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #f3e8ff;
+        color: #7c3aed;
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .child-toggle-btn:hover {
+        background: #e9d5ff;
+    }
+    .child-toggle-btn svg {
+        stroke: #7c3aed;
+        transition: transform 0.2s;
+    }
+    .child-toggle-btn.expanded svg {
+        transform: rotate(180deg);
+    }
+    .child-companies-list {
+        margin-left: 1rem;
+        padding: 0.5rem 0;
+        border-left: 2px solid #e9d5ff;
+        margin-top: -0.25rem;
+    }
+    .child-company-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+        color: #6b7280;
+    }
+    .child-company-item svg {
+        stroke: #a78bfa;
+        flex-shrink: 0;
+    }
+    .child-company-item span {
+        color: #374151;
+    }
 
     /* Tags */
     .tag-list {
@@ -493,9 +606,14 @@
     /* Summary Stats */
     .summary-stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 1rem;
         margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+        .summary-stats {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
     @media (max-width: 768px) {
         .summary-stats {
@@ -521,9 +639,267 @@
         margin-top: 0.25rem;
     }
     .stat-companies .stat-value { color: #3b82f6; }
+    .stat-customers .stat-value { color: #ec4899; }
     .stat-countries .stat-value { color: #059669; }
     .stat-queues .stat-value { color: #f59e0b; }
     .stat-groups .stat-value { color: #8b5cf6; }
+
+    /* Inline Edit Panel Styles */
+    .edit-panel {
+        display: none;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        padding: 1rem;
+    }
+    .edit-panel.active {
+        display: block;
+    }
+    .edit-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        gap: 0.5rem;
+    }
+    .edit-panel-search {
+        flex: 1;
+        position: relative;
+    }
+    .edit-panel-search input {
+        width: 100%;
+        padding: 0.5rem 0.75rem 0.5rem 2rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+    }
+    .edit-panel-search input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .edit-panel-search svg {
+        position: absolute;
+        left: 0.625rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        stroke: #9ca3af;
+    }
+    .edit-panel-actions {
+        display: flex;
+        gap: 0.375rem;
+    }
+    .btn-select-all, .btn-clear-all {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.15s;
+    }
+    .btn-select-all {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .btn-select-all:hover {
+        background: #bfdbfe;
+    }
+    .btn-clear-all {
+        background: #f3f4f6;
+        color: #6b7280;
+        border-color: #d1d5db;
+    }
+    .btn-clear-all:hover {
+        background: #e5e7eb;
+    }
+    .edit-panel-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        background: white;
+        margin-bottom: 0.75rem;
+    }
+    .edit-panel-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.1s;
+    }
+    .edit-panel-item:last-child {
+        border-bottom: none;
+    }
+    .edit-panel-item:hover {
+        background: #f9fafb;
+    }
+    .edit-panel-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin-right: 0.625rem;
+        cursor: pointer;
+    }
+    .edit-panel-item label {
+        font-size: 0.8125rem;
+        color: #374151;
+        cursor: pointer;
+        flex: 1;
+    }
+    .edit-panel-item .item-badge {
+        font-size: 0.625rem;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        background: #e0f2fe;
+        color: #0369a1;
+        margin-left: 0.5rem;
+    }
+    .edit-panel-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .btn-cancel, .btn-save {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid transparent;
+    }
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #374151;
+        border-color: #d1d5db;
+    }
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+    .btn-save {
+        background: #3b82f6;
+        color: white;
+    }
+    .btn-save:hover {
+        background: #2563eb;
+    }
+    .btn-save:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .btn-save .spinner {
+        display: none;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-right: 0.375rem;
+    }
+    .btn-save.loading .spinner {
+        display: inline-block;
+    }
+    .btn-save.loading .btn-text {
+        opacity: 0.7;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .save-success {
+        display: none;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        background: #d1fae5;
+        color: #065f46;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    .save-success.show {
+        display: flex;
+        animation: fadeIn 0.2s ease;
+    }
+    .save-error {
+        display: none;
+        padding: 0.5rem 0.75rem;
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+        margin-bottom: 0.75rem;
+    }
+    .save-error.show {
+        display: block;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Edit Mode Toggle Button */
+    .card-edit-btn.editing {
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #fca5a5;
+    }
+    .card-edit-btn.editing:hover {
+        background: #fecaca;
+    }
+
+    /* Mention Toggle */
+    .mention-toggle-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 0.375rem;
+    }
+    .mention-toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+    }
+    .mention-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .mention-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background: #d1d5db;
+        border-radius: 24px;
+        transition: 0.3s;
+    }
+    .mention-toggle-slider::before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background: white;
+        border-radius: 50%;
+        transition: 0.3s;
+    }
+    .mention-toggle input:checked + .mention-toggle-slider {
+        background: #3b82f6;
+    }
+    .mention-toggle input:checked + .mention-toggle-slider::before {
+        transform: translateX(20px);
+    }
+    .mention-sections {
+        display: none;
+    }
+    .mention-sections.active {
+        display: block;
+    }
 </style>
 {% endblock %}
 
@@ -605,6 +981,10 @@
             <div class="stat-value">{{ company_access|length }}</div>
             <div class="stat-label">Companies</div>
         </div>
+        <div class="stat-card stat-customers">
+            <div class="stat-value">{{ customer_visibility|length }}</div>
+            <div class="stat-label">Customers</div>
+        </div>
         <div class="stat-card stat-countries">
             <div class="stat-value">{{ assigned_countries|length }}</div>
             <div class="stat-label">Countries</div>
@@ -662,7 +1042,7 @@
         </div>
 
         <!-- Country Access -->
-        <div class="overview-card">
+        <div class="overview-card" id="countryCard">
             <div class="card-header">
                 <span class="card-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -672,11 +1052,20 @@
                     </svg>
                     Country Access
                 </span>
-                <span class="card-badge">{{ assigned_countries|length }} countries</span>
+                <div class="card-header-actions">
+                    <span class="card-badge" id="countryCount">{{ assigned_countries|length }} countries</span>
+                    <button type="button" class="card-edit-btn" onclick="toggleEditMode('country')" id="countryEditBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        <span class="btn-label">Edit</span>
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="countryViewMode">
                 {% if assigned_countries %}
-                <div class="tag-list">
+                <div class="tag-list" id="countryTagList">
                     {% for country in assigned_countries %}
                     <span class="tag tag-country">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -688,7 +1077,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="empty-state">
+                <div class="empty-state" id="countryEmptyState">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"/>
                         <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -697,10 +1086,48 @@
                 </div>
                 {% endif %}
             </div>
+            <!-- Country Edit Panel -->
+            <div class="edit-panel" id="countryEditPanel">
+                <div class="edit-panel-header">
+                    <div class="edit-panel-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" placeholder="Search countries..." oninput="filterEditList('country')">
+                    </div>
+                    <div class="edit-panel-actions">
+                        <button type="button" class="btn-select-all" onclick="selectAll('country')">Select All</button>
+                        <button type="button" class="btn-clear-all" onclick="clearAll('country')">Clear All</button>
+                    </div>
+                </div>
+                <div class="save-error" id="countryError"></div>
+                <div class="edit-panel-list" id="countryEditList">
+                    {% for country in all_countries %}
+                    <div class="edit-panel-item" data-search="{{ country|lower }}">
+                        <input type="checkbox" id="country_{{ loop.index }}" value="{{ country }}"
+                               {% if country in assigned_countries %}checked{% endif %}>
+                        <label for="country_{{ loop.index }}">{{ country }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="edit-panel-footer">
+                    <div class="save-success" id="countrySuccess">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Saved!
+                    </div>
+                    <button type="button" class="btn-cancel" onclick="toggleEditMode('country')">Cancel</button>
+                    <button type="button" class="btn-save" onclick="saveCountries()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">Save Changes</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Company Access -->
-        <div class="overview-card">
+        <div class="overview-card" id="companyCard">
             <div class="card-header">
                 <span class="card-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -709,24 +1136,65 @@
                     </svg>
                     Company Access
                 </span>
-                <span class="card-badge">{{ company_access|length }} companies</span>
+                <div class="card-header-actions">
+                    <span class="card-badge" id="companyCount">{{ company_access|length }} companies</span>
+                    <button type="button" class="card-edit-btn" onclick="toggleEditMode('company')" id="companyEditBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        <span class="btn-label">Edit</span>
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="companyViewMode">
                 {% if company_access %}
-                <div class="access-list">
+                <div class="access-list" id="companyAccessList">
                     {% for item in company_access %}
-                    <div class="access-item">
-                        <span class="access-item-name">{{ item.company.name }}</span>
+                    <div class="access-item company-access-item">
+                        <div class="company-info">
+                            <span class="access-item-name">{{ item.company.name }}</span>
+                            {% if item.company.parent_company %}
+                            <span class="parent-company-badge">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="7 17 12 12 17 17"/>
+                                    <polyline points="7 7 12 12 17 7"/>
+                                </svg>
+                                {{ item.company.parent_company.name }}
+                            </span>
+                            {% endif %}
+                            {% if item.company.is_parent_company and item.company.child_companies.count() > 0 %}
+                            <button type="button" class="child-toggle-btn" onclick="toggleChildCompanies(this)">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="17 7 12 12 7 7"/>
+                                    <polyline points="17 17 12 12 7 17"/>
+                                </svg>
+                                {{ item.company.child_companies.count() }} child {{ 'companies' if item.company.child_companies.count() > 1 else 'company' }}
+                            </button>
+                            {% endif %}
+                        </div>
                         <div class="access-item-badges">
                             {% if item.can_view %}<span class="access-badge badge-view">View</span>{% endif %}
                             {% if item.can_edit %}<span class="access-badge badge-edit">Edit</span>{% endif %}
                             {% if item.can_delete %}<span class="access-badge badge-delete">Delete</span>{% endif %}
                         </div>
                     </div>
+                    {% if item.company.is_parent_company and item.company.child_companies.count() > 0 %}
+                    <div class="child-companies-list" style="display: none;">
+                        {% for child in item.company.child_companies %}
+                        <div class="child-company-item">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 6 15 12 9 18"/>
+                            </svg>
+                            <span>{{ child.name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="empty-state">
+                <div class="empty-state" id="companyEmptyState">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                     </svg>
@@ -734,10 +1202,110 @@
                 </div>
                 {% endif %}
             </div>
+            <!-- Company Edit Panel -->
+            <div class="edit-panel" id="companyEditPanel">
+                <div class="edit-panel-header">
+                    <div class="edit-panel-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" placeholder="Search companies..." oninput="filterEditList('company')">
+                    </div>
+                    <div class="edit-panel-actions">
+                        <button type="button" class="btn-select-all" onclick="selectAll('company')">Select All</button>
+                        <button type="button" class="btn-clear-all" onclick="clearAll('company')">Clear All</button>
+                    </div>
+                </div>
+                <div class="save-error" id="companyError"></div>
+                <div class="edit-panel-list" id="companyEditList">
+                    {% set assigned_company_ids = company_access|map(attribute='company')|map(attribute='id')|list %}
+                    {% for company in all_companies %}
+                    <div class="edit-panel-item" data-search="{{ company.name|lower }}">
+                        <input type="checkbox" id="company_{{ company.id }}" value="{{ company.id }}"
+                               {% if company.id in assigned_company_ids %}checked{% endif %}>
+                        <label for="company_{{ company.id }}">
+                            {{ company.name }}
+                            {% if company.parent_name %}
+                            <span class="item-badge">{{ company.parent_name }}</span>
+                            {% elif company.is_parent %}
+                            <span class="item-badge" style="background:#f3e8ff;color:#7c3aed;">Parent</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="edit-panel-footer">
+                    <div class="save-success" id="companySuccess">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Saved!
+                    </div>
+                    <button type="button" class="btn-cancel" onclick="toggleEditMode('company')">Cancel</button>
+                    <button type="button" class="btn-save" onclick="saveCompanies()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">Save Changes</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Visibility -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Customer Visibility
+                </span>
+                <div class="card-header-actions">
+                    <span class="card-badge">{{ customer_visibility|length }} customers</span>
+                    <a href="{{ url_for('admin.edit_user', user_id=user.id) }}#company-access" class="card-edit-btn" title="Managed via Company Access">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if customer_visibility %}
+                <div class="access-list">
+                    {% for item in customer_visibility %}
+                    <div class="access-item">
+                        <div class="company-info">
+                            <span class="access-item-name">{{ item.customer.name }}</span>
+                            {% if item.granted_by %}
+                            <span class="granted-by-badge">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                                via {{ item.granted_by.name }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <span class="access-badge badge-view">View</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <p>No customer visibility permissions assigned</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Queue Access -->
-        <div class="overview-card">
+        <div class="overview-card" id="queueCard">
             <div class="card-header">
                 <span class="card-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -745,11 +1313,20 @@
                     </svg>
                     Queue Access
                 </span>
-                <span class="card-badge">{{ queue_access|length }} queues</span>
+                <div class="card-header-actions">
+                    <span class="card-badge" id="queueCount">{{ queue_access|length }} queues</span>
+                    <button type="button" class="card-edit-btn" onclick="toggleEditMode('queue')" id="queueEditBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        <span class="btn-label">Edit</span>
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="queueViewMode">
                 {% if queue_access %}
-                <div class="access-list">
+                <div class="access-list" id="queueAccessList">
                     {% for item in queue_access %}
                     <div class="access-item">
                         <span class="access-item-name">{{ item.queue.name }}</span>
@@ -761,13 +1338,52 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="empty-state">
+                <div class="empty-state" id="queueEmptyState">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                     </svg>
                     <p>No queue permissions assigned</p>
                 </div>
                 {% endif %}
+            </div>
+            <!-- Queue Edit Panel -->
+            <div class="edit-panel" id="queueEditPanel">
+                <div class="edit-panel-header">
+                    <div class="edit-panel-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" placeholder="Search queues..." oninput="filterEditList('queue')">
+                    </div>
+                    <div class="edit-panel-actions">
+                        <button type="button" class="btn-select-all" onclick="selectAll('queue')">Select All</button>
+                        <button type="button" class="btn-clear-all" onclick="clearAll('queue')">Clear All</button>
+                    </div>
+                </div>
+                <div class="save-error" id="queueError"></div>
+                <div class="edit-panel-list" id="queueEditList">
+                    {% set assigned_queue_ids = queue_access|map(attribute='queue')|map(attribute='id')|list %}
+                    {% for queue in all_queues %}
+                    <div class="edit-panel-item" data-search="{{ queue.name|lower }}">
+                        <input type="checkbox" id="queue_{{ queue.id }}" value="{{ queue.id }}"
+                               {% if queue.id in assigned_queue_ids %}checked{% endif %}>
+                        <label for="queue_{{ queue.id }}">{{ queue.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="edit-panel-footer">
+                    <div class="save-success" id="queueSuccess">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Saved!
+                    </div>
+                    <button type="button" class="btn-cancel" onclick="toggleEditMode('queue')">Cancel</button>
+                    <button type="button" class="btn-save" onclick="saveQueues()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">Save Changes</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -810,7 +1426,7 @@
         </div>
 
         <!-- Mention Settings -->
-        <div class="overview-card">
+        <div class="overview-card" id="mentionCard">
             <div class="card-header">
                 <span class="card-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -819,9 +1435,16 @@
                     </svg>
                     @Mention Settings
                 </span>
+                <button type="button" class="card-edit-btn" onclick="toggleEditMode('mention')" id="mentionEditBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span class="btn-label">Edit</span>
+                </button>
             </div>
-            <div class="card-body">
-                <div class="mention-status {{ 'enabled' if mention_filter_enabled else 'disabled' }}">
+            <div class="card-body" id="mentionViewMode">
+                <div class="mention-status {{ 'enabled' if mention_filter_enabled else 'disabled' }}" id="mentionStatusDisplay">
                     {% if mention_filter_enabled %}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
@@ -838,7 +1461,7 @@
 
                 {% if mention_filter_enabled %}
                     {% if allowed_mention_users or allowed_mention_groups %}
-                    <div class="tag-list">
+                    <div class="tag-list" id="mentionTagList">
                         {% for u in allowed_mention_users %}
                         <span class="tag tag-user">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -859,11 +1482,92 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div class="empty-state" style="padding: 1rem;">
+                    <div class="empty-state" style="padding: 1rem;" id="mentionEmptyState">
                         <p>No users or groups allowed for @mentions</p>
                     </div>
                     {% endif %}
                 {% endif %}
+            </div>
+            <!-- Mention Edit Panel -->
+            <div class="edit-panel" id="mentionEditPanel">
+                <div class="mention-toggle-wrapper">
+                    <label class="mention-toggle">
+                        <input type="checkbox" id="mentionFilterToggle" {% if mention_filter_enabled %}checked{% endif %} onchange="toggleMentionSections()">
+                        <span class="mention-toggle-slider"></span>
+                    </label>
+                    <span style="font-size: 0.8125rem; color: #374151;">Enable @mention filtering</span>
+                </div>
+                <div class="save-error" id="mentionError"></div>
+                <div class="mention-sections {{ 'active' if mention_filter_enabled else '' }}" id="mentionSections">
+                    <!-- Users Section -->
+                    <div style="margin-bottom: 1rem;">
+                        <div class="edit-panel-header">
+                            <div class="edit-panel-search">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="text" placeholder="Search users..." oninput="filterEditList('mentionUser')">
+                            </div>
+                            <div class="edit-panel-actions">
+                                <button type="button" class="btn-select-all" onclick="selectAll('mentionUser')">Select All</button>
+                                <button type="button" class="btn-clear-all" onclick="clearAll('mentionUser')">Clear All</button>
+                            </div>
+                        </div>
+                        <div class="edit-panel-list" id="mentionUserEditList" style="max-height: 150px;">
+                            {% set allowed_user_ids = allowed_mention_users|map(attribute='id')|list %}
+                            {% for u in all_users %}
+                            {% if u.id != user.id %}
+                            <div class="edit-panel-item" data-search="{{ u.username|lower }} {{ u.email|lower if u.email else '' }}">
+                                <input type="checkbox" id="mention_user_{{ u.id }}" value="{{ u.id }}"
+                                       {% if u.id in allowed_user_ids %}checked{% endif %}>
+                                <label for="mention_user_{{ u.id }}">
+                                    {{ u.username }}
+                                    <span class="item-badge">{{ u.user_type.name|replace('_', ' ') }}</span>
+                                </label>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <!-- Groups Section -->
+                    <div>
+                        <div class="edit-panel-header">
+                            <div class="edit-panel-search">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="text" placeholder="Search groups..." oninput="filterEditList('mentionGroup')">
+                            </div>
+                            <div class="edit-panel-actions">
+                                <button type="button" class="btn-select-all" onclick="selectAll('mentionGroup')">Select All</button>
+                                <button type="button" class="btn-clear-all" onclick="clearAll('mentionGroup')">Clear All</button>
+                            </div>
+                        </div>
+                        <div class="edit-panel-list" id="mentionGroupEditList" style="max-height: 150px;">
+                            {% set allowed_group_ids = allowed_mention_groups|map(attribute='id')|list %}
+                            {% for g in all_groups %}
+                            <div class="edit-panel-item" data-search="{{ g.name|lower }}">
+                                <input type="checkbox" id="mention_group_{{ g.id }}" value="{{ g.id }}"
+                                       {% if g.id in allowed_group_ids %}checked{% endif %}>
+                                <label for="mention_group_{{ g.id }}">@{{ g.name }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="edit-panel-footer" style="margin-top: 0.75rem;">
+                    <div class="save-success" id="mentionSuccess">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Saved!
+                    </div>
+                    <button type="button" class="btn-cancel" onclick="toggleEditMode('mention')">Cancel</button>
+                    <button type="button" class="btn-save" onclick="saveMentions()">
+                        <span class="spinner"></span>
+                        <span class="btn-text">Save Changes</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -959,5 +1663,282 @@ document.addEventListener('DOMContentLoaded', function() {
         activeItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 });
+
+// Toggle child companies visibility
+function toggleChildCompanies(btn) {
+    const accessItem = btn.closest('.access-item');
+    const childList = accessItem.nextElementSibling;
+
+    if (childList && childList.classList.contains('child-companies-list')) {
+        const isVisible = childList.style.display !== 'none';
+        childList.style.display = isVisible ? 'none' : 'block';
+        btn.classList.toggle('expanded', !isVisible);
+    }
+}
+
+// ===== INLINE EDITING FUNCTIONS =====
+const userId = {{ user.id }};
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+// Toggle edit mode for a section
+function toggleEditMode(section) {
+    const editPanel = document.getElementById(section + 'EditPanel');
+    const editBtn = document.getElementById(section + 'EditBtn');
+    const isEditing = editPanel.classList.contains('active');
+
+    if (isEditing) {
+        // Close edit mode
+        editPanel.classList.remove('active');
+        editBtn.classList.remove('editing');
+        editBtn.querySelector('.btn-label').textContent = 'Edit';
+        // Hide any error/success messages
+        hideMessages(section);
+    } else {
+        // Open edit mode
+        editPanel.classList.add('active');
+        editBtn.classList.add('editing');
+        editBtn.querySelector('.btn-label').textContent = 'Cancel';
+    }
+}
+
+// Filter edit list items
+function filterEditList(section) {
+    const listId = section + 'EditList';
+    const list = document.getElementById(listId);
+    const searchInput = list.previousElementSibling.querySelector('input') ||
+                        list.closest('.edit-panel').querySelector('.edit-panel-search input') ||
+                        list.parentElement.querySelector('.edit-panel-search input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const items = list.querySelectorAll('.edit-panel-item');
+
+    items.forEach(item => {
+        const searchText = item.dataset.search || '';
+        if (searchText.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Select all checkboxes in a section
+function selectAll(section) {
+    const listId = section + 'EditList';
+    const list = document.getElementById(listId);
+    const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        if (cb.closest('.edit-panel-item').style.display !== 'none') {
+            cb.checked = true;
+        }
+    });
+}
+
+// Clear all checkboxes in a section
+function clearAll(section) {
+    const listId = section + 'EditList';
+    const list = document.getElementById(listId);
+    const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+}
+
+// Show success message
+function showSuccess(section) {
+    const successEl = document.getElementById(section + 'Success');
+    successEl.classList.add('show');
+    setTimeout(() => successEl.classList.remove('show'), 2000);
+}
+
+// Show error message
+function showError(section, message) {
+    const errorEl = document.getElementById(section + 'Error');
+    errorEl.textContent = message;
+    errorEl.classList.add('show');
+}
+
+// Hide messages
+function hideMessages(section) {
+    const successEl = document.getElementById(section + 'Success');
+    const errorEl = document.getElementById(section + 'Error');
+    if (successEl) successEl.classList.remove('show');
+    if (errorEl) errorEl.classList.remove('show');
+}
+
+// Set button loading state
+function setButtonLoading(section, loading) {
+    const btn = document.querySelector('#' + section + 'EditPanel .btn-save');
+    if (loading) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+    } else {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// Toggle mention sections visibility
+function toggleMentionSections() {
+    const toggle = document.getElementById('mentionFilterToggle');
+    const sections = document.getElementById('mentionSections');
+    if (toggle.checked) {
+        sections.classList.add('active');
+    } else {
+        sections.classList.remove('active');
+    }
+}
+
+// ===== SAVE FUNCTIONS =====
+
+// Save country permissions
+async function saveCountries() {
+    hideMessages('country');
+    setButtonLoading('country', true);
+
+    const checkboxes = document.querySelectorAll('#countryEditList input[type="checkbox"]:checked');
+    const countries = Array.from(checkboxes).map(cb => cb.value);
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/countries`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ countries })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('country');
+            // Update the count badge
+            document.getElementById('countryCount').textContent = data.count + ' countries';
+            // Close edit mode after success
+            setTimeout(() => {
+                toggleEditMode('country');
+                location.reload(); // Reload to show updated view
+            }, 1500);
+        } else {
+            showError('country', data.error || 'Failed to save');
+        }
+    } catch (error) {
+        showError('country', 'Network error: ' + error.message);
+    } finally {
+        setButtonLoading('country', false);
+    }
+}
+
+// Save company permissions
+async function saveCompanies() {
+    hideMessages('company');
+    setButtonLoading('company', true);
+
+    const checkboxes = document.querySelectorAll('#companyEditList input[type="checkbox"]:checked');
+    const companyIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/companies`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ company_ids: companyIds })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('company');
+            document.getElementById('companyCount').textContent = data.count + ' companies';
+            setTimeout(() => {
+                toggleEditMode('company');
+                location.reload();
+            }, 1500);
+        } else {
+            showError('company', data.error || 'Failed to save');
+        }
+    } catch (error) {
+        showError('company', 'Network error: ' + error.message);
+    } finally {
+        setButtonLoading('company', false);
+    }
+}
+
+// Save queue permissions
+async function saveQueues() {
+    hideMessages('queue');
+    setButtonLoading('queue', true);
+
+    const checkboxes = document.querySelectorAll('#queueEditList input[type="checkbox"]:checked');
+    const queueIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/queues`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ queue_ids: queueIds })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('queue');
+            document.getElementById('queueCount').textContent = data.count + ' queues';
+            setTimeout(() => {
+                toggleEditMode('queue');
+                location.reload();
+            }, 1500);
+        } else {
+            showError('queue', data.error || 'Failed to save');
+        }
+    } catch (error) {
+        showError('queue', 'Network error: ' + error.message);
+    } finally {
+        setButtonLoading('queue', false);
+    }
+}
+
+// Save mention settings
+async function saveMentions() {
+    hideMessages('mention');
+    setButtonLoading('mention', true);
+
+    const enabled = document.getElementById('mentionFilterToggle').checked;
+    const userCheckboxes = document.querySelectorAll('#mentionUserEditList input[type="checkbox"]:checked');
+    const groupCheckboxes = document.querySelectorAll('#mentionGroupEditList input[type="checkbox"]:checked');
+
+    const userIds = Array.from(userCheckboxes).map(cb => parseInt(cb.value));
+    const groupIds = Array.from(groupCheckboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/mentions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ enabled, user_ids: userIds, group_ids: groupIds })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('mention');
+            setTimeout(() => {
+                toggleEditMode('mention');
+                location.reload();
+            }, 1500);
+        } else {
+            showError('mention', data.error || 'Failed to save');
+        }
+    } catch (error) {
+        showError('mention', 'Network error: ' + error.message);
+    } finally {
+        setButtonLoading('mention', false);
+    }
+}
 </script>
 {% endblock %}
