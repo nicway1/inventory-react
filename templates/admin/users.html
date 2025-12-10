@@ -4,12 +4,10 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
     .user-row {
-        cursor: pointer;
         transition: all 0.15s ease;
     }
     .user-row:hover {
         background-color: #f9fafb;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
     .user-type-badge {
         display: inline-flex;
@@ -20,26 +18,11 @@
         font-weight: 600;
         text-transform: uppercase;
     }
-    .badge-super-admin {
-        background-color: #fef3c7;
-        color: #92400e;
-    }
-    .badge-developer {
-        background-color: #ddd6fe;
-        color: #5b21b6;
-    }
-    .badge-country-admin {
-        background-color: #bfdbfe;
-        color: #1e40af;
-    }
-    .badge-supervisor {
-        background-color: #d1fae5;
-        color: #065f46;
-    }
-    .badge-client {
-        background-color: #e5e7eb;
-        color: #374151;
-    }
+    .badge-super-admin { background-color: #fef3c7; color: #92400e; }
+    .badge-developer { background-color: #ddd6fe; color: #5b21b6; }
+    .badge-country-admin { background-color: #bfdbfe; color: #1e40af; }
+    .badge-supervisor { background-color: #d1fae5; color: #065f46; }
+    .badge-client { background-color: #e5e7eb; color: #374151; }
     .filter-chip {
         display: inline-flex;
         align-items: center;
@@ -52,15 +35,8 @@
         cursor: pointer;
         transition: all 0.15s ease;
     }
-    .filter-chip:hover {
-        background-color: #e5e7eb;
-        border-color: #9ca3af;
-    }
-    .filter-chip.active {
-        background-color: #3b82f6;
-        border-color: #2563eb;
-        color: white;
-    }
+    .filter-chip:hover { background-color: #e5e7eb; border-color: #9ca3af; }
+    .filter-chip.active { background-color: #3b82f6; border-color: #2563eb; color: white; }
     .action-menu {
         display: none;
         position: absolute;
@@ -74,9 +50,7 @@
         min-width: 200px;
         margin-top: 0.25rem;
     }
-    .action-menu.show {
-        display: block;
-    }
+    .action-menu.show { display: block; }
     .action-menu-item {
         display: block;
         padding: 0.625rem 1rem;
@@ -85,11 +59,181 @@
         text-decoration: none;
         transition: background-color 0.15s;
     }
-    .action-menu-item:hover {
-        background-color: #f3f4f6;
-        text-decoration: none;
-        color: #111827;
+    .action-menu-item:hover { background-color: #f3f4f6; text-decoration: none; color: #111827; }
+
+    /* Expandable row styles */
+    .expand-btn {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.15s;
+        cursor: pointer;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
     }
+    .expand-btn:hover { background: #e5e7eb; }
+    .expand-btn svg { transition: transform 0.2s; width: 14px; height: 14px; }
+    .expand-btn.expanded { background: #dbeafe; border-color: #93c5fd; }
+    .expand-btn.expanded svg { transform: rotate(90deg); }
+
+    .user-details-row { display: none; }
+    .user-details-row.show { display: table-row; }
+    .user-details-row td { padding: 0; background: #f8fafc; }
+
+    .user-details-content {
+        padding: 1.25rem 1.5rem;
+        border-top: 2px solid #e0f2fe;
+        animation: slideDown 0.2s ease-out;
+    }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    @media (max-width: 1280px) { .details-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) { .details-grid { grid-template-columns: 1fr; } }
+
+    .details-section {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .details-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.625rem;
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    .details-section-title svg { width: 14px; height: 14px; }
+
+    .details-list { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+    .details-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    .details-tag.company { background: #e0f2fe; color: #0369a1; }
+    .details-tag.country { background: #dcfce7; color: #166534; }
+    .details-tag.queue { background: #fef3c7; color: #92400e; }
+    .details-tag.group { background: #ede9fe; color: #5b21b6; }
+    .parent-indicator { font-size: 0.6rem; color: #64748b; font-weight: 400; margin-left: 0.25rem; }
+
+    .perm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.375rem; }
+    .perm-item {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.7rem;
+        color: #374151;
+        padding: 0.25rem 0;
+    }
+    .perm-check {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .perm-check.yes { background: #dcfce7; color: #16a34a; }
+    .perm-check.no { background: #fee2e2; color: #dc2626; }
+    .perm-check svg { width: 10px; height: 10px; }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #e5e7eb;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-text { color: #9ca3af; font-size: 0.7rem; font-style: italic; }
+
+    /* Expanded details grid */
+    .details-grid-expanded {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    @media (max-width: 1024px) { .details-grid-expanded { grid-template-columns: 1fr; } }
+    .details-grid-expanded .full-width { grid-column: 1 / -1; }
+
+    /* User info section */
+    .info-items { display: flex; flex-direction: column; gap: 0.375rem; }
+    .info-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 0.25rem 0; border-bottom: 1px solid #f3f4f6; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #6b7280; }
+    .info-value { color: #111827; font-weight: 500; }
+
+    /* Session info */
+    .session-info { display: flex; flex-direction: column; gap: 0.375rem; }
+    .session-status { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-block; width: fit-content; }
+    .session-status.online { background: #dcfce7; color: #166534; }
+    .session-status.offline { background: #f3f4f6; color: #6b7280; }
+    .session-detail { font-size: 0.7rem; color: #6b7280; }
+
+    /* Primary tag highlight */
+    .primary-tag { background: #dbeafe !important; border: 1px solid #93c5fd !important; }
+
+    /* Permission badges */
+    .perm-categories-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+    .perm-category-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.375rem 0; border-bottom: 1px solid #f3f4f6; }
+    .perm-category-row:last-child { border-bottom: none; }
+    .perm-cat-label { font-size: 0.7rem; font-weight: 600; color: #374151; min-width: 90px; }
+    .perm-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.375rem;
+        border-radius: 3px;
+        font-size: 0.625rem;
+        font-weight: 500;
+    }
+    .perm-badge.yes { background: #dcfce7; color: #166534; }
+    .perm-badge.no { background: #fee2e2; color: #991b1b; text-decoration: line-through; opacity: 0.6; }
+
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    .quick-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.875rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .quick-action-btn.primary { background: #3b82f6; color: white; }
+    .quick-action-btn.primary:hover { background: #2563eb; }
+    .quick-action-btn.secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+    .quick-action-btn.secondary:hover { background: #e5e7eb; }
 </style>
 {% endblock %}
 
@@ -100,7 +244,7 @@
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">User Management</h1>
-                <p class="text-gray-600 mt-1">Manage system users and their permissions</p>
+                <p class="text-gray-600 mt-1">Click the arrow to expand and view user details inline</p>
             </div>
             <div class="flex items-center gap-3">
                 {% if current_user.is_super_admin %}
@@ -170,7 +314,6 @@
     <!-- Search and Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div class="space-y-4">
-            <!-- Search Bar -->
             <div class="flex items-center gap-4">
                 <div class="flex-1">
                     <div class="relative">
@@ -179,89 +322,84 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
                         </div>
-                        <input type="text"
-                               id="searchInput"
-                               placeholder="Search by username, email, or ID..."
-                               class="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onkeyup="filterUsers()">
+                        <input type="text" id="searchInput" placeholder="Search by username, email, or ID..."
+                               class="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>
-                <button onclick="clearFilters()"
-                        class="px-4 py-3 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <button onclick="expandAll()" class="px-4 py-3 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                    </svg>
+                    Expand All
+                </button>
+                <button onclick="collapseAll()" class="px-4 py-3 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5"/>
+                    </svg>
+                    Collapse All
+                </button>
+                <button onclick="clearFilters()" class="px-4 py-3 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                     Clear Filters
                 </button>
             </div>
-
-            <!-- User Type Filters -->
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-medium text-gray-700 mr-2">Filter by type:</span>
-                <button onclick="filterByType('all')" class="filter-chip active" data-type="all">
-                    All Users
-                </button>
-                <button onclick="filterByType('SUPER_ADMIN')" class="filter-chip" data-type="SUPER_ADMIN">
-                    Super Admin
-                </button>
-                <button onclick="filterByType('DEVELOPER')" class="filter-chip" data-type="DEVELOPER">
-                    Developer
-                </button>
-                <button onclick="filterByType('COUNTRY_ADMIN')" class="filter-chip" data-type="COUNTRY_ADMIN">
-                    Country Admin
-                </button>
-                <button onclick="filterByType('SUPERVISOR')" class="filter-chip" data-type="SUPERVISOR">
-                    Supervisor
-                </button>
-                <button onclick="filterByType('CLIENT')" class="filter-chip" data-type="CLIENT">
-                    Client
-                </button>
+                <button onclick="filterByType('all')" class="filter-chip active" data-type="all">All Users</button>
+                <button onclick="filterByType('SUPER_ADMIN')" class="filter-chip" data-type="SUPER_ADMIN">Super Admin</button>
+                <button onclick="filterByType('DEVELOPER')" class="filter-chip" data-type="DEVELOPER">Developer</button>
+                <button onclick="filterByType('COUNTRY_ADMIN')" class="filter-chip" data-type="COUNTRY_ADMIN">Country Admin</button>
+                <button onclick="filterByType('SUPERVISOR')" class="filter-chip" data-type="SUPERVISOR">Supervisor</button>
+                <button onclick="filterByType('CLIENT')" class="filter-chip" data-type="CLIENT">Client</button>
             </div>
         </div>
     </div>
 
-    <!-- User Count -->
     <div class="mb-4 text-sm text-gray-600">
         Showing <span id="visibleCount">{{ users|length }}</span> of <span id="totalCount">{{ users|length }}</span> users
     </div>
 
-    <!-- Users Table -->
+    <!-- Users Table with Expandable Rows -->
     <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Username</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Type</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
-                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th class="w-12 px-4 py-4"></th>
+                    <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ID</th>
+                    <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Username</th>
+                    <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                    <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User Type</th>
+                    <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
+                    <th class="px-4 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200" id="userTableBody">
                 {% for user in users %}
                 <tr class="user-row"
+                    id="user-row-{{ user.id }}"
                     data-user-id="{{ user.id }}"
                     data-username="{{ user.username|lower }}"
                     data-email="{{ user.email|lower if user.email else '' }}"
-                    data-user-type="{{ user.user_type.value if user.user_type else 'N/A' }}"
-                    onclick="viewUser({{ user.id }}, event)">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{{ user.id }}
+                    data-user-type="{{ user.user_type.value if user.user_type else 'N/A' }}">
+                    <td class="px-4 py-4">
+                        <button class="expand-btn" onclick="toggleUserDetails({{ user.id }}, event)" id="expand-btn-{{ user.id }}" title="Click to expand">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ user.id }}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <span class="text-blue-600 font-semibold text-sm">
-                                    {{ user.username[0].upper() }}
-                                </span>
+                                <span class="text-blue-600 font-semibold text-sm">{{ user.username[0].upper() }}</span>
                             </div>
-                            <div class="ml-4">
+                            <div class="ml-3">
                                 <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {{ user.email if user.email else '-' }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{{ user.email if user.email else '-' }}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">
                         {% set user_type_value = user.user_type.value if user.user_type else 'N/A' %}
                         <span class="user-type-badge
                             {% if user_type_value == 'SUPER_ADMIN' %}badge-super-admin
@@ -273,34 +411,31 @@
                             {{ user_type_value.replace('_', ' ') }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}
-                    </td>
-                    <td class="px-6 py-4 text-right text-sm font-medium" onclick="event.stopPropagation()">
-                        <div class="flex items-center justify-end gap-3 whitespace-nowrap">
-                            <a href="{{ url_for('admin.user_overview', user_id=user.id) }}"
-                               class="text-green-600 hover:text-green-900 inline-flex items-center gap-1"
-                               title="View all user permissions at a glance">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                                Overview
-                            </a>
-                            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}"
-                               class="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
+                    <td class="px-4 py-4 text-right text-sm font-medium">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="text-blue-600 hover:text-blue-900" title="Edit User">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
-                                Edit
                             </a>
-                            <a href="{{ url_for('admin.manage_user', user_id=user.id) }}"
-                               class="text-purple-600 hover:text-purple-900 inline-flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <a href="{{ url_for('admin.manage_user', user_id=user.id) }}" class="text-purple-600 hover:text-purple-900" title="Manage Permissions">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                Manage
                             </a>
+                        </div>
+                    </td>
+                </tr>
+                <!-- Expandable Details Row -->
+                <tr class="user-details-row" id="details-row-{{ user.id }}">
+                    <td colspan="7">
+                        <div class="user-details-content" id="details-content-{{ user.id }}">
+                            <div class="flex items-center justify-center py-4">
+                                <div class="loading-spinner"></div>
+                                <span class="ml-2 text-sm text-gray-500">Loading user details...</span>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -308,7 +443,6 @@
             </tbody>
         </table>
 
-        <!-- Empty State -->
         <div id="emptyState" class="hidden p-12 text-center">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
@@ -321,31 +455,243 @@
 
 <script>
 let currentFilter = 'all';
+const loadedUsers = new Set();
 
-function viewUser(userId, event) {
-    // Navigate to user management page
-    window.location.href = `/admin/users/${userId}/edit`;
+async function toggleUserDetails(userId, event) {
+    event.stopPropagation();
+    const btn = document.getElementById(`expand-btn-${userId}`);
+    const detailsRow = document.getElementById(`details-row-${userId}`);
+    const isExpanded = btn.classList.contains('expanded');
+
+    if (isExpanded) {
+        btn.classList.remove('expanded');
+        detailsRow.classList.remove('show');
+    } else {
+        btn.classList.add('expanded');
+        detailsRow.classList.add('show');
+
+        // Load data if not already loaded
+        if (!loadedUsers.has(userId)) {
+            await loadUserDetails(userId);
+        }
+    }
+}
+
+async function loadUserDetails(userId) {
+    const contentDiv = document.getElementById(`details-content-${userId}`);
+
+    try {
+        const response = await fetch(`/admin/api/users/${userId}/quick-details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const user = data.user;
+            contentDiv.innerHTML = renderUserDetails(user);
+            loadedUsers.add(userId);
+        } else {
+            contentDiv.innerHTML = `<div class="text-red-500 text-center py-4">Error loading user details</div>`;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        contentDiv.innerHTML = `<div class="text-red-500 text-center py-4">Error loading user details</div>`;
+    }
+}
+
+function renderUserDetails(user) {
+    const checkIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
+    const xIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>`;
+
+    // Permission categories
+    const permCategories = {
+        'Assets': ['can_view_assets', 'can_edit_assets', 'can_create_assets', 'can_delete_assets'],
+        'Tickets': ['can_view_tickets', 'can_create_tickets', 'can_edit_tickets', 'can_delete_tickets', 'can_export_tickets'],
+        'Reports & Data': ['can_view_reports', 'can_generate_reports', 'can_import_data', 'can_export_data'],
+        'Admin': ['can_view_companies', 'can_edit_companies', 'can_view_users', 'can_edit_users'],
+        'Other': ['can_access_inventory_audit', 'can_view_knowledge_base', 'can_create_articles', 'can_access_development']
+    };
+
+    const permLabels = {
+        'can_view_assets': 'View', 'can_edit_assets': 'Edit', 'can_create_assets': 'Create', 'can_delete_assets': 'Delete',
+        'can_view_tickets': 'View', 'can_create_tickets': 'Create', 'can_edit_tickets': 'Edit', 'can_delete_tickets': 'Delete', 'can_export_tickets': 'Export',
+        'can_view_reports': 'View Reports', 'can_generate_reports': 'Generate', 'can_import_data': 'Import', 'can_export_data': 'Export',
+        'can_view_companies': 'View Co.', 'can_edit_companies': 'Edit Co.', 'can_view_users': 'View Users', 'can_edit_users': 'Edit Users',
+        'can_access_inventory_audit': 'Audit', 'can_view_knowledge_base': 'KB', 'can_create_articles': 'Articles', 'can_access_development': 'Dev'
+    };
+
+    // Build permissions HTML by category
+    let permsHtml = '';
+    for (const [category, perms] of Object.entries(permCategories)) {
+        let categoryPerms = perms.map(key => {
+            const hasPermission = user.permissions && user.permissions[key];
+            return `<span class="perm-badge ${hasPermission ? 'yes' : 'no'}" title="${key}">${permLabels[key] || key}</span>`;
+        }).join('');
+        permsHtml += `<div class="perm-category-row"><span class="perm-cat-label">${category}:</span>${categoryPerms}</div>`;
+    }
+
+    // Session info HTML
+    let sessionHtml = '<span class="empty-text">No session data</span>';
+    if (user.last_session) {
+        const s = user.last_session;
+        const statusClass = s.is_active ? 'online' : 'offline';
+        sessionHtml = `
+            <div class="session-info">
+                <span class="session-status ${statusClass}">${s.is_active ? '● Online' : '○ Offline'}</span>
+                <span class="session-detail">Last: ${s.last_activity || 'N/A'}</span>
+                <span class="session-detail">${s.device || ''} ${s.browser || ''}</span>
+                <span class="session-detail">${s.pages_visited} pages</span>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="details-grid-expanded">
+            <!-- Row 1: User Info + Session -->
+            <div class="details-section info-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    User Info
+                </div>
+                <div class="info-items">
+                    <div class="info-row"><span class="info-label">Email:</span><span class="info-value">${user.email || 'N/A'}</span></div>
+                    <div class="info-row"><span class="info-label">Theme:</span><span class="info-value">${user.theme || 'default'}</span></div>
+                    <div class="info-row"><span class="info-label">@Mention Filter:</span><span class="info-value">${user.mention_filter ? 'Enabled' : 'Disabled'}</span></div>
+                    <div class="info-row"><span class="info-label">Created:</span><span class="info-value">${user.created_at || 'N/A'}</span></div>
+                </div>
+            </div>
+
+            <div class="details-section session-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Last Activity
+                </div>
+                ${sessionHtml}
+            </div>
+
+            <!-- Row 2: Companies + Countries -->
+            <div class="details-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                    Companies
+                </div>
+                <div class="details-list">
+                    ${user.company ? `<span class="details-tag company primary-tag">${user.company}</span>` : ''}
+                    ${user.companies && user.companies.length > 0
+                        ? user.companies.map(c => `<span class="details-tag company">${c.name}${c.parent ? ` <span class="parent-indicator">← ${c.parent}</span>` : ''}</span>`).join('')
+                        : (!user.company ? '<span class="empty-text">No companies</span>' : '')}
+                </div>
+            </div>
+
+            <div class="details-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Countries
+                </div>
+                <div class="details-list">
+                    ${user.countries && user.countries.length > 0
+                        ? user.countries.map(c => `<span class="details-tag country">${c}</span>`).join('')
+                        : '<span class="empty-text">No restrictions (all)</span>'}
+                </div>
+            </div>
+
+            <!-- Row 3: Queues + Groups -->
+            <div class="details-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    Queues
+                </div>
+                <div class="details-list">
+                    ${user.queues && user.queues.length > 0
+                        ? user.queues.map(q => `<span class="details-tag queue">${q}</span>`).join('')
+                        : '<span class="empty-text">No queues</span>'}
+                </div>
+            </div>
+
+            <div class="details-section">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Groups
+                </div>
+                <div class="details-list">
+                    ${user.groups && user.groups.length > 0
+                        ? user.groups.map(g => `<span class="details-tag group">${g}</span>`).join('')
+                        : '<span class="empty-text">No groups</span>'}
+                </div>
+            </div>
+
+            <!-- Row 4: Permissions (full width) -->
+            <div class="details-section permissions-section full-width">
+                <div class="details-section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    Permissions Summary
+                </div>
+                <div class="perm-categories-grid">
+                    ${permsHtml}
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <a href="/admin/users/${user.id}/overview" class="quick-action-btn primary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Full Overview
+            </a>
+            <a href="/admin/users/${user.id}/edit" class="quick-action-btn secondary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit User
+            </a>
+            <a href="/admin/users/${user.id}/manage" class="quick-action-btn secondary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Manage Permissions
+            </a>
+        </div>
+    `;
+}
+
+async function expandAll() {
+    const rows = document.querySelectorAll('.user-row:not([style*="display: none"])');
+    for (const row of rows) {
+        const userId = row.getAttribute('data-user-id');
+        const btn = document.getElementById(`expand-btn-${userId}`);
+        const detailsRow = document.getElementById(`details-row-${userId}`);
+
+        if (!btn.classList.contains('expanded')) {
+            btn.classList.add('expanded');
+            detailsRow.classList.add('show');
+            if (!loadedUsers.has(parseInt(userId))) {
+                await loadUserDetails(userId);
+            }
+        }
+    }
+}
+
+function collapseAll() {
+    // Iterate through all user rows and collapse their details
+    const rows = document.querySelectorAll('.user-row');
+    rows.forEach(row => {
+        const userId = row.getAttribute('data-user-id');
+        const btn = document.getElementById(`expand-btn-${userId}`);
+        const detailsRow = document.getElementById(`details-row-${userId}`);
+
+        if (btn && btn.classList.contains('expanded')) {
+            btn.classList.remove('expanded');
+        }
+        if (detailsRow && detailsRow.classList.contains('show')) {
+            detailsRow.classList.remove('show');
+        }
+    });
 }
 
 function filterByType(type) {
     currentFilter = type;
-
-    // Update active chip
     document.querySelectorAll('.filter-chip').forEach(chip => {
-        if (chip.getAttribute('data-type') === type) {
-            chip.classList.add('active');
-        } else {
-            chip.classList.remove('active');
-        }
+        chip.classList.toggle('active', chip.getAttribute('data-type') === type);
     });
-
     filterUsers();
 }
 
 function filterUsers() {
     const searchText = document.getElementById('searchInput').value.toLowerCase();
     const rows = document.querySelectorAll('.user-row');
-    const emptyState = document.getElementById('emptyState');
     let visibleCount = 0;
 
     rows.forEach(row => {
@@ -353,29 +699,23 @@ function filterUsers() {
         const email = row.getAttribute('data-email');
         const userId = row.getAttribute('data-user-id');
         const userType = row.getAttribute('data-user-type');
+        const detailsRow = document.getElementById(`details-row-${userId}`);
 
-        // Check search text match
-        const matchesSearch = !searchText ||
-            username.includes(searchText) ||
-            email.includes(searchText) ||
-            userId.includes(searchText);
-
-        // Check type filter
+        const matchesSearch = !searchText || username.includes(searchText) || email.includes(searchText) || userId.includes(searchText);
         const matchesType = currentFilter === 'all' || userType === currentFilter;
 
-        // Show or hide row
         if (matchesSearch && matchesType) {
             row.style.display = '';
             visibleCount++;
         } else {
             row.style.display = 'none';
+            detailsRow.classList.remove('show');
+            document.getElementById(`expand-btn-${userId}`).classList.remove('expanded');
         }
     });
 
-    // Update count
     document.getElementById('visibleCount').textContent = visibleCount;
-
-    // Show/hide empty state
+    const emptyState = document.getElementById('emptyState');
     if (visibleCount === 0) {
         emptyState.classList.remove('hidden');
         document.querySelector('table').style.display = 'none';
@@ -392,24 +732,18 @@ function clearFilters() {
 
 function toggleAdminMenu(event) {
     event.stopPropagation();
-    const menu = document.getElementById('adminMenu');
-    menu.classList.toggle('show');
+    document.getElementById('adminMenu').classList.toggle('show');
 }
 
-// Close admin menu when clicking outside
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function() {
     const menu = document.getElementById('adminMenu');
     if (menu && menu.classList.contains('show')) {
         menu.classList.remove('show');
     }
 });
 
-// Real-time search
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', filterUsers);
-    }
+    document.getElementById('searchInput').addEventListener('input', filterUsers);
 });
 </script>
 {% endblock %}

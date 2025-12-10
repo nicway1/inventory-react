@@ -318,13 +318,17 @@ def get_user_quick_details(user_id):
         # Get permission flags for user's type
         permission = db_session.query(Permission).filter_by(user_type=user.user_type).first()
 
-        # Get company permissions
+        # Get company permissions with parent info
         company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
         companies = []
         for perm in company_permissions:
             company = db_session.query(Company).get(perm.company_id)
             if company:
-                companies.append(company.name)
+                company_info = {
+                    'name': company.name,
+                    'parent': company.parent_company.name if company.parent_company else None
+                }
+                companies.append(company_info)
 
         # Get country permissions
         country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
@@ -350,19 +354,51 @@ def get_user_quick_details(user_id):
         # Get user's company
         user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
 
-        # Key permissions summary
+        # Key permissions summary - expanded
         key_perms = {}
         if permission:
             key_perms = {
                 'can_view_assets': permission.can_view_assets,
                 'can_edit_assets': permission.can_edit_assets,
+                'can_create_assets': permission.can_create_assets,
+                'can_delete_assets': permission.can_delete_assets,
                 'can_view_tickets': permission.can_view_tickets,
                 'can_create_tickets': permission.can_create_tickets,
+                'can_edit_tickets': permission.can_edit_tickets,
+                'can_delete_tickets': permission.can_delete_tickets,
+                'can_export_tickets': permission.can_export_tickets,
                 'can_view_reports': permission.can_view_reports,
+                'can_generate_reports': permission.can_generate_reports,
                 'can_view_companies': permission.can_view_companies,
+                'can_edit_companies': permission.can_edit_companies,
+                'can_view_users': permission.can_view_users,
+                'can_edit_users': permission.can_edit_users,
                 'can_access_inventory_audit': permission.can_access_inventory_audit,
                 'can_view_knowledge_base': permission.can_view_knowledge_base,
+                'can_create_articles': permission.can_create_articles,
+                'can_import_data': permission.can_import_data,
+                'can_export_data': permission.can_export_data,
+                'can_access_development': permission.can_access_development,
             }
+
+        # Get last session info
+        last_session = None
+        try:
+            from models.user_session import UserSession
+            session_record = db_session.query(UserSession).filter_by(
+                user_id=user.id
+            ).order_by(UserSession.login_at.desc()).first()
+            if session_record:
+                last_session = {
+                    'login_at': session_record.login_at.strftime('%Y-%m-%d %H:%M') if session_record.login_at else None,
+                    'last_activity': session_record.last_activity_at.strftime('%Y-%m-%d %H:%M') if session_record.last_activity_at else None,
+                    'device': session_record.device_type,
+                    'browser': session_record.browser,
+                    'is_active': session_record.is_active,
+                    'pages_visited': session_record.pages_visited or 0,
+                }
+        except Exception:
+            pass
 
         return jsonify({
             'success': True,
@@ -378,6 +414,9 @@ def get_user_quick_details(user_id):
                 'groups': groups,
                 'permissions': key_perms,
                 'created_at': user.created_at.strftime('%Y-%m-%d') if user.created_at else None,
+                'theme': user.theme_preference or 'default',
+                'mention_filter': user.mention_filter_enabled,
+                'last_session': last_session,
             }
         })
     finally:
@@ -842,6 +881,7 @@ def user_overview(user_id):
     from models.user_company_permission import UserCompanyPermission
     from models.user_country_permission import UserCountryPermission
     from models.user_mention_permission import UserMentionPermission
+    from models.company_customer_permission import CompanyCustomerPermission
     from models.group import Group
     from models.group_membership import GroupMembership
 
@@ -867,6 +907,23 @@ def user_overview(user_id):
                     'can_edit': perm.can_edit,
                     'can_delete': perm.can_delete
                 })
+
+        # Get customer visibility permissions (which customers can this user's companies view)
+        customer_visibility = []
+        company_ids_with_access = [item['company'].id for item in company_access]
+        if company_ids_with_access:
+            customer_permissions = db_session.query(CompanyCustomerPermission).filter(
+                CompanyCustomerPermission.company_id.in_(company_ids_with_access),
+                CompanyCustomerPermission.can_view == True
+            ).all()
+            for perm in customer_permissions:
+                customer_company = db_session.query(Company).get(perm.customer_company_id)
+                granting_company = db_session.query(Company).get(perm.company_id)
+                if customer_company:
+                    customer_visibility.append({
+                        'customer': customer_company,
+                        'granted_by': granting_company
+                    })
 
         # Get country permissions
         country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
@@ -1007,6 +1064,7 @@ def user_overview(user_id):
                              permission=permission,
                              permission_categories=permission_categories,
                              company_access=company_access,
+                             customer_visibility=customer_visibility,
                              assigned_countries=assigned_countries,
                              queue_access=queue_access,
                              groups=groups,
