@@ -1077,6 +1077,7 @@
                             <th style="min-width: 120px;">Status</th>
                             <th style="min-width: 100px;">Country</th>
                             <th style="min-width: 120px;">Company</th>
+                            <th style="min-width: 120px;">Location</th>
                             <th style="min-width: 100px;">Category</th>
                         </tr>
                     </thead>
@@ -2272,18 +2273,14 @@ function openBulkEditModal() {
     document.getElementById('bulkEditCount').textContent = selectedItems.size;
     document.getElementById('bulkEditModal').style.display = 'flex';
 
-    // Build status options HTML
+    // Build status options HTML - must match AssetStatus enum values
     const statusOptions = `
-        <option value="Available">Available</option>
-        <option value="Assigned">Assigned</option>
-        <option value="In Use">In Use</option>
-        <option value="Pending">Pending</option>
-        <option value="Ready for Deployment">Ready for Deployment</option>
-        <option value="In Transit">In Transit</option>
+        <option value="In Stock">In Stock</option>
+        <option value="Ready to Deploy">Ready to Deploy</option>
+        <option value="Shipped">Shipped</option>
+        <option value="Deployed">Deployed</option>
         <option value="Repair">Repair</option>
-        <option value="Damaged">Damaged</option>
-        <option value="Lost">Lost</option>
-        <option value="Retired">Retired</option>
+        <option value="Archived">Archived</option>
         <option value="Disposed">Disposed</option>
     `;
 
@@ -2303,6 +2300,14 @@ function openBulkEditModal() {
         });
     }
 
+    // Build location options
+    let locationOptions = '';
+    if (filterOptions.locations) {
+        filterOptions.locations.forEach(loc => {
+            locationOptions += `<option value="${escapeHtml(loc.value)}">${escapeHtml(loc.label)}</option>`;
+        });
+    }
+
     // Get selected items data
     const selectedAssets = assetData.filter(a => selectedItems.has(a.id));
     originalBulkEditData = {};
@@ -2317,6 +2322,7 @@ function openBulkEditModal() {
             status: asset.status || '',
             country: asset.country || '',
             company: asset.company || '',
+            location: asset.location || '',
             category: asset.category || ''
         };
 
@@ -2352,6 +2358,12 @@ function openBulkEditModal() {
                     <select class="bulk-edit-field" data-field="company" data-id="${asset.id}" onchange="markFieldChanged(this)">
                         <option value="">--</option>
                         ${companyOptions.replace(`value="${escapeHtml(asset.company)}"`, `value="${escapeHtml(asset.company)}" selected`)}
+                    </select>
+                </td>
+                <td>
+                    <select class="bulk-edit-field" data-field="location" data-id="${asset.id}" onchange="markFieldChanged(this)">
+                        <option value="">--</option>
+                        ${locationOptions.replace(`value="${escapeHtml(asset.location)}"`, `value="${escapeHtml(asset.location)}" selected`)}
                     </select>
                 </td>
                 <td>

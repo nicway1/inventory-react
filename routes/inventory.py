@@ -929,6 +929,19 @@ def api_bulk_update_assets():
                 if 'asset_type' in changes:
                     asset.asset_type = changes['asset_type']
 
+                if 'location' in changes:
+                    location_name = changes['location']
+                    if location_name:
+                        # Find location by name
+                        location = db_session.query(Location).filter(
+                            Location.name == location_name
+                        ).first()
+                        if location:
+                            asset.location_id = location.id
+                    else:
+                        # Empty location - clear the location_id
+                        asset.location_id = None
+
                 if 'notes' in changes and changes['notes']:
                     # Append notes
                     existing_notes = asset.notes or ''
@@ -1036,6 +1049,21 @@ def api_bulk_update_individual():
 
                 if 'asset_type' in changes:
                     asset.asset_type = changes['asset_type']
+
+                if 'location' in changes:
+                    location_name = changes['location']
+                    if location_name:
+                        # Find location by name
+                        location = db_session.query(Location).filter(
+                            Location.name == location_name
+                        ).first()
+                        if location:
+                            asset.location_id = location.id
+                        else:
+                            errors.append(f"Location '{location_name}' not found for asset {asset_id}")
+                    else:
+                        # Empty location - clear the location_id
+                        asset.location_id = None
 
                 asset.updated_at = datetime.now()
                 updated_count += 1
