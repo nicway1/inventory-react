@@ -634,6 +634,7 @@ def api_sf_assets():
                         company_parent_map[company.name] = parent_name
 
             assets_data = []
+            error_count = 0
             for asset in assets:
                 try:
                     # Get parent company if this asset's company has one
@@ -642,12 +643,20 @@ def api_sf_assets():
                     # Get location name from pre-fetched map (avoids relationship access)
                     location_name = location_map.get(asset.location_id, '') if asset.location_id else ''
 
+                    # Handle status - could be Enum, string, or None
+                    if asset.status is None:
+                        status_str = 'Unknown'
+                    elif hasattr(asset.status, 'value'):
+                        status_str = asset.status.value
+                    else:
+                        status_str = str(asset.status)
+
                     assets_data.append({
                         'id': asset.id,
                         'asset_tag': asset.asset_tag or '',
                         'name': asset.name or '',
                         'serial_number': asset.serial_num or '',
-                        'status': asset.status.value if asset.status else 'Unknown',
+                        'status': status_str,
                         'category': asset.asset_type or '',
                         'customer': asset.customer or '',
                         'company': asset.customer or '',
@@ -658,9 +667,13 @@ def api_sf_assets():
                         'manufacturer': asset.manufacturer or ''
                     })
                 except Exception as asset_error:
+                    error_count += 1
                     logger.error(f"Error processing asset {asset.id}: {asset_error}")
                     traceback.print_exc()
                     continue
+
+            if error_count > 0:
+                logger.warning(f"Failed to process {error_count} assets")
 
             logger.info(f"Processed {len(assets_data)} assets successfully")
 
