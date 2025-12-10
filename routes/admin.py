@@ -297,6 +297,92 @@ def manage_users():
     users = db_manager.get_all_users()
     return render_template('admin/users.html', users=users)
 
+
+@admin_bp.route('/api/users/<int:user_id>/quick-details')
+@admin_required
+def get_user_quick_details(user_id):
+    """API endpoint to get user details for expandable row view"""
+    from models.queue import Queue
+    from models.company_queue_permission import CompanyQueuePermission
+    from models.user_company_permission import UserCompanyPermission
+    from models.user_country_permission import UserCountryPermission
+    from models.group import Group
+    from models.group_membership import GroupMembership
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Get permission flags for user's type
+        permission = db_session.query(Permission).filter_by(user_type=user.user_type).first()
+
+        # Get company permissions
+        company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
+        companies = []
+        for perm in company_permissions:
+            company = db_session.query(Company).get(perm.company_id)
+            if company:
+                companies.append(company.name)
+
+        # Get country permissions
+        country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
+        countries = [cp.country for cp in country_permissions]
+
+        # Get queue access
+        queues = []
+        if user.company_id:
+            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
+            for perm in queue_permissions:
+                queue = db_session.query(Queue).get(perm.queue_id)
+                if queue and perm.can_view:
+                    queues.append(queue.name)
+
+        # Get group memberships
+        group_memberships = db_session.query(GroupMembership).filter_by(user_id=user.id, is_active=True).all()
+        groups = []
+        for membership in group_memberships:
+            group = db_session.query(Group).get(membership.group_id)
+            if group and group.is_active:
+                groups.append(group.name)
+
+        # Get user's company
+        user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
+
+        # Key permissions summary
+        key_perms = {}
+        if permission:
+            key_perms = {
+                'can_view_assets': permission.can_view_assets,
+                'can_edit_assets': permission.can_edit_assets,
+                'can_view_tickets': permission.can_view_tickets,
+                'can_create_tickets': permission.can_create_tickets,
+                'can_view_reports': permission.can_view_reports,
+                'can_view_companies': permission.can_view_companies,
+                'can_access_inventory_audit': permission.can_access_inventory_audit,
+                'can_view_knowledge_base': permission.can_view_knowledge_base,
+            }
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'user_type': user.user_type.value if user.user_type else None,
+                'company': user_company.name if user_company else None,
+                'companies': companies,
+                'countries': countries,
+                'queues': queues,
+                'groups': groups,
+                'permissions': key_perms,
+                'created_at': user.created_at.strftime('%Y-%m-%d') if user.created_at else None,
+            }
+        })
+    finally:
+        db_session.close()
+
 def _format_parent_companies(parent_companies):
     """Helper to format parent companies with their child companies"""
     return [
@@ -826,6 +912,9 @@ def user_overview(user_id):
         # Get user's company info
         user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
 
+        # Get all users for side panel navigation
+        all_users = db_session.query(User).order_by(User.username).all()
+
         # Organize permissions by category for display
         permission_categories = {}
         if permission:
@@ -923,7 +1012,8 @@ def user_overview(user_id):
                              groups=groups,
                              mention_filter_enabled=user.mention_filter_enabled,
                              allowed_mention_users=allowed_mention_users,
-                             allowed_mention_groups=allowed_mention_groups)
+                             allowed_mention_groups=allowed_mention_groups,
+                             all_users=all_users)
     finally:
         db_session.close()
 
