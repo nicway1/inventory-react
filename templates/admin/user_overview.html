@@ -1,0 +1,719 @@
+{% extends "base.html" %}
+
+{% block title %}User Overview - {{ user.username }}{% endblock %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    .overview-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .overview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    .user-info-main {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: 600;
+    }
+    .user-details h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.25rem 0;
+    }
+    .user-details .user-email {
+        color: #6b7280;
+        font-size: 0.9375rem;
+    }
+    .user-type-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-top: 0.5rem;
+    }
+    .badge-super-admin { background-color: #fef3c7; color: #92400e; }
+    .badge-developer { background-color: #ddd6fe; color: #5b21b6; }
+    .badge-country-admin { background-color: #bfdbfe; color: #1e40af; }
+    .badge-supervisor { background-color: #d1fae5; color: #065f46; }
+    .badge-client { background-color: #e5e7eb; color: #374151; }
+
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    .btn-primary:hover {
+        background: #2563eb;
+        color: white;
+    }
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+    .btn-secondary:hover {
+        background: #e5e7eb;
+    }
+
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+        .overview-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .overview-card {
+        background: white;
+        border-radius: 0.75rem;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+    .overview-card.full-width {
+        grid-column: 1 / -1;
+    }
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .card-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: #111827;
+    }
+    .card-title svg {
+        width: 18px;
+        height: 18px;
+        stroke: #6b7280;
+    }
+    .card-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 9999px;
+        background: #dbeafe;
+        color: #1e40af;
+        font-weight: 500;
+    }
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    /* Basic Info */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .info-item {
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+    }
+    .info-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    .info-value {
+        font-size: 0.9375rem;
+        color: #111827;
+        font-weight: 500;
+    }
+
+    /* Permission Grid */
+    .perm-categories {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .perm-category {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .perm-category-header {
+        padding: 0.75rem 1rem;
+        background: #f9fafb;
+        font-weight: 600;
+        font-size: 0.8125rem;
+        color: #374151;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .perm-category-body {
+        padding: 0.75rem 1rem;
+    }
+    .perm-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.375rem 0;
+        font-size: 0.8125rem;
+    }
+    .perm-item:not(:last-child) {
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .perm-name {
+        color: #4b5563;
+    }
+    .perm-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+    }
+    .perm-yes {
+        color: #059669;
+    }
+    .perm-no {
+        color: #dc2626;
+    }
+    .perm-icon {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Access Lists */
+    .access-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .access-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        border: 1px solid #e5e7eb;
+    }
+    .access-item-name {
+        font-weight: 500;
+        color: #111827;
+        font-size: 0.875rem;
+    }
+    .access-item-badges {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .access-badge {
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+    .badge-view { background: #dbeafe; color: #1e40af; }
+    .badge-edit { background: #fef3c7; color: #92400e; }
+    .badge-delete { background: #fee2e2; color: #991b1b; }
+    .badge-create { background: #d1fae5; color: #065f46; }
+
+    /* Tags */
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        background: #e0e7ff;
+        color: #3730a3;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    .tag-country {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .tag-queue {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .tag-group {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .tag-user {
+        background: #f3e8ff;
+        color: #6b21a8;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #9ca3af;
+        font-size: 0.875rem;
+    }
+    .empty-state svg {
+        width: 40px;
+        height: 40px;
+        stroke: #d1d5db;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Mention Settings */
+    .mention-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+    .mention-status.enabled {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .mention-status.disabled {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    /* Summary Stats */
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) {
+        .summary-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .stat-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+    }
+    .stat-companies .stat-value { color: #3b82f6; }
+    .stat-countries .stat-value { color: #059669; }
+    .stat-queues .stat-value { color: #f59e0b; }
+    .stat-groups .stat-value { color: #8b5cf6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="overview-page">
+    <!-- Header -->
+    <div class="overview-header">
+        <div class="user-info-main">
+            <div class="user-avatar">{{ user.username[0]|upper }}</div>
+            <div class="user-details">
+                <h1>{{ user.username }}</h1>
+                <div class="user-email">{{ user.email }}</div>
+                <span class="user-type-badge badge-{{ user.user_type.name|lower|replace('_', '-') }}">
+                    {{ user.user_type.name|replace('_', ' ') }}
+                </span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn-action btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit User
+            </a>
+            <a href="{{ url_for('admin.manage_users') }}" class="btn-action btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                </svg>
+                Back to Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="summary-stats">
+        <div class="stat-card stat-companies">
+            <div class="stat-value">{{ company_access|length }}</div>
+            <div class="stat-label">Companies</div>
+        </div>
+        <div class="stat-card stat-countries">
+            <div class="stat-value">{{ assigned_countries|length }}</div>
+            <div class="stat-label">Countries</div>
+        </div>
+        <div class="stat-card stat-queues">
+            <div class="stat-value">{{ queue_access|length }}</div>
+            <div class="stat-label">Queues</div>
+        </div>
+        <div class="stat-card stat-groups">
+            <div class="stat-value">{{ groups|length }}</div>
+            <div class="stat-label">Groups</div>
+        </div>
+    </div>
+
+    <div class="overview-grid">
+        <!-- Basic Information -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Basic Information
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Username</div>
+                        <div class="info-value">{{ user.username }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Email</div>
+                        <div class="info-value">{{ user.email }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">User Type</div>
+                        <div class="info-value">{{ user.user_type.name|replace('_', ' ') }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Primary Company</div>
+                        <div class="info-value">{{ user_company.name if user_company else 'None' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Theme</div>
+                        <div class="info-value">{{ user.theme_preference|default('light')|title }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Created</div>
+                        <div class="info-value">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Country Access -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    Country Access
+                </span>
+                <span class="card-badge">{{ assigned_countries|length }} countries</span>
+            </div>
+            <div class="card-body">
+                {% if assigned_countries %}
+                <div class="tag-list">
+                    {% for country in assigned_countries %}
+                    <span class="tag tag-country">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        {{ country }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p>No country restrictions - can access all countries</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Company Access -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    Company Access
+                </span>
+                <span class="card-badge">{{ company_access|length }} companies</span>
+            </div>
+            <div class="card-body">
+                {% if company_access %}
+                <div class="access-list">
+                    {% for item in company_access %}
+                    <div class="access-item">
+                        <span class="access-item-name">{{ item.company.name }}</span>
+                        <div class="access-item-badges">
+                            {% if item.can_view %}<span class="access-badge badge-view">View</span>{% endif %}
+                            {% if item.can_edit %}<span class="access-badge badge-edit">Edit</span>{% endif %}
+                            {% if item.can_delete %}<span class="access-badge badge-delete">Delete</span>{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    </svg>
+                    <p>No specific company permissions assigned</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Queue Access -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    Queue Access
+                </span>
+                <span class="card-badge">{{ queue_access|length }} queues</span>
+            </div>
+            <div class="card-body">
+                {% if queue_access %}
+                <div class="access-list">
+                    {% for item in queue_access %}
+                    <div class="access-item">
+                        <span class="access-item-name">{{ item.queue.name }}</span>
+                        <div class="access-item-badges">
+                            {% if item.can_view %}<span class="access-badge badge-view">View</span>{% endif %}
+                            {% if item.can_create %}<span class="access-badge badge-create">Create</span>{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    <p>No queue permissions assigned</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Group Memberships -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    Group Memberships
+                </span>
+                <span class="card-badge">{{ groups|length }} groups</span>
+            </div>
+            <div class="card-body">
+                {% if groups %}
+                <div class="tag-list">
+                    {% for group in groups %}
+                    <span class="tag tag-group">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                        </svg>
+                        {{ group.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    </svg>
+                    <p>Not a member of any groups</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Mention Settings -->
+        <div class="overview-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="4"/>
+                        <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                    </svg>
+                    @Mention Settings
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mention-status {{ 'enabled' if mention_filter_enabled else 'disabled' }}">
+                    {% if mention_filter_enabled %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                    </svg>
+                    <strong>Filtered</strong> - Can only see specific users/groups in @mentions
+                    {% else %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <strong>Unrestricted</strong> - Can see all users and groups in @mentions
+                    {% endif %}
+                </div>
+
+                {% if mention_filter_enabled %}
+                    {% if allowed_mention_users or allowed_mention_groups %}
+                    <div class="tag-list">
+                        {% for u in allowed_mention_users %}
+                        <span class="tag tag-user">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            {{ u.username }}
+                        </span>
+                        {% endfor %}
+                        {% for g in allowed_mention_groups %}
+                        <span class="tag tag-group">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                            </svg>
+                            {{ g.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state" style="padding: 1rem;">
+                        <p>No users or groups allowed for @mentions</p>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Permission Flags - Full Width -->
+        <div class="overview-card full-width">
+            <div class="card-header">
+                <span class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    Permission Flags ({{ user.user_type.name|replace('_', ' ') }})
+                </span>
+                <a href="{{ url_for('admin.permission_management') }}" class="btn-action btn-secondary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
+                    Manage Permissions
+                </a>
+            </div>
+            <div class="card-body">
+                {% if permission_categories %}
+                <div class="perm-categories">
+                    {% for category, perms in permission_categories.items() %}
+                    <div class="perm-category">
+                        <div class="perm-category-header">{{ category }}</div>
+                        <div class="perm-category-body">
+                            {% for perm_name, perm_value in perms.items() %}
+                            <div class="perm-item">
+                                <span class="perm-name">{{ perm_name|replace('can_', '')|replace('_', ' ')|title }}</span>
+                                <span class="perm-status {{ 'perm-yes' if perm_value else 'perm-no' }}">
+                                    {% if perm_value %}
+                                    <svg class="perm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    Yes
+                                    {% else %}
+                                    <svg class="perm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                    No
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <p>No permission configuration found for this user type</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

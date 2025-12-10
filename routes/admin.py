@@ -747,6 +747,186 @@ def delete_user(user_id):
 
     return redirect(url_for('admin.manage_users'))
 
+@admin_bp.route('/users/<int:user_id>/overview')
+@admin_required
+def user_overview(user_id):
+    """Display comprehensive overview of user settings and permissions"""
+    from models.queue import Queue
+    from models.company_queue_permission import CompanyQueuePermission
+    from models.user_company_permission import UserCompanyPermission
+    from models.user_country_permission import UserCountryPermission
+    from models.user_mention_permission import UserMentionPermission
+    from models.group import Group
+    from models.group_membership import GroupMembership
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('admin.manage_users'))
+
+        # Get permission flags for user's type
+        permission = db_session.query(Permission).filter_by(user_type=user.user_type).first()
+
+        # Get company permissions
+        company_permissions = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
+        company_access = []
+        for perm in company_permissions:
+            company = db_session.query(Company).get(perm.company_id)
+            if company:
+                company_access.append({
+                    'company': company,
+                    'can_view': perm.can_view,
+                    'can_edit': perm.can_edit,
+                    'can_delete': perm.can_delete
+                })
+
+        # Get country permissions
+        country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
+        assigned_countries = [cp.country for cp in country_permissions]
+
+        # Get queue permissions (through company)
+        queue_access = []
+        if user.company_id:
+            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
+            for perm in queue_permissions:
+                queue = db_session.query(Queue).get(perm.queue_id)
+                if queue:
+                    queue_access.append({
+                        'queue': queue,
+                        'can_view': perm.can_view,
+                        'can_create': perm.can_create
+                    })
+
+        # Get group memberships
+        group_memberships = db_session.query(GroupMembership).filter_by(
+            user_id=user.id, is_active=True
+        ).all()
+        groups = []
+        for membership in group_memberships:
+            group = db_session.query(Group).get(membership.group_id)
+            if group and group.is_active:
+                groups.append(group)
+
+        # Get mention permissions
+        mention_permissions = db_session.query(UserMentionPermission).filter_by(user_id=user.id).all()
+        allowed_mention_users = []
+        allowed_mention_groups = []
+        for perm in mention_permissions:
+            if perm.target_type == 'user':
+                target_user = db_session.query(User).get(perm.target_id)
+                if target_user:
+                    allowed_mention_users.append(target_user)
+            elif perm.target_type == 'group':
+                target_group = db_session.query(Group).get(perm.target_id)
+                if target_group:
+                    allowed_mention_groups.append(target_group)
+
+        # Get user's company info
+        user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
+
+        # Organize permissions by category for display
+        permission_categories = {}
+        if permission:
+            permission_categories = {
+                'Assets': {
+                    'can_view_assets': permission.can_view_assets,
+                    'can_edit_assets': permission.can_edit_assets,
+                    'can_create_assets': permission.can_create_assets,
+                    'can_delete_assets': permission.can_delete_assets,
+                },
+                'Country Assets': {
+                    'can_view_country_assets': permission.can_view_country_assets,
+                    'can_edit_country_assets': permission.can_edit_country_assets,
+                    'can_create_country_assets': permission.can_create_country_assets,
+                    'can_delete_country_assets': permission.can_delete_country_assets,
+                },
+                'Accessories': {
+                    'can_view_accessories': permission.can_view_accessories,
+                    'can_edit_accessories': permission.can_edit_accessories,
+                    'can_create_accessories': permission.can_create_accessories,
+                    'can_delete_accessories': permission.can_delete_accessories,
+                },
+                'Tickets': {
+                    'can_view_tickets': permission.can_view_tickets,
+                    'can_edit_tickets': permission.can_edit_tickets,
+                    'can_create_tickets': permission.can_create_tickets,
+                    'can_delete_tickets': permission.can_delete_tickets,
+                    'can_delete_own_tickets': permission.can_delete_own_tickets,
+                    'can_export_tickets': permission.can_export_tickets,
+                },
+                'Companies': {
+                    'can_view_companies': permission.can_view_companies,
+                    'can_edit_companies': permission.can_edit_companies,
+                    'can_create_companies': permission.can_create_companies,
+                    'can_delete_companies': permission.can_delete_companies,
+                },
+                'Users': {
+                    'can_view_users': permission.can_view_users,
+                    'can_edit_users': permission.can_edit_users,
+                    'can_create_users': permission.can_create_users,
+                    'can_delete_users': permission.can_delete_users,
+                },
+                'Reports': {
+                    'can_view_reports': permission.can_view_reports,
+                    'can_generate_reports': permission.can_generate_reports,
+                },
+                'Import/Export': {
+                    'can_import_data': permission.can_import_data,
+                    'can_export_data': permission.can_export_data,
+                },
+                'Documents': {
+                    'can_access_documents': permission.can_access_documents,
+                    'can_create_commercial_invoices': permission.can_create_commercial_invoices,
+                    'can_create_packing_lists': permission.can_create_packing_lists,
+                },
+                'Knowledge Base': {
+                    'can_view_knowledge_base': permission.can_view_knowledge_base,
+                    'can_create_articles': permission.can_create_articles,
+                    'can_edit_articles': permission.can_edit_articles,
+                    'can_delete_articles': permission.can_delete_articles,
+                    'can_manage_categories': permission.can_manage_categories,
+                    'can_view_restricted_articles': permission.can_view_restricted_articles,
+                },
+                'Inventory Audit': {
+                    'can_access_inventory_audit': permission.can_access_inventory_audit,
+                    'can_start_inventory_audit': permission.can_start_inventory_audit,
+                    'can_view_audit_reports': permission.can_view_audit_reports,
+                },
+                'Development': {
+                    'can_access_development': permission.can_access_development,
+                    'can_view_features': permission.can_view_features,
+                    'can_create_features': permission.can_create_features,
+                    'can_edit_features': permission.can_edit_features,
+                    'can_approve_features': permission.can_approve_features,
+                    'can_view_bugs': permission.can_view_bugs,
+                    'can_create_bugs': permission.can_create_bugs,
+                    'can_edit_bugs': permission.can_edit_bugs,
+                    'can_view_releases': permission.can_view_releases,
+                    'can_create_releases': permission.can_create_releases,
+                    'can_edit_releases': permission.can_edit_releases,
+                },
+                'Debug': {
+                    'can_access_debug_logs': permission.can_access_debug_logs,
+                },
+            }
+
+        return render_template('admin/user_overview.html',
+                             user=user,
+                             user_company=user_company,
+                             permission=permission,
+                             permission_categories=permission_categories,
+                             company_access=company_access,
+                             assigned_countries=assigned_countries,
+                             queue_access=queue_access,
+                             groups=groups,
+                             mention_filter_enabled=user.mention_filter_enabled,
+                             allowed_mention_users=allowed_mention_users,
+                             allowed_mention_groups=allowed_mention_groups)
+    finally:
+        db_session.close()
+
 @admin_bp.route('/users/<int:user_id>/manage')
 @admin_required
 def manage_user(user_id):
