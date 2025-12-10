@@ -294,8 +294,10 @@ def delete_company(company_id):
 @admin_bp.route('/users')
 @admin_required
 def manage_users():
-    users = db_manager.get_all_users()
-    return render_template('admin/users.html', users=users)
+    from flask import request
+    show_deleted = request.args.get('show_deleted', 'false').lower() == 'true'
+    users = db_manager.get_all_users(include_deleted=show_deleted)
+    return render_template('admin/users.html', users=users, show_deleted=show_deleted)
 
 
 @admin_bp.route('/api/users/<int:user_id>/quick-details')
@@ -625,7 +627,7 @@ def create_user():
         queues = db_session.query(Queue).all()
 
         # Get all users and groups for @mention settings
-        all_users = db_session.query(User).filter(User.is_active == True).order_by(User.username).all()
+        all_users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
         all_groups = db_session.query(Group).filter(Group.is_active == True).order_by(Group.name).all()
 
         # Get unique countries from assets for COUNTRY_ADMIN dropdown
@@ -854,7 +856,7 @@ def edit_user(user_id):
             existing_queues = [str(perm.queue_id) for perm in queue_permissions]
 
     # Get all users and groups for mention control panel
-    all_users = db_session.query(User).order_by(User.username).all()
+    all_users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
     all_groups = db_session.query(Group).filter(Group.is_active == True).order_by(Group.name).all()
 
     # Get existing mention permissions
@@ -1068,9 +1070,26 @@ def delete_user(user_id):
 
     try:
         db_manager.delete_user(user_id)
-        flash('User deleted successfully', 'success')
+        flash(f'User "{user.username}" has been deactivated', 'success')
     except Exception as e:
         flash(f'Error deleting user: {str(e)}', 'error')
+
+    return redirect(url_for('admin.manage_users'))
+
+@admin_bp.route('/users/<int:user_id>/restore', methods=['POST'])
+@admin_required
+def restore_user(user_id):
+    """Restore a soft-deleted user"""
+    user = db_manager.get_user(user_id)
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('admin.manage_users'))
+
+    try:
+        db_manager.restore_user(user_id)
+        flash(f'User "{user.username}" has been restored', 'success')
+    except Exception as e:
+        flash(f'Error restoring user: {str(e)}', 'error')
 
     return redirect(url_for('admin.manage_users'))
 
@@ -1172,7 +1191,7 @@ def user_overview(user_id):
         user_company = db_session.query(Company).get(user.company_id) if user.company_id else None
 
         # Get all users for side panel navigation and mention settings
-        all_users = db_session.query(User).order_by(User.username).all()
+        all_users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
 
         # Get all data needed for inline editing panels
         # All available countries from assets
@@ -1705,7 +1724,7 @@ def manage_queue_notifications():
     db_session = db_manager.get_session()
     try:
         # Get all users, queues, and existing notifications
-        users = db_session.query(User).order_by(User.username).all()
+        users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
         queues = db_session.query(Queue).order_by(Queue.name).all()
         notifications = db_session.query(QueueNotification).all()
 
@@ -5097,7 +5116,7 @@ def unified_permissions():
     db_session = db_manager.get_session()
     try:
         # Get all users for permission management
-        users = db_session.query(User).all()
+        users = db_session.query(User).filter(User.is_deleted == False).all()
         
         # Get all companies and queues for queue permissions
         companies = db_session.query(Company).all()
@@ -5148,7 +5167,7 @@ def manage_groups():
         groups = db_session.query(Group).order_by(Group.created_at.desc()).all()
         
         # Get all users for the add member dropdown
-        users = db_session.query(User).order_by(User.username).all()
+        users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
 
         return render_template('admin/manage_groups.html', 
                              user=user,

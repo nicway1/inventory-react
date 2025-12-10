@@ -191,19 +191,19 @@ class DatabaseManager:
         try:
             user = session.query(User).options(
                 joinedload(User.company)
-            ).filter(User.username == username).first()
-            
+            ).filter(User.username == username, User.is_deleted == False).first()
+
             if user:
                 # Get permission record for this user's type instead of relying on direct relationship
                 permission = session.query(Permission).filter_by(user_type=user.user_type).first()
-                
+
                 if not permission:
                     # Create default permissions if none exist for this user type
                     default_permissions = Permission.get_default_permissions(user.user_type)
                     permission = Permission(user_type=user.user_type, **default_permissions)
                     session.add(permission)
                     session.commit()
-            
+
             return user
         finally:
             session.close()
@@ -230,12 +230,14 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_all_users(self):
+    def get_all_users(self, include_deleted=False):
+        """Get all users, optionally including deleted ones"""
         session = self.get_session()
         try:
-            return session.query(User).options(
-                joinedload(User.company)
-            ).all()
+            query = session.query(User).options(joinedload(User.company))
+            if not include_deleted:
+                query = query.filter(User.is_deleted == False)
+            return query.all()
         finally:
             session.close()
 
@@ -289,23 +291,34 @@ class DatabaseManager:
             session.close()
 
     def delete_user(self, user_id):
+        """Soft delete a user by setting is_deleted flag"""
         session = self.get_session()
         try:
             user = session.query(User).filter(User.id == user_id).first()
             if not user:
                 return False
 
-            # Check if user has any tickets (either as requester or assignee)
-            tickets_count = session.query(Ticket).filter(
-                (Ticket.requester_id == user_id) | 
-                (Ticket.assigned_to_id == user_id)
-            ).count()
+            # Soft delete - just mark as deleted instead of actually deleting
+            user.is_deleted = True
+            user.deleted_at = datetime.utcnow()
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
 
-            if tickets_count > 0:
-                raise ValueError(f"Cannot delete user: User has {tickets_count} associated tickets. Please reassign or delete the tickets first.")
+    def restore_user(self, user_id):
+        """Restore a soft-deleted user"""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return False
 
-            # If no tickets are found, proceed with deletion
-            session.delete(user)
+            user.is_deleted = False
+            user.deleted_at = None
             session.commit()
             return True
         except Exception as e:

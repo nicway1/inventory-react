@@ -23,6 +23,8 @@ class User(Base, UserMixin):
     theme_preference = Column(String(20), default='light')  # 'light' or 'dark'
     preferences = Column(JSON, nullable=True)  # Store user preferences like chart settings
     mention_filter_enabled = Column(Boolean, default=False)  # If True, user can only see allowed mentions
+    is_deleted = Column(Boolean, default=False)  # Soft delete flag
+    deleted_at = Column(DateTime, nullable=True)  # When the user was deleted
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
