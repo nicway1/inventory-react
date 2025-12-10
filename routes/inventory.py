@@ -619,8 +619,8 @@ def api_sf_assets():
             assets = db_session.query(Asset).options(joinedload(Asset.location)).all()
             logger.info(f"Fetched {len(assets)} assets")
 
-            # Pre-fetch all company grouping info for efficiency
-            all_companies = db_session.query(Company).all()
+            # Pre-fetch all company grouping info for efficiency (with eager loading)
+            all_companies = db_session.query(Company).options(joinedload(Company.parent_company)).all()
             company_parent_map = {}  # Maps company name -> parent company name
             for company in all_companies:
                 if company.parent_company_id and company.parent_company:
@@ -649,6 +649,7 @@ def api_sf_assets():
                     })
                 except Exception as asset_error:
                     logger.error(f"Error processing asset {asset.id}: {asset_error}")
+                    traceback.print_exc()
                     continue
 
             logger.info(f"Processed {len(assets_data)} assets successfully")
