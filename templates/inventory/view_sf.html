@@ -1420,9 +1420,12 @@ function populateFilter(containerId, options, filterType) {
         </div>
     `;
 
+    // Location filter should NOT be checked by default (show all assets including those without location)
+    const checkedByDefault = filterType !== 'location';
+
     const optionsHtml = options.map(opt => `
         <label class="sf-checkbox-item">
-            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" checked onchange="applyFilters()">
+            <input type="checkbox" value="${opt.value}" data-filter="${filterType}" ${checkedByDefault ? 'checked' : ''} onchange="applyFilters()">
             <span>${opt.label}</span>
             <span class="count">${opt.count}</span>
         </label>
