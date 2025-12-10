@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from models.base import Base
 import logging
 
@@ -21,7 +21,7 @@ class Comment(Base):
 
     # Relationships
     ticket = relationship('Ticket', back_populates='comments')
-    user = relationship('User', backref='comments')
+    user = relationship('User', backref=backref('comments', cascade="all, delete-orphan"))
 
     def __init__(self, ticket_id=None, user_id=None, content=None, **kwargs):
         super().__init__(**kwargs)

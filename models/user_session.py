@@ -5,7 +5,7 @@ Used for developer analytics and usage monitoring
 
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from models.base import Base
 
 
@@ -39,7 +39,7 @@ class UserSession(Base):
     last_page = Column(String(200), nullable=True)
 
     # Relationships
-    user = relationship("User", backref="sessions")
+    user = relationship("User", backref=backref("sessions", cascade="all, delete-orphan"))
 
     @property
     def duration_seconds(self):

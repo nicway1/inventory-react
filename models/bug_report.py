@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import enum
 from models.base import Base
@@ -152,7 +152,7 @@ class BugComment(Base):
 
     # Relationships
     bug = relationship('BugReport', back_populates='comments')
-    user = relationship('User', backref='bug_comments')
+    user = relationship('User', backref=backref('bug_comments', cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f'<BugComment {self.id}: {self.content[:50]}...>'
@@ -170,7 +170,7 @@ class Tester(Base):
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
     # Relationships
-    user = relationship('User', backref='tester_profile')
+    user = relationship('User', backref=backref('tester_profile', cascade="all, delete-orphan", uselist=False))
     bug_assignments = relationship('BugTesterAssignment', back_populates='tester', cascade='all, delete-orphan')
     feature_assignments = relationship('FeatureTesterAssignment', back_populates='tester', cascade='all, delete-orphan')
 

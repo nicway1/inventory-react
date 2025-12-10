@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Date, ForeignKey, DateTime, Text, String
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime, date, timedelta
 from models.base import Base
 
@@ -35,7 +35,7 @@ class DeveloperWorkPlan(Base):
     submitted_at = Column(DateTime, nullable=True)
 
     # Relationships
-    user = relationship("User", backref="work_plans")
+    user = relationship("User", backref=backref("work_plans", cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f"<DeveloperWorkPlan {self.user_id} - {self.week_start}>"

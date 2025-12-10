@@ -45,6 +45,8 @@ class WidgetDefinition:
     refreshable: bool = True         # Whether widget supports refresh
     configurable: bool = False       # Whether widget has settings
     default_config: Dict[str, Any] = None  # Default configuration options
+    screenshot: Optional[str] = None  # Screenshot image path for widget showcase
+    long_description: Optional[str] = None  # Detailed description for widget showcase
 
     def __post_init__(self):
         if self.default_config is None:
@@ -137,7 +139,8 @@ register_widget(WidgetDefinition(
     color='purple',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader='load_inventory_stats'
+    data_loader='load_inventory_stats',
+    screenshot='inventory_overview.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -152,7 +155,8 @@ register_widget(WidgetDefinition(
     color='green',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
-    data_loader='load_ticket_stats'
+    data_loader='load_ticket_stats',
+    screenshot='ticket_overview.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -167,7 +171,8 @@ register_widget(WidgetDefinition(
     color='blue',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
-    data_loader='load_customer_stats'
+    data_loader='load_customer_stats',
+    screenshot='customer_overview.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -182,7 +187,8 @@ register_widget(WidgetDefinition(
     color='orange',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
-    data_loader='load_queue_stats'
+    data_loader='load_queue_stats',
+    screenshot='support_queues.png'
 ))
 
 # Chart Widgets
@@ -198,7 +204,8 @@ register_widget(WidgetDefinition(
     color='indigo',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
-    data_loader='load_weekly_ticket_data'
+    data_loader='load_weekly_ticket_data',
+    screenshot='weekly_tickets_chart.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -215,7 +222,8 @@ register_widget(WidgetDefinition(
     required_user_types=['SUPER_ADMIN', 'DEVELOPER'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
     data_loader='load_asset_status_data',
     configurable=True,
-    default_config={'chart_type': 'doughnut'}
+    default_config={'chart_type': 'doughnut'},
+    screenshot='asset_status_chart.png'
 ))
 
 # List Widgets
@@ -233,7 +241,8 @@ register_widget(WidgetDefinition(
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader='load_recent_activities',
     configurable=True,
-    default_config={'limit': 5}
+    default_config={'limit': 5},
+    screenshot='recent_activities.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -250,7 +259,8 @@ register_widget(WidgetDefinition(
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader='load_shipments_data',
     configurable=True,
-    default_config={'limit': 10}
+    default_config={'limit': 10},
+    screenshot='active_shipments.png'
 ))
 
 # Action Widgets
@@ -266,7 +276,8 @@ register_widget(WidgetDefinition(
     color='yellow',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader=None
+    data_loader=None,
+    screenshot='quick_actions.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -281,7 +292,8 @@ register_widget(WidgetDefinition(
     color='purple',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader=None
+    data_loader=None,
+    screenshot='import_tickets.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -296,7 +308,8 @@ register_widget(WidgetDefinition(
     color='teal',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'COUNTRY_ADMIN'],
-    data_loader=None
+    data_loader=None,
+    screenshot='import_assets.png'
 ))
 
 # System Widgets
@@ -312,7 +325,8 @@ register_widget(WidgetDefinition(
     color='blue',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
-    data_loader=None
+    data_loader=None,
+    screenshot='system_management.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -327,7 +341,8 @@ register_widget(WidgetDefinition(
     color='blue',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
-    data_loader=None
+    data_loader=None,
+    screenshot='development_console.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -342,7 +357,8 @@ register_widget(WidgetDefinition(
     color='indigo',
     required_permissions=['can_access_inventory_audit'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader='load_audit_data'
+    data_loader='load_audit_data',
+    screenshot='inventory_audit.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -358,7 +374,8 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
     data_loader=None,
-    refreshable=False
+    refreshable=False,
+    screenshot='clock_widget.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -373,7 +390,8 @@ register_widget(WidgetDefinition(
     color='indigo',
     required_permissions=['can_view_reports'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader=None
+    data_loader=None,
+    screenshot='reports.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -388,7 +406,8 @@ register_widget(WidgetDefinition(
     color='blue',
     required_permissions=['can_view_knowledge_base'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
-    data_loader=None
+    data_loader=None,
+    screenshot='knowledge_base.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -403,7 +422,8 @@ register_widget(WidgetDefinition(
     color='orange',
     required_permissions=['can_access_documents'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
-    data_loader=None
+    data_loader=None,
+    screenshot='documents.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -418,7 +438,24 @@ register_widget(WidgetDefinition(
     color='green',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
-    data_loader=None
+    data_loader=None,
+    screenshot='billing_generator.png'
+))
+
+register_widget(WidgetDefinition(
+    id='user_overview',
+    name='User Overview',
+    description='View user permissions and settings',
+    category=WidgetCategory.SYSTEM,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/user_overview.html',
+    icon='fas fa-user-shield',
+    color='red',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
+    data_loader=None,
+    screenshot='user_overview.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -433,7 +470,8 @@ register_widget(WidgetDefinition(
     color='purple',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
-    data_loader=None
+    data_loader=None,
+    screenshot='view_inventory.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -448,7 +486,8 @@ register_widget(WidgetDefinition(
     color='green',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
-    data_loader=None
+    data_loader=None,
+    screenshot='view_tickets.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -463,7 +502,8 @@ register_widget(WidgetDefinition(
     color='blue',
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
-    data_loader=None
+    data_loader=None,
+    screenshot='view_customers.png'
 ))
 
 register_widget(WidgetDefinition(
@@ -479,7 +519,8 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader=None,
-    refreshable=False
+    refreshable=False,
+    screenshot='app_launcher.png'
 ))
 
 
@@ -497,6 +538,7 @@ DEFAULT_DASHBOARD_LAYOUT = {
         {'widget_id': 'recent_activities', 'position': 8, 'size': 'medium', 'config': {}},
         {'widget_id': 'shipments_list', 'position': 9, 'size': 'large', 'config': {}},
         {'widget_id': 'system_management', 'position': 10, 'size': 'large', 'config': {}},
+        {'widget_id': 'user_overview', 'position': 11, 'size': 'small', 'config': {}},
     ],
     'SUPER_ADMIN': [
         {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},
@@ -510,6 +552,7 @@ DEFAULT_DASHBOARD_LAYOUT = {
         {'widget_id': 'recent_activities', 'position': 8, 'size': 'medium', 'config': {}},
         {'widget_id': 'shipments_list', 'position': 9, 'size': 'large', 'config': {}},
         {'widget_id': 'system_management', 'position': 10, 'size': 'large', 'config': {}},
+        {'widget_id': 'user_overview', 'position': 11, 'size': 'small', 'config': {}},
     ],
     'SUPERVISOR': [
         {'widget_id': 'inventory_stats', 'position': 0, 'size': 'small', 'config': {}},

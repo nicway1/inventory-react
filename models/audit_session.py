@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 from .base import Base
 
@@ -21,7 +21,7 @@ class AuditSession(Base):
     audit_inventory = Column(Text, default='[]')  # JSON array of all assets to audit
     
     # Relationships
-    user = relationship("User", backref="audit_sessions")
+    user = relationship("User", backref=backref("audit_sessions", cascade="all, delete-orphan"))
     
     def __repr__(self):
         return f'<AuditSession {self.id} for {self.country}>'

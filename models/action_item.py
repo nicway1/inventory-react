@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text, Date
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import enum
 from models.base import Base
@@ -128,7 +128,7 @@ class ActionItemComment(Base):
 
     # Relationships
     action_item = relationship('ActionItem', back_populates='comments')
-    user = relationship('User', backref='action_item_comments')
+    user = relationship('User', backref=backref('action_item_comments', cascade="all, delete-orphan"))
 
     def to_dict(self):
         return {

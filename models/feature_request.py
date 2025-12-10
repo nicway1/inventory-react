@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text, Date
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import enum
 from models.base import Base
@@ -132,7 +132,7 @@ class FeatureComment(Base):
 
     # Relationships
     feature = relationship('FeatureRequest', back_populates='comments')
-    user = relationship('User', backref='feature_comments')
+    user = relationship('User', backref=backref('feature_comments', cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f'<FeatureComment {self.id}: {self.content[:50]}...>'

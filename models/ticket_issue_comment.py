@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from models.base import Base
 import logging
 
@@ -20,7 +20,7 @@ class TicketIssueComment(Base):
 
     # Relationships
     issue = relationship('TicketIssue', backref='comments')
-    user = relationship('User', backref='issue_comments')
+    user = relationship('User', backref=backref('issue_comments', cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f"<TicketIssueComment(id={self.id}, issue_id={self.issue_id}, user_id={self.user_id})>"

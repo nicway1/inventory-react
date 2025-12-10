@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Date, ForeignKey, DateTime, Boolean, String, Enum as SQLEnum
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 from models.base import Base
 import enum
@@ -24,7 +24,7 @@ class DeveloperSchedule(Base):
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
     # Relationships
-    user = relationship("User", backref="schedules")
+    user = relationship("User", backref=backref("schedules", cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f"<DeveloperSchedule {self.user_id} - {self.work_date}>"
