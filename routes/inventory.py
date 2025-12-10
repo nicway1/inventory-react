@@ -615,22 +615,32 @@ def api_sf_assets():
             total_count = db_session.query(Asset).count()
             logger.info(f"Total assets in DB: {total_count}")
 
-            # Get all assets with location eagerly loaded to avoid lazy loading issues
-            assets = db_session.query(Asset).options(joinedload(Asset.location)).all()
+            # Get all assets (plain query - no lazy loading needed)
+            assets = db_session.query(Asset).all()
             logger.info(f"Fetched {len(assets)} assets")
 
-            # Pre-fetch all company grouping info for efficiency (with eager loading)
-            all_companies = db_session.query(Company).options(joinedload(Company.parent_company)).all()
+            # Pre-fetch all locations into a map (avoids lazy loading)
+            all_locations = db_session.query(Location).all()
+            location_map = {loc.id: loc.name for loc in all_locations}
+
+            # Pre-fetch all company info (avoids lazy loading)
+            all_companies = db_session.query(Company).all()
+            company_id_to_name = {c.id: c.name for c in all_companies}
             company_parent_map = {}  # Maps company name -> parent company name
             for company in all_companies:
-                if company.parent_company_id and company.parent_company:
-                    company_parent_map[company.name] = company.parent_company.name
+                if company.parent_company_id:
+                    parent_name = company_id_to_name.get(company.parent_company_id)
+                    if parent_name:
+                        company_parent_map[company.name] = parent_name
 
             assets_data = []
             for asset in assets:
                 try:
                     # Get parent company if this asset's company has one
                     parent_company = company_parent_map.get(asset.customer, None)
+
+                    # Get location name from pre-fetched map (avoids relationship access)
+                    location_name = location_map.get(asset.location_id, '') if asset.location_id else ''
 
                     assets_data.append({
                         'id': asset.id,
@@ -643,7 +653,7 @@ def api_sf_assets():
                         'company': asset.customer or '',
                         'parent_company': parent_company,  # Parent company name for grouping filter
                         'country': asset.country or '',
-                        'location': asset.location.name if asset.location else '',
+                        'location': location_name,
                         'model': asset.model or '',
                         'manufacturer': asset.manufacturer or ''
                     })
