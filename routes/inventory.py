@@ -642,7 +642,7 @@ def api_sf_assets():
                         'company': asset.customer or '',
                         'parent_company': parent_company,  # Parent company name for grouping filter
                         'country': asset.country or '',
-                        'location': asset.location or '',
+                        'location': asset.location.name if asset.location else '',
                         'model': asset.model or '',
                         'manufacturer': asset.manufacturer or ''
                     })
