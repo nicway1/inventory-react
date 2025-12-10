@@ -21,6 +21,7 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 from sqlalchemy import func, case, or_, and_, text
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm import joinedload
 from utils.db_manager import DatabaseManager
 from flask_wtf.csrf import generate_csrf
 from flask_login import current_user
@@ -614,8 +615,8 @@ def api_sf_assets():
             total_count = db_session.query(Asset).count()
             logger.info(f"Total assets in DB: {total_count}")
 
-            # Get all assets
-            assets = db_session.query(Asset).all()
+            # Get all assets with location eagerly loaded to avoid lazy loading issues
+            assets = db_session.query(Asset).options(joinedload(Asset.location)).all()
             logger.info(f"Fetched {len(assets)} assets")
 
             # Pre-fetch all company grouping info for efficiency
