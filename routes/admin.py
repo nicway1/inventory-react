@@ -11,6 +11,7 @@ from datetime import datetime
 from models.company import Company
 from models.queue import Queue
 from models.company_queue_permission import CompanyQueuePermission
+from models.user_queue_permission import UserQueuePermission
 from utils.email_sender import send_welcome_email
 from sqlalchemy import or_, func, and_
 import os
@@ -336,14 +337,13 @@ def get_user_quick_details(user_id):
         country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
         countries = [cp.country for cp in country_permissions]
 
-        # Get queue access
+        # Get queue access (per-user permissions)
         queues = []
-        if user.company_id:
-            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
-            for perm in queue_permissions:
-                queue = db_session.query(Queue).get(perm.queue_id)
-                if queue and perm.can_view:
-                    queues.append(queue.name)
+        user_queue_perms = db_session.query(UserQueuePermission).filter_by(user_id=user.id).all()
+        for perm in user_queue_perms:
+            queue = db_session.query(Queue).get(perm.queue_id)
+            if queue and perm.can_view:
+                queues.append(queue.name)
 
         # Get group memberships
         group_memberships = db_session.query(GroupMembership).filter_by(user_id=user.id, is_active=True).all()
@@ -1149,18 +1149,17 @@ def user_overview(user_id):
         country_permissions = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
         assigned_countries = [cp.country for cp in country_permissions]
 
-        # Get queue permissions (through company)
+        # Get queue permissions (per-user)
         queue_access = []
-        if user.company_id:
-            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
-            for perm in queue_permissions:
-                queue = db_session.query(Queue).get(perm.queue_id)
-                if queue:
-                    queue_access.append({
-                        'queue': queue,
-                        'can_view': perm.can_view,
-                        'can_create': perm.can_create
-                    })
+        user_queue_perms = db_session.query(UserQueuePermission).filter_by(user_id=user.id).all()
+        for perm in user_queue_perms:
+            queue = db_session.query(Queue).get(perm.queue_id)
+            if queue:
+                queue_access.append({
+                    'queue': queue,
+                    'can_view': perm.can_view,
+                    'can_create': perm.can_create
+                })
 
         # Get group memberships
         group_memberships = db_session.query(GroupMembership).filter_by(
