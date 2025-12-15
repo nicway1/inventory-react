@@ -473,6 +473,9 @@ def save_user_companies(user_id):
         data = request.get_json()
         company_ids = data.get('company_ids', [])
 
+        # Remove duplicates while preserving order
+        company_ids = list(dict.fromkeys(company_ids))
+
         # Delete existing company permissions
         db_session.query(UserCompanyPermission).filter_by(user_id=user_id).delete()
 
