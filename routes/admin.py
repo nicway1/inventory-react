@@ -502,8 +502,11 @@ def save_user_companies(user_id):
             db_session.add(permission)
 
         # Update user's primary company_id to first selected company (for backwards compatibility)
+        # If no companies selected, clear the primary company
         if company_ids:
             user.company_id = int(company_ids[0])
+        else:
+            user.company_id = None
 
         db_session.commit()
         logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies (including auto-added children)")
