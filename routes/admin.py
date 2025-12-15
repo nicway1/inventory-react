@@ -476,6 +476,17 @@ def save_user_companies(user_id):
         # Remove duplicates while preserving order
         company_ids = list(dict.fromkeys(company_ids))
 
+        # Auto-include child companies when parent is selected
+        all_company_ids = set(company_ids)
+        for company_id in company_ids:
+            company = db_session.query(Company).get(int(company_id))
+            if company and (company.is_parent_company or company.child_companies.count() > 0):
+                # Add all child company IDs
+                for child in company.child_companies.all():
+                    all_company_ids.add(child.id)
+
+        company_ids = list(all_company_ids)
+
         # Delete existing company permissions
         db_session.query(UserCompanyPermission).filter_by(user_id=user_id).delete()
 
@@ -495,7 +506,7 @@ def save_user_companies(user_id):
             user.company_id = int(company_ids[0])
 
         db_session.commit()
-        logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies")
+        logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies (including auto-added children)")
 
         return jsonify({'success': True, 'count': len(company_ids)})
     except Exception as e:
