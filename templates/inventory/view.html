@@ -1784,12 +1784,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update the table with data
     function updateTable(data) {
         // Update the total count display with the actual count from the API
-        if (isClient) {
-            // For CLIENT users, always use the count from the API to ensure they only see their assets
-            techAssetsCount.textContent = data.total_count;
-        } else if (initialTechAssetCount > 0) {
-            // For non-CLIENT users, only update if there's filtered data, otherwise keep the server count
-            techAssetsCount.textContent = data.total_count || initialTechAssetCount;
+        // Only update if the element exists (hidden for SUPERVISOR and COUNTRY_ADMIN)
+        if (techAssetsCount) {
+            if (isClient) {
+                // For CLIENT users, always use the count from the API to ensure they only see their assets
+                techAssetsCount.textContent = data.total_count;
+            } else if (initialTechAssetCount > 0) {
+                // For non-CLIENT users, only update if there's filtered data, otherwise keep the server count
+                techAssetsCount.textContent = data.total_count || initialTechAssetCount;
+            }
         }
         
         if (data.assets && data.assets.length > 0) {
