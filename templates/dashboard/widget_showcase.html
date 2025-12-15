@@ -1206,8 +1206,8 @@
         background: var(--systemBackgroundElevated);
         border-radius: 20px;
         width: 100%;
-        max-width: 680px;
-        max-height: 90vh;
+        max-width: 900px;
+        max-height: 92vh;
         overflow-y: auto;
         box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
         transform: scale(0.9) translateY(20px);
@@ -1253,13 +1253,13 @@
     }
 
     .modal-widget-icon {
-        width: 80px;
-        height: 80px;
+        width: 96px;
+        height: 96px;
         border-radius: var(--radius-icon);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 36px;
+        font-size: 42px;
         color: white;
         box-shadow: var(--shadow-medium);
         flex-shrink: 0;
@@ -1271,9 +1271,9 @@
     }
 
     .modal-title {
-        font: var(--title-3);
+        font: var(--title-2);
         color: var(--systemPrimary);
-        margin: 0 0 4px 0;
+        margin: 0 0 6px 0;
     }
 
     .modal-category {
@@ -1338,11 +1338,50 @@
         border-radius: var(--radius-large);
         overflow: hidden;
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        aspect-ratio: 16 / 9;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
+        flex-direction: row;
+        gap: 20px;
+        padding: 20px;
+        min-height: 280px;
+    }
+
+    .modal-screenshot-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .modal-screenshot-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        text-align: center;
+    }
+
+    .modal-screenshot-section img {
+        width: 100%;
+        height: auto;
+        max-height: 350px;
+        object-fit: contain;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .modal-screenshot-section img:hover {
+        transform: scale(1.02);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 768px) {
+        .modal-preview {
+            flex-direction: column;
+        }
     }
 
     .modal-preview-placeholder {
@@ -1373,7 +1412,7 @@
     }
 
     .modal-body {
-        padding: 24px;
+        padding: 28px 32px;
     }
 
     .modal-section {
@@ -1417,7 +1456,7 @@
 
     .modal-info-item {
         background: var(--systemBackgroundElevated);
-        padding: 16px 12px;
+        padding: 20px 16px;
         text-align: center;
     }
 
@@ -1430,7 +1469,7 @@
     }
 
     .modal-info-value {
-        font: var(--callout-emphasized);
+        font: var(--headline);
         color: var(--systemPrimary);
     }
 
@@ -1444,20 +1483,25 @@
     .modal-feature-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: 16px;
+        padding: 16px 20px;
         background: var(--systemQuaternary);
-        border-radius: var(--radius-small);
+        border-radius: var(--radius-medium);
+        transition: background 0.2s ease;
+    }
+
+    .modal-feature-item:hover {
+        background: var(--systemGray5);
     }
 
     .modal-feature-icon {
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 16px;
         flex-shrink: 0;
     }
 
@@ -1510,10 +1554,10 @@
     }
 
     .modal-footer {
-        padding: 20px 24px;
+        padding: 24px 32px;
         border-top: 1px solid var(--systemGray4);
         display: flex;
-        gap: 12px;
+        gap: 16px;
     }
 
     @media (max-width: 640px) {
@@ -2032,7 +2076,16 @@
                 </div>
                 <span>Widget Preview</span>
             </div>
-            <img class="modal-preview-image" id="modalPreviewImage" src="" alt="Widget Preview" style="display: none;">
+            <!-- Widget Screenshot -->
+            <div class="modal-screenshot-section" id="widgetScreenshotSection" style="display: none;">
+                <span class="modal-screenshot-label">Widget</span>
+                <img class="modal-preview-image" id="modalWidgetImage" src="" alt="Widget Screenshot">
+            </div>
+            <!-- Page Screenshot -->
+            <div class="modal-screenshot-section" id="pageScreenshotSection" style="display: none;">
+                <span class="modal-screenshot-label">Page Preview</span>
+                <img class="modal-preview-image" id="modalPageImage" src="" alt="Page Screenshot">
+            </div>
         </div>
 
         <div class="modal-body">
@@ -2184,19 +2237,47 @@
         document.getElementById('modalIconClass').className = widget.icon;
         document.getElementById('modalIcon').style.background = `var(--gradient-${widget.color})`;
 
-        // Screenshot preview
+        // Screenshot preview - show both widget and page screenshots
         const previewPlaceholder = document.getElementById('modalPreviewPlaceholder');
-        const previewImage = document.getElementById('modalPreviewImage');
         const previewIcon = document.getElementById('modalPreviewIcon');
         const previewIconClass = document.getElementById('modalPreviewIconClass');
+        const widgetScreenshotSection = document.getElementById('widgetScreenshotSection');
+        const pageScreenshotSection = document.getElementById('pageScreenshotSection');
+        const widgetImage = document.getElementById('modalWidgetImage');
+        const pageImage = document.getElementById('modalPageImage');
+
+        // Reset all
+        previewPlaceholder.style.display = 'none';
+        widgetScreenshotSection.style.display = 'none';
+        pageScreenshotSection.style.display = 'none';
 
         if (widget.screenshot) {
-            previewPlaceholder.style.display = 'none';
-            previewImage.style.display = 'block';
-            previewImage.src = `/static/images/widgets/${widget.screenshot}`;
+            const baseName = widget.screenshot.replace('.png', '');
+
+            // Load widget screenshot
+            widgetImage.src = `/static/images/widget_screenshots/${baseName}_widget.png`;
+            widgetImage.onload = function() {
+                widgetScreenshotSection.style.display = 'block';
+            };
+            widgetImage.onerror = function() {
+                // Fallback to AI image
+                this.src = `/static/images/widgets/${widget.screenshot}`;
+                this.onload = function() {
+                    widgetScreenshotSection.style.display = 'block';
+                };
+            };
+
+            // Load page screenshot
+            pageImage.src = `/static/images/widget_screenshots/${baseName}_page.png`;
+            pageImage.onload = function() {
+                pageScreenshotSection.style.display = 'block';
+            };
+            pageImage.onerror = function() {
+                // No page screenshot, hide section
+                pageScreenshotSection.style.display = 'none';
+            };
         } else {
             previewPlaceholder.style.display = 'flex';
-            previewImage.style.display = 'none';
             previewIcon.style.background = `var(--gradient-${widget.color})`;
             previewIconClass.className = widget.icon;
         }

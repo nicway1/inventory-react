@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ widget.name }} - Widget Preview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --sf-white: #ffffff;
+            --sf-gray-50: #fafafa;
+            --sf-gray-100: #f5f5f5;
+            --sf-gray-200: #e5e5e5;
+            --sf-gray-300: #d4d4d4;
+            --sf-gray-400: #a3a3a3;
+            --sf-gray-500: #737373;
+            --sf-gray-600: #525252;
+            --sf-gray-700: #404040;
+            --sf-gray-800: #262626;
+            --sf-gray-900: #171717;
+            --sf-blue: #007AFF;
+            --sf-green: #34C759;
+            --sf-red: #FF3B30;
+            --sf-orange: #FF9500;
+            --sf-yellow: #FFCC00;
+            --sf-purple: #AF52DE;
+            --sf-pink: #FF2D55;
+            --sf-indigo: #5856D6;
+            --sf-teal: #5AC8FA;
+            --sf-cyan: #32ADE6;
+
+            /* Gradients */
+            --gradient-blue: linear-gradient(135deg, #007AFF, #5AC8FA);
+            --gradient-green: linear-gradient(135deg, #34C759, #30D158);
+            --gradient-red: linear-gradient(135deg, #FF3B30, #FF6961);
+            --gradient-orange: linear-gradient(135deg, #FF9500, #FFCC00);
+            --gradient-purple: linear-gradient(135deg, #AF52DE, #BF5AF2);
+            --gradient-pink: linear-gradient(135deg, #FF2D55, #FF375F);
+            --gradient-indigo: linear-gradient(135deg, #5856D6, #7B79E0);
+            --gradient-teal: linear-gradient(135deg, #5AC8FA, #64D2FF);
+            --gradient-cyan: linear-gradient(135deg, #32ADE6, #5AC8FA);
+            --gradient-gray: linear-gradient(135deg, #8E8E93, #AEAEB2);
+            --gradient-yellow: linear-gradient(135deg, #FFCC00, #FFD60A);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .preview-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--sf-gray-100);
+        }
+
+        .widget-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .widget-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--sf-gray-800);
+        }
+
+        .widget-body {
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        /* Widget specific styles */
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--sf-gray-900);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--sf-gray-500);
+            margin-top: 4px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .stat-item {
+            padding: 16px;
+            background: var(--sf-gray-50);
+            border-radius: 12px;
+        }
+
+        .stat-item-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--sf-gray-900);
+        }
+
+        .stat-item-label {
+            font-size: 12px;
+            color: var(--sf-gray-500);
+            margin-top: 2px;
+        }
+
+        /* Background color classes */
+        .bg-blue { background: var(--gradient-blue); }
+        .bg-green { background: var(--gradient-green); }
+        .bg-red { background: var(--gradient-red); }
+        .bg-orange { background: var(--gradient-orange); }
+        .bg-purple { background: var(--gradient-purple); }
+        .bg-pink { background: var(--gradient-pink); }
+        .bg-indigo { background: var(--gradient-indigo); }
+        .bg-teal { background: var(--gradient-teal); }
+        .bg-cyan { background: var(--gradient-cyan); }
+        .bg-gray { background: var(--gradient-gray); }
+        .bg-yellow { background: var(--gradient-yellow); }
+
+        /* List styles */
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--sf-gray-100);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .list-content {
+            flex: 1;
+        }
+
+        .list-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--sf-gray-800);
+        }
+
+        .list-subtitle {
+            font-size: 12px;
+            color: var(--sf-gray-500);
+        }
+
+        /* Action buttons */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: var(--sf-gray-50);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--sf-gray-700);
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--sf-gray-100);
+        }
+
+        .action-btn i {
+            font-size: 24px;
+            color: var(--sf-blue);
+        }
+
+        .action-btn span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <div class="widget-header">
+            <div class="widget-icon bg-{{ widget.color }}">
+                <i class="{{ widget.icon }}"></i>
+            </div>
+            <span class="widget-title">{{ widget.name }}</span>
+        </div>
+        <div class="widget-body">
+            {% include widget.template ignore missing %}
+        </div>
+    </div>
+
+    {% if 'chart' in widget.id %}
+    <script>
+        // Initialize any charts after page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Chart initialization would go here based on widget type
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

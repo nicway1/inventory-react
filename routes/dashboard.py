@@ -17,7 +17,7 @@ from models.audit_session import AuditSession
 from models.system_settings import SystemSettings
 from models.dashboard_widget import (
     WIDGET_REGISTRY, WidgetCategory, get_available_widgets_for_user,
-    get_default_layout_for_user, get_widget
+    get_default_layout_for_user, get_widget, get_all_widgets
 )
 from sqlalchemy import func, or_
 from datetime import datetime, timedelta
@@ -458,3 +458,90 @@ def reset_layout():
     except Exception as e:
         logger.error(f"Error resetting layout: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+
+@dashboard_bp.route('/widgets')
+@login_required
+def widget_showcase():
+    """Widget showcase - App Store style page for all widgets"""
+    user_id = session['user_id']
+
+    try:
+        with db_manager as db:
+            user = db.get_user(user_id)
+
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Get all widgets
+        all_widgets = get_all_widgets()
+
+        # Get widgets available to this user
+        available_widgets = get_available_widgets_for_user(user)
+        available_widget_ids = [w.id for w in available_widgets]
+
+        # Get user's current dashboard layout
+        layout = None
+        if user.preferences and 'dashboard_layout' in user.preferences:
+            layout = user.preferences['dashboard_layout']
+        if not layout:
+            layout = get_default_layout_for_user(user)
+
+        # Get IDs of widgets already on dashboard
+        dashboard_widget_ids = [item['widget_id'] for item in layout]
+
+        # Organize widgets by category
+        widgets_by_category = {}
+        for category in WidgetCategory:
+            widgets_by_category[category] = [
+                w for w in all_widgets if w.category == category
+            ]
+
+        # Category display info
+        category_info = {
+            WidgetCategory.STATS: {
+                'name': 'Statistics',
+                'description': 'Real-time metrics and KPIs at a glance',
+                'icon': 'fas fa-chart-bar',
+                'color': 'blue'
+            },
+            WidgetCategory.CHARTS: {
+                'name': 'Charts & Visualizations',
+                'description': 'Visual representations of your data',
+                'icon': 'fas fa-chart-pie',
+                'color': 'purple'
+            },
+            WidgetCategory.LISTS: {
+                'name': 'Lists & Tables',
+                'description': 'Detailed data views and activity feeds',
+                'icon': 'fas fa-list',
+                'color': 'green'
+            },
+            WidgetCategory.ACTIONS: {
+                'name': 'Quick Actions',
+                'description': 'Shortcuts and tools for common tasks',
+                'icon': 'fas fa-bolt',
+                'color': 'orange'
+            },
+            WidgetCategory.SYSTEM: {
+                'name': 'System & Admin',
+                'description': 'Administrative tools and settings',
+                'icon': 'fas fa-cog',
+                'color': 'red'
+            }
+        }
+
+        return render_template('dashboard/widget_showcase.html',
+            user=user,
+            all_widgets=all_widgets,
+            available_widget_ids=available_widget_ids,
+            dashboard_widget_ids=dashboard_widget_ids,
+            widgets_by_category=widgets_by_category,
+            category_info=category_info,
+            widget_categories=list(WidgetCategory)
+        )
+
+    except Exception as e:
+        logger.error(f"Error rendering widget showcase: {str(e)}", exc_info=True)
+        return redirect(url_for('dashboard.index'))

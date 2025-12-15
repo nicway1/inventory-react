@@ -7070,3 +7070,35 @@ def get_ticket_statuses():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+@admin_bp.route('/widget-preview/<widget_id>')
+@login_required
+def widget_preview(widget_id):
+    """
+    Render a single widget in isolation for screenshot capture.
+    Used by the automated screenshot tool.
+    """
+    from models.dashboard_widget import get_widget, WidgetCategory
+    from routes.dashboard import load_widget_data
+
+    widget = get_widget(widget_id)
+    if not widget:
+        return "Widget not found", 404
+
+    # Load widget data
+    widget_data = load_widget_data(widget_id, current_user)
+
+    # Category info for display
+    category_info = {
+        WidgetCategory.STATS: {'name': 'Statistics', 'icon': 'fas fa-chart-bar'},
+        WidgetCategory.CHARTS: {'name': 'Charts', 'icon': 'fas fa-chart-pie'},
+        WidgetCategory.LISTS: {'name': 'Lists', 'icon': 'fas fa-list'},
+        WidgetCategory.ACTIONS: {'name': 'Quick Actions', 'icon': 'fas fa-bolt'},
+        WidgetCategory.SYSTEM: {'name': 'System', 'icon': 'fas fa-cog'},
+    }
+
+    return render_template('admin/widget_preview.html',
+                         widget=widget,
+                         widget_data=widget_data,
+                         category_info=category_info)
