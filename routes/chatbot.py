@@ -38,6 +38,19 @@ ACTION_PATTERNS = {
         r"bug\s+report[:\s]+(.+)",
         r"(?:report|create|submit|log)\s+(?:a\s+)?(?:new\s+)?bug\s+(?:titled?|called|named)[:\s]+(.+)",
     ],
+    "user_permissions": [
+        r"(?:what|which)\s+permissions?\s+(?:does|do|has|have)\s+(.+?)(?:\s+have|\s+got)?(?:\?|$)",
+        r"(.+?)\s+(?:got|has|have)\s+(?:what|which)\s+permissions?",
+        r"(?:show|get|list|check)\s+(.+?)(?:'s|s)?\s+permissions?",
+        r"permissions?\s+(?:for|of)\s+(.+)",
+        r"(?:what|which)\s+(?:can|could)\s+(.+?)\s+(?:do|access)",
+        r"(.+?)\s+(?:can|could)\s+(?:do\s+)?what",
+    ],
+    "user_info": [
+        r"(?:who\s+is|tell\s+me\s+about|info\s+(?:on|about|for))\s+(.+)",
+        r"(?:show|get)\s+(?:user\s+)?(?:info|details|information)\s+(?:for|on|about)\s+(.+)",
+        r"(.+?)\s+(?:user\s+)?(?:info|details|type|role)",
+    ],
 }
 
 # Status aliases for natural language
@@ -168,6 +181,36 @@ def parse_action(query):
                 "severity": severity,
                 "original_query": query
             }
+
+    # Check for user permissions query
+    for pattern in ACTION_PATTERNS["user_permissions"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            username = match.group(1).strip()
+            # Clean up common words that might be captured
+            username = re.sub(r'\b(user|the|a|an)\b', '', username, flags=re.IGNORECASE).strip()
+            if username:
+                return {
+                    "type": "query",
+                    "action": "user_permissions",
+                    "username": username,
+                    "original_query": query
+                }
+
+    # Check for user info query
+    for pattern in ACTION_PATTERNS["user_info"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            username = match.group(1).strip()
+            # Clean up common words
+            username = re.sub(r'\b(user|the|a|an)\b', '', username, flags=re.IGNORECASE).strip()
+            if username:
+                return {
+                    "type": "query",
+                    "action": "user_info",
+                    "username": username,
+                    "original_query": query
+                }
 
     return None
 
@@ -684,6 +727,124 @@ def ask():
                     "bug_title": action["bug_title"],
                     "severity": action["severity"],
                     "answer": answer
+                })
+
+            elif action["action"] == "user_permissions":
+                # Query user permissions - no confirmation needed, return info directly
+                username = action["username"]
+                from sqlalchemy import or_
+                user = db_session.query(User).filter(
+                    or_(
+                        User.username.ilike(f"%{username}%"),
+                        User.name.ilike(f"%{username}%"),
+                        User.email.ilike(f"%{username}%")
+                    )
+                ).first()
+
+                if not user:
+                    answer = f"User '{username}' not found. Please check the name and try again."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Build permissions list
+                permissions_list = []
+                if user.permissions:
+                    perm = user.permissions
+                    perm_attrs = [
+                        ('can_view_tickets', 'View Tickets'),
+                        ('can_create_tickets', 'Create Tickets'),
+                        ('can_edit_tickets', 'Edit Tickets'),
+                        ('can_delete_tickets', 'Delete Tickets'),
+                        ('can_view_assets', 'View Assets'),
+                        ('can_create_assets', 'Create Assets'),
+                        ('can_edit_assets', 'Edit Assets'),
+                        ('can_delete_assets', 'Delete Assets'),
+                        ('can_export_data', 'Export Data'),
+                        ('can_import_data', 'Import Data'),
+                        ('can_manage_users', 'Manage Users'),
+                        ('can_view_reports', 'View Reports'),
+                        ('can_access_admin', 'Admin Access'),
+                        ('can_access_inventory_audit', 'Inventory Audit'),
+                        ('can_create_bugs', 'Create Bug Reports'),
+                        ('can_create_features', 'Create Feature Requests'),
+                    ]
+                    for attr, label in perm_attrs:
+                        if hasattr(perm, attr) and getattr(perm, attr):
+                            permissions_list.append(f"✅ {label}")
+
+                if not permissions_list:
+                    permissions_list.append("No specific permissions assigned")
+
+                # Get country permissions
+                country_perms = []
+                if hasattr(user, 'country_permissions') and user.country_permissions:
+                    for cp in user.country_permissions:
+                        country_perms.append(cp.country.value if hasattr(cp.country, 'value') else str(cp.country))
+
+                answer = f"**User: {user.name or user.username}**\n"
+                answer += f"**Username:** {user.username}\n"
+                answer += f"**Email:** {user.email}\n"
+                answer += f"**Type:** {user.user_type.value if user.user_type else 'N/A'}\n"
+                if country_perms:
+                    answer += f"**Countries:** {', '.join(country_perms)}\n"
+                answer += f"\n**Permissions:**\n" + "\n".join(permissions_list)
+
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "answer",
+                    "answer": answer,
+                    "user_url": f"/admin/users/{user.id}/edit"
+                })
+
+            elif action["action"] == "user_info":
+                # Query user info - similar to permissions but more basic
+                username = action["username"]
+                from sqlalchemy import or_
+                user = db_session.query(User).filter(
+                    or_(
+                        User.username.ilike(f"%{username}%"),
+                        User.name.ilike(f"%{username}%"),
+                        User.email.ilike(f"%{username}%")
+                    )
+                ).first()
+
+                if not user:
+                    answer = f"User '{username}' not found. Please check the name and try again."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Get country permissions
+                country_perms = []
+                if hasattr(user, 'country_permissions') and user.country_permissions:
+                    for cp in user.country_permissions:
+                        country_perms.append(cp.country.value if hasattr(cp.country, 'value') else str(cp.country))
+
+                answer = f"**User: {user.name or user.username}**\n\n"
+                answer += f"• **Username:** {user.username}\n"
+                answer += f"• **Email:** {user.email}\n"
+                answer += f"• **Type:** {user.user_type.value if user.user_type else 'N/A'}\n"
+                answer += f"• **Active:** {'Yes' if user.is_active else 'No'}\n"
+                if country_perms:
+                    answer += f"• **Countries:** {', '.join(country_perms)}\n"
+                if user.company:
+                    answer += f"• **Company:** {user.company.name}\n"
+                answer += f"\n[View/Edit User](/admin/users/{user.id}/edit)"
+
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "answer",
+                    "answer": answer,
+                    "user_url": f"/admin/users/{user.id}/edit"
                 })
 
         finally:
