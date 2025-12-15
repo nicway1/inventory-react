@@ -245,18 +245,14 @@ def view_inventory():
 
                 # Build OR conditions for flexible name matching
                 # Match by company_id OR customer name (with case-insensitive partial match)
-                # IMPORTANT: Also exclude assets with no company_id (unknown company)
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
                 tech_assets_query = tech_assets_query.filter(
-                    and_(
-                        Asset.company_id.isnot(None),  # Must have a company_id assigned
-                        or_(
-                            Asset.company_id.in_(permitted_company_ids),
-                            *name_conditions
-                        )
+                    or_(
+                        Asset.company_id.in_(permitted_company_ids),
+                        *name_conditions
                     )
                 )
-                logger.info(f"DEBUG: {user.user_type.value} filtering by {len(permitted_company_ids)} assigned companies + children: {all_company_names} (excluding unknown company)")
+                logger.info(f"DEBUG: {user.user_type.value} filtering by {len(permitted_company_ids)} assigned companies + children: {all_company_names}")
             else:
                 # No company permissions assigned - show NO assets
                 # This forces admin to explicitly assign companies through the UI
