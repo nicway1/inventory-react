@@ -212,19 +212,14 @@ def view_inventory():
             logger.info(f"DEBUG: Applying company filtering for {user.user_type.value} user")
             from models.user_company_permission import UserCompanyPermission
 
-            # Filter by country if assigned
-            if user.assigned_countries:
-                logger.info(f"DEBUG: Filtering by assigned countries: {user.assigned_countries}")
-                tech_assets_query = tech_assets_query.filter(Asset.country.in_(user.assigned_countries))
-
-            # ALWAYS filter by company permissions for COUNTRY_ADMIN/SUPERVISOR
+            # Get company permissions for COUNTRY_ADMIN/SUPERVISOR
             child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
                 user_id=user.id,
                 can_view=True
             ).all()
 
             if child_company_permissions:
-                # User has specific company permissions - filter by ONLY those companies
+                # User has specific company permissions
                 permitted_company_ids = [perm.company_id for perm in child_company_permissions]
                 logger.info(f"DEBUG: Filtering by company IDs: {permitted_company_ids}")
 
@@ -234,29 +229,39 @@ def view_inventory():
                 logger.info(f"DEBUG: Filtering by company names: {permitted_company_names}")
 
                 # Also include child companies of any parent company the user has permission to
-                # This enforces Asset Company Grouping for SUPERVISOR/COUNTRY_ADMIN
                 all_company_names = list(permitted_company_names)
                 for company in permitted_companies:
                     if company.is_parent_company or company.child_companies.count() > 0:
-                        # This is a parent company - include all child company names
                         child_names = [c.name.strip() for c in company.child_companies.all()]
                         all_company_names.extend(child_names)
                         logger.info(f"DEBUG: Including child companies of {company.name}: {child_names}")
 
-                # Build OR conditions for flexible name matching
+                # Build filter conditions
                 # Match by company_id OR customer name (with case-insensitive partial match)
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
-                tech_assets_query = tech_assets_query.filter(
-                    or_(
-                        Asset.company_id.in_(permitted_company_ids),
-                        *name_conditions
-                    )
+                company_filter = or_(
+                    Asset.company_id.in_(permitted_company_ids),
+                    *name_conditions
                 )
+
+                # If user has assigned countries, use OR logic (company OR country)
+                # This allows supervisors to see assets from their companies regardless of country
+                if user.assigned_countries:
+                    logger.info(f"DEBUG: User has countries {user.assigned_countries} - using OR logic with companies")
+                    tech_assets_query = tech_assets_query.filter(
+                        or_(
+                            company_filter,
+                            Asset.country.in_(user.assigned_countries)
+                        )
+                    )
+                else:
+                    # No countries assigned, just filter by company
+                    tech_assets_query = tech_assets_query.filter(company_filter)
+
                 logger.info(f"DEBUG: {user.user_type.value} filtering by {len(permitted_company_ids)} assigned companies + children: {all_company_names}")
             else:
                 # No company permissions assigned - show NO assets
-                # This forces admin to explicitly assign companies through the UI
-                tech_assets_query = tech_assets_query.filter(Asset.id == -1)  # Impossible condition = no results
+                tech_assets_query = tech_assets_query.filter(Asset.id == -1)
                 logger.info(f"DEBUG: {user.user_type.value} has NO company permissions - showing 0 assets")
 
         # Filter by company if user is a client (can only see their company's assets)
@@ -1590,11 +1595,7 @@ def view_tech_assets():
         if user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR:
             from models.user_company_permission import UserCompanyPermission
 
-            # Filter by country if assigned
-            if user.assigned_countries:
-                assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
-
-            # ALWAYS filter by company permissions
+            # Get company permissions
             company_permissions = db_session.query(UserCompanyPermission).filter_by(
                 user_id=user.id,
                 can_view=True
@@ -1612,14 +1613,23 @@ def view_tech_assets():
                         child_names = [c.name.strip() for c in company.child_companies.all()]
                         all_company_names.extend(child_names)
 
-                # Filter by company_id OR customer name
+                # Build company filter
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
-                assets_query = assets_query.filter(
-                    or_(
-                        Asset.company_id.in_(permitted_company_ids),
-                        *name_conditions
-                    )
+                company_filter = or_(
+                    Asset.company_id.in_(permitted_company_ids),
+                    *name_conditions
                 )
+
+                # If user has assigned countries, use OR logic (company OR country)
+                if user.assigned_countries:
+                    assets_query = assets_query.filter(
+                        or_(
+                            company_filter,
+                            Asset.country.in_(user.assigned_countries)
+                        )
+                    )
+                else:
+                    assets_query = assets_query.filter(company_filter)
             else:
                 # No company permissions - show NO assets
                 assets_query = assets_query.filter(Asset.id == -1)
