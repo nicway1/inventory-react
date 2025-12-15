@@ -4330,8 +4330,9 @@ def search():
 @inventory_bp.route('/export/<string:item_type>', methods=['GET', 'POST'])
 @login_required
 def export_inventory(item_type):
-    # Ensure user has permission to export data - only SUPER_ADMIN and DEVELOPER can export
-    if not (current_user.is_super_admin or current_user.is_developer):
+    # Ensure user has permission to export data - allow admins and supervisors
+    allowed_types = [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]
+    if current_user.user_type not in allowed_types:
         flash('You do not have permission to export data', 'error')
         return redirect(url_for('inventory.view_inventory'))
 
@@ -4355,10 +4356,60 @@ def export_inventory(item_type):
                     flash('Invalid selection data', 'error')
                     return redirect(url_for('inventory.view_inventory'))
 
-            # Apply user permission filters
-            if not current_user.is_super_admin:
-                if current_user.is_country_admin and current_user.assigned_countries:
-                    query = query.filter(Asset.country == current_user.assigned_country)
+            # Apply user permission filters based on user type
+            if current_user.is_super_admin or current_user.is_developer:
+                # Super admins and developers can export all assets
+                pass
+            elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                # Filter by company permissions for COUNTRY_ADMIN and SUPERVISOR
+                from models.user_company_permission import UserCompanyPermission
+                from models.company_customer_permission import CompanyCustomerPermission
+                from models.customer_user import CustomerUser
+                from models.company import Company
+
+                user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=current_user.id,
+                    can_view=True
+                ).all()
+
+                if user_company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+
+                    # Include child companies of any parent companies
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    all_permitted_ids = list(permitted_company_ids)
+
+                    for company in permitted_companies:
+                        if company.is_parent_company or company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            all_permitted_ids.extend(child_ids)
+
+                    # Include cross-company permissions
+                    cross_company_ids = []
+                    for company_id in all_permitted_ids:
+                        additional_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                            .filter(
+                                CompanyCustomerPermission.company_id == company_id,
+                                CompanyCustomerPermission.can_view == True
+                            ).all()
+                        cross_company_ids.extend([cid[0] for cid in additional_ids])
+
+                    permitted_company_ids = list(set(all_permitted_ids + cross_company_ids))
+
+                    # Get customer_user IDs from permitted companies
+                    permitted_customer_ids = db_session.query(CustomerUser.id).filter(
+                        CustomerUser.company_id.in_(permitted_company_ids)
+                    ).subquery()
+
+                    query = query.filter(
+                        or_(
+                            Asset.company_id.in_(permitted_company_ids),
+                            Asset.customer_id.in_(permitted_customer_ids)
+                        )
+                    )
+                else:
+                    # No permissions - export nothing
+                    query = query.filter(Asset.id == -1)
 
             # Apply filters from query parameters (from inventory view)
             status_filter = request.args.get('status')
