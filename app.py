@@ -36,8 +36,7 @@ from utils.store_instances import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from models.base import Base
-from models.company import Company
-from models.user import User, UserType, Country
+from models.user import Country
 from models.permission import Permission
 from utils.db_manager import DatabaseManager
 from utils.email_sender import mail
@@ -50,7 +49,6 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from database import init_db, engine, SessionLocal
 from werkzeug.security import generate_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
-from utils.auth import safe_generate_password_hash
 from sqlalchemy.orm import joinedload
 from flask_migrate import Migrate
 from routes.intake import intake_bp
@@ -319,40 +317,6 @@ if __name__ == '__main__':
     with app.app_context():
         logger.info("Initializing database...")
         init_db()
-        
-        # Create default company if it doesn't exist
-        db = SessionLocal()
-        try:
-            default_company = db.query(Company).filter_by(name="LunaComputer").first()
-            if not default_company:
-                logger.info("\nCreating default company...")
-                default_company = Company(
-                    name="LunaComputer",
-                    address="Default Address"
-                )
-                db.add(default_company)
-                db.commit()
-                logger.info("Default company created")
-            
-            # Create default admin user if it doesn't exist
-            logger.info("\nChecking for admin user...")
-            admin_user = db.query(User).filter_by(username='admin').first()
-            if not admin_user:
-                logger.info("Creating admin user...")
-                admin_user = User(
-                    username='admin',
-                    password_hash=safe_generate_password_hash('admin123'),
-                    email='admin@lunacomputer.com',
-                    user_type=UserType.SUPER_ADMIN,
-                    company_id=default_company.id
-                )
-                db.add(admin_user)
-                db.commit()
-                logger.info("Admin user created successfully: {admin_user.username}")
-            else:
-                logger.info("Admin user already exists: {admin_user.username}")
-        finally:
-            db.close()
 
     # Try different ports if 5001 is in use
     port = 5009

@@ -505,8 +505,8 @@ def save_user_companies(user_id):
 @admin_bp.route('/api/users/<int:user_id>/queues', methods=['POST'])
 @admin_required
 def save_user_queues(user_id):
-    """API endpoint to save user's queue permissions"""
-    from models.company_queue_permission import CompanyQueuePermission
+    """API endpoint to save user's queue permissions (per-user, not per-company)"""
+    from models.user_queue_permission import UserQueuePermission
 
     db_session = db_manager.get_session()
     try:
@@ -514,19 +514,16 @@ def save_user_queues(user_id):
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 404
 
-        if not user.company_id:
-            return jsonify({'success': False, 'error': 'User has no primary company for queue assignment'}), 400
-
         data = request.get_json()
         queue_ids = data.get('queue_ids', [])
 
-        # Delete existing queue permissions for this user's company
-        db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).delete()
+        # Delete existing queue permissions for this user (not the whole company!)
+        db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
 
-        # Create new queue permissions
+        # Create new queue permissions for this user
         for queue_id in queue_ids:
-            permission = CompanyQueuePermission(
-                company_id=user.company_id,
+            permission = UserQueuePermission(
+                user_id=user.id,
                 queue_id=int(queue_id),
                 can_view=True,
                 can_create=True
@@ -613,7 +610,7 @@ def create_user():
     """Create a new user"""
     from models.user import User, UserType, Country
     from models.queue import Queue
-    from models.company_queue_permission import CompanyQueuePermission
+    from models.user_queue_permission import UserQueuePermission
     from models.user_company_permission import UserCompanyPermission
     from models.user_mention_permission import UserMentionPermission
     from models.group import Group
@@ -741,11 +738,11 @@ def create_user():
                             db_session.add(company_permission)
                             logger.info(f"DEBUG: Added permission for CHILD company {child_company_id}")
 
-                # Create queue permissions for Country Admin/Supervisor
-                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and queue_ids and country_admin_company:
+                # Create queue permissions for Country Admin/Supervisor (per-user, not per-company)
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and queue_ids:
                     for queue_id in queue_ids:
-                        permission = CompanyQueuePermission(
-                            company_id=country_admin_company,
+                        permission = UserQueuePermission(
+                            user_id=user.id,
                             queue_id=int(queue_id),
                             can_view=True,
                             can_create=True
@@ -802,6 +799,7 @@ def edit_user(user_id):
     """Edit an existing user"""
     from models.queue import Queue
     from models.company_queue_permission import CompanyQueuePermission
+    from models.user_queue_permission import UserQueuePermission
     from models.user_company_permission import UserCompanyPermission
     from models.user_mention_permission import UserMentionPermission
     from models.group import Group
@@ -850,10 +848,9 @@ def edit_user(user_id):
                 else:
                     existing_child_companies.append(str(perm.company_id))
 
-        # Get queue permissions via company
-        if user.company_id:
-            queue_permissions = db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).all()
-            existing_queues = [str(perm.queue_id) for perm in queue_permissions]
+        # Get queue permissions for user (per-user, not per-company)
+        user_queue_perms = db_session.query(UserQueuePermission).filter_by(user_id=user.id).all()
+        existing_queues = [str(perm.queue_id) for perm in user_queue_perms]
 
     # Get all users and groups for mention control panel
     all_users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
@@ -892,13 +889,12 @@ def edit_user(user_id):
             user.email = email
             user.user_type = UserType[user_type]
 
-            # Handle company assignment
-            if user_type == 'CLIENT':
-                user.company_id = company_id if company_id else None
-            elif user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
-                # Set first parent company as the primary company for COUNTRY_ADMIN/SUPERVISOR
-                # (for backwards compatibility, but permissions will work with all selected parents)
-                user.company_id = int(parent_company_ids[0]) if parent_company_ids else None
+            # Handle company assignment - use company_id dropdown for all user types
+            if company_id:
+                user.company_id = int(company_id)
+            elif user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and parent_company_ids:
+                # Fallback: if no company selected but parent companies exist, use first parent
+                user.company_id = int(parent_company_ids[0])
             else:
                 user.company_id = None
 
@@ -987,20 +983,20 @@ def edit_user(user_id):
                 if not parent_company_ids and not child_company_ids:
                     logger.info(f"DEBUG: No company IDs provided - user will see NO assets (must assign companies)")
 
-                # Update queue permissions
-                # Delete existing queue permissions for this company
-                if user.company_id:
-                    db_session.query(CompanyQueuePermission).filter_by(company_id=user.company_id).delete()
-                    # Add new queue permissions
-                    if queue_ids:
-                        for queue_id in queue_ids:
-                            permission = CompanyQueuePermission(
-                                company_id=user.company_id,
-                                queue_id=int(queue_id),
-                                can_view=True,
-                                can_create=True
-                            )
-                            db_session.add(permission)
+                # Update queue permissions (per-user, not per-company)
+                # Delete existing queue permissions for this user
+                db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
+                # Add new queue permissions
+                if queue_ids:
+                    for queue_id in queue_ids:
+                        permission = UserQueuePermission(
+                            user_id=user.id,
+                            queue_id=int(queue_id),
+                            can_view=True,
+                            can_create=True
+                        )
+                        db_session.add(permission)
+                logger.info(f"DEBUG: Updated queue permissions for user {user.id}: {queue_ids}")
 
                 # Update mention permissions
                 user.mention_filter_enabled = mention_filter_enabled
@@ -1028,6 +1024,7 @@ def edit_user(user_id):
                 from models.user_country_permission import UserCountryPermission
                 db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
+                db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
                 # Also clean up mention permissions
                 user.mention_filter_enabled = False
                 db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
