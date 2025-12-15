@@ -692,7 +692,7 @@
                             </div>
                             <span class="quick-action-text">My Assigned Tickets</span>
                         </a>
-                        <a href="{{ url_for('inventory.view_inventory_sf') }}" class="quick-action">
+                        <a href="{% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}{{ url_for('inventory.view_inventory_sf') }}{% else %}{{ url_for('inventory.view_inventory') }}{% endif %}" class="quick-action">
                             <div class="quick-action-icon" style="background: var(--sf-purple);">
                                 <i class="fas fa-boxes"></i>
                             </div>
