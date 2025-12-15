@@ -185,12 +185,6 @@ class User(Base, UserMixin):
 
         session = Session(engine)
         try:
-            # SUPERVISOR users can always create tickets in "FirstBase New Orders" queue since they can import tickets into it
-            if self.user_type == UserType.SUPERVISOR:
-                queue = session.query(Queue).filter_by(id=queue_id).first()
-                if queue and queue.name == 'FirstBase New Orders':
-                    return True
-
             # Check if there are specific permissions for this user and queue
             permission = session.query(UserQueuePermission).filter_by(
                 user_id=self.id, queue_id=queue_id).first()
