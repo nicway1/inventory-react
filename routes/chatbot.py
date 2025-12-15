@@ -32,6 +32,12 @@ ACTION_PATTERNS = {
         r"assign\s+ticket\s+#?(\d+)\s+to\s+(.+)",
         r"(?:give|transfer)\s+ticket\s+#?(\d+)\s+to\s+(.+)",
     ],
+    "report_bug": [
+        r"(?:report|create|submit|log)\s+(?:a\s+)?bug[:\s]+(.+)",
+        r"(?:found|there'?s?|i\s+found)\s+(?:a\s+)?bug[:\s]+(.+)",
+        r"bug\s+report[:\s]+(.+)",
+        r"(?:report|create|submit|log)\s+(?:a\s+)?(?:new\s+)?bug\s+(?:titled?|called|named)[:\s]+(.+)",
+    ],
 }
 
 # Status aliases for natural language
@@ -66,6 +72,19 @@ PRIORITY_ALIASES = {
     "high": "HIGH",
     "critical": "CRITICAL",
     "urgent": "CRITICAL",
+}
+
+# Bug severity aliases
+BUG_SEVERITY_ALIASES = {
+    "low": "Low",
+    "minor": "Low",
+    "medium": "Medium",
+    "normal": "Medium",
+    "high": "High",
+    "major": "High",
+    "critical": "Critical",
+    "severe": "Critical",
+    "blocker": "Critical",
 }
 
 
@@ -123,6 +142,30 @@ def parse_action(query):
                 "action": "assign_ticket",
                 "ticket_id": int(ticket_id),
                 "assignee": assignee,
+                "original_query": query
+            }
+
+    # Check for bug report
+    for pattern in ACTION_PATTERNS["report_bug"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            bug_title = match.group(1).strip()
+            # Clean up the title - remove trailing punctuation
+            bug_title = bug_title.rstrip('.,!?')
+
+            # Extract severity if mentioned (e.g., "critical bug: title" or "bug title (high)")
+            severity = "Medium"  # Default
+            severity_match = re.search(r'\b(low|minor|medium|normal|high|major|critical|severe|blocker)\b', query_lower)
+            if severity_match:
+                severity = BUG_SEVERITY_ALIASES.get(severity_match.group(1), "Medium")
+                # Remove severity from title if it was included
+                bug_title = re.sub(r'\s*\b(low|minor|medium|normal|high|major|critical|severe|blocker)\b\s*', ' ', bug_title, flags=re.IGNORECASE).strip()
+
+            return {
+                "type": "action",
+                "action": "report_bug",
+                "bug_title": bug_title.capitalize() if bug_title else "Untitled Bug",
+                "severity": severity,
                 "original_query": query
             }
 
@@ -372,11 +415,11 @@ KNOWLEDGE_BASE = [
         "permission": "can_create_features"
     },
     {
-        "keywords": ["bug report", "report bug", "found bug", "issue", "problem"],
+        "keywords": ["bug report", "report bug", "found bug", "issue", "problem", "log bug"],
         "question": "How do I report a bug?",
-        "answer": "To report a bug:\n\n1. Go to **Development → Bugs** (`/development/bugs`)\n2. Click **+ Report Bug**\n3. Describe the issue with steps to reproduce\n4. Set severity and attach screenshots\n5. Submit the report\n\nRequires `can_create_bugs` permission.",
+        "answer": "You can report a bug in two ways:\n\n**Quick Method (via Chatbot):**\nJust type: `report bug: your bug description`\nExample: `report bug: Login page not loading`\nYou can also include severity: `report critical bug: system crash`\n\n**Manual Method:**\n1. Go to **Development → Bugs** (`/development/bugs`)\n2. Click **+ Report Bug**\n3. Describe the issue with steps to reproduce\n4. Set severity and attach screenshots\n5. Submit the report",
         "url": "/development/bugs",
-        "permission": "can_create_bugs"
+        "permission": None
     },
 
     # Customer Users
@@ -630,6 +673,19 @@ def ask():
                     "answer": answer
                 })
 
+            elif action["action"] == "report_bug":
+                # Bug report doesn't need to lookup anything, just confirm with user
+                answer = f"Do you want to create a bug report?\n\n**Title:** {action['bug_title']}\n**Severity:** {action['severity']}\n\nYou can add more details after creation."
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "bug_title": action["bug_title"],
+                    "severity": action["severity"],
+                    "answer": answer
+                })
+
         finally:
             db_session.close()
 
@@ -677,13 +733,51 @@ def execute_action():
     """Execute a confirmed action"""
     data = request.get_json()
     action = data.get('action')
-    ticket_id = data.get('ticket_id')
 
-    if not action or not ticket_id:
-        return jsonify({"success": False, "error": "Missing action or ticket_id"})
+    if not action:
+        return jsonify({"success": False, "error": "Missing action"})
 
     db_session = SessionLocal()
     try:
+        # Handle bug report action (doesn't need ticket_id)
+        if action == "report_bug":
+            from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority
+
+            bug_title = data.get('bug_title')
+            bug_description = data.get('bug_description', '')
+            severity = data.get('severity', 'Medium')
+
+            if not bug_title:
+                return jsonify({"success": False, "error": "Missing bug title"})
+
+            # Create the bug report
+            try:
+                bug = BugReport(
+                    title=bug_title,
+                    description=bug_description or f"Bug reported via chatbot: {bug_title}",
+                    severity=BugSeverity(severity),
+                    priority=BugPriority("Medium"),
+                    reporter_id=current_user.id,
+                    component="Chatbot Report"
+                )
+                db_session.add(bug)
+                db_session.commit()
+
+                return jsonify({
+                    "success": True,
+                    "message": f"Bug report {bug.display_id} created successfully!",
+                    "bug_url": f"/development/bugs/{bug.id}",
+                    "bug_id": bug.display_id
+                })
+            except Exception as e:
+                db_session.rollback()
+                return jsonify({"success": False, "error": f"Failed to create bug report: {str(e)}"})
+
+        # For ticket-related actions, require ticket_id
+        ticket_id = data.get('ticket_id')
+        if not ticket_id:
+            return jsonify({"success": False, "error": "Missing ticket_id"})
+
         ticket = db_session.query(Ticket).filter_by(id=ticket_id).first()
         if not ticket:
             return jsonify({"success": False, "error": f"Ticket #{ticket_id} not found"})
