@@ -39,37 +39,59 @@
                     <p class="text-sm text-gray-600">Add email notifications for when tickets are added to specific queues</p>
                 </div>
             </div>
-            
-            <form method="POST" action="{{ url_for('admin.update_queue_notification') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+
+            <form method="POST" action="{{ url_for('admin.update_queue_notification') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="notify_on_create" value="on">
                 <input type="hidden" name="notify_on_move" value="on">
                 <input type="hidden" name="is_active" value="on">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Queue</label>
-                    <select name="queue_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">-- Select Queue --</option>
-                        {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                        {% endfor %}
-                    </select>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Queue</label>
+                        <select name="queue_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Queue --</option>
+                            {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Users</label>
+                        <div class="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
+                            <div class="mb-2">
+                                <input type="text"
+                                       id="notification_user_search"
+                                       placeholder="Search users..."
+                                       class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                       oninput="filterNotificationUsers()">
+                            </div>
+                            <div class="flex justify-between mb-2 text-xs">
+                                <button type="button" onclick="selectAllNotificationUsers()" class="text-blue-600 hover:text-blue-800">Select All</button>
+                                <button type="button" onclick="clearAllNotificationUsers()" class="text-red-600 hover:text-red-800">Clear All</button>
+                            </div>
+                            {% for user in users %}
+                            <div class="flex items-center mb-2 notification-user-item">
+                                <input type="checkbox"
+                                       id="notif_user_{{ user.id }}"
+                                       name="user_ids"
+                                       value="{{ user.id }}"
+                                       class="notification-user-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="notif_user_{{ user.id }}" class="ml-2 text-sm text-gray-700">
+                                    {{ user.username }} <span class="text-gray-400">({{ user.email }})</span>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Select one or more users to receive notifications</p>
+                    </div>
                 </div>
-                
+
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Select User</label>
-                    <select name="user_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">-- Select User --</option>
-                        {% for user in users %}
-                            <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div>
-                    <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <i class="fas fa-plus mr-2"></i>
-                        Add Notification
+                        Add Notifications
                     </button>
                 </div>
             </form>
@@ -362,5 +384,41 @@ document.getElementById('editModal').addEventListener('click', function(e) {
         closeEditModal();
     }
 });
+
+// Filter notification users by search
+function filterNotificationUsers() {
+    const searchInput = document.getElementById('notification_user_search');
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const items = document.querySelectorAll('.notification-user-item');
+
+    items.forEach(function(item) {
+        const label = item.querySelector('label');
+        const text = label ? label.textContent.toLowerCase() : '';
+        if (searchTerm === '' || text.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Select all notification users
+function selectAllNotificationUsers() {
+    const checkboxes = document.querySelectorAll('.notification-user-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        const item = checkbox.closest('.notification-user-item');
+        if (item && item.style.display !== 'none') {
+            checkbox.checked = true;
+        }
+    });
+}
+
+// Clear all notification users
+function clearAllNotificationUsers() {
+    const checkboxes = document.querySelectorAll('.notification-user-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = false;
+    });
+}
 </script>
 {% endblock %}

@@ -2736,6 +2736,16 @@ def view_ticket(ticket_id):
                 all_users = sorted(all_users_set.values(), key=lambda x: x.username)
             else:
                 all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
+
+            # Apply visibility permissions filter if any are set
+            from models.user_visibility_permission import UserVisibilityPermission
+            visibility_perms = db_session.query(UserVisibilityPermission.visible_user_id).filter(
+                UserVisibilityPermission.user_id == current_user.id
+            ).all()
+            if visibility_perms:
+                # If visibility permissions are set, filter users to only show visible ones
+                allowed_visible_ids = {p[0] for p in visibility_perms}
+                all_users = [u for u in all_users if u.id in allowed_visible_ids]
         else:
             # Regular users can see all users (except deleted)
             all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
@@ -2758,6 +2768,16 @@ def view_ticket(ticket_id):
         
         # Get all queues
         queues = db_session.query(Queue).all()
+
+        # Get accessible queue IDs for SUPERVISOR/COUNTRY_ADMIN users
+        accessible_queue_ids = []
+        if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+            from models.user_queue_permission import UserQueuePermission
+            queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == current_user.id,
+                UserQueuePermission.can_view == True
+            ).all()
+            accessible_queue_ids = [q[0] for q in queue_permissions]
 
         # Get custom ticket statuses
         from models.custom_ticket_status import CustomTicketStatus
@@ -2864,7 +2884,8 @@ def view_ticket(ticket_id):
             model_product_map=model_product_map,
             model_type_map=model_type_map,
             custom_statuses=custom_statuses_list,
-            out_of_stock_accessories=out_of_stock_accessories
+            out_of_stock_accessories=out_of_stock_accessories,
+            accessible_queue_ids=accessible_queue_ids
         )
         
     except Exception as e:

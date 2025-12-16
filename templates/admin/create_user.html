@@ -247,6 +247,56 @@
                     </div>
                 </div>
 
+                <!-- User Visibility Control Panel (for Country Admin and Supervisor) - Controls who they can see in Change Case Owner dropdown -->
+                <div id="visibilityControlPanel" style="display: none;">
+                    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-700">User Visibility Control</h3>
+                            <p class="text-sm text-gray-500">Select which users this person can see in "Change Case Owner" and similar dropdowns. If none selected, all users will be visible.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <!-- Users Selection -->
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Visible Users</label>
+                                    <div class="space-x-2">
+                                        <button type="button" onclick="selectAllVisibilityUsers()" class="text-xs text-blue-600 hover:text-blue-800">
+                                            Select All
+                                        </button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" onclick="clearAllVisibilityUsers()" class="text-xs text-red-600 hover:text-red-800">
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="text"
+                                       id="visibility_user_search"
+                                       placeholder="Search users..."
+                                       class="mb-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                       oninput="filterCheckboxList('visibility_user_search', 'visibility-user-item')">
+                                <div class="border border-gray-300 rounded-md p-3 max-h-64 overflow-y-auto bg-white">
+                                    {% for visibility_user in all_users %}
+                                    <div class="flex items-center mb-2 hover:bg-gray-50 p-1 rounded visibility-user-item">
+                                        <input type="checkbox"
+                                               id="visibility_user_{{ visibility_user.id }}"
+                                               name="visibility_user_ids"
+                                               value="{{ visibility_user.id }}"
+                                               class="visibility-user-checkbox h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                                        <label for="visibility_user_{{ visibility_user.id }}" class="ml-2 text-sm text-gray-700 flex items-center">
+                                            <span class="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs mr-2">{{ visibility_user.username[0]|upper }}</span>
+                                            {{ visibility_user.username }}
+                                            <span class="text-gray-400 ml-2 text-xs">({{ visibility_user.user_type.value if visibility_user.user_type else 'USER' }})</span>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Select users this person can see when transferring tickets</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="pt-4">
                     <button type="submit" 
                             class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -323,6 +373,22 @@ function deselectAllMentionGroups() {
     });
 }
 
+// Select all visibility users
+function selectAllVisibilityUsers() {
+    const checkboxes = document.querySelectorAll('.visibility-user-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = true;
+    });
+}
+
+// Clear all visibility users
+function clearAllVisibilityUsers() {
+    const checkboxes = document.querySelectorAll('.visibility-user-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = false;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const userTypeSelect = document.getElementById('user_type');
     const countrySelect = document.getElementById('countrySelect');
@@ -333,6 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const childCompanyList = document.getElementById('childCompanyList');
     const queueSelect = document.getElementById('queueSelect');
     const mentionControlPanel = document.getElementById('mentionControlPanel');
+    const visibilityControlPanel = document.getElementById('visibilityControlPanel');
 
     userTypeSelect.addEventListener('change', function() {
         // Handle country select visibility for COUNTRY_ADMIN and SUPERVISOR
@@ -341,12 +408,14 @@ document.addEventListener('DOMContentLoaded', function() {
             countryAdminCompanySelect.style.display = 'block';
             queueSelect.style.display = 'block';
             mentionControlPanel.style.display = 'block';
+            visibilityControlPanel.style.display = 'block';
         } else {
             countrySelect.style.display = 'none';
             countryAdminCompanySelect.style.display = 'none';
             childCompanySelect.style.display = 'none';
             queueSelect.style.display = 'none';
             mentionControlPanel.style.display = 'none';
+            visibilityControlPanel.style.display = 'none';
         }
 
         // Handle company requirement

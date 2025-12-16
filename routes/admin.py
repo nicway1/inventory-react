@@ -649,6 +649,8 @@ def create_user():
             mention_filter_enabled = request.form.get('mention_filter_enabled') == '1'
             mention_user_ids = request.form.getlist('mention_user_ids')
             mention_group_ids = request.form.getlist('mention_group_ids')
+            # Visibility settings (for Change Case Owner dropdown)
+            visibility_user_ids = request.form.getlist('visibility_user_ids')
 
             # Check if user with this username already exists (including soft-deleted)
             existing_username = db_session.query(User).filter_by(username=username).first()
@@ -780,6 +782,16 @@ def create_user():
                         )
                         db_session.add(mention_perm)
 
+                # Create visibility permissions for Country Admin/Supervisor
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and visibility_user_ids:
+                    from models.user_visibility_permission import UserVisibilityPermission
+                    for visible_uid in visibility_user_ids:
+                        visibility_perm = UserVisibilityPermission(
+                            user_id=user.id,
+                            visible_user_id=int(visible_uid)
+                        )
+                        db_session.add(visibility_perm)
+
                 db_session.commit()
 
                 # Send welcome email
@@ -814,6 +826,7 @@ def edit_user(user_id):
     from models.user_queue_permission import UserQueuePermission
     from models.user_company_permission import UserCompanyPermission
     from models.user_mention_permission import UserMentionPermission
+    from models.user_visibility_permission import UserVisibilityPermission
     from models.group import Group
 
     logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
@@ -878,6 +891,12 @@ def edit_user(user_id):
         elif perm.target_type == 'group':
             allowed_mention_groups.append(perm.target_id)
 
+    # Get existing visibility permissions (which users can this user see in dropdowns)
+    allowed_visible_users = []
+    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        visibility_permissions = db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).all()
+        allowed_visible_users = [perm.visible_user_id for perm in visibility_permissions]
+
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -891,6 +910,7 @@ def edit_user(user_id):
         mention_filter_enabled = request.form.get('mention_filter_enabled') == '1'
         mention_user_ids = request.form.getlist('mention_user_ids')
         mention_group_ids = request.form.getlist('mention_group_ids')
+        visibility_user_ids = request.form.getlist('visibility_user_ids')
 
         logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, parent_company_ids={parent_company_ids}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
@@ -1031,12 +1051,24 @@ def edit_user(user_id):
                         )
                         db_session.add(mention_perm)
                 logger.info(f"DEBUG: Updated mention permissions for user {user.id}: filter_enabled={mention_filter_enabled}, users={len(mention_user_ids)}, groups={len(mention_group_ids)}")
+
+                # Update visibility permissions (which users can this user see in dropdowns like Change Case Owner)
+                db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
+                if visibility_user_ids:
+                    for visible_uid in visibility_user_ids:
+                        visibility_perm = UserVisibilityPermission(
+                            user_id=user.id,
+                            visible_user_id=int(visible_uid)
+                        )
+                        db_session.add(visibility_perm)
+                logger.info(f"DEBUG: Updated visibility permissions for user {user.id}: {len(visibility_user_ids)} users")
             else:
                 # Clean up permissions if changing from COUNTRY_ADMIN/SUPERVISOR to another type
                 from models.user_country_permission import UserCountryPermission
                 db_session.query(UserCountryPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
+                db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
                 # Also clean up mention permissions
                 user.mention_filter_enabled = False
                 db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
@@ -1063,7 +1095,8 @@ def edit_user(user_id):
                          existing_countries=existing_countries,
                          all_users=all_users, all_groups=all_groups,
                          allowed_mention_users=allowed_mention_users,
-                         allowed_mention_groups=allowed_mention_groups)
+                         allowed_mention_groups=allowed_mention_groups,
+                         allowed_visible_users=allowed_visible_users)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
@@ -1781,54 +1814,78 @@ def manage_queue_notifications():
 @admin_bp.route('/queue-notifications/update', methods=['POST'])
 @admin_required
 def update_queue_notification():
-    """Update or create a queue notification subscription"""
+    """Update or create queue notification subscriptions (supports multiple users)"""
     from models.queue_notification import QueueNotification
     from datetime import datetime
-    
+
     try:
-        user_id = int(request.form.get('user_id'))
         queue_id = int(request.form.get('queue_id'))
         notify_on_create = request.form.get('notify_on_create') == 'on'
         notify_on_move = request.form.get('notify_on_move') == 'on'
         is_active = request.form.get('is_active') == 'on'
-        
+
+        # Support both single user_id (for edit modal) and multiple user_ids (for add form)
+        user_ids = request.form.getlist('user_ids')
+        single_user_id = request.form.get('user_id')
+
+        if single_user_id and not user_ids:
+            # Single user from edit modal
+            user_ids = [single_user_id]
+
+        if not user_ids:
+            flash('Please select at least one user', 'error')
+            return redirect(url_for('admin.manage_queue_notifications'))
+
         db_session = db_manager.get_session()
         try:
-            # Check if notification already exists
-            notification = db_session.query(QueueNotification).filter_by(
-                user_id=user_id, queue_id=queue_id).first()
-            
-            if notification:
-                # Update existing notification
-                notification.notify_on_create = notify_on_create
-                notification.notify_on_move = notify_on_move
-                notification.is_active = is_active
-                notification.updated_at = datetime.utcnow()
-                action = "updated"
-            else:
-                # Create new notification
-                notification = QueueNotification(
-                    user_id=user_id,
-                    queue_id=queue_id,
-                    notify_on_create=notify_on_create,
-                    notify_on_move=notify_on_move,
-                    is_active=is_active
-                )
-                db_session.add(notification)
-                action = "created"
-            
+            created_count = 0
+            updated_count = 0
+
+            for user_id in user_ids:
+                user_id = int(user_id)
+
+                # Check if notification already exists
+                notification = db_session.query(QueueNotification).filter_by(
+                    user_id=user_id, queue_id=queue_id).first()
+
+                if notification:
+                    # Update existing notification
+                    notification.notify_on_create = notify_on_create
+                    notification.notify_on_move = notify_on_move
+                    notification.is_active = is_active
+                    notification.updated_at = datetime.utcnow()
+                    updated_count += 1
+                else:
+                    # Create new notification
+                    notification = QueueNotification(
+                        user_id=user_id,
+                        queue_id=queue_id,
+                        notify_on_create=notify_on_create,
+                        notify_on_move=notify_on_move,
+                        is_active=is_active
+                    )
+                    db_session.add(notification)
+                    created_count += 1
+
             db_session.commit()
-            flash(f'Queue notification {action} successfully', 'success')
-            
+
+            # Build success message
+            messages = []
+            if created_count > 0:
+                messages.append(f'{created_count} notification(s) created')
+            if updated_count > 0:
+                messages.append(f'{updated_count} notification(s) updated')
+            flash(', '.join(messages) + ' successfully', 'success')
+
         except Exception as e:
             db_session.rollback()
             flash(f'Error updating queue notification: {str(e)}', 'error')
         finally:
             db_session.close()
-            
+
     except Exception as e:
         flash(f'Invalid request data: {str(e)}', 'error')
-    
+
     return redirect(url_for('admin.manage_queue_notifications'))
 
 
