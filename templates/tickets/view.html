@@ -10498,7 +10498,7 @@ async function submitIssueReport(event, ticketId) {
 let issueMentionStartPos = -1;
 let issueCurrentMentionText = '';
 const issueAvailableUsers = [
-    {% for user_id, user_info in users_dict.items() %}
+    {% for user_id, user_info in users_dict_mention.items() %}
     { id: {{ user_id }}, username: '{{ user_info.username }}', email: '{{ user_info.email or "" }}' },
     {% endfor %}
 ];

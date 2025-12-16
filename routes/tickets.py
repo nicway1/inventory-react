@@ -2736,26 +2736,45 @@ def view_ticket(ticket_id):
                 all_users = sorted(all_users_set.values(), key=lambda x: x.username)
             else:
                 all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
+        else:
+            # Regular users can see all users (except deleted)
+            all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
 
-            # Apply visibility permissions filter if any are set
+        # Create separate lists for different purposes:
+        # - users_for_assignment: For Change Case Owner dropdown (visibility filtered)
+        # - users_for_mention: For @mention in Report an Issue (mention filtered)
+        users_for_assignment = list(all_users)  # Copy for visibility filtering
+        users_for_mention = list(all_users)  # Copy for mention filtering
+
+        # Apply visibility permissions filter for Change Case Owner (SUPERVISOR/COUNTRY_ADMIN only)
+        if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             from models.user_visibility_permission import UserVisibilityPermission
             visibility_perms = db_session.query(UserVisibilityPermission.visible_user_id).filter(
                 UserVisibilityPermission.user_id == current_user.id
             ).all()
             if visibility_perms:
-                # If visibility permissions are set, filter users to only show visible ones
                 allowed_visible_ids = {p[0] for p in visibility_perms}
-                all_users = [u for u in all_users if u.id in allowed_visible_ids]
-        else:
-            # Regular users can see all users (except deleted)
-            all_users = db_session.query(User).filter(not_deleted_filter).order_by(User.username).all()
+                users_for_assignment = [u for u in users_for_assignment if u.id in allowed_visible_ids]
+
+        # Apply @mention permission filtering for Report an Issue system
+        current_user_fresh = db_session.query(User).get(current_user.id)
+        if current_user_fresh and current_user_fresh.mention_filter_enabled:
+            from models.user_mention_permission import UserMentionPermission
+            mention_perms = db_session.query(UserMentionPermission.target_id).filter(
+                UserMentionPermission.user_id == current_user.id,
+                UserMentionPermission.target_type == 'user'
+            ).all()
+            if mention_perms:
+                allowed_mention_ids = {p[0] for p in mention_perms}
+                users_for_mention = [u for u in users_for_mention if u.id in allowed_mention_ids]
 
         owner = ticket.assigned_to
 
-        # Convert users to a dictionary format for the template
+        # Convert users to dictionary format for the template
+        # users_dict: For Change Case Owner dropdown (visibility filtered)
+        # users_dict_mention: For @mention in Report an Issue (mention filtered)
         users_dict = {}
-        users_list = []  # For @mention autocomplete
-        for user in all_users:
+        for user in users_for_assignment:
             user_data = {
                 'id': user.id,
                 'username': user.username,
@@ -2764,6 +2783,18 @@ def view_ticket(ticket_id):
                 'user_type': user.user_type.value if user.user_type else 'USER'
             }
             users_dict[str(user.id)] = user_data
+
+        users_dict_mention = {}
+        users_list = []  # For @mention autocomplete
+        for user in users_for_mention:
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_active': user.is_active,
+                'user_type': user.user_type.value if user.user_type else 'USER'
+            }
+            users_dict_mention[str(user.id)] = user_data
             users_list.append(user_data)
         
         # Get all queues
@@ -2868,7 +2899,8 @@ def view_ticket(ticket_id):
             ticket=ticket,
             owner=owner,
             users=users_list,  # For @mention autocomplete (list format)
-            users_dict=users_dict,  # For other uses (dict format)
+            users_dict=users_dict,  # For Change Case Owner dropdown (visibility filtered)
+            users_dict_mention=users_dict_mention,  # For Report an Issue @mention (mention filtered)
             queues=queues,
             assets_data=assets_data,
             customers=customers,
