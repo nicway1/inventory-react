@@ -1471,12 +1471,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- New Dashboard Banner -->
-<div class="classic-banner">
-    <span>You're viewing the new customizable dashboard.</span>
-    <a href="{{ url_for('main.index') }}?use_classic=1">Switch to Classic View</a>
-</div>
-
 <div class="sf-dashboard {% if edit_mode %}edit-mode{% endif %}">
     <!-- Header -->
     <div class="sf-header-bar">
@@ -2467,6 +2461,48 @@ const widgetSettingsConfig = {
                 ]
             }
         ]
+    },
+    'view_inventory': {
+        title: 'Inventory Widget Settings',
+        options: [
+            {
+                type: 'style',
+                label: 'Display Style',
+                key: 'style',
+                choices: [
+                    { value: 'photo', label: 'Photo', icon: 'fas fa-image' },
+                    { value: 'classic', label: 'Classic', icon: 'fas fa-th-list' }
+                ]
+            }
+        ]
+    },
+    'view_tickets': {
+        title: 'Tickets Widget Settings',
+        options: [
+            {
+                type: 'style',
+                label: 'Display Style',
+                key: 'style',
+                choices: [
+                    { value: 'photo', label: 'Photo', icon: 'fas fa-image' },
+                    { value: 'classic', label: 'Classic', icon: 'fas fa-th-list' }
+                ]
+            }
+        ]
+    },
+    'view_customers': {
+        title: 'Customers Widget Settings',
+        options: [
+            {
+                type: 'style',
+                label: 'Display Style',
+                key: 'style',
+                choices: [
+                    { value: 'photo', label: 'Photo', icon: 'fas fa-image' },
+                    { value: 'classic', label: 'Classic', icon: 'fas fa-th-list' }
+                ]
+            }
+        ]
     }
 };
 
@@ -2519,6 +2555,30 @@ function openWidgetSettings(widgetId) {
                         </div>
                     </div>
                 `;
+            } else if (option.type === 'style') {
+                html += `
+                    <div class="settings-section">
+                        <div class="settings-section-title">${option.label}</div>
+                        <div class="style-grid" style="display: flex; gap: 1rem; margin-top: 0.75rem;">
+                `;
+
+                option.choices.forEach(choice => {
+                    const isSelected = (currentSettingsConfig[option.key] || 'photo') === choice.value;
+                    html += `
+                        <div class="style-option ${isSelected ? 'selected' : ''}"
+                             onclick="selectStyle('${option.key}', '${choice.value}', this)"
+                             style="flex: 1; padding: 1rem; border-radius: 12px; border: 2px solid ${isSelected ? 'var(--sf-purple)' : 'var(--sf-gray-200)'}; background: ${isSelected ? 'var(--sf-purple-light, rgba(144, 80, 233, 0.1))' : 'var(--sf-gray-50)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;">
+                            <i class="${choice.icon}" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: ${isSelected ? 'var(--sf-purple)' : 'var(--sf-gray-500)'};"></i>
+                            <div style="font-size: 0.875rem; font-weight: 600; color: ${isSelected ? 'var(--sf-purple)' : 'var(--sf-gray-700)'};">${choice.label}</div>
+                            ${isSelected ? '<i class="fas fa-check-circle" style="color: var(--sf-purple); margin-top: 0.5rem;"></i>' : ''}
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
             }
         });
 
@@ -2555,6 +2615,44 @@ function selectTheme(key, value, element) {
     }
 }
 
+function selectStyle(key, value, element) {
+    // Update selection UI - rebuild all options to reflect new state
+    const container = element.parentElement;
+    container.querySelectorAll('.style-option').forEach(opt => {
+        opt.classList.remove('selected');
+        opt.style.border = '2px solid var(--sf-gray-200)';
+        opt.style.background = 'var(--sf-gray-50)';
+        // Update icon and text colors
+        const icon = opt.querySelector('i:first-child');
+        const label = opt.querySelector('div');
+        const checkIcon = opt.querySelector('.fa-check-circle');
+        if (icon) icon.style.color = 'var(--sf-gray-500)';
+        if (label) label.style.color = 'var(--sf-gray-700)';
+        if (checkIcon) checkIcon.remove();
+    });
+
+    // Style selected element
+    element.classList.add('selected');
+    element.style.border = '2px solid var(--sf-purple)';
+    element.style.background = 'var(--sf-purple-light, rgba(144, 80, 233, 0.1))';
+    const icon = element.querySelector('i:first-child');
+    const label = element.querySelector('div');
+    if (icon) icon.style.color = 'var(--sf-purple)';
+    if (label) label.style.color = 'var(--sf-purple)';
+
+    // Add check icon if not present
+    if (!element.querySelector('.fa-check-circle')) {
+        const checkIcon = document.createElement('i');
+        checkIcon.className = 'fas fa-check-circle';
+        checkIcon.style.color = 'var(--sf-purple)';
+        checkIcon.style.marginTop = '0.5rem';
+        element.appendChild(checkIcon);
+    }
+
+    // Store in current config
+    currentSettingsConfig[key] = value;
+}
+
 function saveWidgetSettings() {
     // Handle resize - size is already applied, just close
     if (currentResizeWidgetId) {
@@ -2569,6 +2667,9 @@ function saveWidgetSettings() {
         return;
     }
 
+    // Check if style changed (requires widget refresh)
+    const styleChanged = currentSettingsConfig.style !== undefined;
+
     // Update layout config
     const layoutItem = currentLayout.find(w => w.widget_id === currentSettingsWidgetId);
     if (layoutItem) {
@@ -2581,8 +2682,53 @@ function saveWidgetSettings() {
     hasChanges = true;
     document.getElementById('saveLayoutBtn').style.display = 'inline-flex';
 
+    // If style changed, we need to save and refresh immediately
+    if (styleChanged) {
+        const widgetToRefresh = currentSettingsWidgetId;
+        closeWidgetSettings();
+        // Save layout first, then refresh the widget after a small delay
+        saveLayoutAndRefresh(widgetToRefresh);
+        return;
+    }
+
     closeWidgetSettings();
     showToast('Widget settings applied! Save to keep changes.', 'success');
+}
+
+// Save layout and refresh a specific widget
+function saveLayoutAndRefresh(widgetId) {
+    const saveBtn = document.getElementById('saveLayoutBtn');
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveBtn.disabled = true;
+
+    fetch('/dashboard/api/save-layout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ layout: currentLayout })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            hasChanges = false;
+            saveBtn.style.display = 'none';
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Layout';
+            saveBtn.disabled = false;
+            showToast('Settings saved!', 'success');
+            // Refresh the widget to apply the new style
+            refreshWidget(widgetId);
+        } else {
+            throw new Error(data.error || 'Failed to save');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving layout:', error);
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Layout';
+        saveBtn.disabled = false;
+        showToast('Failed to save settings', 'error');
+    });
 }
 
 function applyWidgetTheme(widgetId, config) {

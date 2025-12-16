@@ -773,7 +773,7 @@
             <div class="sf-breadcrumb">
                 <a href="{{ url_for('main.index') }}">Home</a>
                 <span>/</span>
-                <span class="sf-page-title">IT Asset Inventory (SF Style)</span>
+                <span class="sf-page-title">IT Asset Inventory</span>
             </div>
         </div>
         <div class="sf-header-actions">
@@ -790,13 +790,13 @@
                 </svg>
                 Reset
             </button>
-            <button class="sf-btn sf-btn-success" onclick="exportAssets()">
+            <button class="sf-btn sf-btn-success" id="exportBtn" onclick="exportAssets()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7,10 12,15 17,10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                Export
+                <span id="exportBtnText">Export</span>
             </button>
         </div>
     </div>
@@ -1950,32 +1950,80 @@ function debounceSearch() {
 
 // Export assets
 function exportAssets() {
-    if (filteredData.length === 0) {
-        alert('No data to export');
-        return;
-    }
+    // Check if we're on tech assets or accessories tab
+    const currentTab = document.querySelector('.sf-tab.active')?.dataset?.tab || 'tech';
 
-    const headers = ['Asset Tag', 'Name', 'Serial Number', 'Status', 'Category', 'Customer', 'Company', 'Country', 'Location'];
-    const rows = filteredData.map(a => [
-        a.asset_tag, a.name, a.serial_number, a.status, a.category,
-        a.customer, a.company, a.country, a.location
-    ].map(val => {
-        val = val || '';
-        if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
-            return `"${val.replace(/"/g, '""')}"`;
+    let dataToExport;
+
+    if (currentTab === 'tech') {
+        // For tech assets: export selected if any, otherwise export all filtered
+        // Use selectedItems Set which tracks selections across pages
+        if (selectedItems.size > 0) {
+            // Export from the full assetData (not just current page)
+            dataToExport = assetData.filter(a => selectedItems.has(a.id));
+        } else {
+            dataToExport = filteredData;
         }
-        return val;
-    }));
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        if (dataToExport.length === 0) {
+            alert('No data to export');
+            return;
+        }
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `asset_inventory_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+        const headers = ['Asset Tag', 'Name', 'Serial Number', 'Status', 'Category', 'Customer', 'Company', 'Country', 'Location'];
+        const rows = dataToExport.map(a => [
+            a.asset_tag, a.name, a.serial_number, a.status, a.category,
+            a.customer, a.company, a.country, a.location
+        ].map(val => {
+            val = val || '';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+        }));
+
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = selectedItems.size > 0
+            ? `selected_assets_${selectedItems.size}_${new Date().toISOString().split('T')[0]}.csv`
+            : `asset_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } else {
+        // For accessories: export all filtered (no checkbox selection)
+        dataToExport = filteredData;
+
+        if (dataToExport.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        const headers = ['Name', 'Category', 'Total Quantity', 'Available', 'In Use', 'Country', 'Company', 'Status'];
+        const rows = dataToExport.map(a => [
+            a.name, a.category, a.total_quantity, a.available_quantity,
+            (a.total_quantity || 0) - (a.available_quantity || 0),
+            a.country, a.company, a.status
+        ].map(val => {
+            val = val || '';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+        }));
+
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `accessory_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
 }
 
 // Escape HTML
@@ -2081,6 +2129,9 @@ async function switchTab(tab) {
             updateAccessoryTable();
         }
     }
+
+    // Update export button text based on current tab and selection
+    updateExportButtonText();
 }
 
 // Load accessories from API
@@ -2250,6 +2301,21 @@ function updateBulkActionsBar() {
         countSpan.textContent = `${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''} selected`;
     } else {
         bar.style.display = 'none';
+    }
+    updateExportButtonText();
+}
+
+// Update export button text based on selection
+function updateExportButtonText() {
+    const exportBtnText = document.getElementById('exportBtnText');
+    if (!exportBtnText) return;
+
+    const currentTab = document.querySelector('.sf-tab.active')?.dataset?.tab || 'tech';
+
+    if (currentTab === 'tech' && selectedItems.size > 0) {
+        exportBtnText.textContent = `Export (${selectedItems.size})`;
+    } else {
+        exportBtnText.textContent = 'Export';
     }
 }
 

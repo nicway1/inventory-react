@@ -60,18 +60,22 @@ def load_widget_data(user, layout):
                     permitted_companies = db.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                     permitted_company_names = [c.name.strip() for c in permitted_companies]
 
-                    # Include child companies of parent companies
+                    # Include child companies of parent companies (both names AND IDs)
                     all_company_names = list(permitted_company_names)
+                    all_company_ids = list(permitted_company_ids)
                     for company in permitted_companies:
                         if company.is_parent_company or company.child_companies.count() > 0:
-                            child_names = [c.name.strip() for c in company.child_companies.all()]
+                            child_companies = company.child_companies.all()
+                            child_names = [c.name.strip() for c in child_companies]
+                            child_ids = [c.id for c in child_companies]
                             all_company_names.extend(child_names)
+                            all_company_ids.extend(child_ids)
 
                     # Filter by company_id OR customer name
                     name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
                     asset_query = asset_query.filter(
                         or_(
-                            Asset.company_id.in_(permitted_company_ids),
+                            Asset.company_id.in_(all_company_ids),
                             *name_conditions
                         )
                     )
@@ -401,8 +405,17 @@ def get_widget_data(widget_id):
         if not widget:
             return jsonify({'success': False, 'error': 'Widget not found'})
 
-        # Render widget HTML with proper context
-        html = render_template(widget.template, widget_data=widget_data, user=user)
+        # Get user's config for this widget from their preferences
+        config = {}
+        if user.preferences and 'dashboard_layout' in user.preferences:
+            user_layout = user.preferences['dashboard_layout']
+            for item in user_layout:
+                if item.get('widget_id') == widget_id:
+                    config = item.get('config', {})
+                    break
+
+        # Render widget HTML with proper context including config
+        html = render_template(widget.template, widget_data=widget_data, user=user, config=config)
 
         # Map widget_id to data key (some widgets use different keys)
         data_key_map = {
@@ -491,11 +504,11 @@ def widget_showcase():
         # Get IDs of widgets already on dashboard
         dashboard_widget_ids = [item['widget_id'] for item in layout]
 
-        # Organize widgets by category
+        # Organize widgets by category - only show widgets available to user
         widgets_by_category = {}
         for category in WidgetCategory:
             widgets_by_category[category] = [
-                w for w in all_widgets if w.category == category
+                w for w in all_widgets if w.category == category and w.id in available_widget_ids
             ]
 
         # Category display info
@@ -535,6 +548,7 @@ def widget_showcase():
         return render_template('dashboard/widget_showcase.html',
             user=user,
             all_widgets=all_widgets,
+            available_widgets=available_widgets,
             available_widget_ids=available_widget_ids,
             dashboard_widget_ids=dashboard_widget_ids,
             widgets_by_category=widgets_by_category,

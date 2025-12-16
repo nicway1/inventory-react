@@ -692,12 +692,21 @@
                             </div>
                             <span class="quick-action-text">My Assigned Tickets</span>
                         </a>
-                        <a href="{% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}{{ url_for('inventory.view_inventory_sf') }}{% else %}{{ url_for('inventory.view_inventory') }}{% endif %}" class="quick-action">
+                        {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
+                        <a href="{{ url_for('inventory.view_inventory_sf') }}" class="quick-action">
                             <div class="quick-action-icon" style="background: var(--sf-purple);">
                                 <i class="fas fa-boxes"></i>
                             </div>
                             <span class="quick-action-text">View Inventory</span>
                         </a>
+                        {% else %}
+                        <a href="{{ url_for('inventory.view_inventory') }}" class="quick-action">
+                            <div class="quick-action-icon" style="background: var(--sf-purple);">
+                                <i class="fas fa-boxes"></i>
+                            </div>
+                            <span class="quick-action-text">View Inventory</span>
+                        </a>
+                        {% endif %}
                         {% if user.user_type.value in ['SUPER_ADMIN', 'DEVELOPER'] %}
                         <a href="{{ url_for('admin.system_config') }}" class="quick-action">
                             <div class="quick-action-icon" style="background: var(--sf-teal);">

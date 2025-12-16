@@ -242,18 +242,22 @@ def index():
                 permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                 permitted_company_names = [c.name.strip() for c in permitted_companies]
 
-                # Include child companies of parent companies
+                # Include child companies of parent companies (both names AND IDs)
                 all_company_names = list(permitted_company_names)
+                all_company_ids = list(permitted_company_ids)
                 for company in permitted_companies:
                     if company.is_parent_company or company.child_companies.count() > 0:
-                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        child_companies = company.child_companies.all()
+                        child_names = [c.name.strip() for c in child_companies]
+                        child_ids = [c.id for c in child_companies]
                         all_company_names.extend(child_names)
+                        all_company_ids.extend(child_ids)
 
                 # Filter by company_id OR customer name
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
                 asset_query = asset_query.filter(
                     or_(
-                        Asset.company_id.in_(permitted_company_ids),
+                        Asset.company_id.in_(all_company_ids),
                         *name_conditions
                     )
                 )
@@ -375,18 +379,22 @@ def index():
                 permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                 permitted_company_names = [c.name.strip() for c in permitted_companies]
 
-                # Include child companies of parent companies
+                # Include child companies of parent companies (both names AND IDs)
                 all_company_names = list(permitted_company_names)
+                all_company_ids = list(permitted_company_ids)
                 for company in permitted_companies:
                     if company.is_parent_company or company.child_companies.count() > 0:
-                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        child_companies = company.child_companies.all()
+                        child_names = [c.name.strip() for c in child_companies]
+                        child_ids = [c.id for c in child_companies]
                         all_company_names.extend(child_names)
+                        all_company_ids.extend(child_ids)
 
                 # Filter by company_id OR customer name
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
                 asset_query = asset_query.filter(
                     or_(
-                        Asset.company_id.in_(permitted_company_ids),
+                        Asset.company_id.in_(all_company_ids),
                         *name_conditions
                     )
                 )
@@ -394,11 +402,11 @@ def index():
                 total_assets = asset_query.count()
                 deployed_assets = db_session.query(Asset).filter(
                     Asset.status == AssetStatus.DEPLOYED,
-                    or_(Asset.company_id.in_(permitted_company_ids), *name_conditions)
+                    or_(Asset.company_id.in_(all_company_ids), *name_conditions)
                 ).count()
                 in_stock_assets = db_session.query(Asset).filter(
                     Asset.status == AssetStatus.IN_STOCK,
-                    or_(Asset.company_id.in_(permitted_company_ids), *name_conditions)
+                    or_(Asset.company_id.in_(all_company_ids), *name_conditions)
                 ).count()
             else:
                 total_assets = 0

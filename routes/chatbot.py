@@ -51,6 +51,22 @@ ACTION_PATTERNS = {
         r"(?:show|get)\s+(?:user\s+)?(?:info|details|information)\s+(?:for|on|about)\s+(.+)",
         r"(.+?)\s+(?:user\s+)?(?:info|details|type|role)",
     ],
+    "list_users": [
+        r"(?:list|show|get|display)\s+(?:all\s+)?(?:the\s+)?users?",
+        r"(?:who\s+are\s+)?(?:all\s+)?(?:the\s+)?users?(?:\s+in\s+(?:the\s+)?system)?",
+        r"(?:show|list|get)\s+(?:me\s+)?(?:all\s+)?(?:the\s+)?users?\s*(?:list)?",
+        r"(?:all|every)\s+users?(?:\s+in\s+(?:the\s+)?system)?",
+        r"users?\s+list",
+        r"(?:how\s+many|count)\s+users?",
+        r"list\s+(?:all\s+)?(?:the\s+)?users?$",
+    ],
+    "asset_lookup": [
+        r"(?:find|search|lookup|look\s+up|get|show|check)\s+(?:asset\s+)?(?:with\s+)?(?:serial|serial\s*number|sn)[:\s]+([A-Za-z0-9\-_]+)",
+        r"(?:asset|device)\s+(?:info|information|details)\s+(?:for\s+)?([A-Za-z0-9\-_]+)",
+        r"(?:serial|sn)[:\s]*([A-Za-z0-9\-_]+)",
+        r"(?:what|which)\s+asset\s+(?:has|is|with)\s+(?:serial\s+)?([A-Za-z0-9\-_]+)",
+        r"(?:find|search|get|show|lookup)\s+([A-Za-z0-9\-_]{5,})",
+    ],
 }
 
 # Status aliases for natural language
@@ -188,7 +204,9 @@ def parse_action(query):
         if match:
             username = match.group(1).strip()
             # Clean up common words that might be captured
-            username = re.sub(r'\b(user|the|a|an)\b', '', username, flags=re.IGNORECASE).strip()
+            username = re.sub(r'\b(user|the|a|an|has|have|had|got|do|does|did|can|could|is|are|was|were)\b', '', username, flags=re.IGNORECASE).strip()
+            # Remove any trailing/leading punctuation
+            username = re.sub(r'^[?\s]+|[?\s]+$', '', username).strip()
             if username:
                 return {
                     "type": "query",
@@ -203,12 +221,37 @@ def parse_action(query):
         if match:
             username = match.group(1).strip()
             # Clean up common words
-            username = re.sub(r'\b(user|the|a|an)\b', '', username, flags=re.IGNORECASE).strip()
+            username = re.sub(r'\b(user|the|a|an|has|have|had|got|do|does|did|can|could|is|are|was|were)\b', '', username, flags=re.IGNORECASE).strip()
+            # Remove any trailing/leading punctuation
+            username = re.sub(r'^[?\s]+|[?\s]+$', '', username).strip()
             if username:
                 return {
                     "type": "query",
                     "action": "user_info",
                     "username": username,
+                    "original_query": query
+                }
+
+    # Check for list users query
+    for pattern in ACTION_PATTERNS["list_users"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            return {
+                "type": "query",
+                "action": "list_users",
+                "original_query": query
+            }
+
+    # Check for asset lookup by serial number
+    for pattern in ACTION_PATTERNS["asset_lookup"]:
+        match = re.search(pattern, query, re.IGNORECASE)  # Use original query to preserve case
+        if match:
+            serial_number = match.group(1).strip()
+            if serial_number and len(serial_number) >= 3:  # Minimum 3 chars for serial
+                return {
+                    "type": "query",
+                    "action": "asset_lookup",
+                    "serial_number": serial_number,
                     "original_query": query
                 }
 
@@ -563,8 +606,8 @@ def log_chat_interaction(user_id, query, response, response_type, matched_questi
 
         # Get user name to store directly (avoid lazy loading issues later)
         user_name = None
-        if current_user and hasattr(current_user, 'name'):
-            user_name = current_user.name
+        if current_user and hasattr(current_user, 'username'):
+            user_name = current_user.username
 
         chat_log = ChatLog(
             user_id=user_id,
@@ -702,7 +745,7 @@ def ask():
                         "answer": answer
                     })
 
-                answer = f"Do you want to assign **Ticket #{action['ticket_id']}** to **{user.name}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.name if ticket.assigned_to else 'Unassigned'}"
+                answer = f"Do you want to assign **Ticket #{action['ticket_id']}** to **{user.username}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'}"
                 log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
                 return jsonify({
                     "success": True,
@@ -710,9 +753,9 @@ def ask():
                     "action": action["action"],
                     "ticket_id": action["ticket_id"],
                     "ticket_subject": ticket.subject,
-                    "current_assignee": ticket.assigned_to.name if ticket.assigned_to else "Unassigned",
+                    "current_assignee": ticket.assigned_to.username if ticket.assigned_to else "Unassigned",
                     "new_assignee_id": user.id,
-                    "new_assignee": user.name,
+                    "new_assignee": user.username,
                     "answer": answer
                 })
 
@@ -736,7 +779,6 @@ def ask():
                 user = db_session.query(User).filter(
                     or_(
                         User.username.ilike(f"%{username}%"),
-                        User.name.ilike(f"%{username}%"),
                         User.email.ilike(f"%{username}%")
                     )
                 ).first()
@@ -785,7 +827,7 @@ def ask():
                     for cp in user.country_permissions:
                         country_perms.append(cp.country.value if hasattr(cp.country, 'value') else str(cp.country))
 
-                answer = f"**User: {user.name or user.username}**\n"
+                answer = f"**User: {user.username}**\n"
                 answer += f"**Username:** {user.username}\n"
                 answer += f"**Email:** {user.email}\n"
                 answer += f"**Type:** {user.user_type.value if user.user_type else 'N/A'}\n"
@@ -808,7 +850,6 @@ def ask():
                 user = db_session.query(User).filter(
                     or_(
                         User.username.ilike(f"%{username}%"),
-                        User.name.ilike(f"%{username}%"),
                         User.email.ilike(f"%{username}%")
                     )
                 ).first()
@@ -828,7 +869,7 @@ def ask():
                     for cp in user.country_permissions:
                         country_perms.append(cp.country.value if hasattr(cp.country, 'value') else str(cp.country))
 
-                answer = f"**User: {user.name or user.username}**\n\n"
+                answer = f"**User: {user.username}**\n\n"
                 answer += f"• **Username:** {user.username}\n"
                 answer += f"• **Email:** {user.email}\n"
                 answer += f"• **Type:** {user.user_type.value if user.user_type else 'N/A'}\n"
@@ -845,6 +886,105 @@ def ask():
                     "type": "answer",
                     "answer": answer,
                     "user_url": f"/admin/users/{user.id}/edit"
+                })
+
+            elif action["action"] == "list_users":
+                # List all users in the system
+                users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
+
+                if not users:
+                    answer = "No users found in the system."
+                    log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "answer",
+                        "answer": answer
+                    })
+
+                # Group users by type
+                users_by_type = {}
+                for user in users:
+                    user_type = user.user_type.value if user.user_type else 'Unknown'
+                    if user_type not in users_by_type:
+                        users_by_type[user_type] = []
+                    users_by_type[user_type].append(user)
+
+                answer = f"**Users in System ({len(users)} total)**\n\n"
+
+                for user_type, type_users in sorted(users_by_type.items()):
+                    answer += f"**{user_type}** ({len(type_users)}):\n"
+                    for u in type_users[:10]:  # Limit to 10 per type to avoid huge responses
+                        status = "✓" if u.is_active else "✗"
+                        answer += f"• {status} [{u.username}](/admin/users/{u.id}/edit)"
+                        if u.email:
+                            answer += f" - {u.email}"
+                        answer += "\n"
+                    if len(type_users) > 10:
+                        answer += f"  ... and {len(type_users) - 10} more\n"
+                    answer += "\n"
+
+                answer += f"\n[Manage Users](/admin/users)"
+
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "answer",
+                    "answer": answer,
+                    "url": "/admin/users"
+                })
+
+            elif action["action"] == "asset_lookup":
+                # Look up asset by serial number
+                serial_number = action["serial_number"]
+                from models.asset import Asset
+                from sqlalchemy import or_
+
+                # Search by serial number or asset tag
+                asset = db_session.query(Asset).filter(
+                    or_(
+                        Asset.serial_num.ilike(f"%{serial_number}%"),
+                        Asset.asset_tag.ilike(f"%{serial_number}%")
+                    )
+                ).first()
+
+                if not asset:
+                    answer = f"No asset found with serial number or asset tag matching '{serial_number}'."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Build asset info response
+                answer = f"**Asset Found**\n\n"
+                answer += f"• **Asset Tag:** {asset.asset_tag or 'N/A'}\n"
+                answer += f"• **Name:** {asset.name or 'N/A'}\n"
+                answer += f"• **Serial Number:** {asset.serial_num or 'N/A'}\n"
+                answer += f"• **Status:** {asset.status.value if asset.status else 'N/A'}\n"
+                answer += f"• **Category:** {asset.category or 'N/A'}\n"
+                answer += f"• **Manufacturer:** {asset.manufacturer or 'N/A'}\n"
+                answer += f"• **Model:** {asset.model or 'N/A'}\n"
+
+                if asset.company:
+                    answer += f"• **Company:** {asset.company.name}\n"
+                if asset.country:
+                    answer += f"• **Country:** {asset.country}\n"
+                if hasattr(asset, 'location_obj') and asset.location_obj:
+                    answer += f"• **Location:** {asset.location_obj.name}\n"
+                if asset.assigned_to:
+                    answer += f"• **Assigned To:** {asset.assigned_to.username}\n"
+                if asset.customer_user:
+                    answer += f"• **Customer:** {asset.customer_user.name}\n"
+
+                answer += f"\n[View Asset Details](/inventory/sf/asset/{asset.id})"
+
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "answer",
+                    "answer": answer,
+                    "url": f"/inventory/sf/asset/{asset.id}"
                 })
 
         finally:
@@ -1024,7 +1164,7 @@ def execute_action():
             db_session.commit()
             return jsonify({
                 "success": True,
-                "message": f"Ticket #{ticket_id} assigned to {user.name}",
+                "message": f"Ticket #{ticket_id} assigned to {user.username}",
                 "ticket_url": f"/tickets/{ticket_id}"
             })
 

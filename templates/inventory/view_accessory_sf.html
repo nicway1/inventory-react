@@ -1307,6 +1307,10 @@
                                 <div class="sf-detail-label">Country</div>
                                 <div class="sf-detail-value">{{ accessory.country or '-' }}</div>
                             </div>
+                            <div class="sf-detail-field">
+                                <div class="sf-detail-label">Company</div>
+                                <div class="sf-detail-value">{{ accessory.company.name if accessory.company else '-' }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>

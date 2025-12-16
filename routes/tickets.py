@@ -466,13 +466,22 @@ def export_tickets_csv():
         if user.user_type == UserType.CLIENT:
             # For CLIENT users, only show tickets related to their company
             query = query.filter(Ticket.requester_id == user_id)
-        elif user.user_type == UserType.COUNTRY_ADMIN:
-            # Country admins see tickets from their assigned countries
-            assigned_countries = user.assigned_countries
-            if assigned_countries:
-                query = query.join(CustomerUser, Ticket.customer_id == CustomerUser.id).filter(
-                    CustomerUser.country.in_(assigned_countries)
-                )
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # COUNTRY_ADMIN and SUPERVISOR can only see tickets from queues they have access to
+            # Get queue IDs the user has permission to access
+            from models.user_queue_permission import UserQueuePermission
+            accessible_queue_ids = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == user_id,
+                UserQueuePermission.can_view == True
+            ).all()
+            accessible_queue_ids = [q[0] for q in accessible_queue_ids]
+
+            if accessible_queue_ids:
+                # Only include tickets from accessible queues
+                query = query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+            else:
+                # No queue permissions - return no tickets
+                query = query.filter(Ticket.id == -1)  # Impossible condition
 
         # Apply export mode filters
         if export_mode == 'selected' and ticket_ids:

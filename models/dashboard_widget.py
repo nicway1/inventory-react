@@ -476,6 +476,7 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader=None,
+    configurable=True,
     screenshot='view_inventory.png'
 ))
 
@@ -492,6 +493,7 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
     data_loader=None,
+    configurable=True,
     screenshot='view_tickets.png'
 ))
 
@@ -508,6 +510,7 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
     data_loader=None,
+    configurable=True,
     screenshot='view_customers.png'
 ))
 

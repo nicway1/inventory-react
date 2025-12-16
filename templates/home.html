@@ -386,8 +386,8 @@
         </div>
         {% endif %}
 
-        <!-- View Inventorys Card (Developer Only) -->
-        {% if session.get('user_type') == 'DEVELOPER' %}
+        <!-- View Inventorys Card (Admin and Supervisor) -->
+        {% if session.get('user_type') in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
         <div class="stat-card">
             <div class="icon-box" style="background: linear-gradient(135deg, #0176d3 0%, #1b96ff 100%);">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

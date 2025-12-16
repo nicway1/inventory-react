@@ -1097,6 +1097,68 @@
         'CLOSED': { bg: '#e2e3e5', color: '#383d41' }
     };
 
+    // Tailwind color name to hex mapping for custom statuses
+    const tailwindColorMap = {
+        'blue': '#3b82f6',
+        'green': '#22c55e',
+        'yellow': '#eab308',
+        'red': '#ef4444',
+        'purple': '#a855f7',
+        'gray': '#6b7280',
+        'orange': '#f97316',
+        'pink': '#ec4899',
+        'indigo': '#6366f1',
+        'teal': '#14b8a6',
+        'cyan': '#06b6d4'
+    };
+
+    // Predefined chart colors for dynamic assignment
+    const chartColorPalette = [
+        '#3b82f6',  // blue
+        '#22c55e',  // green
+        '#f97316',  // orange
+        '#a855f7',  // purple
+        '#ef4444',  // red
+        '#eab308',  // yellow
+        '#14b8a6',  // teal
+        '#ec4899',  // pink
+        '#6366f1',  // indigo
+        '#06b6d4',  // cyan
+    ];
+
+    // Cache for dynamically assigned colors
+    const statusColorCache = {};
+    let colorIndex = 0;
+
+    // Get color for a status (checks both base statuses and custom statuses)
+    function getStatusColor(statusName) {
+        // First check base statuses
+        if (statusColors[statusName]) {
+            return statusColors[statusName].bg;
+        }
+
+        // Check cache first
+        if (statusColorCache[statusName]) {
+            return statusColorCache[statusName];
+        }
+
+        // Check custom statuses for a specific color (not gray)
+        const customStatus = customStatuses.find(cs => cs.name === statusName);
+        if (customStatus && customStatus.color && customStatus.color !== 'gray') {
+            const color = tailwindColorMap[customStatus.color];
+            if (color) {
+                statusColorCache[statusName] = color;
+                return color;
+            }
+        }
+
+        // Assign a unique color from palette for unknown/gray statuses
+        const color = chartColorPalette[colorIndex % chartColorPalette.length];
+        colorIndex++;
+        statusColorCache[statusName] = color;
+        return color;
+    }
+
     const priorityColors = {
         'LOW': { bg: '#d4edda', color: '#155724' },
         'MEDIUM': { bg: '#fff3cd', color: '#856404' },
@@ -1282,10 +1344,38 @@
     // Update summary cards
     function updateSummaryCards() {
         document.getElementById('totalCount').textContent = filteredTickets.length;
-        document.getElementById('openCount').textContent = filteredTickets.filter(t => t.status === 'OPEN').length;
-        document.getElementById('inProgressCount').textContent = filteredTickets.filter(t => t.status === 'IN_PROGRESS').length;
-        document.getElementById('resolvedCount').textContent = filteredTickets.filter(t => t.status === 'RESOLVED' || t.status === 'RESOLVED_DELIVERED').length;
-        document.getElementById('onHoldCount').textContent = filteredTickets.filter(t => t.status === 'ON_HOLD').length;
+
+        // Count tickets by status category
+        // "Open" includes: New, OPEN, or any status containing "new" (case-insensitive)
+        const openCount = filteredTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'new' || s === 'open' || s.includes('new');
+        }).length;
+
+        // "In Progress" includes: In Progress, IN_PROGRESS, Processing, or statuses containing "progress" or "processing"
+        const inProgressCount = filteredTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                   s.includes('progress') || s.includes('processing');
+        }).length;
+
+        // "Resolved" includes: Resolved, RESOLVED, RESOLVED_DELIVERED, or statuses containing "resolved" or "delivered" or "complete"
+        const resolvedCount = filteredTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+        }).length;
+
+        // "On Hold" includes: On Hold, ON_HOLD, or statuses containing "hold" or "duplicate" or "cancelled"
+        const onHoldCount = filteredTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                   s.includes('duplicate') || s.includes('cancel');
+        }).length;
+
+        document.getElementById('openCount').textContent = openCount;
+        document.getElementById('inProgressCount').textContent = inProgressCount;
+        document.getElementById('resolvedCount').textContent = resolvedCount;
+        document.getElementById('onHoldCount').textContent = onHoldCount;
     }
 
     // Sort and render table
@@ -1427,14 +1517,30 @@
     }
 
     // Filter by status from summary cards
-    function filterByStatus(status) {
+    function filterByStatus(statusCategory) {
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
 
-        if (status !== 'all') {
-            // Check the specific status
-            const checkbox = document.querySelector(`#statusFilter input[value="${status}"]`);
-            if (checkbox) checkbox.checked = true;
+        if (statusCategory !== 'all') {
+            // Check checkboxes that match the category pattern
+            document.querySelectorAll('#statusFilter input').forEach(cb => {
+                const s = cb.value.toLowerCase();
+                let shouldCheck = false;
+
+                if (statusCategory === 'OPEN') {
+                    shouldCheck = s === 'new' || s === 'open' || s.includes('new');
+                } else if (statusCategory === 'IN_PROGRESS') {
+                    shouldCheck = s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                                  s.includes('progress') || s.includes('processing');
+                } else if (statusCategory === 'RESOLVED') {
+                    shouldCheck = s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+                } else if (statusCategory === 'ON_HOLD') {
+                    shouldCheck = s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                                  s.includes('duplicate') || s.includes('cancel');
+                }
+
+                if (shouldCheck) cb.checked = true;
+            });
         }
 
         applyFilters();
@@ -1531,7 +1637,7 @@
 
         const labels = Object.keys(statusCounts);
         const data = Object.values(statusCounts);
-        const colors = labels.map(s => statusColors[s]?.bg || '#e2e3e5');
+        const colors = labels.map(s => getStatusColor(s));
 
         if (statusChart) {
             statusChart.destroy();
@@ -1646,7 +1752,7 @@
 
         const labels = Object.keys(statusCounts);
         const data = Object.values(statusCounts);
-        const colors = labels.map(s => statusColors[s]?.bg || '#e2e3e5');
+        const colors = labels.map(s => getStatusColor(s));
 
         if (statusChart) {
             statusChart.destroy();

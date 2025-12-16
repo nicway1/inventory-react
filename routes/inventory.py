@@ -188,6 +188,86 @@ if not os.path.exists(UPLOAD_FOLDER):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@inventory_bp.route('/debug-permissions')
+@login_required
+def debug_user_permissions():
+    """Debug endpoint to check current user's company permissions"""
+    from models.user_company_permission import UserCompanyPermission
+    from models.user_country_permission import UserCountryPermission
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Get company permissions
+        company_perms = db_session.query(UserCompanyPermission).filter_by(user_id=user.id).all()
+        permitted_company_ids = [perm.company_id for perm in company_perms]
+
+        company_perm_data = []
+        all_company_ids = list(permitted_company_ids)
+
+        for perm in company_perms:
+            company = db_session.query(Company).get(perm.company_id)
+            child_companies = []
+            if company and (company.is_parent_company or company.child_companies.count() > 0):
+                children = company.child_companies.all()
+                child_companies = [{'id': c.id, 'name': c.name} for c in children]
+                all_company_ids.extend([c.id for c in children])
+
+            company_perm_data.append({
+                'company_id': perm.company_id,
+                'company_name': company.name if company else 'NOT FOUND',
+                'is_parent': company.is_parent_company if company else None,
+                'child_count': company.child_companies.count() if company else 0,
+                'child_companies': child_companies,
+                'can_view': perm.can_view
+            })
+
+        # Get country permissions
+        country_perms = db_session.query(UserCountryPermission).filter_by(user_id=user.id).all()
+        country_data = [perm.country for perm in country_perms]
+
+        # Count assets that would be visible
+        all_company_ids = list(set(all_company_ids))
+
+        # Assets matching company IDs only
+        assets_by_company = db_session.query(Asset).filter(Asset.company_id.in_(all_company_ids)).count()
+
+        # Assets matching country only
+        assets_by_country = 0
+        if country_data:
+            assets_by_country = db_session.query(Asset).filter(Asset.country.in_(country_data)).count()
+
+        # Assets matching BOTH company AND country (what user actually sees)
+        assets_with_both_filters = 0
+        if country_data:
+            assets_with_both_filters = db_session.query(Asset).filter(
+                Asset.company_id.in_(all_company_ids),
+                Asset.country.in_(country_data)
+            ).count()
+        else:
+            assets_with_both_filters = assets_by_company
+
+        total_assets = db_session.query(Asset).count()
+
+        return {
+            'user_id': user.id,
+            'username': user.username,
+            'user_type': user.user_type.value if user.user_type else None,
+            'company_id': user.company_id,
+            'assigned_countries': country_data,
+            'company_permissions': company_perm_data,
+            'total_company_permissions': len(company_perm_data),
+            'all_permitted_company_ids': all_company_ids,
+            'assets_matching_companies_only': assets_by_company,
+            'assets_matching_country_only': assets_by_country,
+            'assets_matching_BOTH_filters': assets_with_both_filters,
+            'total_assets_in_db': total_assets,
+            'NOTE': 'Inventory shows assets matching BOTH company AND country filters!'
+        }
+    finally:
+        db_session.close()
+
 @inventory_bp.route('/')
 @login_required
 def view_inventory():
@@ -212,14 +292,19 @@ def view_inventory():
             logger.info(f"DEBUG: Applying company filtering for {user.user_type.value} user")
             from models.user_company_permission import UserCompanyPermission
 
-            # Get company permissions for COUNTRY_ADMIN/SUPERVISOR
+            # Filter by country if assigned
+            if user.assigned_countries:
+                logger.info(f"DEBUG: Filtering by assigned countries: {user.assigned_countries}")
+                tech_assets_query = tech_assets_query.filter(Asset.country.in_(user.assigned_countries))
+
+            # ALWAYS filter by company permissions for COUNTRY_ADMIN/SUPERVISOR
             child_company_permissions = db_session.query(UserCompanyPermission).filter_by(
                 user_id=user.id,
                 can_view=True
             ).all()
 
             if child_company_permissions:
-                # User has specific company permissions
+                # User has specific company permissions - filter by ONLY those companies
                 permitted_company_ids = [perm.company_id for perm in child_company_permissions]
                 logger.info(f"DEBUG: Filtering by company IDs: {permitted_company_ids}")
 
@@ -229,39 +314,37 @@ def view_inventory():
                 logger.info(f"DEBUG: Filtering by company names: {permitted_company_names}")
 
                 # Also include child companies of any parent company the user has permission to
+                # This enforces Asset Company Grouping for SUPERVISOR/COUNTRY_ADMIN
                 all_company_names = list(permitted_company_names)
+                all_company_ids = list(permitted_company_ids)
                 for company in permitted_companies:
                     if company.is_parent_company or company.child_companies.count() > 0:
-                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        # This is a parent company - include all child company names AND IDs
+                        child_companies = company.child_companies.all()
+                        child_names = [c.name.strip() for c in child_companies]
+                        child_ids = [c.id for c in child_companies]
                         all_company_names.extend(child_names)
-                        logger.info(f"DEBUG: Including child companies of {company.name}: {child_names}")
+                        all_company_ids.extend(child_ids)
+                        logger.info(f"DEBUG: Including child companies of {company.name}: {child_names} (IDs: {child_ids})")
 
-                # Build filter conditions
+                # Build OR conditions for flexible name matching
                 # Match by company_id OR customer name (with case-insensitive partial match)
+                # IMPORTANT: Also exclude assets with no company_id (unknown company)
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
-                company_filter = or_(
-                    Asset.company_id.in_(permitted_company_ids),
-                    *name_conditions
-                )
-
-                # If user has assigned countries, use OR logic (company OR country)
-                # This allows supervisors to see assets from their companies regardless of country
-                if user.assigned_countries:
-                    logger.info(f"DEBUG: User has countries {user.assigned_countries} - using OR logic with companies")
-                    tech_assets_query = tech_assets_query.filter(
+                tech_assets_query = tech_assets_query.filter(
+                    and_(
+                        Asset.company_id.isnot(None),  # Must have a company_id assigned
                         or_(
-                            company_filter,
-                            Asset.country.in_(user.assigned_countries)
+                            Asset.company_id.in_(all_company_ids),
+                            *name_conditions
                         )
                     )
-                else:
-                    # No countries assigned, just filter by company
-                    tech_assets_query = tech_assets_query.filter(company_filter)
-
-                logger.info(f"DEBUG: {user.user_type.value} filtering by {len(permitted_company_ids)} assigned companies + children: {all_company_names}")
+                )
+                logger.info(f"DEBUG: {user.user_type.value} filtering by {len(all_company_ids)} company IDs (including children): {all_company_ids} and names: {all_company_names}")
             else:
                 # No company permissions assigned - show NO assets
-                tech_assets_query = tech_assets_query.filter(Asset.id == -1)
+                # This forces admin to explicitly assign companies through the UI
+                tech_assets_query = tech_assets_query.filter(Asset.id == -1)  # Impossible condition = no results
                 logger.info(f"DEBUG: {user.user_type.value} has NO company permissions - showing 0 assets")
 
         # Filter by company if user is a client (can only see their company's assets)
@@ -422,12 +505,12 @@ def view_inventory():
 @inventory_bp.route('/sf')
 @login_required
 def view_inventory_sf():
-    """Salesforce-style inventory view - Super Admin and Developer"""
+    """Salesforce-style inventory view - Admin and Supervisor users"""
     user = db_manager.get_user(session['user_id'])
 
-    # Allow SUPER_ADMIN and DEVELOPER users to access this view
-    if user.user_type not in [UserType.DEVELOPER, UserType.SUPER_ADMIN]:
-        flash('This view is only available for administrators.', 'error')
+    # Allow SUPER_ADMIN, DEVELOPER, SUPERVISOR, and COUNTRY_ADMIN users to access this view
+    if user.user_type not in [UserType.DEVELOPER, UserType.SUPER_ADMIN, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+        flash('This view is only available for authorized users.', 'error')
         return redirect(url_for('inventory.view_inventory'))
 
     return render_template('inventory/view_sf.html', user=user)
@@ -446,36 +529,121 @@ def api_sf_filters():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER and SUPER_ADMIN users
-        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
+        # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
-            # Get status counts
+            # Build base query with filtering for SUPERVISOR and COUNTRY_ADMIN
+            base_query = db_session.query(Asset)
+
+            # Apply filtering for SUPERVISOR and COUNTRY_ADMIN users
+            if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+                from models.user_company_permission import UserCompanyPermission
+                user = db_manager.get_user(user_id)
+
+                # Filter by assigned countries
+                if user.assigned_countries:
+                    base_query = base_query.filter(Asset.country.in_(user.assigned_countries))
+                    logger.info(f"SF Filters API: Filtering by countries: {user.assigned_countries}")
+
+                # Filter by company permissions
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user_id,
+                    can_view=True
+                ).all()
+
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                    # Include child company IDs
+                    all_company_ids = list(permitted_company_ids)
+                    all_company_names = [c.name.strip() for c in permitted_companies]
+
+                    for company in permitted_companies:
+                        if company.is_parent_company or company.child_companies.count() > 0:
+                            child_companies = company.child_companies.all()
+                            all_company_ids.extend([c.id for c in child_companies])
+                            all_company_names.extend([c.name.strip() for c in child_companies])
+
+                    # Filter by company_id or customer name
+                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                    base_query = base_query.filter(
+                        or_(
+                            Asset.company_id.in_(all_company_ids),
+                            *name_conditions
+                        )
+                    )
+                    logger.info(f"SF Filters API: Filtering by {len(all_company_ids)} company IDs")
+                else:
+                    # No permissions - show no assets
+                    base_query = base_query.filter(Asset.id == -1)
+                    logger.info(f"SF Filters API: No company permissions - showing 0 assets")
+
+            # Get filtered asset IDs for subqueries
+            filtered_asset_ids = base_query.with_entities(Asset.id).subquery()
+
+            # Get status counts from filtered assets
             status_counts = db_session.query(
                 Asset.status, func.count(Asset.id)
-            ).group_by(Asset.status).all()
+            ).filter(Asset.id.in_(filtered_asset_ids)).group_by(Asset.status).all()
 
             statuses = [
                 {'value': s[0].value if s[0] else 'Unknown', 'label': s[0].value if s[0] else 'Unknown', 'count': s[1]}
                 for s in status_counts if s[0]
             ]
 
-            # Get tech asset category counts
+            # Get tech asset category counts from filtered assets
             asset_category_counts = db_session.query(
                 Asset.asset_type, func.count(Asset.id)
-            ).group_by(Asset.asset_type).all()
+            ).filter(Asset.id.in_(filtered_asset_ids)).group_by(Asset.asset_type).all()
 
             asset_categories = [
                 {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
                 for c in asset_category_counts if c[0]
             ]
 
-            # Get accessory category counts
+            # Get accessory category counts with filtering for SUPERVISOR and COUNTRY_ADMIN
+            accessory_query = db_session.query(Accessory)
+
+            if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+                from models.user_company_permission import UserCompanyPermission
+                user = db_manager.get_user(user_id)
+
+                # Filter accessories by country
+                if user.assigned_countries:
+                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+
+                # Filter by company permissions
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user_id,
+                    can_view=True
+                ).all()
+
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies_obj = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    all_acc_company_ids = list(permitted_company_ids)
+
+                    for comp in permitted_companies_obj:
+                        if comp.is_parent_company or comp.child_companies.count() > 0:
+                            child_comps = comp.child_companies.all()
+                            all_acc_company_ids.extend([c.id for c in child_comps])
+
+                    accessory_query = accessory_query.filter(
+                        or_(
+                            Accessory.company_id.in_(all_acc_company_ids),
+                            Accessory.company_id.is_(None)
+                        )
+                    )
+
+            filtered_accessory_ids = accessory_query.with_entities(Accessory.id).subquery()
+
             accessory_category_counts = db_session.query(
                 Accessory.category, func.count(Accessory.id)
-            ).group_by(Accessory.category).all()
+            ).filter(Accessory.id.in_(filtered_accessory_ids)).group_by(Accessory.category).all()
 
             accessory_categories = [
                 {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
@@ -485,10 +653,10 @@ def api_sf_filters():
             # Combined categories (for backward compatibility)
             categories = asset_categories
 
-            # Get company counts (using customer field) with parent/child grouping info
+            # Get company counts from filtered assets
             company_counts = db_session.query(
                 Asset.customer, func.count(Asset.id)
-            ).group_by(Asset.customer).all()
+            ).filter(Asset.id.in_(filtered_asset_ids)).group_by(Asset.customer).all()
 
             # Build company list with parent/child relationship info
             companies = []
@@ -534,20 +702,21 @@ def api_sf_filters():
                     'child_companies': child_companies
                 })
 
-            # Get country counts
+            # Get country counts from filtered assets
             country_counts = db_session.query(
                 Asset.country, func.count(Asset.id)
-            ).group_by(Asset.country).all()
+            ).filter(Asset.id.in_(filtered_asset_ids)).group_by(Asset.country).all()
 
             countries = [
                 {'value': c[0] or 'Unknown', 'label': c[0] or 'Unknown', 'count': c[1]}
                 for c in country_counts if c[0]
             ]
 
-            # Get location counts (using proper join since Asset.location is a relationship)
+            # Get location counts from filtered assets
             location_counts = db_session.query(
                 Location.name, func.count(Asset.id)
             ).outerjoin(Asset, Asset.location_id == Location.id
+            ).filter(Asset.id.in_(filtered_asset_ids)
             ).group_by(Location.name).all()
 
             locations = [
@@ -606,18 +775,65 @@ def api_sf_assets():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER and SUPER_ADMIN users (check from session directly to avoid DB call issues)
-        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
+        # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
-            # Get total count first
-            total_count = db_session.query(Asset).count()
-            logger.info(f"Total assets in DB: {total_count}")
+            # Build query with filtering for SUPERVISOR and COUNTRY_ADMIN
+            assets_query = db_session.query(Asset)
 
-            # Get all assets (plain query - no lazy loading needed)
-            assets = db_session.query(Asset).all()
+            # Apply filtering for SUPERVISOR and COUNTRY_ADMIN users
+            if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+                from models.user_company_permission import UserCompanyPermission
+                user = db_manager.get_user(user_id)
+
+                # Filter by assigned countries
+                if user.assigned_countries:
+                    assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
+                    logger.info(f"SF API: Filtering by countries: {user.assigned_countries}")
+
+                # Filter by company permissions
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user_id,
+                    can_view=True
+                ).all()
+
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                    # Include child company IDs
+                    all_company_ids = list(permitted_company_ids)
+                    all_company_names = [c.name.strip() for c in permitted_companies]
+
+                    for company in permitted_companies:
+                        if company.is_parent_company or company.child_companies.count() > 0:
+                            child_companies = company.child_companies.all()
+                            all_company_ids.extend([c.id for c in child_companies])
+                            all_company_names.extend([c.name.strip() for c in child_companies])
+
+                    # Filter by company_id or customer name
+                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                    assets_query = assets_query.filter(
+                        or_(
+                            Asset.company_id.in_(all_company_ids),
+                            *name_conditions
+                        )
+                    )
+                    logger.info(f"SF API: Filtering by {len(all_company_ids)} company IDs")
+                else:
+                    # No permissions - show no assets
+                    assets_query = assets_query.filter(Asset.id == -1)
+                    logger.info(f"SF API: No company permissions - showing 0 assets")
+
+            # Get total count
+            total_count = assets_query.count()
+            logger.info(f"Total assets after filtering: {total_count}")
+
+            # Get filtered assets
+            assets = assets_query.all()
             logger.info(f"Fetched {len(assets)} assets")
 
             # Pre-fetch all locations into a map (avoids lazy loading)
@@ -706,19 +922,70 @@ def api_sf_accessories():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER and SUPER_ADMIN users
-        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-            return jsonify({'success': False, 'error': f'Access denied - Admin only (you are {user_type})'}), 403
+        # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+            return jsonify({'success': False, 'error': f'Access denied (you are {user_type})'}), 403
 
         db_session = db_manager.get_session()
         try:
-            # Get all accessories
-            accessories = db_session.query(Accessory).all()
+            # Build query with filtering for SUPERVISOR and COUNTRY_ADMIN
+            accessories_query = db_session.query(Accessory)
+
+            # Apply filtering for SUPERVISOR and COUNTRY_ADMIN users
+            if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+                from models.user_company_permission import UserCompanyPermission
+                user = db_manager.get_user(user_id)
+
+                # Filter by assigned countries
+                if user.assigned_countries:
+                    accessories_query = accessories_query.filter(Accessory.country.in_(user.assigned_countries))
+                    logger.info(f"SF Accessories API: Filtering by countries: {user.assigned_countries}")
+
+                # Filter by company permissions
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user_id,
+                    can_view=True
+                ).all()
+
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                    # Include child company IDs
+                    all_company_ids = list(permitted_company_ids)
+
+                    for company in permitted_companies:
+                        if company.is_parent_company or company.child_companies.count() > 0:
+                            child_companies = company.child_companies.all()
+                            all_company_ids.extend([c.id for c in child_companies])
+
+                    # Filter by company_id (accessories use company_id directly, not customer name)
+                    accessories_query = accessories_query.filter(
+                        or_(
+                            Accessory.company_id.in_(all_company_ids),
+                            Accessory.company_id.is_(None)  # Also show accessories with no company assigned
+                        )
+                    )
+                    logger.info(f"SF Accessories API: Filtering by {len(all_company_ids)} company IDs")
+                else:
+                    # No permissions - show only accessories without company assignment
+                    accessories_query = accessories_query.filter(Accessory.company_id.is_(None))
+                    logger.info(f"SF Accessories API: No company permissions - showing only unassigned accessories")
+
+            # Get filtered accessories
+            accessories = accessories_query.all()
             logger.info(f"Fetched {len(accessories)} accessories")
+
+            # Pre-fetch all company info (avoids lazy loading)
+            all_companies = db_session.query(Company).all()
+            company_id_to_name = {c.id: c.name for c in all_companies}
 
             accessories_data = []
             for acc in accessories:
                 try:
+                    # Get company name from pre-fetched map
+                    company_name = company_id_to_name.get(acc.company_id, '') if acc.company_id else ''
+
                     accessories_data.append({
                         'id': acc.id,
                         'name': acc.name or '',
@@ -728,6 +995,8 @@ def api_sf_accessories():
                         'total_quantity': acc.total_quantity or 0,
                         'available_quantity': acc.available_quantity or 0,
                         'country': acc.country or '',
+                        'company': company_name,
+                        'company_id': acc.company_id,
                         'status': acc.status or 'Unknown',
                         'notes': acc.notes or ''
                     })
@@ -763,9 +1032,9 @@ def api_sf_get_chart_settings():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER and SUPER_ADMIN users
-        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+        # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
 
         db_session = db_manager.get_session()
         try:
@@ -814,9 +1083,9 @@ def api_sf_save_chart_settings():
         if not user_id:
             return jsonify({'success': False, 'error': 'No user in session'}), 403
 
-        # Only allow DEVELOPER and SUPER_ADMIN users
-        if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-            return jsonify({'success': False, 'error': 'Access denied - Admin only'}), 403
+        # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+        if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
 
         data = request.get_json()
         if not data or 'charts' not in data:
@@ -1360,12 +1629,12 @@ def api_create_location():
 @inventory_bp.route('/sf/asset/<int:asset_id>')
 @login_required
 def view_asset_sf(asset_id):
-    """Salesforce-style asset detail view - Admin only"""
+    """Salesforce-style asset detail view - Admin and Supervisor"""
     user_type = session.get('user_type')
 
-    # Only allow DEVELOPER and SUPER_ADMIN users
-    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-        flash('This view is only available for administrators.', 'error')
+    # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+        flash('This view is only available for authorized users.', 'error')
         return redirect(url_for('inventory.view_asset', asset_id=asset_id))
 
     db_session = db_manager.get_session()
@@ -1377,6 +1646,52 @@ def view_asset_sf(asset_id):
         if not asset:
             flash('Asset not found', 'error')
             return redirect(url_for('inventory.view_inventory_sf'))
+
+        # Check permission for SUPERVISOR and COUNTRY_ADMIN to view this specific asset
+        if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+            from models.user_company_permission import UserCompanyPermission
+            has_permission = False
+
+            # Check country permission
+            country_ok = True
+            if user.assigned_countries and asset.country:
+                country_ok = asset.country in user.assigned_countries
+
+            # Check company permission
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                # Include child company IDs and names
+                all_company_ids = list(permitted_company_ids)
+                all_company_names = [c.name.strip().lower() for c in permitted_companies]
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_companies = company.child_companies.all()
+                        all_company_ids.extend([c.id for c in child_companies])
+                        all_company_names.extend([c.name.strip().lower() for c in child_companies])
+
+                # Check if asset's company_id is in permitted list or customer name matches
+                company_ok = asset.company_id in all_company_ids
+                if not company_ok and asset.customer:
+                    # Check by customer name
+                    customer_lower = asset.customer.lower()
+                    company_ok = any(name in customer_lower for name in all_company_names)
+
+                has_permission = country_ok and company_ok
+            else:
+                # No company permissions - deny access
+                has_permission = False
+
+            if not has_permission:
+                flash('You do not have permission to view this asset.', 'error')
+                return redirect(url_for('inventory.view_inventory_sf'))
 
         # Get related tickets/cases
         related_tickets = asset.tickets if asset.tickets else []
@@ -1391,29 +1706,71 @@ def view_asset_sf(asset_id):
         from models.location import Location
         locations = db_session.query(Location).order_by(Location.name).all()
 
-        # Get all unique values for edit dropdowns
-        models = db_session.query(Asset.model).distinct().filter(Asset.model.isnot(None)).all()
+        # Build filtered asset query for dropdowns based on user permissions
+        dropdown_query = db_session.query(Asset)
+
+        if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+            from models.user_company_permission import UserCompanyPermission
+
+            # Filter by assigned countries
+            if user.assigned_countries:
+                dropdown_query = dropdown_query.filter(Asset.country.in_(user.assigned_countries))
+
+            # Filter by company permissions
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                # Include child company IDs
+                all_company_ids = list(permitted_company_ids)
+                all_company_names = [c.name.strip() for c in permitted_companies]
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_companies = company.child_companies.all()
+                        all_company_ids.extend([c.id for c in child_companies])
+                        all_company_names.extend([c.name.strip() for c in child_companies])
+
+                # Filter by company_id or customer name
+                name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+                dropdown_query = dropdown_query.filter(
+                    or_(
+                        Asset.company_id.in_(all_company_ids),
+                        *name_conditions
+                    )
+                )
+
+        # Get filtered asset IDs for dropdown queries
+        filtered_ids = dropdown_query.with_entities(Asset.id).subquery()
+
+        # Get unique values for edit dropdowns from filtered assets
+        models = db_session.query(Asset.model).distinct().filter(Asset.id.in_(filtered_ids), Asset.model.isnot(None)).all()
         models = sorted([m[0] for m in models if m[0]])
 
-        chargers = db_session.query(Asset.charger).distinct().filter(Asset.charger.isnot(None)).all()
+        chargers = db_session.query(Asset.charger).distinct().filter(Asset.id.in_(filtered_ids), Asset.charger.isnot(None)).all()
         chargers = sorted([c[0] for c in chargers if c[0]])
 
-        customers = db_session.query(Asset.customer).distinct().filter(Asset.customer.isnot(None)).all()
+        customers = db_session.query(Asset.customer).distinct().filter(Asset.id.in_(filtered_ids), Asset.customer.isnot(None)).all()
         customers = sorted([c[0] for c in customers if c[0]])
 
-        countries = db_session.query(Asset.country).distinct().filter(Asset.country.isnot(None)).all()
+        countries = db_session.query(Asset.country).distinct().filter(Asset.id.in_(filtered_ids), Asset.country.isnot(None)).all()
         countries = sorted([c[0] for c in countries if c[0]])
 
-        asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.asset_type.isnot(None)).all()
+        asset_types = db_session.query(Asset.asset_type).distinct().filter(Asset.id.in_(filtered_ids), Asset.asset_type.isnot(None)).all()
         asset_types = sorted([t[0] for t in asset_types if t[0]])
 
-        conditions = db_session.query(Asset.condition).distinct().filter(Asset.condition.isnot(None)).all()
+        conditions = db_session.query(Asset.condition).distinct().filter(Asset.id.in_(filtered_ids), Asset.condition.isnot(None)).all()
         conditions = sorted([c[0] for c in conditions if c[0]])
 
-        diags = db_session.query(Asset.diag).distinct().filter(Asset.diag.isnot(None)).all()
+        diags = db_session.query(Asset.diag).distinct().filter(Asset.id.in_(filtered_ids), Asset.diag.isnot(None)).all()
         diags = sorted([d[0] for d in diags if d[0]])
 
-        keyboards = db_session.query(Asset.keyboard).distinct().filter(Asset.keyboard.isnot(None)).all()
+        keyboards = db_session.query(Asset.keyboard).distinct().filter(Asset.id.in_(filtered_ids), Asset.keyboard.isnot(None)).all()
         keyboards = sorted([k[0] for k in keyboards if k[0]])
 
         from models.asset import AssetStatus
@@ -1441,12 +1798,12 @@ def view_asset_sf(asset_id):
 @inventory_bp.route('/sf/accessory/<int:accessory_id>')
 @login_required
 def view_accessory_sf(accessory_id):
-    """Salesforce-style accessory detail view - Admin only"""
+    """Salesforce-style accessory detail view - Admin and Supervisor"""
     user_type = session.get('user_type')
 
-    # Only allow DEVELOPER and SUPER_ADMIN users
-    if user_type not in ['DEVELOPER', 'SUPER_ADMIN']:
-        flash('This view is only available for administrators.', 'error')
+    # Allow DEVELOPER, SUPER_ADMIN, SUPERVISOR, and COUNTRY_ADMIN users
+    if user_type not in ['DEVELOPER', 'SUPER_ADMIN', 'SUPERVISOR', 'COUNTRY_ADMIN']:
+        flash('This view is only available for authorized users.', 'error')
         return redirect(url_for('inventory.view_accessory', id=accessory_id))
 
     db_session = db_manager.get_session()
@@ -1458,6 +1815,44 @@ def view_accessory_sf(accessory_id):
         if not accessory:
             flash('Accessory not found', 'error')
             return redirect(url_for('inventory.view_inventory_sf'))
+
+        # Check permission for SUPERVISOR and COUNTRY_ADMIN to view this specific accessory
+        if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+            from models.user_company_permission import UserCompanyPermission
+            has_permission = False
+
+            # Check country permission
+            country_ok = True
+            if user.assigned_countries and accessory.country:
+                country_ok = accessory.country in user.assigned_countries
+
+            # Check company permission
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                # Include child company IDs
+                all_company_ids = list(permitted_company_ids)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_companies = company.child_companies.all()
+                        all_company_ids.extend([c.id for c in child_companies])
+
+                # Check if accessory's company is in permitted list (or has no company)
+                company_ok = accessory.company_id is None or accessory.company_id in all_company_ids
+                has_permission = country_ok and company_ok
+            else:
+                # No company permissions - only allow if accessory has no company
+                has_permission = country_ok and accessory.company_id is None
+
+            if not has_permission:
+                flash('You do not have permission to view this accessory.', 'error')
+                return redirect(url_for('inventory.view_inventory_sf'))
 
         # Get related tickets/cases
         related_tickets = list(accessory.tickets) if accessory.tickets else []
@@ -1471,17 +1866,53 @@ def view_accessory_sf(accessory_id):
         # Get customer info
         customer = accessory.customer_user if accessory.customer_id else None
 
-        # Get prev/next accessories for navigation
-        prev_accessory = db_session.query(Accessory).filter(Accessory.id < accessory_id).order_by(Accessory.id.desc()).first()
-        next_accessory = db_session.query(Accessory).filter(Accessory.id > accessory_id).order_by(Accessory.id.asc()).first()
+        # Build filtered accessory query for SUPERVISOR and COUNTRY_ADMIN
+        base_accessory_query = db_session.query(Accessory)
 
-        # Get all accessories for sidebar (same category first, then others)
-        same_category = db_session.query(Accessory).filter(
+        if user_type in ['SUPERVISOR', 'COUNTRY_ADMIN']:
+            from models.user_company_permission import UserCompanyPermission
+
+            # Filter by assigned countries
+            if user.assigned_countries:
+                base_accessory_query = base_accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+
+            # Filter by company permissions
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+
+                # Include child company IDs
+                all_company_ids = list(permitted_company_ids)
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_companies = company.child_companies.all()
+                        all_company_ids.extend([c.id for c in child_companies])
+
+                # Filter by company_id
+                base_accessory_query = base_accessory_query.filter(
+                    or_(
+                        Accessory.company_id.in_(all_company_ids),
+                        Accessory.company_id.is_(None)
+                    )
+                )
+
+        # Get prev/next accessories for navigation (filtered)
+        prev_accessory = base_accessory_query.filter(Accessory.id < accessory_id).order_by(Accessory.id.desc()).first()
+        next_accessory = base_accessory_query.filter(Accessory.id > accessory_id).order_by(Accessory.id.asc()).first()
+
+        # Get all accessories for sidebar (same category first, then others) - filtered
+        same_category = base_accessory_query.filter(
             Accessory.category == accessory.category,
             Accessory.id != accessory_id
         ).order_by(Accessory.name).all()
 
-        other_accessories = db_session.query(Accessory).filter(
+        other_accessories = base_accessory_query.filter(
             Accessory.category != accessory.category,
             Accessory.id != accessory_id
         ).order_by(Accessory.name).all()
@@ -1595,7 +2026,11 @@ def view_tech_assets():
         if user.user_type == UserType.COUNTRY_ADMIN or user.user_type == UserType.SUPERVISOR:
             from models.user_company_permission import UserCompanyPermission
 
-            # Get company permissions
+            # Filter by country if assigned
+            if user.assigned_countries:
+                assets_query = assets_query.filter(Asset.country.in_(user.assigned_countries))
+
+            # ALWAYS filter by company permissions
             company_permissions = db_session.query(UserCompanyPermission).filter_by(
                 user_id=user.id,
                 can_view=True
@@ -1606,30 +2041,25 @@ def view_tech_assets():
                 permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                 permitted_company_names = [c.name.strip() for c in permitted_companies]
 
-                # Include child companies of parent companies
+                # Include child companies of parent companies (both names AND IDs)
                 all_company_names = list(permitted_company_names)
+                all_company_ids = list(permitted_company_ids)
                 for company in permitted_companies:
                     if company.is_parent_company or company.child_companies.count() > 0:
-                        child_names = [c.name.strip() for c in company.child_companies.all()]
+                        child_companies = company.child_companies.all()
+                        child_names = [c.name.strip() for c in child_companies]
+                        child_ids = [c.id for c in child_companies]
                         all_company_names.extend(child_names)
+                        all_company_ids.extend(child_ids)
 
-                # Build company filter
+                # Filter by company_id OR customer name
                 name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
-                company_filter = or_(
-                    Asset.company_id.in_(permitted_company_ids),
-                    *name_conditions
-                )
-
-                # If user has assigned countries, use OR logic (company OR country)
-                if user.assigned_countries:
-                    assets_query = assets_query.filter(
-                        or_(
-                            company_filter,
-                            Asset.country.in_(user.assigned_countries)
-                        )
+                assets_query = assets_query.filter(
+                    or_(
+                        Asset.company_id.in_(all_company_ids),
+                        *name_conditions
                     )
-                else:
-                    assets_query = assets_query.filter(company_filter)
+                )
             else:
                 # No company permissions - show NO assets
                 assets_query = assets_query.filter(Asset.id == -1)
@@ -4336,9 +4766,8 @@ def search():
 @inventory_bp.route('/export/<string:item_type>', methods=['GET', 'POST'])
 @login_required
 def export_inventory(item_type):
-    # Ensure user has permission to export data - allow admins and supervisors
-    allowed_types = [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]
-    if current_user.user_type not in allowed_types:
+    # Ensure user has permission to export data - allow SUPER_ADMIN, DEVELOPER, SUPERVISOR, and COUNTRY_ADMIN
+    if not (current_user.is_super_admin or current_user.is_developer or current_user.is_supervisor or current_user.is_country_admin):
         flash('You do not have permission to export data', 'error')
         return redirect(url_for('inventory.view_inventory'))
 
@@ -4362,55 +4791,40 @@ def export_inventory(item_type):
                     flash('Invalid selection data', 'error')
                     return redirect(url_for('inventory.view_inventory'))
 
-            # Apply user permission filters based on user type
-            if current_user.is_super_admin or current_user.is_developer:
-                # Super admins and developers can export all assets
-                pass
-            elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
-                # Filter by company permissions for COUNTRY_ADMIN and SUPERVISOR
+            # Apply user permission filters for SUPERVISOR and COUNTRY_ADMIN
+            if current_user.is_supervisor or current_user.is_country_admin:
                 from models.user_company_permission import UserCompanyPermission
-                from models.company_customer_permission import CompanyCustomerPermission
-                from models.customer_user import CustomerUser
-                from models.company import Company
 
-                user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                # Filter by assigned countries
+                if current_user.assigned_countries:
+                    query = query.filter(Asset.country.in_(current_user.assigned_countries))
+
+                # Filter by company permissions
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
                     user_id=current_user.id,
                     can_view=True
                 ).all()
 
-                if user_company_permissions:
-                    permitted_company_ids = [perm.company_id for perm in user_company_permissions]
-
-                    # Include child companies of any parent companies
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
                     permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
-                    all_permitted_ids = list(permitted_company_ids)
+
+                    # Include child company IDs
+                    all_company_ids = list(permitted_company_ids)
+                    all_company_names = [c.name.strip() for c in permitted_companies]
 
                     for company in permitted_companies:
                         if company.is_parent_company or company.child_companies.count() > 0:
-                            child_ids = [c.id for c in company.child_companies.all()]
-                            all_permitted_ids.extend(child_ids)
+                            child_companies = company.child_companies.all()
+                            all_company_ids.extend([c.id for c in child_companies])
+                            all_company_names.extend([c.name.strip() for c in child_companies])
 
-                    # Include cross-company permissions
-                    cross_company_ids = []
-                    for company_id in all_permitted_ids:
-                        additional_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
-                            .filter(
-                                CompanyCustomerPermission.company_id == company_id,
-                                CompanyCustomerPermission.can_view == True
-                            ).all()
-                        cross_company_ids.extend([cid[0] for cid in additional_ids])
-
-                    permitted_company_ids = list(set(all_permitted_ids + cross_company_ids))
-
-                    # Get customer_user IDs from permitted companies
-                    permitted_customer_ids = db_session.query(CustomerUser.id).filter(
-                        CustomerUser.company_id.in_(permitted_company_ids)
-                    ).subquery()
-
+                    # Filter by company_id or customer name
+                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
                     query = query.filter(
                         or_(
-                            Asset.company_id.in_(permitted_company_ids),
-                            Asset.customer_id.in_(permitted_customer_ids)
+                            Asset.company_id.in_(all_company_ids),
+                            *name_conditions
                         )
                     )
                 else:

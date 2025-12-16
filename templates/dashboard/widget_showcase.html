@@ -1892,7 +1892,7 @@
         </div>
         <div class="hero-artwork">
             <div class="hero-icon-grid">
-                {% for widget in all_widgets[:9] %}
+                {% for widget in available_widgets[:9] %}
                 <div class="hero-icon" style="background: var(--gradient-{{ widget.color }});">
                     <i class="{{ widget.icon }}"></i>
                 </div>
@@ -1922,7 +1922,7 @@
             <div class="brick-grid">
                 {% set featured_widgets = ['inventory_stats', 'weekly_tickets_chart', 'launchpad', 'shipments_list', 'system_management', 'quick_actions'] %}
                 {% for widget in all_widgets %}
-                {% if widget.id in featured_widgets %}
+                {% if widget.id in featured_widgets and widget.id in available_widget_ids %}
                 <div class="brick-item" onclick="showWidgetDetails('{{ widget.id }}')">
                     <div class="brick-bg" style="background: var(--gradient-{{ widget.color }});"></div>
                     {% if widget.screenshot %}

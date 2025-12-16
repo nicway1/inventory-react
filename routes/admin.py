@@ -473,20 +473,6 @@ def save_user_companies(user_id):
         data = request.get_json()
         company_ids = data.get('company_ids', [])
 
-        # Remove duplicates while preserving order
-        company_ids = list(dict.fromkeys(company_ids))
-
-        # Auto-include child companies when parent is selected
-        all_company_ids = set(company_ids)
-        for company_id in company_ids:
-            company = db_session.query(Company).get(int(company_id))
-            if company and (company.is_parent_company or company.child_companies.count() > 0):
-                # Add all child company IDs
-                for child in company.child_companies.all():
-                    all_company_ids.add(child.id)
-
-        company_ids = list(all_company_ids)
-
         # Delete existing company permissions
         db_session.query(UserCompanyPermission).filter_by(user_id=user_id).delete()
 
@@ -502,14 +488,11 @@ def save_user_companies(user_id):
             db_session.add(permission)
 
         # Update user's primary company_id to first selected company (for backwards compatibility)
-        # If no companies selected, clear the primary company
         if company_ids:
             user.company_id = int(company_ids[0])
-        else:
-            user.company_id = None
 
         db_session.commit()
-        logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies (including auto-added children)")
+        logger.info(f"Updated company permissions for user {user_id}: {len(company_ids)} companies")
 
         return jsonify({'success': True, 'count': len(company_ids)})
     except Exception as e:
@@ -666,6 +649,18 @@ def create_user():
             mention_filter_enabled = request.form.get('mention_filter_enabled') == '1'
             mention_user_ids = request.form.getlist('mention_user_ids')
             mention_group_ids = request.form.getlist('mention_group_ids')
+
+            # Check if user with this username already exists (including soft-deleted)
+            existing_username = db_session.query(User).filter_by(username=username).first()
+            if existing_username:
+                if existing_username.is_deleted:
+                    flash('A deleted user with this username exists. Please use a different username or restore the deleted user.', 'error')
+                else:
+                    flash('A user with this username already exists. Please use a different username.', 'error')
+                companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+                parent_companies_data = _format_parent_companies(parent_companies)
+                queues_data = [{'id': q.id, 'name': q.name} for q in queues]
+                return render_template('admin/create_user.html', companies=companies_data, parent_companies=parent_companies_data, queues=queues_data, available_countries=available_countries, all_users=all_users, all_groups=all_groups)
 
             # Check if user with this email already exists
             existing_user = db_session.query(User).filter_by(email=email).first()
