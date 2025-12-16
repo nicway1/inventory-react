@@ -2756,7 +2756,7 @@ def view_ticket(ticket_id):
                 allowed_visible_ids = {p[0] for p in visibility_perms}
                 users_for_assignment = [u for u in users_for_assignment if u.id in allowed_visible_ids]
 
-        # Apply @mention permission filtering for Report an Issue system
+        # Apply @mention permission filtering for both Report an Issue AND Change Case Owner
         current_user_fresh = db_session.query(User).get(current_user.id)
         if current_user_fresh and current_user_fresh.mention_filter_enabled:
             from models.user_mention_permission import UserMentionPermission
@@ -2767,6 +2767,7 @@ def view_ticket(ticket_id):
             if mention_perms:
                 allowed_mention_ids = {p[0] for p in mention_perms}
                 users_for_mention = [u for u in users_for_mention if u.id in allowed_mention_ids]
+                users_for_assignment = [u for u in users_for_assignment if u.id in allowed_mention_ids]
 
         owner = ticket.assigned_to
 
