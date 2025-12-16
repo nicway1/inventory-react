@@ -52,6 +52,7 @@ from models.weekly_meeting import WeeklyMeeting
 from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority, ActionItemComment
 from models.dev_blog_entry import DevBlogEntry
 from models.user_session import UserSession, parse_user_agent
+from models.notification_user_group import NotificationUserGroup, notification_user_group_members
 
 __all__ = [
     "Base",
@@ -130,5 +131,7 @@ __all__ = [
     "ActionItemComment",
     "DevBlogEntry",
     "UserSession",
-    "parse_user_agent"
+    "parse_user_agent",
+    "NotificationUserGroup",
+    "notification_user_group_members"
 ]

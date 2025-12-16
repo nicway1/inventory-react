@@ -1763,6 +1763,7 @@ def manage_queue_notifications():
     from models.queue_notification import QueueNotification
     from models.queue import Queue
     from models.user import User
+    from models.notification_user_group import NotificationUserGroup
 
     db_session = db_manager.get_session()
     try:
@@ -1770,6 +1771,9 @@ def manage_queue_notifications():
         users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
         queues = db_session.query(Queue).order_by(Queue.name).all()
         notifications = db_session.query(QueueNotification).all()
+
+        # Get notification user groups for quick assignment
+        notification_groups = db_session.query(NotificationUserGroup).order_by(NotificationUserGroup.name).all()
 
         # Create a mapping for easier template access - convert to dict to avoid detached session issues
         notification_map = {}
@@ -1800,10 +1804,18 @@ def manage_queue_notifications():
             'description': q.description
         } for q in queues]
 
+        # Convert notification groups
+        groups_list = [{
+            'id': g.id,
+            'name': g.name,
+            'member_ids': [m.id for m in g.members.all()]
+        } for g in notification_groups]
+
         return render_template('admin/queue_notifications.html',
                               users=users_list,
                               queues=queues_list,
-                              notification_map=notification_map)
+                              notification_map=notification_map,
+                              notification_groups=groups_list)
     except Exception as e:
         flash(f'Error loading queue notifications: {str(e)}', 'error')
         return redirect(url_for('admin.manage_users'))
@@ -1911,6 +1923,206 @@ def delete_queue_notification(notification_id):
         db_session.close()
     
     return redirect(url_for('admin.manage_queue_notifications'))
+
+
+# ============================================
+# Notification User Groups Routes
+# ============================================
+
+@admin_bp.route('/notification-user-groups')
+@admin_required
+def manage_notification_user_groups():
+    """Manage notification user groups (preset user groups for quick assignment)"""
+    from models.notification_user_group import NotificationUserGroup
+    from models.user import User
+
+    db_session = db_manager.get_session()
+    try:
+        groups = db_session.query(NotificationUserGroup).order_by(NotificationUserGroup.name).all()
+        users = db_session.query(User).filter(User.is_deleted == False).order_by(User.username).all()
+
+        groups_data = []
+        for group in groups:
+            groups_data.append({
+                'id': group.id,
+                'name': group.name,
+                'description': group.description,
+                'member_count': group.member_count,
+                'members': [{'id': u.id, 'username': u.username, 'email': u.email} for u in group.members.all()],
+                'created_at': group.created_at
+            })
+
+        users_data = [{'id': u.id, 'username': u.username, 'email': u.email} for u in users]
+
+        return render_template('admin/notification_user_groups.html',
+                              groups=groups_data,
+                              users=users_data)
+    except Exception as e:
+        flash(f'Error loading notification user groups: {str(e)}', 'error')
+        return redirect(url_for('admin.manage_queue_notifications'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/notification-user-groups/create', methods=['POST'])
+@admin_required
+def create_notification_user_group():
+    """Create a new notification user group"""
+    from models.notification_user_group import NotificationUserGroup
+    from models.user import User
+
+    try:
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        user_ids = request.form.getlist('user_ids')
+
+        if not name:
+            flash('Group name is required', 'error')
+            return redirect(url_for('admin.manage_notification_user_groups'))
+
+        db_session = db_manager.get_session()
+        try:
+            # Check if group name already exists
+            existing = db_session.query(NotificationUserGroup).filter_by(name=name).first()
+            if existing:
+                flash(f'A group with name "{name}" already exists', 'error')
+                return redirect(url_for('admin.manage_notification_user_groups'))
+
+            # Create new group
+            group = NotificationUserGroup(
+                name=name,
+                description=description if description else None
+            )
+            db_session.add(group)
+            db_session.flush()
+
+            # Add members
+            if user_ids:
+                for user_id in user_ids:
+                    user = db_session.query(User).get(int(user_id))
+                    if user:
+                        group.members.append(user)
+
+            db_session.commit()
+            flash(f'Notification user group "{name}" created with {len(user_ids)} member(s)', 'success')
+
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error creating group: {str(e)}', 'error')
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        flash(f'Invalid request data: {str(e)}', 'error')
+
+    return redirect(url_for('admin.manage_notification_user_groups'))
+
+
+@admin_bp.route('/notification-user-groups/<int:group_id>/update', methods=['POST'])
+@admin_required
+def update_notification_user_group(group_id):
+    """Update a notification user group"""
+    from models.notification_user_group import NotificationUserGroup
+    from models.user import User
+
+    try:
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        user_ids = request.form.getlist('user_ids')
+
+        if not name:
+            flash('Group name is required', 'error')
+            return redirect(url_for('admin.manage_notification_user_groups'))
+
+        db_session = db_manager.get_session()
+        try:
+            group = db_session.query(NotificationUserGroup).get(group_id)
+            if not group:
+                flash('Group not found', 'error')
+                return redirect(url_for('admin.manage_notification_user_groups'))
+
+            # Check if name is taken by another group
+            existing = db_session.query(NotificationUserGroup).filter(
+                NotificationUserGroup.name == name,
+                NotificationUserGroup.id != group_id
+            ).first()
+            if existing:
+                flash(f'A group with name "{name}" already exists', 'error')
+                return redirect(url_for('admin.manage_notification_user_groups'))
+
+            # Update group
+            group.name = name
+            group.description = description if description else None
+
+            # Update members - clear and re-add
+            group.members = []
+            db_session.flush()
+
+            if user_ids:
+                for user_id in user_ids:
+                    user = db_session.query(User).get(int(user_id))
+                    if user:
+                        group.members.append(user)
+
+            db_session.commit()
+            flash(f'Group "{name}" updated successfully', 'success')
+
+        except Exception as e:
+            db_session.rollback()
+            flash(f'Error updating group: {str(e)}', 'error')
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        flash(f'Invalid request data: {str(e)}', 'error')
+
+    return redirect(url_for('admin.manage_notification_user_groups'))
+
+
+@admin_bp.route('/notification-user-groups/<int:group_id>/delete', methods=['POST'])
+@admin_required
+def delete_notification_user_group(group_id):
+    """Delete a notification user group"""
+    from models.notification_user_group import NotificationUserGroup
+
+    db_session = db_manager.get_session()
+    try:
+        group = db_session.query(NotificationUserGroup).get(group_id)
+        if group:
+            name = group.name
+            db_session.delete(group)
+            db_session.commit()
+            flash(f'Group "{name}" deleted successfully', 'success')
+        else:
+            flash('Group not found', 'error')
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting group: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.manage_notification_user_groups'))
+
+
+@admin_bp.route('/notification-user-groups/<int:group_id>/members', methods=['GET'])
+@admin_required
+def get_notification_user_group_members(group_id):
+    """Get members of a notification user group (JSON API)"""
+    from models.notification_user_group import NotificationUserGroup
+
+    db_session = db_manager.get_session()
+    try:
+        group = db_session.query(NotificationUserGroup).get(group_id)
+        if group:
+            members = [{'id': u.id, 'username': u.username, 'email': u.email} for u in group.members.all()]
+            return jsonify({'success': True, 'members': members})
+        else:
+            return jsonify({'success': False, 'error': 'Group not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
 
 @admin_bp.route('/system-config')
 @super_admin_required
