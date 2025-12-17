@@ -1,0 +1,4 @@
+product_title,org_name,person_name,primary_email,phone_number,brand,serial_number,preferred_condition,priority,order_id,order_item_id,organization_id,status,start_date,shipped_date,delivery_date,office_name,address_line1,address_line2,city,state,postal_code,country_code,carrier,tracking_link
+MacBook Pro 14,Acme Corporation,John Smith,john.smith@acme.com,+1234567890,Apple,C02XL1234567,Good,1,ORD-001,ITEM-001,ORG-123,Pending,2025-01-15,,,Main Office,123 Business Street,Suite 100,New York,NY,10001,US,FedEx,
+Dell Latitude 5540,Acme Corporation,Jane Doe,jane.doe@acme.com,+1234567891,Dell,ABC123DEF456,Good,2,ORD-002,ITEM-002,ORG-123,Pending,2025-01-16,,,Branch Office,456 Corporate Ave,,Los Angeles,CA,90001,US,UPS,
+ThinkPad X1 Carbon,Tech Solutions Inc,Bob Wilson,bob.wilson@techsol.com,+6512345678,Lenovo,PF2ABC123,Excellent,1,ORD-003,ITEM-003,ORG-456,Pending,2025-01-17,,,Singapore HQ,1 Raffles Place,#20-01,Singapore,,048616,SG,DHL,

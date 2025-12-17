@@ -48,8 +48,18 @@
                             <span class="upload-loading hidden">⏳ Uploading...</span>
                         </button>
                     </div>
-                    <div class="mt-2 text-xs text-gray-500">
-                        Expected columns: order_item_id, product_title, person_name, primary_email, org_name, brand, serial_number, category_code, etc.
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-xs text-gray-500">
+                            Expected columns: order_item_id, product_title, person_name, primary_email, org_name, brand, serial_number, category_code, etc.
+                        </span>
+                        <a href="{{ url_for('static', filename='samples/csv_import_sample.csv') }}"
+                           download="csv_import_sample.csv"
+                           class="inline-flex items-center text-xs text-blue-600 hover:text-blue-800">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Download Sample CSV
+                        </a>
                     </div>
                 </form>
             </div>
