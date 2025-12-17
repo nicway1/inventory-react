@@ -2585,8 +2585,6 @@ Additional Notes:
             if is_custom_category:
                 # For custom categories, we'll use a special handling since the DB expects enum values
                 # We'll create the ticket directly in the database with a workaround
-                from models.ticket import Ticket
-                
                 asset_id = None
                 if asset:
                     asset_id = asset.id
