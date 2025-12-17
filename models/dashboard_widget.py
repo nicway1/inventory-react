@@ -494,8 +494,7 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader=None,
-    configurable=True,
-    screenshot='inventory_import.png'
+    screenshot='import_assets.png'
 ))
 
 register_widget(WidgetDefinition(
