@@ -481,6 +481,24 @@ register_widget(WidgetDefinition(
 ))
 
 register_widget(WidgetDefinition(
+    id='inventory_import_link',
+    name='Import Inventory',
+    description='Bulk import assets from CSV/Excel',
+    long_description='Quickly add multiple assets to your inventory by uploading a spreadsheet. Navigate to the full import page where you can download templates, upload files, preview data, and confirm imports.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/inventory_import_link.html',
+    icon='fas fa-file-import',
+    color='green',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    data_loader=None,
+    configurable=True,
+    screenshot='inventory_import.png'
+))
+
+register_widget(WidgetDefinition(
     id='view_tickets',
     name='View Tickets',
     description='Quick access to ticket management',
