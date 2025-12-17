@@ -866,7 +866,7 @@
                         </label>
                         <select id="internal_transfer_queue_id"
                                 name="queue_id"
-                                required
+                                disabled
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
@@ -1522,6 +1522,7 @@ function onCategoryChange() {
     } else if (category === 'INTERNAL_TRANSFER') {
         internalTransferFields.classList.remove('hidden');
         document.getElementById('transfer_notes').disabled = false; // Enable Internal Transfer notes
+        document.getElementById('internal_transfer_queue_id').disabled = false; // Enable Internal Transfer queue
         console.log('Enabled Internal Transfer notes field');
 
         // Set required fields for Internal Transfer
