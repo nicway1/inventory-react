@@ -923,13 +923,13 @@
                         </a>
                         {% endif %}
 
-                        <!-- Import Button -->
-                        <a href="{{ url_for('inventory.import_inventory') }}"
+                        <!-- Import Manager Button -->
+                        <a href="{{ url_for('import_manager.dashboard') }}"
                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/>
                             </svg>
-                            Import
+                            Import Manager
                         </a>
                     </div>
                     {% endif %}
@@ -988,8 +988,8 @@
                     </form>
                     
                     <!-- Notifications Dropdown -->
-                    <div class="relative" id="notifications-dropdown">
-                        <button type="button" 
+                    <div class="relative" id="notifications-dropdown" style="position: relative;">
+                        <button type="button"
                                 class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md relative"
                                 onclick="toggleNotifications()"
                                 id="notifications-button">
@@ -998,18 +998,19 @@
                             </svg>
                             <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                         </button>
-                        
+
                         <!-- Dropdown Menu -->
-                        <div id="notifications-menu" 
-                             class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 hidden">
-                            <div class="py-1">
-                                <div class="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
-                                    <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
-                                    <button onclick="markAllAsRead()" class="text-xs text-truelog-dark hover:text-truelog">Mark all read</button>
+                        <div id="notifications-menu"
+                             class="hidden"
+                             style="position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 320px; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid #e5e7eb; z-index: 9999;">
+                            <div style="padding: 0.25rem 0;">
+                                <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #111827;">Notifications</h3>
+                                    <button onclick="markAllAsRead()" style="font-size: 0.75rem; color: #2563eb; cursor: pointer; background: none; border: none;">Mark all read</button>
                                 </div>
-                                <div id="notifications-list" class="max-h-96 overflow-y-auto">
-                                    <div class="px-4 py-8 text-center text-gray-500">
-                                        <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div id="notifications-list" style="max-height: 384px; overflow-y: auto;">
+                                    <div style="padding: 2rem 1rem; text-align: center; color: #6b7280;">
+                                        <svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                                         </svg>
                                         Loading notifications...
@@ -1104,28 +1105,34 @@
         
         // Load notifications
         async function loadNotifications() {
+            console.log('[NOTIFICATION DEBUG] loadNotifications called');
             try {
                 const response = await fetch('/tickets/notifications');
                 const data = await response.json();
-                
+                console.log('[NOTIFICATION DEBUG] Notifications loaded:', data);
+
                 if (data.success) {
                     displayNotifications(data.notifications);
                 } else {
-                    console.error('Failed to load notifications:', data.error);
+                    console.error('[NOTIFICATION DEBUG] Failed to load notifications:', data.error);
                 }
             } catch (error) {
-                console.error('Error loading notifications:', error);
+                console.error('[NOTIFICATION DEBUG] Error loading notifications:', error);
             }
         }
         
         // Display notifications in the dropdown
         function displayNotifications(notifications) {
+            console.log('[NOTIFICATION DEBUG] displayNotifications called with', notifications.length, 'notifications');
+            if (notifications.length > 0) {
+                console.log('[NOTIFICATION DEBUG] First notification:', notifications[0]);
+            }
             const list = document.getElementById('notifications-list');
             
             if (notifications.length === 0) {
                 list.innerHTML = `
-                    <div class="px-4 py-8 text-center text-gray-500">
-                        <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div style="padding: 2rem 1rem; text-align: center; color: #6b7280;">
+                        <svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
                         No notifications
@@ -1135,15 +1142,16 @@
             }
             
             list.innerHTML = notifications.map(notification => `
-                <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${notification.is_read ? 'opacity-60' : ''}" 
+                <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6; cursor: pointer; ${notification.is_read ? 'opacity: 0.6;' : ''}"
+                     onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'"
                      onclick="markAsRead(${notification.id}, '${notification.reference_type || ''}', ${notification.reference_id || 'null'})">
-                    <div class="flex items-start">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-900">${notification.title}</p>
-                            <p class="text-sm text-gray-600 mt-1">${notification.message}</p>
-                            <p class="text-xs text-gray-400 mt-1">${formatDate(notification.created_at)}</p>
+                    <div style="display: flex; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 0.875rem; font-weight: 500; color: #111827; margin: 0;">${notification.title}</p>
+                            <p style="font-size: 0.875rem; color: #4b5563; margin: 0.25rem 0 0 0;">${notification.message}</p>
+                            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.25rem 0 0 0;">${formatDate(notification.created_at)}</p>
                         </div>
-                        ${!notification.is_read ? '<div class="w-2 h-2 bg-truelog rounded-full ml-2 mt-1"></div>' : ''}
+                        ${!notification.is_read ? '<div style="width: 0.5rem; height: 0.5rem; background: #2563eb; border-radius: 50%; margin-left: 0.5rem; margin-top: 0.25rem;"></div>' : ''}
                     </div>
                 </div>
             `).join('');
@@ -1151,10 +1159,12 @@
         
         // Mark notification as read and navigate to ticket
         async function markAsRead(notificationId, referenceType, referenceId) {
+            console.log('[NOTIFICATION DEBUG] markAsRead called:', { notificationId, referenceType, referenceId });
             try {
                 // Get CSRF token
                 const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
                 const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+                console.log('[NOTIFICATION DEBUG] CSRF token present:', !!csrfToken);
                 
                 const response = await fetch(`/tickets/notifications/${notificationId}/mark-read`, {
                     method: 'POST',
@@ -1165,21 +1175,26 @@
                     credentials: 'same-origin'
                 });
                 
+                console.log('[NOTIFICATION DEBUG] Response status:', response.status, response.ok);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[NOTIFICATION DEBUG] Response data:', data);
                     if (data.success) {
                         loadNotifications();
                         updateUnreadCount();
-                        
+
                         // Navigate to the ticket if reference data is provided
+                        console.log('[NOTIFICATION DEBUG] Checking navigation - referenceType:', referenceType, 'referenceId:', referenceId);
                         if (referenceType === 'ticket' && referenceId) {
+                            console.log('[NOTIFICATION DEBUG] Navigating to ticket:', referenceId);
                             window.location.href = `/tickets/${referenceId}#comments`;
                         }
                     } else {
-                        console.error('Failed to mark notification as read:', data.error);
+                        console.error('[NOTIFICATION DEBUG] Failed to mark notification as read:', data.error);
                     }
                 } else {
-                    console.error('HTTP error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('[NOTIFICATION DEBUG] HTTP error:', response.status, response.statusText, errorText);
                 }
             } catch (error) {
                 console.error('Error marking notification as read:', error);
@@ -1188,11 +1203,13 @@
         
         // Mark all notifications as read
         async function markAllAsRead() {
+            console.log('[NOTIFICATION DEBUG] markAllAsRead called');
             try {
                 // Get CSRF token
                 const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
                 const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
-                
+                console.log('[NOTIFICATION DEBUG] CSRF token present for mark-all:', !!csrfToken);
+
                 const response = await fetch('/tickets/notifications/mark-all-read', {
                     method: 'POST',
                     headers: {
@@ -1202,20 +1219,23 @@
                     credentials: 'same-origin'
                 });
                 
+                console.log('[NOTIFICATION DEBUG] mark-all Response status:', response.status, response.ok);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[NOTIFICATION DEBUG] mark-all Response data:', data);
                     if (data.success) {
                         loadNotifications();
                         updateUnreadCount();
-                        console.log('All notifications marked as read');
+                        console.log('[NOTIFICATION DEBUG] All notifications marked as read');
                     } else {
-                        console.error('Failed to mark notifications as read:', data.error);
+                        console.error('[NOTIFICATION DEBUG] Failed to mark notifications as read:', data.error);
                     }
                 } else {
-                    console.error('HTTP error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('[NOTIFICATION DEBUG] mark-all HTTP error:', response.status, response.statusText, errorText);
                 }
             } catch (error) {
-                console.error('Error marking all notifications as read:', error);
+                console.error('[NOTIFICATION DEBUG] Error marking all notifications as read:', error);
             }
         }
         

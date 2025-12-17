@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    body {
+        background: #f4f6f9;
+        font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .sf-container {
+        background: #f4f6f9;
+        min-height: 100vh;
+        padding: 2rem 3rem;
+        max-width: 100%;
+    }
+
+    .sf-page-header {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+    }
+
+    .sf-page-header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .sf-page-title {
+        font-size: 1.875rem;
+        font-weight: 600;
+        color: #181818;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-button {
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: #f3f3f3;
+        border: 1px solid #c9c9c9;
+        border-radius: 0.25rem;
+        color: #444444;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.15s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .sf-button:hover {
+        background: #e8e8e8;
+        border-color: #b5b5b5;
+        text-decoration: none;
+    }
+
+    .sf-card {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .sf-card-header {
+        background: #f9fafb;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-card-body {
+        padding: 1.5rem;
+    }
+
+    /* Status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        gap: 0.375rem;
+    }
+
+    .status-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-badge.processing {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-badge.pending {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    /* Type badge */
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.875rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .type-badge i {
+        font-size: 1rem;
+    }
+
+    /* Info grid */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 500;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: #111827;
+        font-weight: 500;
+    }
+
+    /* Stats row */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-box {
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+    }
+
+    .stat-box .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .stat-box .stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+    }
+
+    .stat-box.success .stat-value { color: #059669; }
+    .stat-box.failed .stat-value { color: #dc2626; }
+
+    /* Data table */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table th {
+        background: #f9fafb;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+    }
+
+    .data-table tr:hover {
+        background: #f9fafb;
+    }
+
+    /* Error section */
+    .error-section {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .error-section h4 {
+        color: #991b1b;
+        margin: 0 0 0.5rem 0;
+        font-size: 0.875rem;
+    }
+
+    .error-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: #7f1d1d;
+        font-size: 0.875rem;
+    }
+
+    .error-list li {
+        margin-bottom: 0.25rem;
+    }
+
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb a {
+        color: #0176d3;
+        text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .empty-data {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    .notes-section {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .notes-section h4 {
+        color: #92400e;
+        margin: 0 0 0.5rem 0;
+        font-size: 0.875rem;
+    }
+
+    .notes-section p {
+        margin: 0;
+        color: #78350f;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="{{ url_for('import_manager.dashboard') }}">Import Manager</a>
+        <i class="fas fa-chevron-right"></i>
+        <span>{{ import_session.display_id }}</span>
+    </div>
+
+    <!-- Page Header -->
+    <div class="sf-page-header">
+        <div class="sf-page-header-top">
+            <div>
+                <h1 class="sf-page-title">
+                    <i class="{{ import_session.type_icon }}"></i>
+                    {{ import_session.display_id }}
+                </h1>
+                <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; align-items: center;">
+                    <span class="type-badge">
+                        <i class="{{ import_session.type_icon }}"></i>
+                        {{ import_session.type_name }}
+                    </span>
+                    <span class="status-badge {{ import_session.status }}">
+                        {% if import_session.status == 'completed' %}
+                        <i class="fas fa-check-circle"></i>
+                        {% elif import_session.status == 'failed' %}
+                        <i class="fas fa-times-circle"></i>
+                        {% elif import_session.status == 'processing' %}
+                        <i class="fas fa-spinner fa-spin"></i>
+                        {% else %}
+                        <i class="fas fa-clock"></i>
+                        {% endif %}
+                        {{ import_session.status|capitalize }}
+                    </span>
+                </div>
+            </div>
+            <a href="{{ url_for('import_manager.dashboard') }}" class="sf-button">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-box">
+            <div class="stat-value">{{ import_session.total_rows }}</div>
+            <div class="stat-label">Total Rows</div>
+        </div>
+        <div class="stat-box success">
+            <div class="stat-value">{{ import_session.success_count }}</div>
+            <div class="stat-label">Successful</div>
+        </div>
+        <div class="stat-box failed">
+            <div class="stat-value">{{ import_session.fail_count }}</div>
+            <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">
+                {% if import_session.total_rows > 0 %}
+                {{ ((import_session.success_count / import_session.total_rows) * 100)|round(1) }}%
+                {% else %}
+                0%
+                {% endif %}
+            </div>
+            <div class="stat-label">Success Rate</div>
+        </div>
+    </div>
+
+    <!-- Session Details -->
+    <div class="sf-card">
+        <div class="sf-card-header">
+            <i class="fas fa-info-circle"></i>
+            Session Details
+        </div>
+        <div class="sf-card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Session ID</span>
+                    <span class="info-value">{{ import_session.display_id }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Import Type</span>
+                    <span class="info-value">{{ import_session.type_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Imported By</span>
+                    <span class="info-value">{{ import_session.user.username if import_session.user else 'Unknown' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">File Name</span>
+                    <span class="info-value">{{ import_session.file_name or 'N/A' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Started At</span>
+                    <span class="info-value">{{ import_session.started_at.strftime('%Y-%m-%d %H:%M:%S') if import_session.started_at else 'N/A' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Completed At</span>
+                    <span class="info-value">{{ import_session.completed_at.strftime('%Y-%m-%d %H:%M:%S') if import_session.completed_at else 'N/A' }}</span>
+                </div>
+            </div>
+
+            {% if import_session.notes %}
+            <div class="notes-section">
+                <h4><i class="fas fa-sticky-note"></i> Notes</h4>
+                <p>{{ import_session.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Imported Data -->
+    {% if import_data %}
+    <div class="sf-card">
+        <div class="sf-card-header">
+            <i class="fas fa-table"></i>
+            Imported Records ({{ import_data|length if import_data is iterable else 0 }})
+        </div>
+        <div class="sf-card-body" style="padding: 0;">
+            {% if import_data is iterable and import_data|length > 0 %}
+                {% if import_data[0] is mapping %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            {% for key in import_data[0].keys() %}
+                            <th>{{ key|replace('_', ' ')|title }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in import_data[:100] %}
+                        <tr>
+                            {% for key, value in row.items() %}
+                            <td>{{ value if value is not none else '-' }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if import_data|length > 100 %}
+                <div class="empty-data">
+                    <p>Showing first 100 of {{ import_data|length }} records</p>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="empty-data">
+                    <p>{{ import_data }}</p>
+                </div>
+                {% endif %}
+            {% else %}
+            <div class="empty-data">
+                <i class="fas fa-database" style="font-size: 2rem; opacity: 0.3;"></i>
+                <p>No detailed record data available</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Error Details -->
+    {% if error_details %}
+    <div class="sf-card">
+        <div class="sf-card-header" style="background: #fef2f2; color: #991b1b;">
+            <i class="fas fa-exclamation-triangle"></i>
+            Error Details
+        </div>
+        <div class="sf-card-body">
+            <div class="error-section">
+                {% if error_details is iterable and error_details is not string %}
+                    {% if error_details is mapping %}
+                    <ul class="error-list">
+                        {% for key, value in error_details.items() %}
+                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <ul class="error-list">
+                        {% for error in error_details %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                {% else %}
+                <p style="margin: 0; color: #7f1d1d;">{{ error_details }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

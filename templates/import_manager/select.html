@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    body {
+        background: #f4f6f9;
+        font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .sf-container {
+        background: #f4f6f9;
+        min-height: 100vh;
+        padding: 2rem 3rem;
+        max-width: 100%;
+    }
+
+    .sf-page-header {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-page-title {
+        font-size: 1.875rem;
+        font-weight: 600;
+        color: #181818;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-button {
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: #f3f3f3;
+        border: 1px solid #c9c9c9;
+        border-radius: 0.25rem;
+        color: #444444;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.15s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .sf-button:hover {
+        background: #e8e8e8;
+        border-color: #b5b5b5;
+        text-decoration: none;
+    }
+
+    /* Import Cards Grid */
+    .imports-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .import-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .import-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .import-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .import-card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .import-card-icon.purple { background: #ede9fe; color: #7c3aed; }
+    .import-card-icon.blue { background: #dbeafe; color: #2563eb; }
+    .import-card-icon.green { background: #d1fae5; color: #059669; }
+    .import-card-icon.orange { background: #fed7aa; color: #ea580c; }
+    .import-card-icon.indigo { background: #e0e7ff; color: #4f46e5; }
+    .import-card-icon.teal { background: #ccfbf1; color: #0d9488; }
+
+    .import-card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .import-card-description {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .import-card-arrow {
+        margin-left: auto;
+        color: #9ca3af;
+        font-size: 1.25rem;
+        transition: transform 0.2s ease;
+    }
+
+    .import-card:hover .import-card-arrow {
+        transform: translateX(4px);
+        color: #6b7280;
+    }
+
+    .empty-state {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 3rem;
+        text-align: center;
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb a {
+        color: #0176d3;
+        text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="{{ url_for('import_manager.dashboard') }}">Import Manager</a>
+        <i class="fas fa-chevron-right"></i>
+        <span>Select Import Type</span>
+    </div>
+
+    <!-- Page Header -->
+    <div class="sf-page-header">
+        <h1 class="sf-page-title">
+            <i class="fas fa-plus-circle text-blue-600"></i>
+            New Import
+        </h1>
+        <a href="{{ url_for('import_manager.dashboard') }}" class="sf-button">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Import Options -->
+    {% if available_imports %}
+    <div class="imports-grid">
+        {% for import_option in available_imports %}
+        <a href="{{ url_for(import_option.route) }}" class="import-card">
+            <div class="import-card-header">
+                <div class="import-card-icon {{ import_option.color }}">
+                    <i class="{{ import_option.icon }}"></i>
+                </div>
+                <div>
+                    <h3 class="import-card-title">{{ import_option.name }}</h3>
+                    <p class="import-card-description">{{ import_option.description }}</p>
+                </div>
+                <i class="fas fa-chevron-right import-card-arrow"></i>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-lock"></i>
+        <h3>No Import Access</h3>
+        <p>You don't have permission to access any import types. Please contact an administrator.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

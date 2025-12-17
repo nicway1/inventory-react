@@ -370,6 +370,144 @@
                     </div>
                 </div>
 
+                <!-- Import Access Control Panel (for Country Admin and Supervisor) -->
+                <div id="importControlPanel" style="display: none;">
+                    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-700">Import Access Control</h3>
+                            <p class="text-sm text-gray-500">Select which import types this user can access (none selected = no access)</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Allowed Imports</label>
+                                    <div class="space-x-2">
+                                        <button type="button" onclick="selectAllImportPermissions()" class="text-xs text-blue-600 hover:text-blue-800">
+                                            Select All
+                                        </button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" onclick="clearAllImportPermissions()" class="text-xs text-red-600 hover:text-red-800">
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="border border-gray-300 rounded-md p-3 bg-white space-y-3">
+                                    <!-- Import Inventory/Assets -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_inventory"
+                                               name="import_permissions"
+                                               value="inventory"
+                                               {% if 'inventory' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_inventory" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-purple-100 text-purple-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-boxes"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Import Inventory/Assets</span>
+                                                <p class="text-xs text-gray-500">Bulk import assets from CSV/Excel files</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- Import Customers -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_customers"
+                                               name="import_permissions"
+                                               value="customers"
+                                               {% if 'customers' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_customers" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-users"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Import Customers</span>
+                                                <p class="text-xs text-gray-500">Bulk import customer users from CSV</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- CSV Import (Checkout) -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_csv_import"
+                                               name="import_permissions"
+                                               value="csv_import"
+                                               {% if 'csv_import' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_csv_import" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-green-100 text-green-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-file-csv"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">CSV Import (Checkout)</span>
+                                                <p class="text-xs text-gray-500">Import asset checkout tickets from CSV</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- Bulk Import Asset Return -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_asset_return"
+                                               name="import_permissions"
+                                               value="asset_return"
+                                               {% if 'asset_return' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_asset_return" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-orange-100 text-orange-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-undo"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Bulk Import Asset Return</span>
+                                                <p class="text-xs text-gray-500">Bulk import asset return tickets</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- Bulk Import 1stBase -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_1stbase"
+                                               name="import_permissions"
+                                               value="1stbase"
+                                               {% if '1stbase' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_1stbase" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-database"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Bulk Import 1stBase</span>
+                                                <p class="text-xs text-gray-500">Import 1stBase orders as tickets</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- Import from Retool -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_retool"
+                                               name="import_permissions"
+                                               value="retool"
+                                               {% if 'retool' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_retool" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-teal-100 text-teal-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-tools"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Import from Retool</span>
+                                                <p class="text-xs text-gray-500">Import data directly from Retool</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Users without any selected imports will not have access to the Import Manager</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submit Button -->
                 <div class="pt-4">
                     <button type="submit" 
@@ -431,6 +569,7 @@
         const queueSelect = document.getElementById('queueSelect');
         const mentionControlPanel = document.getElementById('mentionControlPanel');
         const visibilityControlPanel = document.getElementById('visibilityControlPanel');
+        const importControlPanel = document.getElementById('importControlPanel');
 
         let isInitialLoad = true;
         let previousUserType = userTypeSelect.value;
@@ -445,6 +584,7 @@
                 queueSelect.style.display = 'block';
                 mentionControlPanel.style.display = 'block';
                 visibilityControlPanel.style.display = 'block';
+                importControlPanel.style.display = 'block';
 
                 // Auto-select all countries when switching TO SUPERVISOR
                 if (selectedType === 'SUPERVISOR') {
@@ -471,6 +611,7 @@
                 queueSelect.style.display = 'none';
                 mentionControlPanel.style.display = 'none';
                 visibilityControlPanel.style.display = 'none';
+                importControlPanel.style.display = 'none';
                 previousUserType = selectedType;
             }
 
@@ -625,6 +766,22 @@
     // Clear all visibility users
     function clearAllVisibilityUsers() {
         const checkboxes = document.querySelectorAll('.visibility-user-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+        });
+    }
+
+    // Select all import permissions
+    function selectAllImportPermissions() {
+        const checkboxes = document.querySelectorAll('.import-permission-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    }
+
+    // Clear all import permissions
+    function clearAllImportPermissions() {
+        const checkboxes = document.querySelectorAll('.import-permission-checkbox');
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = false;
         });

@@ -175,6 +175,8 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
     data_loader='load_customer_stats',
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='customer_overview.png'
 ))
 
@@ -347,6 +349,8 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
     data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='development_console.png'
 ))
 
@@ -363,6 +367,8 @@ register_widget(WidgetDefinition(
     required_permissions=['can_access_inventory_audit'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader='load_audit_data',
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='inventory_audit.png'
 ))
 
@@ -396,6 +402,8 @@ register_widget(WidgetDefinition(
     required_permissions=['can_view_reports'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
     data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='reports.png'
 ))
 
@@ -412,6 +420,8 @@ register_widget(WidgetDefinition(
     required_permissions=['can_view_knowledge_base'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
     data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='knowledge_base.png'
 ))
 
@@ -428,6 +438,8 @@ register_widget(WidgetDefinition(
     required_permissions=['can_access_documents'],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
     data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='documents.png'
 ))
 
@@ -444,6 +456,8 @@ register_widget(WidgetDefinition(
     required_permissions=[],
     required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
     data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
     screenshot='billing_generator.png'
 ))
 
@@ -546,6 +560,44 @@ register_widget(WidgetDefinition(
     data_loader=None,
     refreshable=False,
     screenshot='app_launcher.png'
+))
+
+register_widget(WidgetDefinition(
+    id='import_manager',
+    name='Import Manager',
+    description='Centralized import history and access',
+    long_description='Access all import operations from one place. View import history, track success/failure rates, and quickly access any of the 6 import types: Inventory, Customers, CSV Import, Asset Return, 1stBase, and Retool imports.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/import_manager_link.html',
+    icon='fas fa-file-import',
+    color='indigo',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
+    screenshot='import_manager.png'
+))
+
+register_widget(WidgetDefinition(
+    id='report_issue',
+    name='Report an Issue',
+    description='Submit bug reports and feedback',
+    long_description='Found a bug or have feedback? Use this widget to report issues directly to the development team. Track the status of your submitted reports and get notified when they are resolved.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/report_issue.html',
+    icon='fas fa-bug',
+    color='red',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN', 'CLIENT'],
+    data_loader='load_bug_report_stats',
+    configurable=True,
+    default_config={'style': 'photo'},
+    screenshot='report_issue.png'
 ))
 
 

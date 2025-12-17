@@ -1686,8 +1686,13 @@ def create_ticket():
             # Log queue_id for debugging
             logger.info(f"[CREATE TICKET] Received queue_id from form: {repr(queue_id)} (type: {type(queue_id).__name__})")
 
+            # Validate queue selection is provided
+            if not queue_id:
+                flash('Please select a queue for this ticket', 'error')
+                return render_template('tickets/create.html', **get_template_context(request.form))
+
             # Check if user has permission to create tickets in this queue
-            if queue_id and not user.can_create_in_queue(queue_id):
+            if not user.can_create_in_queue(queue_id):
                 flash('You do not have permission to create tickets in this queue', 'error')
                 return render_template('tickets/create.html', **get_template_context(request.form))
                                     
@@ -10432,6 +10437,8 @@ def bulk_update_status():
 @login_required
 def bulk_import_asset_return():
     """Bulk import Asset Return tickets from CSV with automatic customer creation"""
+    from routes.import_manager import create_import_session, update_import_session
+
     try:
         user = db_manager.get_user(session['user_id'])
         user_id = user.id
@@ -10597,6 +10604,19 @@ def bulk_import_asset_return():
             # Process each row from form data
             successful_imports = []
             failed_imports = []
+            import_session_id = None
+
+            # Create ImportSession to track this import
+            try:
+                import_session_id, display_id = create_import_session(
+                    import_type='asset_return',
+                    user_id=user_id,
+                    file_name='Bulk Asset Return Import',
+                    notes=f"Asset return bulk import with {row_count} rows"
+                )
+                logger.info(f"Created import session {display_id} for asset return import")
+            except Exception as e:
+                logger.error(f"Failed to create import session: {str(e)}")
 
             for i in range(row_count):
                 row_number = int(request.form.get(f'row_{i}_number', i + 2))
@@ -10778,6 +10798,19 @@ def bulk_import_asset_return():
                 for failure in failed_imports:
                     flash(f'Row {failure["row"]}: {failure["reason"]}', 'error')
 
+            # Update ImportSession with results
+            if import_session_id:
+                try:
+                    status = 'completed' if success_count > 0 else 'failed'
+                    error_details = [f"Row {f['row']}: {f['reason']}" for f in failed_imports[:50]]
+                    # Store imported records data (limit to first 100 for storage)
+                    import_data = successful_imports[:100] if successful_imports else None
+                    logger.info(f"bulk_import_asset_return: Updating session {import_session_id}, successful_imports has {len(successful_imports)} items")
+                    update_import_session(import_session_id, success_count=success_count, fail_count=fail_count,
+                                         import_data=import_data, error_details=error_details if error_details else None, status=status)
+                except Exception as e:
+                    logger.error(f"Failed to update import session: {str(e)}")
+
             return render_template('tickets/bulk_import_result.html',
                                  user=user,
                                  successful_imports=successful_imports,
@@ -10803,6 +10836,8 @@ def bulk_import_asset_return():
 @login_required
 def bulk_import_1stbase():
     """Bulk import 1stbase tickets from CSV with automatic customer creation"""
+    from routes.import_manager import create_import_session, update_import_session
+
     try:
         user = db_manager.get_user(session['user_id'])
         user_id = user.id
@@ -11061,6 +11096,19 @@ def bulk_import_1stbase():
             # Process each row from form data
             successful_imports = []
             failed_imports = []
+            import_session_id = None
+
+            # Create ImportSession to track this import
+            try:
+                import_session_id, display_id = create_import_session(
+                    import_type='1stbase',
+                    user_id=user_id,
+                    file_name='Bulk 1stBase Import',
+                    notes=f"1stBase bulk import with {row_count} rows"
+                )
+                logger.info(f"Created import session {display_id} for 1stbase import")
+            except Exception as e:
+                logger.error(f"Failed to create import session: {str(e)}")
 
             for i in range(row_count):
                 row_number = int(request.form.get(f'row_{i}_number', i + 2))
@@ -11256,6 +11304,19 @@ def bulk_import_1stbase():
                 flash(f'Failed to import {fail_count} row(s). Check the error log below.', 'warning')
                 for failure in failed_imports:
                     flash(f'Row {failure["row"]}: {failure["reason"]}', 'error')
+
+            # Update ImportSession with results
+            if import_session_id:
+                try:
+                    status = 'completed' if success_count > 0 else 'failed'
+                    error_details = [f"Row {f['row']}: {f['reason']}" for f in failed_imports[:50]]
+                    # Store imported records data (limit to first 100 for storage)
+                    import_data = successful_imports[:100] if successful_imports else None
+                    logger.info(f"bulk_import_1stbase: Updating session {import_session_id}, successful_imports has {len(successful_imports)} items")
+                    update_import_session(import_session_id, success_count=success_count, fail_count=fail_count,
+                                         import_data=import_data, error_details=error_details if error_details else None, status=status)
+                except Exception as e:
+                    logger.error(f"Failed to update import session: {str(e)}")
 
             return render_template('tickets/bulk_import_result.html',
                                  user=user,

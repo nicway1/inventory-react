@@ -2931,6 +2931,9 @@ def import_inventory():
 @inventory_bp.route('/confirm-import', methods=['POST'])
 @admin_required
 def confirm_import():
+    # Import helper functions for ImportSession tracking
+    from routes.import_manager import create_import_session, update_import_session
+
     # Helper function to clean values
     def clean_value(val):
         if val is None:
@@ -2958,6 +2961,7 @@ def confirm_import():
                 return None
 
     db_session = db_manager.get_session()
+    import_session_id = None  # Track import session
     try:
         # Get file paths from session
         preview_filepath = session.get('preview_filepath')
@@ -2974,9 +2978,24 @@ def confirm_import():
             flash('No preview data found. Please upload a file first.', 'error')
             return redirect(url_for('inventory.import_inventory'))
 
+        # Create ImportSession to track this import
+        try:
+            file_name = session.get('filename', 'Unknown file')
+            import_session_id, display_id = create_import_session(
+                import_type='inventory',
+                user_id=current_user.id,
+                file_name=file_name,
+                notes=f"Import type: {preview_data.get('import_type', 'unknown')}"
+            )
+            logger.info(f"Created import session {display_id} for inventory import")
+        except Exception as e:
+            logger.error(f"Failed to create import session: {str(e)}")
+            # Continue with import even if session creation fails
+
         successful = 0
         failed = 0
         errors = []
+        successful_imports = []  # Track successfully imported items
 
         # Start a transaction
         if not isinstance(preview_data['data'], list):
@@ -3048,18 +3067,28 @@ def confirm_import():
                             ticket = db_session.query(Ticket).get(int(ticket_id))
                             if ticket:
                                 new_asset.intake_ticket_id = ticket.id
-                                
+
                                 # Safely add asset to ticket's assets collection if it exists
                                 if hasattr(ticket, 'assets'):
                                     _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
-                                
+
                                 db_session.commit()
                                 logger.info("Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
                         except Exception as e:
                             logger.info("Error linking asset to ticket: {str(e)}")
                             # Don't fail the import if ticket linking fails
-                    
+
                     successful += 1
+                    # Track successful import
+                    successful_imports.append({
+                        'row': index,
+                        'type': 'asset',
+                        'asset_id': new_asset.id,
+                        'asset_tag': new_asset.asset_tag,
+                        'serial': new_asset.serial_num,
+                        'product': new_asset.name
+                    })
+                    print(f"[INVENTORY_DEBUG] Added asset to successful_imports, now has {len(successful_imports)} items")
                 else:  # accessories
                     # Check for missing required fields in form data
                     name = request.form.get(f'name_{index}')
@@ -3097,6 +3126,15 @@ def confirm_import():
                     db_session.add(accessory)
                     db_session.commit()
                     successful += 1
+                    # Track successful import
+                    successful_imports.append({
+                        'row': index,
+                        'type': 'accessory',
+                        'accessory_id': accessory.id,
+                        'name': accessory.name,
+                        'category': accessory.category,
+                        'quantity': accessory.total_quantity
+                    })
 
                     # Add activity tracking
                     activity = Activity(
@@ -3148,6 +3186,19 @@ def confirm_import():
             )
             db_session.add(activity)
             db_session.commit()
+
+            # Update ImportSession with success
+            if import_session_id:
+                try:
+                    # Store successful imports data (limit to first 100)
+                    print(f"[INVENTORY_DEBUG] Before update: successful_imports has {len(successful_imports)} items")
+                    import_data = successful_imports[:100] if successful_imports else None
+                    print(f"[INVENTORY_DEBUG] import_data is: {type(import_data)}, truthy: {bool(import_data)}")
+                    update_import_session(import_session_id, success_count=successful, fail_count=0,
+                                         import_data=import_data, status='completed')
+                except Exception as e:
+                    logger.error(f"Failed to update import session: {str(e)}")
+
             flash(f'Successfully imported {successful} items.', 'success')
         else:
             # Create a more helpful error summary
@@ -3176,6 +3227,17 @@ def confirm_import():
             # If some items succeeded, show partial success
             if successful > 0:
                 flash(f'✓ Successfully imported {successful} items', 'success')
+
+            # Update ImportSession with partial/failure results
+            if import_session_id:
+                try:
+                    status = 'completed' if successful > 0 else 'failed'
+                    # Store successful imports data (limit to first 100)
+                    import_data = successful_imports[:100] if successful_imports else None
+                    update_import_session(import_session_id, success_count=successful, fail_count=failed,
+                                         import_data=import_data, error_details=errors[:50], status=status)
+                except Exception as e:
+                    logger.error(f"Failed to update import session: {str(e)}")
 
             return redirect(url_for('inventory.import_inventory'))
         
@@ -5907,8 +5969,11 @@ def download_customer_template():
 @admin_required
 def import_customers():
     """Import customer users from a CSV file"""
+    from routes.import_manager import create_import_session, update_import_session
+
     if request.method == 'POST':
         db_session = db_manager.get_session()
+        import_session_id = None
         try:
             if 'file' not in request.files:
                 flash('No file part', 'error')
@@ -5952,11 +6017,24 @@ def import_customers():
                     flash(f"Missing required columns: {', '.join(missing_columns)}", 'error')
                     return redirect(request.url)
                 
+                # Create ImportSession to track this import
+                try:
+                    import_session_id, display_id = create_import_session(
+                        import_type='customers',
+                        user_id=current_user.id,
+                        file_name=file.filename,
+                        notes=f"Customer users import with {len(df)} rows"
+                    )
+                    logger.info(f"Created import session {display_id} for customers import")
+                except Exception as e:
+                    logger.error(f"Failed to create import session: {str(e)}")
+
                 # Process the data
                 success_count = 0
                 error_count = 0
                 errors = []
-                
+                successful_imports = []  # Track successfully imported customers
+
                 for index, row in df.iterrows():
                     try:
                         # Clean and extract values
@@ -5966,13 +6044,13 @@ def import_customers():
                         contact_number = str(row['Contact Number']).strip() if not pd.isna(row['Contact Number']) else None
                         email = str(row['Email']).strip() if not pd.isna(row['Email']) else None
                         address = str(row['Address']).strip() if not pd.isna(row['Address']) else None
-                        
+
                         # Validate required fields
                         if not name or not company_name or not country_str or not contact_number or not address:
                             error_count += 1
                             errors.append(f"Row {index+2}: Missing required fields")
                             continue
-                        
+
                         # Validate country is in enum
                         try:
                             country = Country[country_str]
@@ -5980,7 +6058,7 @@ def import_customers():
                             error_count += 1
                             errors.append(f"Row {index+2}: Invalid country '{country_str}'. Must be one of: {', '.join([c.name for c in Country])}")
                             continue
-                        
+
                         # Look for existing company by name (normalize to uppercase for comparison)
                         company_name_normalized = company_name.strip().upper() if company_name else None
                         company = None
@@ -5991,7 +6069,7 @@ def import_customers():
                                 company = Company(name=company_name_normalized)
                                 db_session.add(company)
                                 db_session.flush()
-                        
+
                         # Create new customer user
                         customer = CustomerUser(
                             name=name,
@@ -6000,11 +6078,22 @@ def import_customers():
                             address=address,
                             country=country
                         )
-                        
+
                         customer.company = company
                         db_session.add(customer)
+                        db_session.flush()  # Get customer ID
                         success_count += 1
-                        
+
+                        # Track successful import
+                        successful_imports.append({
+                            'row': index + 2,
+                            'customer_id': customer.id,
+                            'name': name,
+                            'company': company_name_normalized,
+                            'country': country_str,
+                            'email': email
+                        })
+
                     except Exception as e:
                         error_count += 1
                         errors.append(f"Row {index+2}: {str(e)}")
@@ -6027,7 +6116,18 @@ def import_customers():
                         flash(error, 'error')
                     if len(errors) > 10:
                         flash(f"... and {len(errors) - 10} more errors", 'error')
-                
+
+                # Update ImportSession with results
+                if import_session_id:
+                    try:
+                        status = 'completed' if success_count > 0 else 'failed'
+                        # Store successful imports data (limit to first 100)
+                        import_data = successful_imports[:100] if successful_imports else None
+                        update_import_session(import_session_id, success_count=success_count, fail_count=error_count,
+                                             import_data=import_data, error_details=errors[:50] if errors else None, status=status)
+                    except Exception as e:
+                        logger.error(f"Failed to update import session: {str(e)}")
+
                 return redirect(url_for('inventory.list_customer_users'))
             else:
                 flash('Invalid file type. Please upload a CSV file.', 'error')

@@ -256,6 +256,22 @@ def load_widget_data(user, layout):
                 'current_audit': current_audit is not None
             }
 
+        # Load bug report stats
+        if 'report_issue' in widget_ids:
+            from models.bug_report import BugReport, BugStatus
+            # Get user's own bug reports
+            user_reports = db.query(BugReport).filter(
+                BugReport.reporter_id == user.id
+            )
+            total_count = user_reports.count()
+            open_count = user_reports.filter(
+                BugReport.status.in_([BugStatus.OPEN, BugStatus.IN_PROGRESS, BugStatus.UNDER_REVIEW])
+            ).count()
+            widget_data['bug_reports'] = {
+                'total_count': total_count,
+                'open_count': open_count
+            }
+
     except Exception as e:
         logger.error(f"Error loading widget data: {str(e)}", exc_info=True)
     finally:

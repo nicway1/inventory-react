@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    body {
+        background: #f4f6f9;
+        font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .sf-container {
+        background: #f4f6f9;
+        min-height: 100vh;
+        padding: 2rem 3rem;
+        max-width: 100%;
+    }
+
+    .sf-page-header {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-page-title {
+        font-size: 1.875rem;
+        font-weight: 600;
+        color: #181818;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-card {
+        background: white;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .sf-button {
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: #f3f3f3;
+        border: 1px solid #c9c9c9;
+        border-radius: 0.25rem;
+        color: #444444;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.15s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .sf-button:hover {
+        background: #e8e8e8;
+        border-color: #b5b5b5;
+        text-decoration: none;
+    }
+
+    .sf-button.primary {
+        background: #0176d3;
+        border-color: #0176d3;
+        color: white;
+    }
+
+    .sf-button.primary:hover {
+        background: #014486;
+        border-color: #014486;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .stat-card .stat-icon {
+        float: right;
+        font-size: 1.5rem;
+        opacity: 0.3;
+    }
+
+    .stat-card.total { border-left: 4px solid #6366f1; }
+    .stat-card.month { border-left: 4px solid #3b82f6; }
+    .stat-card.success { border-left: 4px solid #10b981; }
+    .stat-card.failed { border-left: 4px solid #ef4444; }
+
+    /* Filters */
+    .filters-row {
+        background: #f9fafb;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        min-width: 150px;
+    }
+
+    /* Table */
+    .sessions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sessions-table th {
+        background: #f9fafb;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .sessions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+    }
+
+    .sessions-table tr:hover {
+        background: #f9fafb;
+    }
+
+    .sessions-table tr {
+        cursor: pointer;
+    }
+
+    /* Status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-badge.processing {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-badge.pending {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    /* Type badge */
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .type-badge i {
+        font-size: 0.875rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        text-decoration: none;
+        color: #374151;
+    }
+
+    .pagination a:hover {
+        background: #f3f4f6;
+    }
+
+    .pagination .current {
+        background: #0176d3;
+        border-color: #0176d3;
+        color: white;
+    }
+
+    .empty-state {
+        padding: 3rem;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sf-container">
+    <!-- Page Header -->
+    <div class="sf-page-header">
+        <h1 class="sf-page-title">
+            <i class="fas fa-file-import text-indigo-600"></i>
+            Import Manager
+        </h1>
+        <a href="{{ url_for('import_manager.select_import') }}" class="sf-button primary">
+            <i class="fas fa-plus"></i> New Import
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <i class="fas fa-database stat-icon"></i>
+            <div class="stat-label">Total Imports</div>
+            <div class="stat-value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card month">
+            <i class="fas fa-calendar stat-icon"></i>
+            <div class="stat-label">This Month</div>
+            <div class="stat-value">{{ stats.this_month }}</div>
+        </div>
+        <div class="stat-card success">
+            <i class="fas fa-check-circle stat-icon"></i>
+            <div class="stat-label">Success Rate</div>
+            <div class="stat-value">{{ stats.success_rate }}%</div>
+        </div>
+        <div class="stat-card failed">
+            <i class="fas fa-times-circle stat-icon"></i>
+            <div class="stat-label">Failed</div>
+            <div class="stat-value">{{ stats.failed }}</div>
+        </div>
+    </div>
+
+    <!-- Sessions List -->
+    <div class="sf-card">
+        <!-- Filters -->
+        <form method="GET" class="filters-row">
+            <div class="filter-group">
+                <label>Import Type</label>
+                <select name="type" onchange="this.form.submit()">
+                    <option value="">All Types</option>
+                    {% for type_key, type_name in import_types.items() %}
+                    <option value="{{ type_key }}" {% if filters.type == type_key %}selected{% endif %}>{{ type_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>User</label>
+                <select name="user_id" onchange="this.form.submit()">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if filters.user_id == user.id|string %}selected{% endif %}>{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From Date</label>
+                <input type="date" name="date_from" value="{{ filters.date_from }}" onchange="this.form.submit()">
+            </div>
+            <div class="filter-group">
+                <label>To Date</label>
+                <input type="date" name="date_to" value="{{ filters.date_to }}" onchange="this.form.submit()">
+            </div>
+            {% if filters.type or filters.status or filters.user_id or filters.date_from or filters.date_to %}
+            <a href="{{ url_for('import_manager.dashboard') }}" class="sf-button" style="margin-top: 1.25rem;">
+                <i class="fas fa-times"></i> Clear
+            </a>
+            {% endif %}
+        </form>
+
+        <!-- Table -->
+        {% if sessions %}
+        <table class="sessions-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Rows</th>
+                    <th>Success</th>
+                    <th>Failed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr onclick="window.location='{{ url_for('import_manager.view_session', session_id=session.id) }}'">
+                    <td>
+                        <strong>{{ session.display_id }}</strong>
+                    </td>
+                    <td>
+                        <span class="type-badge">
+                            <i class="{{ session.type_icon }}"></i>
+                            {{ session.type_name }}
+                        </span>
+                    </td>
+                    <td>{{ session.user.username if session.user else 'Unknown' }}</td>
+                    <td>{{ session.started_at.strftime('%Y-%m-%d %H:%M') if session.started_at else '-' }}</td>
+                    <td>
+                        <span class="status-badge {{ session.status }}">
+                            {% if session.status == 'completed' %}
+                            <i class="fas fa-check-circle"></i>
+                            {% elif session.status == 'failed' %}
+                            <i class="fas fa-times-circle"></i>
+                            {% elif session.status == 'processing' %}
+                            <i class="fas fa-spinner fa-spin"></i>
+                            {% else %}
+                            <i class="fas fa-clock"></i>
+                            {% endif %}
+                            {{ session.status|capitalize }}
+                        </span>
+                    </td>
+                    <td>{{ session.total_rows }}</td>
+                    <td style="color: #059669;">{{ session.success_count }}</td>
+                    <td style="color: #dc2626;">{{ session.fail_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% if page > 1 %}
+            <a href="{{ url_for('import_manager.dashboard', page=page-1, **filters) }}">&laquo; Prev</a>
+            {% endif %}
+
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                <span class="current">{{ p }}</span>
+                {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                <a href="{{ url_for('import_manager.dashboard', page=p, **filters) }}">{{ p }}</a>
+                {% elif p == 4 or p == total_pages - 3 %}
+                <span>...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if page < total_pages %}
+            <a href="{{ url_for('import_manager.dashboard', page=page+1, **filters) }}">Next &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h3>No Import Sessions Found</h3>
+            <p>{% if filters.type or filters.status or filters.user_id or filters.date_from or filters.date_to %}Try adjusting your filters{% else %}Start by creating a new import{% endif %}</p>
+            <a href="{{ url_for('import_manager.select_import') }}" class="sf-button primary" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> New Import
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

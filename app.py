@@ -61,6 +61,7 @@ from routes.feedback import feedback_bp
 from routes.parcel_tracking import parcel_tracking_bp
 from routes.dashboard import dashboard_bp
 from routes.chatbot import chatbot_bp
+from routes.import_manager import import_manager_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -225,6 +226,7 @@ def create_app():
     app.register_blueprint(parcel_tracking_bp)  # Prefix is defined in the blueprint file
     app.register_blueprint(dashboard_bp)  # New customizable dashboard
     app.register_blueprint(chatbot_bp)  # Help assistant chatbot
+    app.register_blueprint(import_manager_bp)  # Import Manager dashboard
 
     # Track user activity on every request
     @app.before_request
@@ -306,17 +308,124 @@ def create_app():
         """Renders the map page, accessible without login."""
         return render_template('maps.html')
 
+    # Run one-time startup sync for @Mention to Visibility permissions
+    with app.app_context():
+        try:
+            _sync_mention_to_visibility_on_startup()
+        except Exception as e:
+            logging.warning(f"Startup sync skipped (may not have tables yet): {e}")
+
     return app
+
+
+def _sync_mention_to_visibility_on_startup():
+    """One-time startup sync of @Mention permissions to User Visibility (idempotent)"""
+    from models.user import User, UserType
+    from models.user_mention_permission import UserMentionPermission
+    from models.user_visibility_permission import UserVisibilityPermission
+
+    db_session = SessionLocal()
+    try:
+        users = db_session.query(User).filter(
+            User.user_type.in_([UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]),
+            User.mention_filter_enabled == True
+        ).all()
+
+        synced = 0
+        for user in users:
+            mention_perms = db_session.query(UserMentionPermission).filter(
+                UserMentionPermission.user_id == user.id,
+                UserMentionPermission.target_type == 'user'
+            ).all()
+            mention_user_ids = set(p.target_id for p in mention_perms)
+
+            if not mention_user_ids:
+                continue
+
+            existing_visibility = db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).all()
+            existing_visibility_ids = set(p.visible_user_id for p in existing_visibility)
+
+            if mention_user_ids != existing_visibility_ids:
+                db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
+                for visible_user_id in mention_user_ids:
+                    db_session.add(UserVisibilityPermission(user_id=user.id, visible_user_id=visible_user_id))
+                synced += 1
+
+        if synced > 0:
+            db_session.commit()
+            logging.info(f"Startup: Synced @Mention->Visibility for {synced} users")
+    except Exception:
+        db_session.rollback()
+        raise
+    finally:
+        db_session.close()
 
 app = create_app()
 
+def sync_mention_to_visibility_permissions():
+    """Sync @Mention user permissions to User Visibility permissions for existing users"""
+    from models.user import User, UserType
+    from models.user_mention_permission import UserMentionPermission
+    from models.user_visibility_permission import UserVisibilityPermission
+
+    db_session = SessionLocal()
+    try:
+        # Get all COUNTRY_ADMIN and SUPERVISOR users with mention filtering enabled
+        users = db_session.query(User).filter(
+            User.user_type.in_([UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]),
+            User.mention_filter_enabled == True
+        ).all()
+
+        synced = 0
+        for user in users:
+            # Get @Mention user permissions
+            mention_perms = db_session.query(UserMentionPermission).filter(
+                UserMentionPermission.user_id == user.id,
+                UserMentionPermission.target_type == 'user'
+            ).all()
+            mention_user_ids = set(p.target_id for p in mention_perms)
+
+            if not mention_user_ids:
+                continue
+
+            # Get existing visibility permissions
+            existing_visibility = db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).all()
+            existing_visibility_ids = set(p.visible_user_id for p in existing_visibility)
+
+            # Check if sync is needed (mention users not in visibility)
+            missing = mention_user_ids - existing_visibility_ids
+            if missing:
+                # Clear and re-sync all visibility permissions to match mentions
+                db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
+                for visible_user_id in mention_user_ids:
+                    visibility_perm = UserVisibilityPermission(
+                        user_id=user.id,
+                        visible_user_id=visible_user_id
+                    )
+                    db_session.add(visibility_perm)
+                synced += 1
+                logger.info(f"Synced visibility permissions for user {user.username} (ID:{user.id}): {len(mention_user_ids)} users")
+
+        if synced > 0:
+            db_session.commit()
+            logger.info(f"@Mention to Visibility sync complete: {synced} users updated")
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error syncing mention to visibility: {str(e)}")
+    finally:
+        db_session.close()
+
+
 if __name__ == '__main__':
     logger.info("Starting application...")
-    
+
     # Initialize database and create tables
     with app.app_context():
         logger.info("Initializing database...")
         init_db()
+        # Sync @Mention permissions to User Visibility permissions
+        logger.info("Syncing @Mention to Visibility permissions...")
+        sync_mention_to_visibility_permissions()
 
     # Try different ports if 5001 is in use
     port = 5009

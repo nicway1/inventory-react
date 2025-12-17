@@ -546,6 +546,7 @@ def save_user_queues(user_id):
 def save_user_mentions(user_id):
     """API endpoint to save user's mention settings"""
     from models.user_mention_permission import UserMentionPermission
+    from models.user_visibility_permission import UserVisibilityPermission
 
     db_session = db_manager.get_session()
     try:
@@ -582,6 +583,17 @@ def save_user_mentions(user_id):
                 )
                 db_session.add(permission)
 
+        # Auto-mirror @Mention user permissions to User Visibility permissions
+        db_session.query(UserVisibilityPermission).filter_by(user_id=user_id).delete()
+        if enabled and user_ids:
+            for uid in user_ids:
+                visibility_perm = UserVisibilityPermission(
+                    user_id=user_id,
+                    visible_user_id=int(uid)
+                )
+                db_session.add(visibility_perm)
+            logger.info(f"Auto-mirrored visibility permissions from @Mention for user {user_id}: {len(user_ids)} users")
+
         db_session.commit()
         logger.info(f"Updated mention settings for user {user_id}: enabled={enabled}, users={len(user_ids)}, groups={len(group_ids)}")
 
@@ -613,6 +625,7 @@ def create_user():
     from models.user_queue_permission import UserQueuePermission
     from models.user_company_permission import UserCompanyPermission
     from models.user_mention_permission import UserMentionPermission
+    from models.user_import_permission import UserImportPermission
     from models.group import Group
 
     db_session = db_manager.get_session()
@@ -651,6 +664,8 @@ def create_user():
             mention_group_ids = request.form.getlist('mention_group_ids')
             # Visibility settings (for Change Case Owner dropdown)
             visibility_user_ids = request.form.getlist('visibility_user_ids')
+            # Import permissions
+            import_permissions = request.form.getlist('import_permissions')
 
             # Check if user with this username already exists (including soft-deleted)
             existing_username = db_session.query(User).filter_by(username=username).first()
@@ -783,14 +798,31 @@ def create_user():
                         db_session.add(mention_perm)
 
                 # Create visibility permissions for Country Admin/Supervisor
-                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and visibility_user_ids:
+                # Auto-mirror from @Mention user permissions when mention filtering is enabled
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
                     from models.user_visibility_permission import UserVisibilityPermission
-                    for visible_uid in visibility_user_ids:
-                        visibility_perm = UserVisibilityPermission(
-                            user_id=user.id,
-                            visible_user_id=int(visible_uid)
-                        )
-                        db_session.add(visibility_perm)
+                    if mention_filter_enabled and mention_user_ids:
+                        # Mirror @Mention user permissions to User Visibility
+                        for visible_uid in mention_user_ids:
+                            visibility_perm = UserVisibilityPermission(
+                                user_id=user.id,
+                                visible_user_id=int(visible_uid)
+                            )
+                            db_session.add(visibility_perm)
+                        logger.info(f"DEBUG: Auto-mirrored visibility permissions from @Mention for new user {user.id}: {len(mention_user_ids)} users")
+                    elif visibility_user_ids:
+                        # Fallback to manual visibility settings if mention filtering not enabled
+                        for visible_uid in visibility_user_ids:
+                            visibility_perm = UserVisibilityPermission(
+                                user_id=user.id,
+                                visible_user_id=int(visible_uid)
+                            )
+                            db_session.add(visibility_perm)
+
+                # Create import permissions for Country Admin/Supervisor
+                if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR'] and import_permissions:
+                    UserImportPermission.set_user_permissions(db_session, user.id, import_permissions)
+                    logger.info(f"DEBUG: Created import permissions for user {user.id}: {import_permissions}")
 
                 db_session.commit()
 
@@ -827,6 +859,7 @@ def edit_user(user_id):
     from models.user_company_permission import UserCompanyPermission
     from models.user_mention_permission import UserMentionPermission
     from models.user_visibility_permission import UserVisibilityPermission
+    from models.user_import_permission import UserImportPermission
     from models.group import Group
 
     logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
@@ -897,6 +930,11 @@ def edit_user(user_id):
         visibility_permissions = db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).all()
         allowed_visible_users = [perm.visible_user_id for perm in visibility_permissions]
 
+    # Get existing import permissions
+    allowed_import_types = []
+    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        allowed_import_types = UserImportPermission.get_user_allowed_types(db_session, user.id)
+
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -911,6 +949,7 @@ def edit_user(user_id):
         mention_user_ids = request.form.getlist('mention_user_ids')
         mention_group_ids = request.form.getlist('mention_group_ids')
         visibility_user_ids = request.form.getlist('visibility_user_ids')
+        import_permissions = request.form.getlist('import_permissions')
 
         logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, parent_company_ids={parent_company_ids}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
@@ -1053,15 +1092,30 @@ def edit_user(user_id):
                 logger.info(f"DEBUG: Updated mention permissions for user {user.id}: filter_enabled={mention_filter_enabled}, users={len(mention_user_ids)}, groups={len(mention_group_ids)}")
 
                 # Update visibility permissions (which users can this user see in dropdowns like Change Case Owner)
+                # Auto-mirror from @Mention user permissions when mention filtering is enabled
                 db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
-                if visibility_user_ids:
+                if mention_filter_enabled and mention_user_ids:
+                    # Mirror @Mention user permissions to User Visibility
+                    for visible_uid in mention_user_ids:
+                        visibility_perm = UserVisibilityPermission(
+                            user_id=user.id,
+                            visible_user_id=int(visible_uid)
+                        )
+                        db_session.add(visibility_perm)
+                    logger.info(f"DEBUG: Auto-mirrored visibility permissions from @Mention for user {user.id}: {len(mention_user_ids)} users")
+                elif visibility_user_ids:
+                    # Fallback to manual visibility settings if mention filtering not enabled
                     for visible_uid in visibility_user_ids:
                         visibility_perm = UserVisibilityPermission(
                             user_id=user.id,
                             visible_user_id=int(visible_uid)
                         )
                         db_session.add(visibility_perm)
-                logger.info(f"DEBUG: Updated visibility permissions for user {user.id}: {len(visibility_user_ids)} users")
+                    logger.info(f"DEBUG: Updated visibility permissions for user {user.id}: {len(visibility_user_ids)} users")
+
+                # Update import permissions
+                UserImportPermission.set_user_permissions(db_session, user.id, import_permissions)
+                logger.info(f"DEBUG: Updated import permissions for user {user.id}: {import_permissions}")
             else:
                 # Clean up permissions if changing from COUNTRY_ADMIN/SUPERVISOR to another type
                 from models.user_country_permission import UserCountryPermission
@@ -1069,6 +1123,7 @@ def edit_user(user_id):
                 db_session.query(UserCompanyPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
+                db_session.query(UserImportPermission).filter_by(user_id=user.id).delete()
                 # Also clean up mention permissions
                 user.mention_filter_enabled = False
                 db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
@@ -1096,7 +1151,8 @@ def edit_user(user_id):
                          all_users=all_users, all_groups=all_groups,
                          allowed_mention_users=allowed_mention_users,
                          allowed_mention_groups=allowed_mention_groups,
-                         allowed_visible_users=allowed_visible_users)
+                         allowed_visible_users=allowed_visible_users,
+                         allowed_import_types=allowed_import_types)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
@@ -4864,13 +4920,16 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 @admin_required
 def csv_import_bulk_import():
     """Import multiple tickets from CSV data"""
+    from routes.import_manager import create_import_session, update_import_session
+
+    import_session_id = None
     try:
         data = request.get_json()
         row_indices = data.get('row_indices', [])
         auto_create_customer = data.get('auto_create_customer', True)
         selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
         selected_assets = data.get('selected_assets', [])  # Get selected assets
-        
+
         if 'csv_import_file' not in session:
             return jsonify({'success': False, 'error': 'No CSV data found. Please upload a file first.'})
         
@@ -4895,8 +4954,21 @@ def csv_import_bulk_import():
                     csv_data = file_data.get('grouped_orders', file_data.get('individual_rows', []))
         except Exception as e:
             return jsonify({'success': False, 'error': f'Error reading CSV data: {str(e)}'})
+
+        # Create ImportSession to track this import
+        try:
+            import_session_id, display_id = create_import_session(
+                import_type='csv_import',
+                user_id=current_user.id,
+                file_name=session.get('csv_import_file', 'Unknown file'),
+                notes=f"CSV checkout import with {len(row_indices)} selected rows"
+            )
+            logger.info(f"Created import session {display_id} for CSV import")
+        except Exception as e:
+            logger.error(f"Failed to create import session: {str(e)}")
+
         results = []
-        
+
         for row_index in row_indices:
             if row_index >= len(csv_data):
                 results.append({'row_index': row_index, 'success': False, 'error': 'Invalid row index'})
@@ -4934,15 +5006,35 @@ def csv_import_bulk_import():
                 results.append({'row_index': row_index, 'success': False, 'error': str(e)})
         
         successful_imports = sum(1 for r in results if r.get('success'))
-        
+        failed_imports = len(row_indices) - successful_imports
+
+        # Update ImportSession with results
+        if import_session_id:
+            try:
+                status = 'completed' if successful_imports > 0 else 'failed'
+                error_details = [r.get('error') for r in results if not r.get('success') and r.get('error')]
+                # Store successful imports data (limit to first 100)
+                import_data = [r for r in results if r.get('success')][:100]
+                print(f"[CSV_IMPORT_DEBUG] About to update session {import_session_id}")
+                print(f"[CSV_IMPORT_DEBUG] results count: {len(results)}, successful: {successful_imports}, import_data count: {len(import_data)}")
+                if import_data:
+                    print(f"[CSV_IMPORT_DEBUG] First import_data item: {import_data[0]}")
+                logger.info(f"csv_import_bulk_import: Updating session {import_session_id}, results has {len(results)} items, import_data has {len(import_data) if import_data else 0} items")
+                update_import_session(import_session_id, success_count=successful_imports, fail_count=failed_imports,
+                                     import_data=import_data, error_details=error_details[:50] if error_details else None, status=status)
+                print(f"[CSV_IMPORT_DEBUG] update_import_session returned successfully")
+            except Exception as e:
+                print(f"[CSV_IMPORT_DEBUG] EXCEPTION in update: {str(e)}")
+                logger.error(f"Failed to update import session: {str(e)}")
+
         return jsonify({
             'success': True,
             'results': results,
             'total_processed': len(row_indices),
             'successful_imports': successful_imports,
-            'failed_imports': len(row_indices) - successful_imports
+            'failed_imports': failed_imports
         })
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': f'Bulk import error: {str(e)}'})
 

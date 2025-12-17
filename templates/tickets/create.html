@@ -171,12 +171,13 @@
                     <!-- Queue Selection -->
                     <div>
                         <label for="pin_queue_id" class="block text-sm font-medium text-gray-700">
-                            Assign to Queue
+                            Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="pin_queue_id" 
-                                name="queue_id" 
+                        <select id="pin_queue_id"
+                                name="queue_id"
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select Queue --</option>
+                            <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
                             <option value="{{ queue.id }}">{{ queue.name }}</option>
                             {% endfor %}
@@ -559,12 +560,13 @@
                     <!-- Queue Selection -->
                     <div>
                         <label for="checkout_queue_id" class="block text-sm font-medium text-gray-700">
-                            Assign to Queue (Optional)
+                            Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="checkout_queue_id" 
-                                name="queue_id" 
+                        <select id="checkout_queue_id"
+                                name="queue_id"
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select Queue --</option>
+                            <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
                             <option value="{{ queue.id }}">{{ queue.name }}</option>
                             {% endfor %}
@@ -819,12 +821,13 @@
                     <!-- Queue Selection -->
                     <div>
                         <label for="queue_id" class="block text-sm font-medium text-gray-700">
-                            Assign to Queue (Optional)
+                            Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="queue_id" 
-                                name="queue_id" 
+                        <select id="queue_id"
+                                name="queue_id"
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select Queue --</option>
+                            <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
                             <option value="{{ queue.id }}">{{ queue.name }}</option>
                             {% endfor %}
