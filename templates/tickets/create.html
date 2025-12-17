@@ -175,7 +175,7 @@
                         </label>
                         <select id="pin_queue_id"
                                 name="queue_id"
-                                required
+                                disabled
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
@@ -564,7 +564,7 @@
                         </label>
                         <select id="checkout_queue_id"
                                 name="queue_id"
-                                required
+                                disabled
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
@@ -825,7 +825,7 @@
                         </label>
                         <select id="queue_id"
                                 name="queue_id"
-                                required
+                                disabled
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">-- Select a Queue --</option>
                             {% for queue in queues %}
@@ -1443,6 +1443,7 @@ function onCategoryChange() {
         // Show ONLY the asset return fields
         assetReturnFields.classList.remove('hidden');
         document.getElementById('return_notes').disabled = false; // Enable Asset Return notes
+        document.getElementById('queue_id').disabled = false; // Enable Asset Return queue
         console.log('Enabled Asset Return notes field');
         
         // Make required fields for asset return
@@ -1461,6 +1462,7 @@ function onCategoryChange() {
     if (category === 'PIN_REQUEST') {
         pinFields.classList.remove('hidden');
         document.getElementById('notes').disabled = false;      // Enable PIN Request notes
+        document.getElementById('pin_queue_id').disabled = false; // Enable PIN Request queue
         console.log('Enabled PIN Request notes field');
         document.getElementById('serial_number').required = true;
         document.getElementById('lock_type').required = true;
@@ -1476,6 +1478,7 @@ function onCategoryChange() {
         document.getElementById('checkout_serial_number').required = true;
         document.getElementById('shipping_address').required = true;
         document.getElementById('checkout_notes').disabled = false; // Enable Asset Checkout notes
+        document.getElementById('checkout_queue_id').disabled = false; // Enable Asset Checkout queue
         console.log('Enabled Asset Checkout notes field');
         
         // Show asset selection for checkout categories
