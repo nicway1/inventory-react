@@ -1968,7 +1968,6 @@ Additional Notes:
 
                     # Handle package tracking fields for Asset Checkout (claw)
                     if category == 'ASSET_CHECKOUT_CLAW':
-                        from models.ticket import Ticket  # Ensure import is available in this scope
                         created_ticket = db_session.query(Ticket).get(ticket_id)
                         if created_ticket:
                             # Process up to 5 packages
@@ -2012,7 +2011,6 @@ Additional Notes:
                             logger.info(f"[PACKAGE DEBUG] Successfully added package tracking to ticket {ticket_id}")
 
                     # Get the created ticket for asset assignment
-                    from models.ticket import Ticket  # Ensure import is available in this scope
                     created_ticket = db_session.query(Ticket).get(ticket_id)
                     if created_ticket and asset:
                         logger.info(f"[ASSET ASSIGN DEBUG] Starting assignment - Ticket: {ticket_id}, Asset: {asset}")
@@ -2071,7 +2069,6 @@ Additional Notes:
                     if assigned_accessories:
                         try:
                             # Get the ticket object for accessory assignment
-                            from models.ticket import Ticket  # Ensure import is available in this scope
                             ticket = db_session.query(Ticket).get(ticket_id)
                             actual_assigned = []
                             
