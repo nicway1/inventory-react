@@ -211,6 +211,7 @@ def create_app():
     csrf.exempt(inventory_api_bp)
     csrf.exempt(reports_bp)  # Exempt reports API endpoints
     csrf.exempt(json_api_bp)  # Exempt from CSRF for mobile API
+    csrf.exempt(chatbot_bp)  # Exempt chatbot mobile API from CSRF (uses JWT auth)
     app.register_blueprint(intake_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(documents_bp)
