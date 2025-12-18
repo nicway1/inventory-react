@@ -63,22 +63,29 @@ def get_browser_launch_options() -> Dict:
 class Ship24Tracker:
     """Track parcels using Ship24.com, 17track, and SingPost API via Playwright web scraping"""
 
-    def __init__(self, singpost_api_key: Optional[str] = None):
+    # SingPost UAT API Credentials
+    SINGPOST_ACCOUNT_NO = "0056759L"
+    SINGPOST_API_KEY_DEFAULT = "a59a2f41051b4b0a8a709eb4fd0330f9"
+    SINGPOST_API_URL_UAT = "https://api.qa.singpost.com/sp/tracking"
+    SINGPOST_API_URL_PROD = "https://api.singpost.com/sp/tracking"
+
+    def __init__(self, singpost_api_key: Optional[str] = None, use_singpost_uat: bool = True):
         self.base_url = "https://www.ship24.com"
         self.track17_url = "https://t.17track.net"
-        # SingPost API credentials (get from https://developer.singpost.com)
+        # SingPost API credentials
         self.singpost_api_key = singpost_api_key or self._get_singpost_api_key()
-        self.singpost_api_url = "https://api.singpost.com/public/tracking/v2"
+        # Use UAT by default for testing, set use_singpost_uat=False for production
+        self.singpost_api_url = self.SINGPOST_API_URL_UAT if use_singpost_uat else self.SINGPOST_API_URL_PROD
 
     def _get_singpost_api_key(self) -> Optional[str]:
-        """Get SingPost API key from environment or config"""
+        """Get SingPost API key from environment or use default UAT key"""
         import os
-        return os.environ.get('SINGPOST_API_KEY')
+        return os.environ.get('SINGPOST_API_KEY', self.SINGPOST_API_KEY_DEFAULT)
 
     async def track_with_singpost_api(self, tracking_number: str) -> Optional[Dict]:
         """
-        Track a parcel using official SingPost API (requires API key)
-        Get API key from: https://developer.singpost.com
+        Track a parcel using official SingPost API
+        UAT credentials: Account 0056759L
         """
         if not self.singpost_api_key:
             return None
@@ -87,14 +94,16 @@ class Ship24Tracker:
             import aiohttp
 
             headers = {
-                'Authorization': f'Bearer {self.singpost_api_key}',
+                'Authorization': self.singpost_api_key,
+                'X-Account-No': self.SINGPOST_ACCOUNT_NO,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
 
             async with aiohttp.ClientSession() as session:
+                # SingPost API - try with tracking number in path
                 url = f"{self.singpost_api_url}/{tracking_number}"
-                logger.info(f"Calling SingPost API for {tracking_number}")
+                logger.info(f"Calling SingPost API for {tracking_number} at {url}")
 
                 async with session.get(url, headers=headers, timeout=30) as response:
                     if response.status == 200:

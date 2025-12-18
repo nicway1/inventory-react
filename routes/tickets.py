@@ -2586,7 +2586,8 @@ Additional Notes:
                         category=TicketCategory.ASSET_INTAKE,
                         priority=priority,
                         notes=notes,
-                        case_owner_id=int(case_owner_id) if case_owner_id else None
+                        case_owner_id=int(case_owner_id) if case_owner_id else None,
+                        queue_id=int(queue_id) if queue_id else None
                     )
 
                     flash('Asset intake ticket created successfully')

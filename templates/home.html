@@ -251,7 +251,7 @@
                 <div class="stat-title">Inventory</div>
                 <p class="text-gray-600 text-sm mb-3">Manage Tech Assets</p>
                 {% endif %}
-                <a href="{{ url_for('inventory.view_inventory') }}" class="action-btn" style="background: #f0f4ff; color: #667eea;">
+                <a href="{{ url_for('inventory.view_inventory_sf') }}" class="action-btn" style="background: #f0f4ff; color: #667eea;">
                     View Inventory →
                 </a>
             </div>
@@ -271,7 +271,7 @@
                 <div class="stat-title">Tickets</div>
                 <p class="text-gray-600 text-sm mb-3">Manage Support Tickets</p>
                 {% endif %}
-                <a href="{{ url_for('tickets.list_tickets') }}" class="action-btn" style="background: #d1fae5; color: #10b981;">
+                <a href="{{ url_for('tickets.list_tickets_sf') }}" class="action-btn" style="background: #d1fae5; color: #10b981;">
                     View Tickets →
                 </a>
             </div>
@@ -755,7 +755,7 @@
                     </svg>
                     Refresh All
                 </button>
-                <a href="{{ url_for('tickets.list_tickets') }}" class="text-sm text-red-600 hover:text-red-800">View All →</a>
+                <a href="{{ url_for('tickets.list_tickets_sf') }}" class="text-sm text-red-600 hover:text-red-800">View All →</a>
             </div>
         </div>
 

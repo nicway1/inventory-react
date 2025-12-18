@@ -45,6 +45,6 @@
 </div>
 {% if data.get('tickets', [])|length > 10 %}
 <div style="text-align: center; padding-top: 0.75rem; border-top: 1px solid var(--sf-gray-200); margin-top: 0.5rem;">
-    <a href="{{ url_for('tickets.list_tickets') }}" style="font-size: 0.8125rem; color: var(--sf-blue); text-decoration: none;">View all shipments <i class="fas fa-arrow-right"></i></a>
+    <a href="{{ url_for('tickets.list_tickets_sf') }}" style="font-size: 0.8125rem; color: var(--sf-blue); text-decoration: none;">View all shipments <i class="fas fa-arrow-right"></i></a>
 </div>
 {% endif %}

@@ -12,7 +12,7 @@
                 <p class="text-gray-600 mt-1">Generate barcode labels for your assets</p>
             </div>
             <div class="flex space-x-3">
-                <a href="{{ url_for('inventory.view_inventory') }}" 
+                <a href="{{ url_for('inventory.view_inventory_sf') }}" 
                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md inline-flex items-center">
                     <i class="fas fa-arrow-left mr-2"></i>
                     Back to Inventory
@@ -228,7 +228,7 @@
                             No assets with serial numbers found. Make sure your assets have serial numbers before generating labels.
                         </p>
                         <div class="mt-4">
-                            <a href="{{ url_for('inventory.view_inventory') }}" 
+                            <a href="{{ url_for('inventory.view_inventory_sf') }}" 
                                class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm">
                                 Go to Inventory
                             </a>

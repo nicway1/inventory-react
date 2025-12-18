@@ -2,6 +2,6 @@
 <div class="stat-value text-green">{{ data.get('open', 0) | default(0) }}</div>
 <div class="stat-label">Open Tickets</div>
 <div class="stat-subtitle">Total: {{ data.get('total', 0) | default(0) }} | Resolved: {{ data.get('resolved', 0) | default(0) }}</div>
-<a href="{{ url_for('tickets.list_tickets') }}" class="stat-action">
+<a href="{{ url_for('tickets.list_tickets_sf') }}" class="stat-action">
     View Tickets <i class="fas fa-arrow-right"></i>
 </a>

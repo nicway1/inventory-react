@@ -89,7 +89,7 @@
 
 <div class="launchpad-grid">
     {# Tickets - available to all users #}
-    <a href="{{ url_for('tickets.list_tickets') }}" class="launchpad-item">
+    <a href="{{ url_for('tickets.list_tickets_sf') }}" class="launchpad-item">
         <div class="launchpad-icon lp-green">
             <i class="fas fa-ticket-alt"></i>
         </div>
@@ -106,7 +106,7 @@
 
     {# Inventory - SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN #}
     {% if session.get('user_type') in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'] %}
-    <a href="{{ url_for('inventory.view_inventory') }}" class="launchpad-item">
+    <a href="{{ url_for('inventory.view_inventory_sf') }}" class="launchpad-item">
         <div class="launchpad-icon lp-purple">
             <i class="fas fa-boxes"></i>
         </div>

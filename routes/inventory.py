@@ -3455,9 +3455,9 @@ def update_asset_status(asset_id):
 @inventory_bp.route('/accessories/add', methods=['GET', 'POST'])
 @login_required
 def add_accessory():
-    if request.method == 'POST':
-        db_session = db_manager.get_session()
-        try:
+    db_session = db_manager.get_session()
+    try:
+        if request.method == 'POST':
             # Create new accessory from form data
             new_accessory = Accessory(
                 name=request.form['name'],
@@ -3495,18 +3495,24 @@ def add_accessory():
             )
             db_session.add(activity)
             db_session.commit()
-            
+
             flash('Accessory added successfully!', 'success')
             return redirect(url_for('inventory.view_accessories'))
-            
-        except Exception as e:
-            db_session.rollback()
-            flash(f'Error adding accessory: {str(e)}', 'error')
-            return redirect(url_for('inventory.add_accessory'))
-        finally:
-            db_session.close()
-            
-    return render_template('inventory/add_accessory.html')
+
+        # GET request - render the form with out of stock accessories
+        out_of_stock_accessories = db_session.query(Accessory).filter(
+            Accessory.available_quantity <= 0
+        ).order_by(Accessory.name).all()
+
+        return render_template('inventory/add_accessory.html',
+                               out_of_stock_accessories=out_of_stock_accessories)
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('inventory.view_accessories'))
+    finally:
+        db_session.close()
 
 @inventory_bp.route('/accessories/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -4807,31 +4813,61 @@ def search():
             )
         ).all()
 
-        # Find related tickets for found assets
+        # Find tickets directly linked to assets matching the search term
+        # This finds tickets where the related asset (via asset_id) matches our search
+        asset_linked_tickets = []
+        try:
+            # Search for tickets where the linked asset matches our search term
+            asset_linked_tickets = db_session.query(Ticket).join(
+                Asset, Ticket.asset_id == Asset.id
+            ).filter(
+                or_(
+                    Asset.serial_num.ilike(f'%{search_term}%'),
+                    Asset.asset_tag.ilike(f'%{search_term}%'),
+                    Asset.name.ilike(f'%{search_term}%'),
+                    Asset.model.ilike(f'%{search_term}%')
+                )
+            ).all()
+        except Exception as e:
+            logger.error(f"Error searching asset-linked tickets: {e}")
+
+        # Merge asset_linked_tickets with tickets (avoid duplicates)
+        ticket_ids = [t.id for t in tickets]
+        for t in asset_linked_tickets:
+            if t.id not in ticket_ids:
+                tickets.append(t)
+                ticket_ids.append(t.id)
+
+        # Find related tickets for found assets (additional related results)
         related_tickets = []
         if assets:
             # Get asset serial numbers and asset tags
             asset_serial_numbers = [asset.serial_num for asset in assets if asset.serial_num]
             asset_tags = [asset.asset_tag for asset in assets if asset.asset_tag]
             asset_ids = [asset.id for asset in assets]
-            
-            # Search for tickets related to these assets by serial number, asset tag, or asset ID
-            related_tickets_query = ticket_query.filter(
-                or_(
-                    Ticket.serial_number.in_(asset_serial_numbers) if asset_serial_numbers else False,
-                    Ticket.asset_id.in_(asset_ids) if asset_ids else False,
-                    # Also search for asset tags or serial numbers mentioned in ticket descriptions/notes
-                    *[Ticket.description.ilike(f'%{tag}%') for tag in asset_tags if tag],
-                    *[Ticket.notes.ilike(f'%{tag}%') for tag in asset_tags if tag],
-                    *[Ticket.description.ilike(f'%{serial}%') for serial in asset_serial_numbers if serial],
-                    *[Ticket.notes.ilike(f'%{serial}%') for serial in asset_serial_numbers if serial]
-                )
-            )
-            
-            related_tickets = related_tickets_query.all()
-            
+
+            # Build conditions list for the query
+            conditions = []
+            if asset_serial_numbers:
+                conditions.append(Ticket.serial_number.in_(asset_serial_numbers))
+            if asset_ids:
+                conditions.append(Ticket.asset_id.in_(asset_ids))
+
+            # Add description/notes search for asset tags and serial numbers
+            for tag in asset_tags[:5]:  # Limit to avoid too many conditions
+                if tag:
+                    conditions.append(Ticket.description.ilike(f'%{tag}%'))
+                    conditions.append(Ticket.notes.ilike(f'%{tag}%'))
+            for serial in asset_serial_numbers[:5]:
+                if serial:
+                    conditions.append(Ticket.description.ilike(f'%{serial}%'))
+                    conditions.append(Ticket.notes.ilike(f'%{serial}%'))
+
+            if conditions:
+                related_tickets_query = ticket_query.filter(or_(*conditions))
+                related_tickets = related_tickets_query.all()
+
             # Remove duplicates if a ticket appears in both direct search and related search
-            ticket_ids = [t.id for t in tickets]
             related_tickets = [t for t in related_tickets if t.id not in ticket_ids]
 
         return render_template('inventory/search_results.html',
@@ -4844,6 +4880,126 @@ def search():
                              user=user)
     finally:
         db_session.close()
+
+
+@inventory_bp.route('/search/suggestions')
+@login_required
+def search_suggestions():
+    """Return search suggestions for autocomplete"""
+    from flask import jsonify
+    from models.ticket import Ticket
+    from models.customer_user import CustomerUser
+
+    search_term = request.args.get('q', '').strip()
+    if not search_term or len(search_term) < 2:
+        return jsonify({'suggestions': []})
+
+    db_session = db_manager.get_session()
+    try:
+        user = db_session.query(User).get(session['user_id'])
+        suggestions = []
+
+        # Search assets (limit 5)
+        asset_query = db_session.query(Asset)
+        if user.user_type == UserType.CLIENT and user.company:
+            asset_query = asset_query.filter(
+                or_(Asset.company_id == user.company_id, Asset.customer == user.company.name)
+            )
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+
+        assets = asset_query.filter(
+            or_(
+                Asset.serial_num.ilike(f'%{search_term}%'),
+                Asset.asset_tag.ilike(f'%{search_term}%'),
+                Asset.name.ilike(f'%{search_term}%'),
+                Asset.model.ilike(f'%{search_term}%')
+            )
+        ).limit(5).all()
+
+        for asset in assets:
+            suggestions.append({
+                'type': 'asset',
+                'icon': 'laptop',
+                'title': asset.asset_tag or asset.serial_num or asset.name,
+                'subtitle': f"{asset.name} • {asset.model or 'No model'}",
+                'url': url_for('inventory.view_asset', asset_id=asset.id)
+            })
+
+        # Search tickets (limit 5)
+        ticket_query = db_session.query(Ticket)
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+
+        tickets = ticket_query.filter(
+            or_(
+                Ticket.subject.ilike(f'%{search_term}%'),
+                Ticket.serial_number.ilike(f'%{search_term}%'),
+                Ticket.shipping_tracking.ilike(f'%{search_term}%'),
+                *([Ticket.id == int(search_term.replace('TICK-', '').replace('#', ''))]
+                  if search_term.replace('TICK-', '').replace('#', '').isdigit() else [])
+            )
+        ).limit(5).all()
+
+        for ticket in tickets:
+            status_color = {
+                'New': 'blue', 'In Progress': 'yellow', 'On Hold': 'orange',
+                'Resolved': 'green'
+            }.get(ticket.status.value if ticket.status else '', 'gray')
+            suggestions.append({
+                'type': 'ticket',
+                'icon': 'ticket-alt',
+                'title': ticket.display_id,
+                'subtitle': ticket.subject[:50] + ('...' if len(ticket.subject) > 50 else ''),
+                'status': ticket.status.value if ticket.status else 'Unknown',
+                'status_color': status_color,
+                'url': url_for('tickets.view_ticket', ticket_id=ticket.id)
+            })
+
+        # Search accessories (limit 3)
+        accessory_query = db_session.query(Accessory)
+        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
+            accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+
+        accessories = accessory_query.filter(
+            or_(
+                Accessory.name.ilike(f'%{search_term}%'),
+                Accessory.model_no.ilike(f'%{search_term}%'),
+                Accessory.category.ilike(f'%{search_term}%')
+            )
+        ).limit(3).all()
+
+        for acc in accessories:
+            suggestions.append({
+                'type': 'accessory',
+                'icon': 'plug',
+                'title': acc.name,
+                'subtitle': f"{acc.category or 'Accessory'} • Qty: {acc.available_quantity}/{acc.total_quantity}",
+                'url': url_for('inventory.view_accessory', id=acc.id)
+            })
+
+        # Search customers (limit 3) - only for super admin
+        if user.user_type == UserType.SUPER_ADMIN:
+            customers = db_session.query(CustomerUser).filter(
+                or_(
+                    CustomerUser.name.ilike(f'%{search_term}%'),
+                    CustomerUser.email.ilike(f'%{search_term}%')
+                )
+            ).limit(3).all()
+
+            for cust in customers:
+                suggestions.append({
+                    'type': 'customer',
+                    'icon': 'user',
+                    'title': cust.name,
+                    'subtitle': cust.email or 'No email',
+                    'url': url_for('inventory.view_customer_user', id=cust.id)
+                })
+
+        return jsonify({'suggestions': suggestions})
+    finally:
+        db_session.close()
+
 
 @inventory_bp.route('/export/<string:item_type>', methods=['GET', 'POST'])
 @login_required
